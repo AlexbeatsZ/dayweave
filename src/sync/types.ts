@@ -34,6 +34,7 @@ export type SyncStatus = {
 };
 export type SyncRequest = {
   seq: number;
+  name?: string;
   revision?: string;
   state?: AppState;
   base?: SyncDocument;

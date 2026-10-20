@@ -57,6 +57,7 @@ import { Focus } from './components/Focus';
 import { Statistics } from './components/Statistics';
 import { ListModal, Settings } from './components/Settings';
 import { applyTheme } from './theme';
+import { pendingPairingKey } from './sync/invitation';
 
 const navigation = [
   { view: 'timetable', label: '课程表', Icon: CalendarDays },
@@ -107,6 +108,9 @@ export function App() {
   const [sort, setSort] = useState<'manual' | 'date' | 'priority'>('manual');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [settings, setSettings] = useState(false);
+  useEffect(() => {
+    if (snapshot.loaded && sessionStorage.getItem(pendingPairingKey)) setSettings(true);
+  }, [snapshot.loaded]);
   const [editingList, setEditingList] = useState<TaskList | 'new' | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
   const [clock, setClock] = useState(Date.now());

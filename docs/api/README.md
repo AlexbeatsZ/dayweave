@@ -25,6 +25,8 @@ node api.mjs GET /schedule/next
 
 原始仓库中 CLI 路径是 `scripts/api.mjs`；AI 工具 ZIP 中为 `api.mjs`。本机 AI 读取 `api.json` 即可直接发 HTTP 请求。
 
+需要登录后后台运行时，用稳定路径的 `Dayweave.exe --tray` 作为当前用户登录任务：启动隐藏到托盘，关闭主窗口后仍提供同一个 API 和同步中心。不要同时再启动占用同一 profile 的 headless 服务；托盘「退出时织」才会停止后台程序。
+
 ### ROG 无界面服务
 
 解压 AI 工具包，仅需现有 Node.js 24，无需 npm 安装。默认数据路径与桌面一致。
@@ -48,10 +50,10 @@ node api.mjs --profile 'C:\Users\Meta\Project\Workspaces\dayweave-data' GET /con
 可用 SSH 隧道连接运行 Dayweave 的电脑，保留 loopback 与 Bearer 保护。例如在 ROG 执行：
 
 ```powershell
-ssh -N -L 49732:127.0.0.1:49731 meta@192.168.31.214
+ssh -N -L 49733:127.0.0.1:49731 meta@192.168.31.214
 ```
 
-实际目标电脑、远端端口以其发现文件为准。AI 通过 `127.0.0.1:49732` 调用，并在本地安全配置中使用目标 profile 的令牌。CLI 有意拒绝远程 URL，隧道端点仍是本机地址。
+实际目标电脑、远端端口以其发现文件为准。AI 通过 `127.0.0.1:49733` 调用，并在本地安全配置中使用目标 profile 的令牌。避免与本机 LAN 同步端口 49732 冲突。CLI 有意拒绝远程 URL，隧道端点仍是本机地址。
 
 ## 常用端点
 

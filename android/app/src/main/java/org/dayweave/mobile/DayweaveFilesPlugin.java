@@ -27,6 +27,11 @@ public class DayweaveFilesPlugin extends Plugin {
     private String exporting;
     private final java.util.concurrent.ExecutorService network = java.util.concurrent.Executors.newSingleThreadExecutor();
     private boolean discovering = false;
+    @PluginMethod
+    public void deviceInfo(PluginCall call) {
+        boolean tablet=getContext().getResources().getConfiguration().smallestScreenWidthDp>=600;
+        call.resolve(new JSObject().put("name",(tablet?"平板 · ":"手机 · ")+android.os.Build.MODEL));
+    }
 
     private String endpoint(String value) throws Exception {
         java.net.URI uri = new java.net.URI(value);
@@ -77,9 +82,12 @@ public class DayweaveFilesPlugin extends Plugin {
                     public void onResolveFailed(android.net.nsd.NsdServiceInfo service,int code){handler.post(()->{resolving[0]=false;next[0].run();});}
                     public void onServiceResolved(android.net.nsd.NsdServiceInfo service){
                         try{
-                            String address=endpoint("http://"+service.getHost().getHostAddress()+":"+service.getPort());
                             byte[] id=service.getAttributes().get("id");
-                            if(id!=null)found.put(address,new JSONObject().put("name",service.getServiceName()).put("endpoint",address).put("hubId",new String(id,StandardCharsets.UTF_8)));
+                            java.util.List<java.net.InetAddress> addresses=android.os.Build.VERSION.SDK_INT>=34?service.getHostAddresses():java.util.Collections.singletonList(service.getHost());
+                            for(java.net.InetAddress host:addresses)if(host instanceof java.net.Inet4Address) {
+                                String address=endpoint("http://"+host.getHostAddress()+":"+service.getPort());
+                                if(id!=null)found.put(address,new JSONObject().put("name",service.getServiceName()).put("endpoint",address).put("hubId",new String(id,StandardCharsets.UTF_8)));
+                            }
                         }catch(Exception ignored){}
                         handler.post(()->{resolving[0]=false;next[0].run();});
                     }

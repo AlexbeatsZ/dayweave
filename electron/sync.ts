@@ -225,6 +225,8 @@ export class DesktopSync implements SyncBridge {
               if (!Number.isSafeInteger(value.seq) || value.seq <= peer.seq)
                 throw new Error('拒绝重放消息');
               peer.seq = value.seq;
+              if (typeof value.name === 'string' && value.name.length <= 100)
+                peer.name = value.name;
               await this.client.save();
               let conflicts: ReturnType<typeof mergeDocuments>['conflicts'] = [];
               const snapshot = value.state
@@ -281,12 +283,20 @@ export class DesktopSync implements SyncBridge {
     this.server = server;
     c.hub!.port = (server.address() as { port: number }).port;
     if (this.discovery) {
-      this.publisher = new Bonjour(undefined, (error: Error) => {
-        this.client.error = `局域网发现不可用：${error.message}，可使用手动地址。`;
-      });
+      const address = lanAddresses(c.hub!.port)[0];
+      const iface = address ? new URL(address).hostname : undefined;
+      this.publisher = new Bonjour(
+        iface
+          ? ({ bind: '0.0.0.0', interface: iface } as ConstructorParameters<typeof Bonjour>[0])
+          : undefined,
+        (error: Error) => {
+          this.client.error = `局域网发现不可用：${error.message}，可使用手动地址。`;
+        },
+      );
       this.publisher.publish({
         name: `时织 · ${c.name}`,
         type: 'dayweave',
+        disableIPv6: true,
         port: c.hub!.port,
         txt: { id: c.deviceId, version: '1' },
       });

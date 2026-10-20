@@ -88,6 +88,14 @@ public class CourseWidgetProvider extends AppWidgetProvider {
         for(CourseSchedule.Event e:events){if(e.start>now&&(boundary==0||e.start<boundary))boundary=e.start;if(e.end>now&&(boundary==0||e.end<boundary))boundary=e.end;}
         for(int kind=0;kind<2;kind++)for(int id:kind==0?wide:small){
             RemoteViews views=new RemoteViews(context.getPackageName(),kind==0?R.layout.course_widget:R.layout.course_widget_compact);
+            // Tablet launcher cells can be much taller than their nominal 2-row size.
+            // Keep the same hierarchy, with readable type instead of a tiny corner of content.
+            if(manager.getAppWidgetOptions(id).getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT,110)>=180){
+                views.setTextViewTextSize(R.id.widget_title,android.util.TypedValue.COMPLEX_UNIT_SP,kind==0?26:21);
+                views.setTextViewTextSize(R.id.widget_time,android.util.TypedValue.COMPLEX_UNIT_SP,kind==0?17:13);
+                views.setTextViewTextSize(R.id.widget_countdown,android.util.TypedValue.COMPLEX_UNIT_SP,kind==0?28:20);
+                views.setTextViewTextSize(R.id.widget_location,android.util.TypedValue.COMPLEX_UNIT_SP,14);
+            }
             views.setTextViewText(R.id.widget_status,current!=null?"正在上课":"下一节课");
             views.setTextViewText(R.id.widget_title,error!=null?error:item!=null?item.name:data==null?"打开时织，导入课程":"接下来没有课程");
             views.setTextViewText(R.id.widget_time,item!=null?format(item.start,zone,"MM-dd HH:mm")+"–"+format(item.end,zone,"HH:mm"):"待办 · 时间 · 课程");

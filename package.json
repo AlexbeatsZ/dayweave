@@ -42,7 +42,8 @@
     "dist:win": "npm run build && node scripts/package-windows.mjs",
     "serve:api": "node dist-electron/electron/headless.js",
     "bundle:ai": "npm run api:docs && node scripts/bundle-ai.mjs",
-    "test:headless": "node scripts/smoke-headless.mjs"
+    "test:headless": "node scripts/smoke-headless.mjs",
+    "test:tray": "npm run build && node scripts/smoke-tray.mjs"
   },
   "build": {
     "appId": "org.dayweave.desktop",

@@ -4,6 +4,7 @@ import { JsonRepository } from './persistence';
 import { stateSchema } from './model';
 import { SyncClient } from './sync/client';
 import { store } from './store';
+import { invitationText, pendingPairingKey } from './sync/invitation';
 let syncClient: SyncClient | undefined;
 let appActive = true;
 let syncBusy = false;
@@ -49,6 +50,7 @@ export async function initializeMobile() {
     onBeforeClose: () => {},
     readyToClose: () => {},
   };
+  const deviceName = (await files.deviceInfo()).name;
   syncClient = new SyncClient(
     {
       read: async () => (await files.read({ name: 'sync.json' })).content,
@@ -62,11 +64,15 @@ export async function initializeMobile() {
       mutate: (transform) => store.transact(transform),
     },
     async (endpoint, path, body) => (await files.postSync({ endpoint, path, body })).body,
-    /tablet/i.test(navigator.userAgent) || innerWidth >= 800 ? '小米平板' : '小米手机',
+    deviceName,
     async () => (await files.discoverSync()).peers,
   );
   try {
     await syncClient.load();
+    if (['小米手机', '小米平板'].includes(syncClient.config.name)) {
+      syncClient.config.name = deviceName;
+      await syncClient.save();
+    }
     const client = syncClient;
     window.clearlist.sync = {
       status: async () => client.status(),
@@ -106,6 +112,15 @@ export async function initializeMobile() {
   });
   const openUrl = (url: string) => {
     if (url === 'dayweave://timetable') location.hash = 'timetable';
+    if (url.startsWith('dayweave://pair?'))
+      try {
+        invitationText(url);
+        sessionStorage.setItem(pendingPairingKey, url);
+        document.dispatchEvent(new Event('dayweave:pairing'));
+        document.dispatchEvent(new Event('clearlist:settings'));
+      } catch {
+        /* Invalid links do not change pairing or data. */
+      }
   };
   const launch = await NativeApp.getLaunchUrl();
   if (launch?.url) openUrl(launch.url);

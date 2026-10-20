@@ -1,5 +1,6 @@
 import { localEndpoint, openEnvelope, seal, type Envelope } from './crypto.js';
 import { fromDocument, overlayNewEdits, stable, toDocument } from './document.js';
+import { invitationText } from './invitation.js';
 import type { Peer, SyncConfig, SyncReply, SyncState, SyncStatus, SyncStorage } from './types.js';
 
 export class SyncClient {
@@ -64,7 +65,7 @@ export class SyncClient {
   pair(invitation: string, endpoint?: string) {
     return this.exclusive(async () => {
       if (this.config.hub) throw new Error('请先关闭本机同步中心。');
-      const value = JSON.parse(invitation.trim()) as {
+      const value = JSON.parse(invitationText(invitation)) as {
         version: number;
         hubId: string;
         key: string;
@@ -133,6 +134,7 @@ export class SyncClient {
         await this.save();
         const request = {
           seq: c.seq,
+          name: c.name,
           revision: c.revision,
           ...(dirty ? { state: (await this.state.snapshot()).state, base: c.base ?? {} } : {}),
         };

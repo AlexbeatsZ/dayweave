@@ -14,6 +14,7 @@ import {
 } from '../src/sync/document.js';
 import { seal, openEnvelope, randomKey, localEndpoint, type Envelope } from '../src/sync/crypto.js';
 import { SyncClient, fetchEnvelope } from '../src/sync/client.js';
+import { pairingLink } from '../src/sync/invitation.js';
 import { DesktopSync } from '../electron/sync.js';
 import { StateService } from '../electron/state-service.js';
 import { FileStore } from '../electron/storage.js';
@@ -149,7 +150,7 @@ test('real encrypted hub with two clients: pairing, offline merge, cross-device 
   try {
     await a.client.load();
     await b.client.load();
-    await a.client.pair(await hub.invite(), endpoint);
+    await a.client.pair(pairingLink(await hub.invite()), endpoint);
     await a.client.now();
     assert.equal(a.client.connected, true, a.client.error);
     await b.client.pair(await hub.invite(), endpoint);

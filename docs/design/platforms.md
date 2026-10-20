@@ -19,6 +19,10 @@ React / TypeScript 继续负责任务、日期、重复、专注、统计和 v1 
 - Apple Silicon 与 Intel 分别构建 DMG / ZIP；没有 Developer ID 时提供 ad-hoc 签名并明确未公证。构建验证与真实 Mac 运行、下载后的 Gatekeeper 体验分别报告。
 - 运行时最低 macOS 13，与 Electron 44 的支持范围一致，不能只修改 Info.plist 来宣称支持更旧系统。
 
+## 托盘启动
+
+桌面以 `--tray` 启动时创建隐藏主窗口和系统托盘，后台 API/同步继续运行。点击托盘或不带 `--tray` 的第二次启动可显示窗口；关闭窗口先完成保存，再隐藏回托盘。托盘提供打开、设置与配对、立即同步及显式退出。普通启动保留原平台关闭行为。Windows 登录任务直接指向稳定安装路径的 `Dayweave.exe --tray`，使用当前用户交互会话和最低权限，不启动可见终端。
+
 ## 暗色与触摸
 
 - 单一主题偏好仍为 light / dark / system；把解析与应用集中到独立模块，启动时先应用上次主题，数据加载后使用真实设置。系统跟随模式持续响应变化。
@@ -28,3 +32,5 @@ React / TypeScript 继续负责任务、日期、重复、专注、统计和 v1 
 ## Dayweave 课程组件
 
 CourseWidgetProvider / CompactCourseWidgetProvider 放在 :widgetProvider。主进程每次持久化后生成只含 schedule 的小快照，组件只读快照并用 CourseSchedule/java.time 计算实例，不加载 React/Capacitor。组件刷新遵循 Android 与小米官方规范（https://dev.mi.com/xiaomihyperos/documentation/detail?pId=1584）。不申请精确闹钟权限；后台省电可能延迟边界刷新，曝光、写入与打开应用会刷新。
+
+侧载 APK 使用标准 Android provider 注册，不设置小米商店的 miuiWidget/miuiWidgetVersion 标记。Pad 6 Pro 实测可在「小组件 → 安卓小部件 → 时织」找到并添加；之前带商店标记时在已检查的选择器中不可见。保留独立进程与曝光事件兼容。requestPinAppWidget 返回成功但未显示确认，因此界面始终提供手动路径。组件用 values/values-night 共用蓝灰色资源，内容垂直居中，较高的平板单元格放大标题和倒计时。

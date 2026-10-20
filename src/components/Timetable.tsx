@@ -605,7 +605,9 @@ export function Timetable({ clock }: { clock: number }) {
               try {
                 const r = await requestWidget();
                 setNotice(
-                  r.requested ? '请在桌面确认添加课程小组件' : '请长按桌面 → 小组件 → 时织课程表',
+                  r.requested
+                    ? '已请求添加；若桌面未提示，请从小组件 → 安卓小部件中选择时织'
+                    : '请从桌面的小组件 → 安卓小部件中选择时织',
                 );
               } catch (e) {
                 setError(errorText(e));

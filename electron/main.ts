@@ -1,4 +1,14 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu, Notification, nativeTheme } from 'electron';
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  Menu,
+  Notification,
+  nativeTheme,
+  Tray,
+  nativeImage,
+} from 'electron';
 import { readFile, writeFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -27,6 +37,8 @@ let api: Awaited<ReturnType<typeof startApi>> | undefined;
 let apiError = '';
 let sync: DesktopSync | undefined;
 let syncError = '';
+const trayMode = process.argv.includes('--tray');
+let tray: Tray | undefined;
 const locked = app.requestSingleInstanceLock();
 if (!locked) app.quit();
 else {
@@ -49,7 +61,7 @@ else {
       throw new Error('文件超过 50 MB 限制');
     return JSON.parse(await readFile(result.filePaths[0], 'utf8'));
   }
-  function createWindow() {
+  function createWindow(visible = true) {
     allowClose = false;
     closing = false;
     window = new BrowserWindow({
@@ -58,6 +70,7 @@ else {
       minWidth: 900,
       minHeight: 640,
       title: '时织 · Dayweave',
+      show: false,
       backgroundColor: nativeTheme.shouldUseDarkColors ? '#182230' : '#f9fbfe',
       autoHideMenuBar: true,
       ...(process.platform === 'darwin'
@@ -71,6 +84,7 @@ else {
         spellcheck: false,
       },
     });
+    if (visible) window.once('ready-to-show', () => window?.show());
     window.on('close', (event) => {
       if (allowClose || window?.webContents.isLoadingMainFrame() || window?.webContents.isCrashed())
         return;
@@ -90,11 +104,15 @@ else {
       if (quitting) app.quit();
     });
   }
-  app.on('second-instance', () => {
+  const showWindow = () => {
     if (!window) createWindow();
     window?.restore();
     window?.show();
     window?.focus();
+  };
+  app.on('second-instance', (_event, argv) => {
+    if (argv.includes('--tray')) return;
+    showWindow();
   });
   app.on('before-quit', () => {
     quitting = true;
@@ -263,19 +281,52 @@ else {
           return;
         }
       }
-      allowClose = true;
-      window?.close();
+      if (trayMode && !quitting) {
+        closing = false;
+        window?.hide();
+      } else {
+        allowClose = true;
+        window?.close();
+      }
     });
     service.subscribe((snapshot) => {
       nativeTheme.themeSource = snapshot.state.settings.theme;
       window?.webContents.send('store:changed', snapshot);
     });
-    createWindow();
+    createWindow(!trayMode);
     await initializeApi();
     try {
       sync = await new DesktopSync(service, app.getPath('userData')).initialize();
     } catch (error) {
       syncError = (error as Error).message;
+    }
+    if (trayMode) {
+      const icon = nativeImage
+        .createFromPath(path.join(directory, '../../dist/tray.png'))
+        .resize({ width: 20, height: 20 });
+      tray = new Tray(icon);
+      tray.setToolTip('时织 · Dayweave');
+      tray.setContextMenu(
+        Menu.buildFromTemplate([
+          { label: '打开时织', click: showWindow },
+          {
+            label: '设置与配对',
+            click: () => {
+              showWindow();
+              window?.webContents.send('app:open-settings');
+            },
+          },
+          {
+            label: '立即同步',
+            click: () => {
+              void sync?.now();
+            },
+          },
+          { type: 'separator' },
+          { label: '退出时织', click: () => app.quit() },
+        ]),
+      );
+      tray.on('click', showWindow);
     }
     app.on('activate', () => {
       if (!window) createWindow();
@@ -293,10 +344,11 @@ else {
     }
   }
   app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin') app.quit();
+    if (process.platform !== 'darwin' && (!trayMode || quitting)) app.quit();
   });
   app.on('will-quit', () => {
     void api?.close();
     void sync?.close();
+    tray?.destroy();
   });
 }

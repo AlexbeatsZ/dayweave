@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react';
 import { Copy, RefreshCw, Wifi, Link, Unlink, Server } from 'lucide-react';
 import type { Peer, SyncStatus } from '../sync/types';
+import { pairingLink, pendingPairingKey } from '../sync/invitation';
 
 export function SyncSettings() {
   const bridge = window.clearlist?.sync;
   const [status, setStatus] = useState<SyncStatus>();
   const [peers, setPeers] = useState<Peer[]>([]);
-  const [invitation, setInvitation] = useState(''),
+  const [invitation, setInvitation] = useState(
+      () => sessionStorage.getItem(pendingPairingKey) ?? '',
+    ),
     [generated, setGenerated] = useState(''),
     [endpoint, setEndpoint] = useState('');
   const [error, setError] = useState(''),
@@ -24,6 +27,19 @@ export function SyncSettings() {
       setBusy(false);
     }
   };
+  useEffect(() => {
+    const receive = () => {
+      const text = sessionStorage.getItem(pendingPairingKey);
+      if (text) {
+        setInvitation(text);
+        setError('');
+        sessionStorage.removeItem(pendingPairingKey);
+      }
+    };
+    receive();
+    document.addEventListener('dayweave:pairing', receive);
+    return () => document.removeEventListener('dayweave:pairing', receive);
+  }, []);
   useEffect(() => {
     if (!bridge) return;
     let live = true;
@@ -78,7 +94,7 @@ export function SyncSettings() {
                 disabled={busy}
                 onClick={() =>
                   void run(async () => {
-                    setGenerated(await bridge.invite!());
+                    setGenerated(pairingLink(await bridge.invite!()));
                     setCopied(false);
                   })
                 }

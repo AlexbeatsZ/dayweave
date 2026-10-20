@@ -9,10 +9,13 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 - Repository: https://github.com/AlexbeatsZ/dayweave, own main.
 - ROG hub encrypted LAN sync, mDNS discovery and first-use invitations; offline three-way merges preserve conflicts. Canonical time records are open while endAt=null.
 - Phone Redmi K70 and Pad 6 Pro have independent APK installed; installation and updates authorized. Never clear either profile. Device endpoints belong in the private task log.
+- ROG runs the packaged desktop with --tray in current-user DayweaveHub logon task. Hidden startup, close-to-tray and active background API verified; no reboot/logoff performed.
+- Real phone-start/tablet-stop synchronization preserved one record ID. Tablet 4x2 widget added through the standard Android picker, reads synced courses and opens the timetable. Phone widget checks paused at user's request; do not operate the phone while they are using it.
 
 # Active Work
 
-- Implement and validate unified persistence/API/UI, course import and native widgets. Build Windows/APK/macOS arm64+x64 and publish 0.3.0.
+- Finish final cross-platform CI/packages and publish 0.3.0; preserve actual device evidence separately from build checks.
+- LAN direct pairing works. Automatic mDNS discovery on the actual LAN remains unconfirmed. Android sync is foreground/resume only; background instantaneous propagation is not implemented.
 - Preserve keys only under ignored .local. Keep original repos/profiles untouched.
 
 # Build / Run / Test
@@ -26,6 +29,7 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 - Save timestamps/segments, never tick counts. Storage corruption must remain recoverable, never silently become empty state.
 - All UI and API writes share StateService; module changes have optimistic conflict checks.
 - Xiaomi widgets have a separate :widgetProvider process and must read persisted app-private data without launching the WebView.
+- For sideloaded builds, omit Xiaomi-market miuiWidget/miuiWidgetVersion markers: the standard Android picker then exposes both variants on the tested Pad 6 Pro. A successful requestPinAppWidget result does not prove Xiaomi showed a confirmation; keep manual picker instructions.
 
 # Docs Index
 
