@@ -31,11 +31,7 @@
           "title": { "type": "string", "minLength": 1, "maxLength": 500 },
           "notes": { "type": "string", "maxLength": 50000 },
           "listId": { "type": "string", "minLength": 1, "maxLength": 100 },
-          "due": {
-            "nullable": true,
-            "type": "string",
-            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-          },
+          "due": { "nullable": true, "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
           "priority": {
             "anyOf": [
               { "type": "number", "enum": [1] },
@@ -63,23 +59,10 @@
               "additionalProperties": false
             }
           },
-          "repeat": {
-            "type": "string",
-            "enum": ["none", "daily", "weekly", "monthly"]
-          },
+          "repeat": { "type": "string", "enum": ["none", "daily", "weekly", "monthly"] },
           "repeatDay": { "type": "integer", "minimum": 1, "maximum": 31 },
-          "spawnedId": {
-            "nullable": true,
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 100
-          },
-          "parentId": {
-            "nullable": true,
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 100
-          },
+          "spawnedId": { "nullable": true, "type": "string", "minLength": 1, "maxLength": 100 },
+          "parentId": { "nullable": true, "type": "string", "minLength": 1, "maxLength": 100 },
           "pinned": { "type": "boolean" },
           "order": { "type": "number" },
           "createdAt": {
@@ -154,10 +137,7 @@
             },
             "type": "object",
             "properties": {
-              "semesterStart": {
-                "type": "string",
-                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-              },
+              "semesterStart": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
               "totalWeeks": { "type": "integer", "minimum": 1, "maximum": 60 },
               "timeZone": { "type": "string", "maxLength": 100 },
               "courses": {
@@ -166,62 +146,29 @@
                 "items": {
                   "type": "object",
                   "properties": {
-                    "id": {
-                      "type": "string",
-                      "minLength": 1,
-                      "maxLength": 200
-                    },
-                    "name": {
-                      "type": "string",
-                      "minLength": 1,
-                      "maxLength": 300
-                    },
-                    "teacher": {
-                      "default": "",
-                      "type": "string",
-                      "maxLength": 300
-                    },
-                    "location": {
-                      "default": "",
-                      "type": "string",
-                      "maxLength": 500
-                    },
+                    "id": { "type": "string", "minLength": 1, "maxLength": 200 },
+                    "name": { "type": "string", "minLength": 1, "maxLength": 300 },
+                    "teacher": { "default": "", "type": "string", "maxLength": 300 },
+                    "location": { "default": "", "type": "string", "maxLength": 500 },
                     "color": {
                       "default": "#4264b2",
                       "type": "string",
                       "pattern": "^#[\\da-f]{6}$"
                     },
-                    "weekday": {
-                      "type": "integer",
-                      "minimum": 1,
-                      "maximum": 7
-                    },
-                    "start": {
-                      "type": "string",
-                      "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
-                    },
-                    "end": {
-                      "type": "string",
-                      "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
-                    },
+                    "weekday": { "type": "integer", "minimum": 1, "maximum": 7 },
+                    "start": { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" },
+                    "end": { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" },
                     "weeks": {
                       "minItems": 1,
                       "maxItems": 60,
                       "type": "array",
-                      "items": {
-                        "type": "integer",
-                        "minimum": 1,
-                        "maximum": 60
-                      }
+                      "items": { "type": "integer", "minimum": 1, "maximum": 60 }
                     },
                     "excludedDates": {
                       "default": [],
                       "maxItems": 500,
                       "type": "array",
-                      "items": {
-                        "type": "string",
-                        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-                      }
+                      "items": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" }
                     },
                     "updatedAt": { "type": "number", "minimum": 0 }
                   },
@@ -247,27 +194,11 @@
                 "items": {
                   "type": "object",
                   "properties": {
-                    "id": {
-                      "type": "string",
-                      "minLength": 1,
-                      "maxLength": 500
-                    },
+                    "id": { "type": "string", "minLength": 1, "maxLength": 500 },
                     "courseId": { "type": "string", "maxLength": 200 },
-                    "name": {
-                      "type": "string",
-                      "minLength": 1,
-                      "maxLength": 300
-                    },
-                    "teacher": {
-                      "default": "",
-                      "type": "string",
-                      "maxLength": 300
-                    },
-                    "location": {
-                      "default": "",
-                      "type": "string",
-                      "maxLength": 500
-                    },
+                    "name": { "type": "string", "minLength": 1, "maxLength": 300 },
+                    "teacher": { "default": "", "type": "string", "maxLength": 300 },
+                    "location": { "default": "", "type": "string", "maxLength": 500 },
                     "color": {
                       "default": "#4264b2",
                       "type": "string",
@@ -296,10 +227,7 @@
               "holidays": {
                 "maxItems": 1000,
                 "type": "array",
-                "items": {
-                  "type": "string",
-                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-                }
+                "items": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" }
               }
             },
             "required": [
@@ -337,16 +265,8 @@
                 "id": { "type": "string", "minLength": 1, "maxLength": 100 },
                 "title": { "type": "string", "minLength": 1, "maxLength": 500 },
                 "notes": { "type": "string", "maxLength": 50000 },
-                "listId": {
-                  "type": "string",
-                  "minLength": 1,
-                  "maxLength": 100
-                },
-                "due": {
-                  "nullable": true,
-                  "type": "string",
-                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-                },
+                "listId": { "type": "string", "minLength": 1, "maxLength": 100 },
+                "due": { "nullable": true, "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
                 "priority": {
                   "anyOf": [
                     { "type": "number", "enum": [1] },
@@ -366,26 +286,15 @@
                   "items": {
                     "type": "object",
                     "properties": {
-                      "id": {
-                        "type": "string",
-                        "minLength": 1,
-                        "maxLength": 100
-                      },
-                      "title": {
-                        "type": "string",
-                        "minLength": 1,
-                        "maxLength": 500
-                      },
+                      "id": { "type": "string", "minLength": 1, "maxLength": 100 },
+                      "title": { "type": "string", "minLength": 1, "maxLength": 500 },
                       "done": { "type": "boolean" }
                     },
                     "required": ["id", "title", "done"],
                     "additionalProperties": false
                   }
                 },
-                "repeat": {
-                  "type": "string",
-                  "enum": ["none", "daily", "weekly", "monthly"]
-                },
+                "repeat": { "type": "string", "enum": ["none", "daily", "weekly", "monthly"] },
                 "repeatDay": { "type": "integer", "minimum": 1, "maximum": 31 },
                 "spawnedId": {
                   "nullable": true,
@@ -454,12 +363,7 @@
               "type": "object",
               "properties": {
                 "id": { "type": "string", "minLength": 1, "maxLength": 100 },
-                "taskId": {
-                  "nullable": true,
-                  "type": "string",
-                  "minLength": 1,
-                  "maxLength": 100
-                },
+                "taskId": { "nullable": true, "type": "string", "minLength": 1, "maxLength": 100 },
                 "title": { "type": "string", "maxLength": 500 },
                 "minutes": { "type": "integer", "minimum": 1, "maximum": 180 },
                 "completedAt": {
@@ -477,68 +381,26 @@
             "type": "object",
             "properties": {
               "id": { "type": "string", "minLength": 1, "maxLength": 100 },
-              "taskId": {
-                "nullable": true,
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 100
-              },
+              "taskId": { "nullable": true, "type": "string", "minLength": 1, "maxLength": 100 },
               "title": { "type": "string", "maxLength": 500 },
               "kind": { "type": "string", "enum": ["focus", "break"] },
-              "duration": {
-                "type": "integer",
-                "minimum": 60,
-                "maximum": 10800
-              },
-              "remaining": {
-                "type": "integer",
-                "minimum": 0,
-                "maximum": 10800
-              },
+              "duration": { "type": "integer", "minimum": 60, "maximum": 10800 },
+              "remaining": { "type": "integer", "minimum": 0, "maximum": 10800 },
               "endAt": { "nullable": true, "type": "number", "minimum": 0 }
             },
-            "required": [
-              "id",
-              "taskId",
-              "title",
-              "kind",
-              "duration",
-              "remaining",
-              "endAt"
-            ],
+            "required": ["id", "taskId", "title", "kind", "duration", "remaining", "endAt"],
             "additionalProperties": false
           },
           "settings": {
             "type": "object",
             "properties": {
-              "theme": {
-                "type": "string",
-                "enum": ["light", "dark", "system"]
-              },
-              "timeZone": {
-                "default": "Asia/Shanghai",
-                "type": "string",
-                "maxLength": 100
-              },
-              "focusMinutes": {
-                "type": "integer",
-                "minimum": 1,
-                "maximum": 180
-              },
-              "breakMinutes": {
-                "type": "integer",
-                "minimum": 1,
-                "maximum": 60
-              },
+              "theme": { "type": "string", "enum": ["light", "dark", "system"] },
+              "timeZone": { "default": "Asia/Shanghai", "type": "string", "maxLength": 100 },
+              "focusMinutes": { "type": "integer", "minimum": 1, "maximum": 180 },
+              "breakMinutes": { "type": "integer", "minimum": 1, "maximum": 60 },
               "showCompleted": { "type": "boolean" }
             },
-            "required": [
-              "theme",
-              "timeZone",
-              "focusMinutes",
-              "breakMinutes",
-              "showCompleted"
-            ],
+            "required": ["theme", "timeZone", "focusMinutes", "breakMinutes", "showCompleted"],
             "additionalProperties": false
           }
         },
@@ -558,27 +420,14 @@
         "type": "object",
         "properties": {
           "id": { "type": "string", "minLength": 1, "maxLength": 100 },
-          "taskId": {
-            "nullable": true,
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 100
-          },
+          "taskId": { "nullable": true, "type": "string", "minLength": 1, "maxLength": 100 },
           "title": { "type": "string", "maxLength": 500 },
           "kind": { "type": "string", "enum": ["focus", "break"] },
           "duration": { "type": "integer", "minimum": 60, "maximum": 10800 },
           "remaining": { "type": "integer", "minimum": 0, "maximum": 10800 },
           "endAt": { "nullable": true, "type": "number", "minimum": 0 }
         },
-        "required": [
-          "id",
-          "taskId",
-          "title",
-          "kind",
-          "duration",
-          "remaining",
-          "endAt"
-        ],
+        "required": ["id", "taskId", "title", "kind", "duration", "remaining", "endAt"],
         "additionalProperties": false
       }
     }
@@ -598,12 +447,7 @@
     },
     "/tasks/{id}/track": {
       "parameters": [
-        {
-          "in": "path",
-          "name": "id",
-          "required": true,
-          "schema": { "type": "string" }
-        }
+        { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } }
       ],
       "post": {
         "summary": "从任务开始正向计时，与现有时间线共用计时器",
@@ -618,10 +462,7 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": { "activityId": { "type": "string" } }
-              }
+              "schema": { "type": "object", "properties": { "activityId": { "type": "string" } } }
             }
           }
         },
@@ -656,16 +497,9 @@
                 "type": "object",
                 "properties": {
                   "semesterStart": { "type": "string", "format": "date" },
-                  "totalWeeks": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 60
-                  },
+                  "totalWeeks": { "type": "integer", "minimum": 1, "maximum": 60 },
                   "timeZone": { "type": "string", "example": "Asia/Shanghai" },
-                  "holidays": {
-                    "type": "array",
-                    "items": { "type": "string", "format": "date" }
-                  }
+                  "holidays": { "type": "array", "items": { "type": "string", "format": "date" } }
                 }
               }
             }
@@ -744,9 +578,7 @@
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": {
-              "schema": { "type": "object", "additionalProperties": true }
-            }
+            "application/json": { "schema": { "type": "object", "additionalProperties": true } }
           }
         },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
@@ -754,12 +586,7 @@
     },
     "/schedule/courses/{id}": {
       "parameters": [
-        {
-          "in": "path",
-          "name": "id",
-          "required": true,
-          "schema": { "type": "string" }
-        }
+        { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } }
       ],
       "patch": {
         "summary": "修改周课程",
@@ -773,9 +600,7 @@
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": {
-              "schema": { "type": "object", "additionalProperties": true }
-            }
+            "application/json": { "schema": { "type": "object", "additionalProperties": true } }
           }
         },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
@@ -815,9 +640,7 @@
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": {
-              "schema": { "type": "object", "additionalProperties": true }
-            }
+            "application/json": { "schema": { "type": "object", "additionalProperties": true } }
           }
         },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
@@ -825,12 +648,7 @@
     },
     "/schedule/events/{id}": {
       "parameters": [
-        {
-          "in": "path",
-          "name": "id",
-          "required": true,
-          "schema": { "type": "string" }
-        }
+        { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } }
       ],
       "patch": {
         "summary": "修改单次课程实例",
@@ -844,9 +662,7 @@
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": {
-              "schema": { "type": "object", "additionalProperties": true }
-            }
+            "application/json": { "schema": { "type": "object", "additionalProperties": true } }
           }
         },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
@@ -886,9 +702,7 @@
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": {
-              "schema": { "type": "object", "additionalProperties": true }
-            }
+            "application/json": { "schema": { "type": "object", "additionalProperties": true } }
           }
         },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
@@ -896,12 +710,7 @@
     },
     "/timelog/activities/{id}": {
       "parameters": [
-        {
-          "in": "path",
-          "name": "id",
-          "required": true,
-          "schema": { "type": "string" }
-        }
+        { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } }
       ],
       "get": {
         "summary": "读取活动",
@@ -925,9 +734,7 @@
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": {
-              "schema": { "type": "object", "additionalProperties": true }
-            }
+            "application/json": { "schema": { "type": "object", "additionalProperties": true } }
           }
         },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
@@ -944,9 +751,7 @@
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": {
-              "schema": { "type": "object", "additionalProperties": true }
-            }
+            "application/json": { "schema": { "type": "object", "additionalProperties": true } }
           }
         },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
@@ -975,9 +780,7 @@
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": {
-              "schema": { "type": "object", "additionalProperties": true }
-            }
+            "application/json": { "schema": { "type": "object", "additionalProperties": true } }
           }
         },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
@@ -985,12 +788,7 @@
     },
     "/timelog/records/{id}": {
       "parameters": [
-        {
-          "in": "path",
-          "name": "id",
-          "required": true,
-          "schema": { "type": "string" }
-        }
+        { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } }
       ],
       "get": {
         "summary": "读取记录",
@@ -1014,9 +812,7 @@
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": {
-              "schema": { "type": "object", "additionalProperties": true }
-            }
+            "application/json": { "schema": { "type": "object", "additionalProperties": true } }
           }
         },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
@@ -1033,9 +829,7 @@
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": {
-              "schema": { "type": "object", "additionalProperties": true }
-            }
+            "application/json": { "schema": { "type": "object", "additionalProperties": true } }
           }
         },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
@@ -1043,12 +837,7 @@
     },
     "/timelog/records/{id}/fill": {
       "parameters": [
-        {
-          "in": "path",
-          "name": "id",
-          "required": true,
-          "schema": { "type": "string" }
-        }
+        { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } }
       ],
       "post": {
         "summary": "填充相邻空档，需 date direction spanIndex expectedUpdatedAt",
@@ -1062,9 +851,7 @@
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": {
-              "schema": { "type": "object", "additionalProperties": true }
-            }
+            "application/json": { "schema": { "type": "object", "additionalProperties": true } }
           }
         },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
@@ -1095,9 +882,7 @@
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": {
-              "schema": { "type": "object", "additionalProperties": true }
-            }
+            "application/json": { "schema": { "type": "object", "additionalProperties": true } }
           }
         },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
@@ -1116,9 +901,7 @@
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": {
-              "schema": { "type": "object", "additionalProperties": true }
-            }
+            "application/json": { "schema": { "type": "object", "additionalProperties": true } }
           }
         },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
@@ -1137,9 +920,7 @@
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": {
-              "schema": { "type": "object", "additionalProperties": true }
-            }
+            "application/json": { "schema": { "type": "object", "additionalProperties": true } }
           }
         },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
@@ -1158,9 +939,7 @@
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": {
-              "schema": { "type": "object", "additionalProperties": true }
-            }
+            "application/json": { "schema": { "type": "object", "additionalProperties": true } }
           }
         },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
@@ -1179,9 +958,7 @@
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": {
-              "schema": { "type": "object", "additionalProperties": true }
-            }
+            "application/json": { "schema": { "type": "object", "additionalProperties": true } }
           }
         },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
@@ -1234,9 +1011,7 @@
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": {
-              "schema": { "type": "object", "additionalProperties": true }
-            }
+            "application/json": { "schema": { "type": "object", "additionalProperties": true } }
           }
         },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
@@ -1244,12 +1019,7 @@
     },
     "/timelog/goals/{id}": {
       "parameters": [
-        {
-          "in": "path",
-          "name": "id",
-          "required": true,
-          "schema": { "type": "string" }
-        }
+        { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } }
       ],
       "get": {
         "summary": "读取目标",
@@ -1273,9 +1043,7 @@
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": {
-              "schema": { "type": "object", "additionalProperties": true }
-            }
+            "application/json": { "schema": { "type": "object", "additionalProperties": true } }
           }
         },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
@@ -1292,9 +1060,7 @@
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": {
-              "schema": { "type": "object", "additionalProperties": true }
-            }
+            "application/json": { "schema": { "type": "object", "additionalProperties": true } }
           }
         },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
@@ -1328,19 +1094,14 @@
               }
             },
             "headers": {
-              "ETag": {
-                "schema": { "type": "string" },
-                "description": "当前会话中的状态版本"
-              }
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
             }
           },
           "400": { "description": "参数或 JSON 无效" },
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": {
-            "description": "版本或操作冲突，读取最新数据后再决定是否重试"
-          }
+          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
         }
       }
     },
@@ -1360,19 +1121,14 @@
               }
             },
             "headers": {
-              "ETag": {
-                "schema": { "type": "string" },
-                "description": "当前会话中的状态版本"
-              }
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
             }
           },
           "400": { "description": "参数或 JSON 无效" },
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": {
-            "description": "版本或操作冲突，读取最新数据后再决定是否重试"
-          }
+          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
         }
       }
     },
@@ -1392,19 +1148,14 @@
               }
             },
             "headers": {
-              "ETag": {
-                "schema": { "type": "string" },
-                "description": "当前会话中的状态版本"
-              }
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
             }
           },
           "400": { "description": "参数或 JSON 无效" },
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": {
-            "description": "版本或操作冲突，读取最新数据后再决定是否重试"
-          }
+          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
         },
         "parameters": [
           {
@@ -1420,12 +1171,7 @@
           {
             "in": "query",
             "name": "limit",
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 500,
-              "default": 100
-            }
+            "schema": { "type": "integer", "minimum": 1, "maximum": 500, "default": 100 }
           },
           {
             "in": "query",
@@ -1443,17 +1189,9 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "title": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 500
-                  },
+                  "title": { "type": "string", "minLength": 1, "maxLength": 500 },
                   "notes": { "type": "string", "maxLength": 50000 },
-                  "listId": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 100
-                  },
+                  "listId": { "type": "string", "minLength": 1, "maxLength": 100 },
                   "due": {
                     "nullable": true,
                     "type": "string",
@@ -1470,11 +1208,7 @@
                   "tags": {
                     "maxItems": 30,
                     "type": "array",
-                    "items": {
-                      "type": "string",
-                      "minLength": 1,
-                      "maxLength": 40
-                    }
+                    "items": { "type": "string", "minLength": 1, "maxLength": 40 }
                   },
                   "subtasks": {
                     "maxItems": 200,
@@ -1482,26 +1216,15 @@
                     "items": {
                       "type": "object",
                       "properties": {
-                        "id": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 100
-                        },
-                        "title": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 500
-                        },
+                        "id": { "type": "string", "minLength": 1, "maxLength": 100 },
+                        "title": { "type": "string", "minLength": 1, "maxLength": 500 },
                         "done": { "type": "boolean" }
                       },
                       "required": ["id", "title", "done"],
                       "additionalProperties": false
                     }
                   },
-                  "repeat": {
-                    "type": "string",
-                    "enum": ["none", "daily", "weekly", "monthly"]
-                  },
+                  "repeat": { "type": "string", "enum": ["none", "daily", "weekly", "monthly"] },
                   "pinned": { "type": "boolean" },
                   "order": { "type": "number" }
                 },
@@ -1524,19 +1247,14 @@
               }
             },
             "headers": {
-              "ETag": {
-                "schema": { "type": "string" },
-                "description": "当前会话中的状态版本"
-              }
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
             }
           },
           "400": { "description": "参数或 JSON 无效" },
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": {
-            "description": "版本或操作冲突，读取最新数据后再决定是否重试"
-          }
+          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
         },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
       }
@@ -1545,12 +1263,7 @@
       "get": {
         "summary": "读取单个任务，含已完成和回收站状态",
         "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": { "type": "string" }
-          }
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } }
         ],
         "responses": {
           "200": {
@@ -1565,30 +1278,20 @@
               }
             },
             "headers": {
-              "ETag": {
-                "schema": { "type": "string" },
-                "description": "当前会话中的状态版本"
-              }
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
             }
           },
           "400": { "description": "参数或 JSON 无效" },
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": {
-            "description": "版本或操作冲突，读取最新数据后再决定是否重试"
-          }
+          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
         }
       },
       "patch": {
         "summary": "更新任务属性",
         "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": { "type": "string" }
-          },
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } },
           { "$ref": "#/components/parameters/IfMatch" }
         ],
         "requestBody": {
@@ -1598,17 +1301,9 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "title": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 500
-                  },
+                  "title": { "type": "string", "minLength": 1, "maxLength": 500 },
                   "notes": { "type": "string", "maxLength": 50000 },
-                  "listId": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 100
-                  },
+                  "listId": { "type": "string", "minLength": 1, "maxLength": 100 },
                   "due": {
                     "nullable": true,
                     "type": "string",
@@ -1625,11 +1320,7 @@
                   "tags": {
                     "maxItems": 30,
                     "type": "array",
-                    "items": {
-                      "type": "string",
-                      "minLength": 1,
-                      "maxLength": 40
-                    }
+                    "items": { "type": "string", "minLength": 1, "maxLength": 40 }
                   },
                   "subtasks": {
                     "maxItems": 200,
@@ -1637,26 +1328,15 @@
                     "items": {
                       "type": "object",
                       "properties": {
-                        "id": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 100
-                        },
-                        "title": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 500
-                        },
+                        "id": { "type": "string", "minLength": 1, "maxLength": 100 },
+                        "title": { "type": "string", "minLength": 1, "maxLength": 500 },
                         "done": { "type": "boolean" }
                       },
                       "required": ["id", "title", "done"],
                       "additionalProperties": false
                     }
                   },
-                  "repeat": {
-                    "type": "string",
-                    "enum": ["none", "daily", "weekly", "monthly"]
-                  },
+                  "repeat": { "type": "string", "enum": ["none", "daily", "weekly", "monthly"] },
                   "pinned": { "type": "boolean" },
                   "order": { "type": "number" }
                 },
@@ -1678,30 +1358,20 @@
               }
             },
             "headers": {
-              "ETag": {
-                "schema": { "type": "string" },
-                "description": "当前会话中的状态版本"
-              }
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
             }
           },
           "400": { "description": "参数或 JSON 无效" },
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": {
-            "description": "版本或操作冲突，读取最新数据后再决定是否重试"
-          }
+          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
         }
       },
       "delete": {
         "summary": "将任务移入回收站",
         "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": { "type": "string" }
-          },
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } },
           { "$ref": "#/components/parameters/IfMatch" }
         ],
         "responses": {
@@ -1717,19 +1387,14 @@
               }
             },
             "headers": {
-              "ETag": {
-                "schema": { "type": "string" },
-                "description": "当前会话中的状态版本"
-              }
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
             }
           },
           "400": { "description": "参数或 JSON 无效" },
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": {
-            "description": "版本或操作冲突，读取最新数据后再决定是否重试"
-          }
+          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
         }
       }
     },
@@ -1737,12 +1402,7 @@
       "post": {
         "summary": "完成任务；重复任务只生成一次下一项",
         "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": { "type": "string" }
-          },
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } },
           { "$ref": "#/components/parameters/IfMatch" }
         ],
         "responses": {
@@ -1758,19 +1418,14 @@
               }
             },
             "headers": {
-              "ETag": {
-                "schema": { "type": "string" },
-                "description": "当前会话中的状态版本"
-              }
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
             }
           },
           "400": { "description": "参数或 JSON 无效" },
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": {
-            "description": "版本或操作冲突，读取最新数据后再决定是否重试"
-          }
+          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
         }
       }
     },
@@ -1778,12 +1433,7 @@
       "post": {
         "summary": "重新打开已完成任务",
         "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": { "type": "string" }
-          },
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } },
           { "$ref": "#/components/parameters/IfMatch" }
         ],
         "responses": {
@@ -1799,19 +1449,14 @@
               }
             },
             "headers": {
-              "ETag": {
-                "schema": { "type": "string" },
-                "description": "当前会话中的状态版本"
-              }
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
             }
           },
           "400": { "description": "参数或 JSON 无效" },
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": {
-            "description": "版本或操作冲突，读取最新数据后再决定是否重试"
-          }
+          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
         }
       }
     },
@@ -1819,12 +1464,7 @@
       "post": {
         "summary": "从回收站恢复任务",
         "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": { "type": "string" }
-          },
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } },
           { "$ref": "#/components/parameters/IfMatch" }
         ],
         "responses": {
@@ -1840,19 +1480,14 @@
               }
             },
             "headers": {
-              "ETag": {
-                "schema": { "type": "string" },
-                "description": "当前会话中的状态版本"
-              }
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
             }
           },
           "400": { "description": "参数或 JSON 无效" },
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": {
-            "description": "版本或操作冲突，读取最新数据后再决定是否重试"
-          }
+          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
         }
       }
     },
@@ -1872,19 +1507,14 @@
               }
             },
             "headers": {
-              "ETag": {
-                "schema": { "type": "string" },
-                "description": "当前会话中的状态版本"
-              }
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
             }
           },
           "400": { "description": "参数或 JSON 无效" },
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": {
-            "description": "版本或操作冲突，读取最新数据后再决定是否重试"
-          }
+          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
         }
       },
       "post": {
@@ -1919,19 +1549,14 @@
               }
             },
             "headers": {
-              "ETag": {
-                "schema": { "type": "string" },
-                "description": "当前会话中的状态版本"
-              }
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
             }
           },
           "400": { "description": "参数或 JSON 无效" },
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": {
-            "description": "版本或操作冲突，读取最新数据后再决定是否重试"
-          }
+          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
         },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
       }
@@ -1940,12 +1565,7 @@
       "patch": {
         "summary": "更新清单名称、颜色与排序",
         "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": { "type": "string" }
-          },
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } },
           { "$ref": "#/components/parameters/IfMatch" }
         ],
         "requestBody": {
@@ -1977,30 +1597,20 @@
               }
             },
             "headers": {
-              "ETag": {
-                "schema": { "type": "string" },
-                "description": "当前会话中的状态版本"
-              }
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
             }
           },
           "400": { "description": "参数或 JSON 无效" },
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": {
-            "description": "版本或操作冲突，读取最新数据后再决定是否重试"
-          }
+          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
         }
       },
       "delete": {
         "summary": "删除清单并将任务移到默认清单",
         "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": { "type": "string" }
-          },
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } },
           { "$ref": "#/components/parameters/IfMatch" }
         ],
         "responses": {
@@ -2016,19 +1626,14 @@
               }
             },
             "headers": {
-              "ETag": {
-                "schema": { "type": "string" },
-                "description": "当前会话中的状态版本"
-              }
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
             }
           },
           "400": { "description": "参数或 JSON 无效" },
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": {
-            "description": "版本或操作冲突，读取最新数据后再决定是否重试"
-          }
+          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
         }
       }
     },
@@ -2048,19 +1653,14 @@
               }
             },
             "headers": {
-              "ETag": {
-                "schema": { "type": "string" },
-                "description": "当前会话中的状态版本"
-              }
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
             }
           },
           "400": { "description": "参数或 JSON 无效" },
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": {
-            "description": "版本或操作冲突，读取最新数据后再决定是否重试"
-          }
+          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
         }
       },
       "patch": {
@@ -2072,25 +1672,10 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "theme": {
-                    "type": "string",
-                    "enum": ["light", "dark", "system"]
-                  },
-                  "timeZone": {
-                    "default": "Asia/Shanghai",
-                    "type": "string",
-                    "maxLength": 100
-                  },
-                  "focusMinutes": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 180
-                  },
-                  "breakMinutes": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 60
-                  },
+                  "theme": { "type": "string", "enum": ["light", "dark", "system"] },
+                  "timeZone": { "default": "Asia/Shanghai", "type": "string", "maxLength": 100 },
+                  "focusMinutes": { "type": "integer", "minimum": 1, "maximum": 180 },
+                  "breakMinutes": { "type": "integer", "minimum": 1, "maximum": 60 },
                   "showCompleted": { "type": "boolean" }
                 },
                 "additionalProperties": false
@@ -2111,19 +1696,14 @@
               }
             },
             "headers": {
-              "ETag": {
-                "schema": { "type": "string" },
-                "description": "当前会话中的状态版本"
-              }
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
             }
           },
           "400": { "description": "参数或 JSON 无效" },
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": {
-            "description": "版本或操作冲突，读取最新数据后再决定是否重试"
-          }
+          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
         },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
       }
@@ -2144,19 +1724,14 @@
               }
             },
             "headers": {
-              "ETag": {
-                "schema": { "type": "string" },
-                "description": "当前会话中的状态版本"
-              }
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
             }
           },
           "400": { "description": "参数或 JSON 无效" },
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": {
-            "description": "版本或操作冲突，读取最新数据后再决定是否重试"
-          }
+          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
         }
       }
     },
@@ -2171,11 +1746,7 @@
                 "type": "object",
                 "properties": {
                   "taskId": { "nullable": true, "type": "string" },
-                  "kind": {
-                    "default": "focus",
-                    "type": "string",
-                    "enum": ["focus", "break"]
-                  },
+                  "kind": { "default": "focus", "type": "string", "enum": ["focus", "break"] },
                   "minutes": { "type": "integer", "minimum": 1, "maximum": 180 }
                 },
                 "required": ["kind"],
@@ -2197,19 +1768,14 @@
               }
             },
             "headers": {
-              "ETag": {
-                "schema": { "type": "string" },
-                "description": "当前会话中的状态版本"
-              }
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
             }
           },
           "400": { "description": "参数或 JSON 无效" },
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": {
-            "description": "版本或操作冲突，读取最新数据后再决定是否重试"
-          }
+          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
         },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
       }
@@ -2230,19 +1796,14 @@
               }
             },
             "headers": {
-              "ETag": {
-                "schema": { "type": "string" },
-                "description": "当前会话中的状态版本"
-              }
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
             }
           },
           "400": { "description": "参数或 JSON 无效" },
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": {
-            "description": "版本或操作冲突，读取最新数据后再决定是否重试"
-          }
+          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
         },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
       }
@@ -2263,19 +1824,14 @@
               }
             },
             "headers": {
-              "ETag": {
-                "schema": { "type": "string" },
-                "description": "当前会话中的状态版本"
-              }
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
             }
           },
           "400": { "description": "参数或 JSON 无效" },
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": {
-            "description": "版本或操作冲突，读取最新数据后再决定是否重试"
-          }
+          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
         },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
       }
@@ -2296,19 +1852,14 @@
               }
             },
             "headers": {
-              "ETag": {
-                "schema": { "type": "string" },
-                "description": "当前会话中的状态版本"
-              }
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
             }
           },
           "400": { "description": "参数或 JSON 无效" },
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": {
-            "description": "版本或操作冲突，读取最新数据后再决定是否重试"
-          }
+          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
         },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
       }
@@ -2329,19 +1880,14 @@
               }
             },
             "headers": {
-              "ETag": {
-                "schema": { "type": "string" },
-                "description": "当前会话中的状态版本"
-              }
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
             }
           },
           "400": { "description": "参数或 JSON 无效" },
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": {
-            "description": "版本或操作冲突，读取最新数据后再决定是否重试"
-          }
+          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
         }
       }
     },
@@ -2361,19 +1907,14 @@
               }
             },
             "headers": {
-              "ETag": {
-                "schema": { "type": "string" },
-                "description": "当前会话中的状态版本"
-              }
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
             }
           },
           "400": { "description": "参数或 JSON 无效" },
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": {
-            "description": "版本或操作冲突，读取最新数据后再决定是否重试"
-          }
+          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
         }
       }
     },
@@ -2400,15 +1941,8 @@
                     },
                     "type": "object",
                     "properties": {
-                      "semesterStart": {
-                        "type": "string",
-                        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-                      },
-                      "totalWeeks": {
-                        "type": "integer",
-                        "minimum": 1,
-                        "maximum": 60
-                      },
+                      "semesterStart": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+                      "totalWeeks": { "type": "integer", "minimum": 1, "maximum": 60 },
                       "timeZone": { "type": "string", "maxLength": 100 },
                       "courses": {
                         "maxItems": 2000,
@@ -2416,62 +1950,29 @@
                         "items": {
                           "type": "object",
                           "properties": {
-                            "id": {
-                              "type": "string",
-                              "minLength": 1,
-                              "maxLength": 200
-                            },
-                            "name": {
-                              "type": "string",
-                              "minLength": 1,
-                              "maxLength": 300
-                            },
-                            "teacher": {
-                              "default": "",
-                              "type": "string",
-                              "maxLength": 300
-                            },
-                            "location": {
-                              "default": "",
-                              "type": "string",
-                              "maxLength": 500
-                            },
+                            "id": { "type": "string", "minLength": 1, "maxLength": 200 },
+                            "name": { "type": "string", "minLength": 1, "maxLength": 300 },
+                            "teacher": { "default": "", "type": "string", "maxLength": 300 },
+                            "location": { "default": "", "type": "string", "maxLength": 500 },
                             "color": {
                               "default": "#4264b2",
                               "type": "string",
                               "pattern": "^#[\\da-f]{6}$"
                             },
-                            "weekday": {
-                              "type": "integer",
-                              "minimum": 1,
-                              "maximum": 7
-                            },
-                            "start": {
-                              "type": "string",
-                              "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
-                            },
-                            "end": {
-                              "type": "string",
-                              "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
-                            },
+                            "weekday": { "type": "integer", "minimum": 1, "maximum": 7 },
+                            "start": { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" },
+                            "end": { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" },
                             "weeks": {
                               "minItems": 1,
                               "maxItems": 60,
                               "type": "array",
-                              "items": {
-                                "type": "integer",
-                                "minimum": 1,
-                                "maximum": 60
-                              }
+                              "items": { "type": "integer", "minimum": 1, "maximum": 60 }
                             },
                             "excludedDates": {
                               "default": [],
                               "maxItems": 500,
                               "type": "array",
-                              "items": {
-                                "type": "string",
-                                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-                              }
+                              "items": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" }
                             },
                             "updatedAt": { "type": "number", "minimum": 0 }
                           },
@@ -2497,27 +1998,11 @@
                         "items": {
                           "type": "object",
                           "properties": {
-                            "id": {
-                              "type": "string",
-                              "minLength": 1,
-                              "maxLength": 500
-                            },
+                            "id": { "type": "string", "minLength": 1, "maxLength": 500 },
                             "courseId": { "type": "string", "maxLength": 200 },
-                            "name": {
-                              "type": "string",
-                              "minLength": 1,
-                              "maxLength": 300
-                            },
-                            "teacher": {
-                              "default": "",
-                              "type": "string",
-                              "maxLength": 300
-                            },
-                            "location": {
-                              "default": "",
-                              "type": "string",
-                              "maxLength": 500
-                            },
+                            "name": { "type": "string", "minLength": 1, "maxLength": 300 },
+                            "teacher": { "default": "", "type": "string", "maxLength": 300 },
+                            "location": { "default": "", "type": "string", "maxLength": 500 },
                             "color": {
                               "default": "#4264b2",
                               "type": "string",
@@ -2546,10 +2031,7 @@
                       "holidays": {
                         "maxItems": 1000,
                         "type": "array",
-                        "items": {
-                          "type": "string",
-                          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-                        }
+                        "items": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" }
                       }
                     },
                     "required": [
@@ -2569,20 +2051,9 @@
                     "items": {
                       "type": "object",
                       "properties": {
-                        "id": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 100
-                        },
-                        "name": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 60
-                        },
-                        "color": {
-                          "type": "string",
-                          "pattern": "^#[0-9a-f]{6}$"
-                        },
+                        "id": { "type": "string", "minLength": 1, "maxLength": 100 },
+                        "name": { "type": "string", "minLength": 1, "maxLength": 60 },
+                        "color": { "type": "string", "pattern": "^#[0-9a-f]{6}$" },
                         "order": { "type": "number" }
                       },
                       "required": ["id", "name", "color", "order"],
@@ -2595,22 +2066,10 @@
                     "items": {
                       "type": "object",
                       "properties": {
-                        "id": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 100
-                        },
-                        "title": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 500
-                        },
+                        "id": { "type": "string", "minLength": 1, "maxLength": 100 },
+                        "title": { "type": "string", "minLength": 1, "maxLength": 500 },
                         "notes": { "type": "string", "maxLength": 50000 },
-                        "listId": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 100
-                        },
+                        "listId": { "type": "string", "minLength": 1, "maxLength": 100 },
                         "due": {
                           "nullable": true,
                           "type": "string",
@@ -2627,11 +2086,7 @@
                         "tags": {
                           "maxItems": 30,
                           "type": "array",
-                          "items": {
-                            "type": "string",
-                            "minLength": 1,
-                            "maxLength": 40
-                          }
+                          "items": { "type": "string", "minLength": 1, "maxLength": 40 }
                         },
                         "subtasks": {
                           "maxItems": 200,
@@ -2639,16 +2094,8 @@
                           "items": {
                             "type": "object",
                             "properties": {
-                              "id": {
-                                "type": "string",
-                                "minLength": 1,
-                                "maxLength": 100
-                              },
-                              "title": {
-                                "type": "string",
-                                "minLength": 1,
-                                "maxLength": 500
-                              },
+                              "id": { "type": "string", "minLength": 1, "maxLength": 100 },
+                              "title": { "type": "string", "minLength": 1, "maxLength": 500 },
                               "done": { "type": "boolean" }
                             },
                             "required": ["id", "title", "done"],
@@ -2659,11 +2106,7 @@
                           "type": "string",
                           "enum": ["none", "daily", "weekly", "monthly"]
                         },
-                        "repeatDay": {
-                          "type": "integer",
-                          "minimum": 1,
-                          "maximum": 31
-                        },
+                        "repeatDay": { "type": "integer", "minimum": 1, "maximum": 31 },
                         "spawnedId": {
                           "nullable": true,
                           "type": "string",
@@ -2730,11 +2173,7 @@
                     "items": {
                       "type": "object",
                       "properties": {
-                        "id": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 100
-                        },
+                        "id": { "type": "string", "minLength": 1, "maxLength": 100 },
                         "taskId": {
                           "nullable": true,
                           "type": "string",
@@ -2742,24 +2181,14 @@
                           "maxLength": 100
                         },
                         "title": { "type": "string", "maxLength": 500 },
-                        "minutes": {
-                          "type": "integer",
-                          "minimum": 1,
-                          "maximum": 180
-                        },
+                        "minutes": { "type": "integer", "minimum": 1, "maximum": 180 },
                         "completedAt": {
                           "type": "string",
                           "format": "date-time",
                           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                         }
                       },
-                      "required": [
-                        "id",
-                        "taskId",
-                        "title",
-                        "minutes",
-                        "completedAt"
-                      ],
+                      "required": ["id", "taskId", "title", "minutes", "completedAt"],
                       "additionalProperties": false
                     }
                   },
@@ -2767,11 +2196,7 @@
                     "nullable": true,
                     "type": "object",
                     "properties": {
-                      "id": {
-                        "type": "string",
-                        "minLength": 1,
-                        "maxLength": 100
-                      },
+                      "id": { "type": "string", "minLength": 1, "maxLength": 100 },
                       "taskId": {
                         "nullable": true,
                         "type": "string",
@@ -2780,55 +2205,24 @@
                       },
                       "title": { "type": "string", "maxLength": 500 },
                       "kind": { "type": "string", "enum": ["focus", "break"] },
-                      "duration": {
-                        "type": "integer",
-                        "minimum": 60,
-                        "maximum": 10800
-                      },
-                      "remaining": {
-                        "type": "integer",
-                        "minimum": 0,
-                        "maximum": 10800
-                      },
-                      "endAt": {
-                        "nullable": true,
-                        "type": "number",
-                        "minimum": 0
-                      }
+                      "duration": { "type": "integer", "minimum": 60, "maximum": 10800 },
+                      "remaining": { "type": "integer", "minimum": 0, "maximum": 10800 },
+                      "endAt": { "nullable": true, "type": "number", "minimum": 0 }
                     },
-                    "required": [
-                      "id",
-                      "taskId",
-                      "title",
-                      "kind",
-                      "duration",
-                      "remaining",
-                      "endAt"
-                    ],
+                    "required": ["id", "taskId", "title", "kind", "duration", "remaining", "endAt"],
                     "additionalProperties": false
                   },
                   "settings": {
                     "type": "object",
                     "properties": {
-                      "theme": {
-                        "type": "string",
-                        "enum": ["light", "dark", "system"]
-                      },
+                      "theme": { "type": "string", "enum": ["light", "dark", "system"] },
                       "timeZone": {
                         "default": "Asia/Shanghai",
                         "type": "string",
                         "maxLength": 100
                       },
-                      "focusMinutes": {
-                        "type": "integer",
-                        "minimum": 1,
-                        "maximum": 180
-                      },
-                      "breakMinutes": {
-                        "type": "integer",
-                        "minimum": 1,
-                        "maximum": 60
-                      },
+                      "focusMinutes": { "type": "integer", "minimum": 1, "maximum": 180 },
+                      "breakMinutes": { "type": "integer", "minimum": 1, "maximum": 60 },
                       "showCompleted": { "type": "boolean" }
                     },
                     "required": [
@@ -2869,19 +2263,14 @@
               }
             },
             "headers": {
-              "ETag": {
-                "schema": { "type": "string" },
-                "description": "当前会话中的状态版本"
-              }
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
             }
           },
           "400": { "description": "参数或 JSON 无效" },
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": {
-            "description": "版本或操作冲突，读取最新数据后再决定是否重试"
-          }
+          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
         },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
       }
