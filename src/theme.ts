@@ -1,5 +1,5 @@
 export type ThemePreference = 'light' | 'dark' | 'system';
-const key = 'clearlist.appearance';
+const key = 'dayweave.appearance';
 export function resolveTheme(theme: ThemePreference, systemDark: boolean) {
   return theme === 'system' ? (systemDark ? 'dark' : 'light') : theme;
 }
@@ -7,10 +7,10 @@ export function applyTheme(theme: ThemePreference) {
   const resolved = resolveTheme(theme, matchMedia('(prefers-color-scheme: dark)').matches);
   document.documentElement.dataset.theme = resolved;
   document.documentElement.style.colorScheme = resolved;
-  document.documentElement.style.backgroundColor = resolved === 'dark' ? '#18221f' : '#f1f5f3';
+  document.documentElement.style.backgroundColor = resolved === 'dark' ? '#182230' : '#f9fbfe';
   document
     .querySelector('meta[name="theme-color"]')
-    ?.setAttribute('content', resolved === 'dark' ? '#18221f' : '#f1f5f3');
+    ?.setAttribute('content', resolved === 'dark' ? '#182230' : '#f9fbfe');
   try {
     localStorage.setItem(key, theme);
   } catch {

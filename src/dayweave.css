@@ -1,28 +1,3 @@
-:root {
-  --accent: #4264b2;
-  --accent-hover: #345197;
-  --accent-tint: #eaf0fc;
-  --sidebar: #f0f3f9;
-  --text: #25364b;
-  --canvas: #f9fbfe;
-  --muted: #687a94;
-  --line: #e1e8f2;
-  --hover: #eef3fb;
-  --input: #f4f7fc;
-}
-:root[data-theme='dark'] {
-  --accent: #a8c1ff;
-  --accent-hover: #c6d6ff;
-  --accent-tint: #263c65;
-  --sidebar: #151e2b;
-  --text: #e0e9fa;
-  --canvas: #182230;
-  --bg: #202d3e;
-  --muted: #a0b1ca;
-  --line: #35455d;
-  --hover: #293950;
-  --input: #192637;
-}
 .brand-mark {
   background: var(--accent);
 }

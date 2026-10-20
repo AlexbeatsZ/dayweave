@@ -156,7 +156,7 @@ public class DayweaveFilesPlugin extends Plugin {
             var controller = WindowCompat.getInsetsController(window, window.getDecorView());
             controller.setAppearanceLightStatusBars(!dark);
             controller.setAppearanceLightNavigationBars(!dark);
-            getBridge().getWebView().setBackgroundColor(Color.parseColor(dark ? "#18221f" : "#fafcfb"));
+            getBridge().getWebView().setBackgroundColor(Color.parseColor(dark ? "#182230" : "#f9fbfe"));
             call.resolve();
         });
     }

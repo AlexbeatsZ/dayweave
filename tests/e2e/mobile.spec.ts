@@ -42,11 +42,11 @@ test('system theme changes update surfaces and native color scheme without chang
   await page.goto('/');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   await page.getByRole('button', { name: '手机记录', exact: true }).tap();
-  await expect(page.locator('.timelog-module')).toHaveCSS('background-color', 'rgb(245, 247, 248)');
+  await expect(page.locator('.timelog-module')).toHaveCSS('background-color', 'rgb(249, 251, 254)');
   await page.emulateMedia({ colorScheme: 'dark' });
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-  await expect(page.locator('.timelog-module')).toHaveCSS('background-color', 'rgb(19, 30, 35)');
-  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', '#18221f');
+  await expect(page.locator('.timelog-module')).toHaveCSS('background-color', 'rgb(24, 34, 48)');
+  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', '#182230');
   await page.getByRole('button', { name: '手机更多', exact: true }).tap();
   await page.getByRole('button', { name: '打开设置', exact: true }).tap();
   await expect(page.getByRole('button', { name: '跟随系统', exact: true })).toHaveAttribute(

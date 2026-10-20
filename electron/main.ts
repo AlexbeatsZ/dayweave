@@ -55,7 +55,7 @@ else {
       minWidth: 900,
       minHeight: 640,
       title: '时织 · Dayweave',
-      backgroundColor: nativeTheme.shouldUseDarkColors ? '#18221f' : '#fafcfb',
+      backgroundColor: nativeTheme.shouldUseDarkColors ? '#182230' : '#f9fbfe',
       autoHideMenuBar: true,
       ...(process.platform === 'darwin'
         ? { titleBarStyle: 'default' as const, trafficLightPosition: { x: 16, y: 17 } }
@@ -178,7 +178,7 @@ else {
       trusted(event);
       if (theme === 'light' || theme === 'dark' || theme === 'system') {
         nativeTheme.themeSource = theme;
-        window?.setBackgroundColor(nativeTheme.shouldUseDarkColors ? '#18221f' : '#fafcfb');
+        window?.setBackgroundColor(nativeTheme.shouldUseDarkColors ? '#182230' : '#f9fbfe');
       }
     });
     ipcMain.handle('api:info', (event) => {

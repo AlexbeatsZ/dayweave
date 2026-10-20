@@ -4,7 +4,7 @@ const config: CapacitorConfig = {
   appId: 'org.dayweave.mobile',
   appName: '时织',
   webDir: 'dist',
-  backgroundColor: '#18221f',
+  backgroundColor: '#182230',
   android: { allowMixedContent: false, webContentsDebuggingEnabled: false },
   plugins: { SystemBars: { insetsHandling: 'css' } },
 };

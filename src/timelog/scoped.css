@@ -3,44 +3,26 @@
   font-size: 14px;
   line-height: 1.5;
   font-synthesis: none;
-  color-scheme: light;
-  --canvas: #f5f7f8;
-  --surface: #ffffff;
-  --soft: #f0f4f5;
-  --active: #e8f2f0;
-  --ink: #263d43;
-  --text: #5c7178;
-  --muted: #778990;
-  --line: #e1e8eb;
-  --accent: #256f68;
-  --accent-hover: #1e5c57;
+  color-scheme: inherit;
+  --surface: var(--bg);
+  --soft: var(--input);
+  --active: var(--accent-tint);
+  --ink: var(--text);
   --on-accent: #ffffff;
   --positive: #287965;
   --negative: #b15959;
-  --shadow: #1c383915;
+  --shadow: #25364b15;
   --backdrop: #132a405c;
-  --focus: #85b9c1;
+  --focus: var(--accent);
   background: var(--canvas);
   color: var(--ink);
 }
 :root[data-theme='dark'] .timelog-module {
-  color-scheme: dark;
-  --canvas: #131e23;
-  --surface: #1c2a30;
-  --soft: #24353b;
-  --active: #23463f;
-  --ink: #e0eaed;
-  --text: #b0c2c9;
-  --muted: #91a7b0;
-  --line: #32474f;
-  --accent: #8fcbbd;
-  --accent-hover: #aedccd;
-  --on-accent: #12382e;
+  --on-accent: #182230;
   --positive: #95d2b5;
   --negative: #f1a09e;
   --shadow: #00000026;
   --backdrop: #00000088;
-  --focus: #8cbdc8;
 }
 .timelog-module * {
   box-sizing: border-box;
