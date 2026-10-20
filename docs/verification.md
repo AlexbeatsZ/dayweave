@@ -10,10 +10,15 @@
 - 独立 Node API 包无 npm 运行依赖；启动、Bearer、CLI、任务持久化、上下文及第二个进程拒绝占用同一 profile 均通过。
 - 新项目独立身份与数据目录；原 Clearlist/Open Timelog 仓库与 profiles 均未写入。
 - Android assembleRelease、lintRelease 和 3 项 Java 课程计算测试通过；已用稳定密钥签名并安装 Redmi K70 / Android 16 与 Pad 6 Pro / Android 15，已查看实际界面。记录页绿色主题已改为共用蓝灰变量，系统主题切换检查通过。
-- 含同步源码 e0022a3 的 [四平台 CI](https://github.com/AlexbeatsZ/dayweave/actions/runs/39464776175) 全通过；实际 Apple Silicon Mac 桌面/打包应用 API 与恢复、DMG 和签名基线检查通过。最后的托盘/组件兼容调整将重新构建。
+- 最终源码 59c254a 的 [四平台 CI](https://github.com/AlexbeatsZ/dayweave/actions/runs/39471586657) 全通过：Windows、Android、macOS arm64 和 Intel。桌面两平台均执行隐藏启动/唤出/关闭回托盘/API 持久化检查；Windows 最终便携包和两种 Mac 最终 app API 通过。实际 Apple Silicon Mac 桌面/打包应用 API 与恢复、DMG 和签名基线检查另已通过。
 - 实体 ROG、Redmi K70、Pad 6 Pro 完成单次邀请配对。手机开始 Learning 计时，平板约两秒后读到同一 ID；平板停止保存后，ROG 中相同 ID 补上 endAt，手机停止运行显示，记录总长 16.333 秒。课程通过 ROG API 创建后在两台移动设备出现；手机纽约时区显示北京时间跨日课程与设备时间。
 - Windows 源码运行时和最终 win-unpacked 程序均通过托盘检查：启动窗口隐藏、第二次普通启动显示、关闭后隐藏、API 继续工作且编辑已落盘。ROG 已将原无界面中心迁移到实际桌面默认 profile，DayweaveHub 当前用户登录任务直接启动 --tray，任务为 Running，全部 Dayweave 主窗口句柄为 0，原有配对/加密密钥保留。仅更新用户已批准的两条规则至专用桌面进程。没有重启或注销系统。
 - Pad 6 Pro / Android 15 从「小组件 → 安卓小部件 → 时织」添加 4×2 和 2×2 原生组件成功，均显示同步后的当前/下一节课、日期/教室/时区与一致倒计时；点击打开课程表通过。APK 覆盖更新后组件恢复且深色资源正确。测试组件放在新桌面页，原有平板组件保留。用户要求手机继续使用后，停止全部手机操作。
+- 用户随后要求更新手机；最终签名 APK 已覆盖安装到手机与平板，保留数据/配对。手机此次仅执行安装与包版本读取，没有打开界面或操作桌面。两次课程和一条计时测试数据均已清理；平板组件继续保留。ROG 最终桌面包已替换并恢复同一任务/profile，隐藏窗口和 AI/sync 接口再次通过。
+
+### 公开发布
+
+[v0.3.0](https://github.com/AlexbeatsZ/dayweave/releases/tag/v0.3.0) 已公开，非草稿、非预发布，标签与最终四平台 CI 指向同一完整提交 59c254ae63c0e32259dfcb7eb121e3c601a7754d。13 个附件的名称、uploaded 状态和大小逐一匹配本地；源码 ZIP 由该提交 git archive 生成。独立 AI 目录重新打包为 ZIP，许可文本使用当前依赖版本重新汇总，避免复用旧归档。安装包和中文使用说明已复制到本轮 outputs。
 
 未验收：手机组件添加；小米商店组件分发/曝光专用路径；锁屏、系统重启和长期后台；实际 LAN 的 mDNS 自动发现（地址配对与加密同步已通过）；下载后的 Gatekeeper；用户实体 Intel Mac；现有 ROG AI 系统实际接入。Android 网络同步仅前台/恢复时运行。macOS 使用 ad-hoc 签名，未 Apple 公证；Windows 未商业代码签名。
 
