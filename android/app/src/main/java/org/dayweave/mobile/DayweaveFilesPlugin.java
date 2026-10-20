@@ -1,4 +1,4 @@
-package org.clearlist.mobile;
+package org.dayweave.mobile;
 
 import android.app.Activity;
 import android.content.Intent;
@@ -21,8 +21,8 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import org.json.JSONObject;
 
-@CapacitorPlugin(name = "ClearlistFiles")
-public class ClearlistFilesPlugin extends Plugin {
+@CapacitorPlugin(name = "DayweaveFiles")
+public class DayweaveFilesPlugin extends Plugin {
     private static final int MAX_BYTES = 50 * 1024 * 1024;
     private String exporting;
 
@@ -75,6 +75,7 @@ public class ClearlistFilesPlugin extends Plugin {
             output.write(bytes);
             target.finishWrite(output);
             output = null;
+            if ("data.json".equals(call.getString("name"))) { CourseWidgetProvider.writeSnapshot(getContext(),content); CourseWidgetProvider.requestRefresh(getContext()); }
             call.resolve();
         } catch (Exception error) {
             if (output != null && target != null) target.failWrite(output);
@@ -87,7 +88,7 @@ public class ClearlistFilesPlugin extends Plugin {
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
         intent.setType("*/*");
-        intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{"application/json", "text/plain", "application/octet-stream"});
+        intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{"application/json", "text/plain", "text/calendar", "text/csv", "application/octet-stream"});
         startActivityForResult(call, intent, "backupPicked");
     }
 
@@ -115,8 +116,8 @@ public class ClearlistFilesPlugin extends Plugin {
         exporting = content;
         Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
-        intent.setType("application/json");
-        intent.putExtra(Intent.EXTRA_TITLE, call.getString("name", "Clearlist.json"));
+        intent.setType(call.getString("mime", "application/json"));
+        intent.putExtra(Intent.EXTRA_TITLE, call.getString("name", "Dayweave.json"));
         startActivityForResult(call, intent, "backupExported");
     }
 
@@ -134,6 +135,17 @@ public class ClearlistFilesPlugin extends Plugin {
             output.write(content.getBytes(StandardCharsets.UTF_8)); output.flush();
             call.resolve(new JSObject().put("saved", true));
         } catch (Exception error) { call.reject("Unable to export backup", error); }
+    }
+
+    @PluginMethod
+    public void pinWidget(PluginCall call) {
+        android.appwidget.AppWidgetManager manager=android.appwidget.AppWidgetManager.getInstance(getContext());
+        boolean supported=false, requested=false;
+        if(android.os.Build.VERSION.SDK_INT>=26) {
+            supported=manager.isRequestPinAppWidgetSupported();
+            requested=supported && manager.requestPinAppWidget(new android.content.ComponentName(getContext(), CourseWidgetProvider.class), null, null);
+        }
+        call.resolve(new JSObject().put("supported",supported).put("requested",requested));
     }
 
     @PluginMethod

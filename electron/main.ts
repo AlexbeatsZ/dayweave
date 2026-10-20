@@ -2,18 +2,19 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, Notification, nativeTheme } 
 import { readFile, writeFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { lockProfile } from './profile-lock.js';
 import { stateSchema } from '../src/model.js';
 import { FileStore } from './storage.js';
 import { StateService } from './state-service.js';
 import { startApi } from './api.js';
 import { diffState } from '../src/state-delta.js';
 
-app.setName('Clearlist');
+app.setName('Dayweave');
 app.setPath(
   'userData',
-  process.env.CLEARLIST_DATA_DIR
-    ? path.resolve(process.env.CLEARLIST_DATA_DIR)
-    : path.join(app.getPath('appData'), 'Clearlist'),
+  process.env.DAYWEAVE_DATA_DIR
+    ? path.resolve(process.env.DAYWEAVE_DATA_DIR)
+    : path.join(app.getPath('appData'), 'Dayweave'),
 );
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const service = new StateService(new FileStore(app.getPath('userData')));
@@ -36,14 +37,14 @@ else {
   };
   async function readBackup() {
     const result = await dialog.showOpenDialog(window!, {
-      title: '选择简清 JSON 备份',
+      title: '选择时织 JSON 备份',
       properties: ['openFile'],
       filters: [{ name: 'JSON 备份', extensions: ['json'] }],
     });
     if (result.canceled) return null;
     if ((await stat(result.filePaths[0])).size > 50 * 1024 * 1024)
       throw new Error('文件超过 50 MB 限制');
-    return stateSchema.parse(JSON.parse(await readFile(result.filePaths[0], 'utf8')));
+    return JSON.parse(await readFile(result.filePaths[0], 'utf8'));
   }
   function createWindow() {
     allowClose = false;
@@ -53,7 +54,7 @@ else {
       height: 920,
       minWidth: 900,
       minHeight: 640,
-      title: '简清 · Clearlist',
+      title: '时织 · Dayweave',
       backgroundColor: nativeTheme.shouldUseDarkColors ? '#18221f' : '#fafcfb',
       autoHideMenuBar: true,
       ...(process.platform === 'darwin'
@@ -78,8 +79,8 @@ else {
     });
     window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
     window.webContents.on('will-navigate', (event) => event.preventDefault());
-    if (process.env.CLEARLIST_DEV_URL === 'http://127.0.0.1:5178')
-      void window.loadURL(process.env.CLEARLIST_DEV_URL);
+    if (process.env.DAYWEAVE_DEV_URL === 'http://127.0.0.1:5178')
+      void window.loadURL(process.env.DAYWEAVE_DEV_URL);
     else void window.loadFile(path.join(directory, '../../dist/index.html'));
     window.on('closed', () => {
       window = null;
@@ -96,6 +97,10 @@ else {
     quitting = true;
   });
   app.whenReady().then(async () => {
+    const unlock = await lockProfile(app.getPath('userData'));
+    app.once('will-quit', () => {
+      void unlock();
+    });
     try {
       const snapshot = await service.snapshot();
       nativeTheme.themeSource = snapshot.state.settings.theme;
@@ -106,7 +111,7 @@ else {
       Menu.setApplicationMenu(
         Menu.buildFromTemplate([
           {
-            label: 'Clearlist',
+            label: 'Dayweave',
             submenu: [
               { role: 'about' },
               { type: 'separator' },
@@ -129,6 +134,32 @@ else {
         ]),
       );
     else Menu.setApplicationMenu(null);
+    ipcMain.handle('text:pick', async (event) => {
+      trusted(event);
+      const result = await dialog.showOpenDialog(window!, {
+        title: '选择课程表或备份',
+        properties: ['openFile'],
+        filters: [{ name: '课程表 / 备份', extensions: ['csv', 'ics', 'json'] }],
+      });
+      if (result.canceled) return null;
+      if ((await stat(result.filePaths[0])).size > 10 * 1024 * 1024)
+        throw new Error('文件不能超过 10 MB');
+      return readFile(result.filePaths[0], 'utf8');
+    });
+    ipcMain.handle('text:export', async (event, name: unknown, data: unknown) => {
+      trusted(event);
+      if (
+        typeof name !== 'string' ||
+        !/^[-a-zA-Z0-9_.]+$/.test(name) ||
+        typeof data !== 'string' ||
+        Buffer.byteLength(data) > 50 * 1024 * 1024
+      )
+        throw new Error('Invalid export');
+      const result = await dialog.showSaveDialog(window!, { defaultPath: name });
+      if (result.canceled || !result.filePath) return false;
+      await writeFile(result.filePath, data, 'utf8');
+      return true;
+    });
     ipcMain.handle('store:load', (event) => {
       trusted(event);
       return service.snapshot();
@@ -158,8 +189,8 @@ else {
       trusted(event);
       const data = stateSchema.parse(value);
       const result = await dialog.showSaveDialog(window!, {
-        title: '导出简清备份',
-        defaultPath: `Clearlist-${Date.now()}.json`,
+        title: '导出时织备份',
+        defaultPath: `Dayweave-${Date.now()}.json`,
         filters: [{ name: 'JSON 备份', extensions: ['json'] }],
       });
       if (result.canceled || !result.filePath) return false;
@@ -226,9 +257,9 @@ else {
     });
   });
   async function initializeApi() {
-    if (api || process.env.CLEARLIST_API_DISABLE === '1') return;
+    if (api || process.env.DAYWEAVE_API_DISABLE === '1') return;
     try {
-      const port = Number(process.env.CLEARLIST_API_PORT ?? 49721);
+      const port = Number(process.env.DAYWEAVE_API_PORT ?? 49731);
       if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error('Invalid API port');
       api = await startApi(service, port);
     } catch (error) {

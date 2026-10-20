@@ -1,3 +1,4 @@
+import { setTimeZone } from '../src/timezone.js';
 import { randomUUID } from 'node:crypto';
 import { stateSchema, type AppState } from '../src/model.js';
 import { applyDelta, type StateDelta } from '../src/state-delta.js';
@@ -20,6 +21,7 @@ export class StateService {
       .load()
       .then((data) => (this.current = { ...data, revision: this.revision() }));
     await this.loaded;
+    setTimeZone(this.current!.state.settings.timeZone);
     return structuredClone(this.current!);
   }
   subscribe(callback: (value: StateSnapshot) => void) {

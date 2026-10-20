@@ -71,7 +71,7 @@ test('valid backup import merges idempotently; invalid import preserves data; ex
   const downloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: '导出 JSON', exact: true }).click();
   const download = await downloadPromise;
-  expect(download.suggestedFilename()).toMatch(/Clearlist-.*\.json/);
+  expect(download.suggestedFilename()).toMatch(/Dayweave-.*\.json/);
   const stream = await download.createReadStream();
   const chunks = [];
   for await (const c of stream!) chunks.push(c);

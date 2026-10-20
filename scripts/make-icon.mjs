@@ -2,14 +2,21 @@
 import { deflateSync } from 'node:zlib';
 import { mkdir, writeFile } from 'node:fs/promises';
 const lines = [
-  [54, 76, 68, 90],
-  [68, 90, 94, 58],
-  [124, 74, 196, 74],
-  [54, 130, 68, 144],
-  [68, 144, 94, 112],
-  [124, 128, 196, 128],
-  [58, 186, 94, 186],
-  [124, 182, 196, 182],
+  [46, 68, 62, 84],
+  [62, 84, 91, 48],
+  [115, 66, 199, 66],
+  [48, 126, 98, 126],
+  [48, 170, 98, 170],
+  [140, 116, 183, 116],
+  [183, 116, 204, 141],
+  [204, 141, 204, 178],
+  [204, 178, 183, 199],
+  [183, 199, 143, 199],
+  [143, 199, 122, 178],
+  [122, 178, 122, 141],
+  [122, 141, 140, 116],
+  [164, 138, 164, 159],
+  [164, 159, 183, 171],
 ];
 const distance = (x, y, a, b, c, d) => {
   const t = Math.max(
@@ -45,7 +52,7 @@ function png(size) {
       const inside =
         Math.hypot(Math.max(0, 45 - px, px - 210), Math.max(0, 45 - py, py - 210)) <= 45;
       const white = lines.some(([a, b, c, d]) => distance(px, py, a, b, c, d) <= 7.5);
-      const rgb = white ? [255, 255, 255] : [50, 101, 89];
+      const rgb = white ? [255, 255, 255] : [66, 100, 178];
       pixels[at] = rgb[0];
       pixels[at + 1] = rgb[1];
       pixels[at + 2] = rgb[2];
@@ -90,3 +97,13 @@ const icns = Buffer.alloc(8);
 icns.write('icns');
 icns.writeUInt32BE(8 + chunks.reduce((sum, item) => sum + item.length, 0), 4);
 await writeFile('build/icon.icns', Buffer.concat([icns, ...chunks]));
+
+for (const [density, size] of [
+  ['mdpi', 48],
+  ['hdpi', 72],
+  ['xhdpi', 96],
+  ['xxhdpi', 144],
+  ['xxxhdpi', 192],
+])
+  for (const name of ['ic_launcher', 'ic_launcher_round', 'ic_launcher_foreground'])
+    await writeFile(`android/app/src/main/res/mipmap-${density}/${name}.png`, png(size));

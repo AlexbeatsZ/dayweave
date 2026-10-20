@@ -1,4 +1,4 @@
-package org.clearlist.mobile;
+package org.dayweave.mobile;
 
 import com.getcapacitor.BridgeActivity;
 import android.os.Bundle;
@@ -6,7 +6,7 @@ import android.os.Bundle;
 public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
-        registerPlugin(ClearlistFilesPlugin.class);
+        registerPlugin(DayweaveFilesPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

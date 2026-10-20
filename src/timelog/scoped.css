@@ -1,0 +1,1505 @@
+.timelog-module {
+  font-family: 'Segoe UI Variable Text', 'Segoe UI', 'Microsoft YaHei', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  font-synthesis: none;
+  color-scheme: light;
+  --canvas: #f5f7f8;
+  --surface: #ffffff;
+  --soft: #f0f4f5;
+  --active: #e8f2f0;
+  --ink: #263d43;
+  --text: #5c7178;
+  --muted: #778990;
+  --line: #e1e8eb;
+  --accent: #256f68;
+  --accent-hover: #1e5c57;
+  --on-accent: #ffffff;
+  --positive: #287965;
+  --negative: #b15959;
+  --shadow: #1c383915;
+  --backdrop: #132a405c;
+  --focus: #85b9c1;
+  background: var(--canvas);
+  color: var(--ink);
+}
+.timelog-module[data-theme='dark'] {
+  color-scheme: dark;
+  --canvas: #131e23;
+  --surface: #1c2a30;
+  --soft: #24353b;
+  --active: #23463f;
+  --ink: #e0eaed;
+  --text: #b0c2c9;
+  --muted: #91a7b0;
+  --line: #32474f;
+  --accent: #8fcbbd;
+  --accent-hover: #aedccd;
+  --on-accent: #12382e;
+  --positive: #95d2b5;
+  --negative: #f1a09e;
+  --shadow: #00000026;
+  --backdrop: #00000088;
+  --focus: #8cbdc8;
+}
+.timelog-module * {
+  box-sizing: border-box;
+}
+.timelog-module {
+  margin: 0;
+  min-width: 320px;
+}
+.timelog-module button,
+.timelog-module input,
+.timelog-module select,
+.timelog-module textarea {
+  font: inherit;
+}
+.timelog-module button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 0;
+  color: inherit;
+  background: none;
+  cursor: pointer;
+  border-radius: 7px;
+}
+.timelog-module button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+.timelog-module button:not(:disabled):hover {
+  background: var(--soft);
+}
+.timelog-module button:focus-visible,
+.timelog-module input:focus-visible,
+.timelog-module select:focus-visible,
+.timelog-module textarea:focus-visible,
+.timelog-module summary:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+.timelog-module button svg {
+  flex-shrink: 0;
+}
+.timelog-module h1,
+.timelog-module h2,
+.timelog-module h3,
+.timelog-module p {
+  margin: 0;
+}
+.timelog-module h1 {
+  font-size: 23px;
+  font-weight: 650;
+}
+.timelog-module h2 {
+  font-size: 19px;
+  font-weight: 650;
+}
+.timelog-module h3 {
+  font-size: 15px;
+  font-weight: 600;
+}
+.timelog-module a {
+  color: var(--accent);
+}
+.timelog-module input,
+.timelog-module select,
+.timelog-module textarea {
+  min-width: 0;
+  width: 100%;
+  padding: 9px 11px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+}
+.timelog-module textarea {
+  resize: vertical;
+  min-height: 86px;
+}
+.timelog-module label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--text);
+}
+.timelog-module .primary,
+.timelog-module .secondary {
+  min-height: 39px;
+  padding: 8px 15px;
+  font-weight: 550;
+}
+.timelog-module .primary {
+  color: var(--on-accent);
+  background: var(--accent);
+}
+.timelog-module .primary:not(:disabled):hover {
+  background: var(--accent-hover);
+}
+.timelog-module .secondary {
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+.timelog-module .icon-button {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  padding: 6px;
+}
+.timelog-module .text-button {
+  min-height: 34px;
+  padding: 5px 7px;
+  color: var(--accent);
+  font-size: 13px;
+}
+.timelog-module .muted,
+.timelog-module .footnote,
+.timelog-module .section-note {
+  color: var(--muted);
+}
+.timelog-module .footnote {
+  font-size: 12px;
+  line-height: 1.7;
+}
+.timelog-module .positive-text {
+  color: var(--positive);
+}
+.timelog-module .negative-text,
+.timelog-module .danger {
+  color: var(--negative);
+}
+.timelog-module .workspace-shell {
+  min-height: 100dvh;
+}
+.timelog-module .navigation {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: 174px;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-right: 1px solid var(--line);
+  padding: 28px 15px 18px;
+  z-index: 20;
+}
+.timelog-module .brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px 31px;
+  font-size: 19px;
+  letter-spacing: 2px;
+}
+.timelog-module .brand img {
+  width: 30px;
+  height: 30px;
+}
+.timelog-module .navigation nav {
+  display: grid;
+  gap: 7px;
+}
+.timelog-module .navigation nav button,
+.timelog-module .nav-footer > button {
+  position: relative;
+  justify-content: flex-start;
+  gap: 13px;
+  width: 100%;
+  padding: 12px 16px;
+  min-height: 46px;
+  color: var(--text);
+}
+.timelog-module .navigation nav button.active {
+  background: var(--active);
+  color: var(--accent);
+  font-weight: 650;
+}
+.timelog-module .navigation nav .running-dot {
+  margin-left: auto;
+  width: 6px;
+  height: 6px;
+}
+.timelog-module .nav-footer {
+  margin-top: auto;
+}
+.timelog-module .nav-footer small {
+  display: block;
+  margin: 14px 16px 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+.timelog-module .main {
+  margin-left: 174px;
+}
+.timelog-module .page-header {
+  height: 84px;
+  max-width: 1148px;
+  margin: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 40px;
+}
+.timelog-module .header-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.timelog-module .saved-indicator {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.timelog-module .mobile-settings {
+  display: none;
+}
+.timelog-module .panel-content {
+  max-width: 1068px;
+  padding: 9px 0 60px;
+  margin: 0 auto;
+}
+.timelog-module .panel-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+.timelog-module .date-picker {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+.timelog-module .date-picker input {
+  width: 151px;
+  font-weight: 550;
+  background: transparent;
+  border: none;
+  padding: 7px 8px;
+}
+.timelog-module .timeline-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  padding: 2px 0 18px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+}
+.timelog-module .timeline-summary strong {
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+  margin-left: 5px;
+}
+.timelog-module .timeline-summary .weekday {
+  margin-left: auto;
+}
+.timelog-module .active-timer-strip {
+  width: 100%;
+  border: 1px solid var(--line);
+  background: var(--active);
+  padding: 12px 16px;
+  margin-bottom: 18px;
+  color: var(--accent);
+}
+.timelog-module .active-timer-strip time {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+.timelog-module .running-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  background: var(--positive);
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.timelog-module .timeline-options {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-bottom: 24px;
+}
+.timelog-module .search-field {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 7px;
+  flex: 1;
+  max-width: 350px;
+  border-bottom: 1px solid var(--line);
+}
+.timelog-module .search-field input {
+  background: transparent;
+  border: 0;
+  padding: 7px 0;
+  font-size: 12px;
+}
+.timelog-module .check-label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.timelog-module .check-label input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--accent);
+  flex-shrink: 0;
+}
+.timelog-module .timeline-options > .check-label {
+  margin-left: auto;
+}
+.timelog-module .timeline-list {
+  padding-bottom: 15px;
+}
+.timelog-module .timeline-entry {
+  display: grid;
+  grid-template-columns: 53px minmax(0, 1fr);
+  column-gap: 17px;
+  margin-bottom: 14px;
+}
+.timelog-module .time-rail {
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.timelog-module .time-rail time {
+  line-height: 15px;
+}
+.timelog-module .time-rail span {
+  border-right: 1px solid var(--line);
+  flex: 1;
+  margin: 0 14px;
+  min-height: 12px;
+}
+.timelog-module .entry-body {
+  min-width: 0;
+}
+.timelog-module .record-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--activity-color);
+  border-radius: 9px;
+  box-shadow: 0 2px 7px var(--shadow);
+}
+.timelog-module .card-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 18px 17px 14px;
+}
+.timelog-module .activity-mark {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 15px;
+  font-weight: 650;
+  color: var(--activity-color);
+  background: color-mix(in srgb, var(--activity-color) 12%, var(--surface));
+  border-radius: 10px;
+}
+.timelog-module .card-content {
+  flex: 1;
+  min-width: 0;
+}
+.timelog-module .card-content h3 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  align-items: center;
+  line-height: 24px;
+}
+.timelog-module .nature {
+  display: inline-flex;
+  padding: 1px 6px;
+  background: var(--soft);
+  font-size: 10px;
+  font-weight: 400;
+  border-radius: 4px;
+  color: var(--text);
+  vertical-align: middle;
+}
+.timelog-module .nature.positive {
+  color: var(--positive);
+}
+.timelog-module .nature.negative {
+  color: var(--negative);
+}
+.timelog-module .record-note {
+  margin-top: 6px;
+  color: var(--text);
+  line-height: 1.65;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.timelog-module .tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 7px;
+  color: var(--accent);
+  font-size: 11px;
+}
+.timelog-module .card-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin-top: 9px;
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.timelog-module .card-menu {
+  position: relative;
+}
+.timelog-module .card-menu summary {
+  display: flex;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 5px;
+  color: var(--muted);
+}
+.timelog-module .card-menu summary::-webkit-details-marker {
+  display: none;
+}
+.timelog-module .card-menu[open] {
+  z-index: 5;
+}
+.timelog-module .card-menu > div {
+  position: absolute;
+  right: 0;
+  top: 30px;
+  width: 150px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 5px;
+  box-shadow: 0 5px 24px var(--shadow);
+}
+.timelog-module .card-menu button {
+  display: flex;
+  justify-content: flex-start;
+  width: 100%;
+  min-height: 37px;
+  padding: 7px 10px;
+}
+.timelog-module .fill-actions {
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-wrap: wrap;
+  padding: 3px 12px;
+  gap: 4px 20px;
+}
+.timelog-module .fill-actions button {
+  color: var(--muted);
+  font-size: 11px;
+  min-height: 30px;
+  padding: 5px 3px;
+}
+.timelog-module .fill-actions button:hover {
+  color: var(--accent);
+}
+.timelog-module .gap-card {
+  width: 100%;
+  min-height: 67px;
+  justify-content: flex-start;
+  padding: 14px 21px;
+  gap: 13px;
+  border: 1px dashed var(--line);
+  background: color-mix(in srgb, var(--surface) 45%, var(--canvas));
+  color: var(--muted);
+}
+.timelog-module .gap-card strong {
+  font-weight: 400;
+  margin-left: 7px;
+}
+.timelog-module .gap-card .gap-hint {
+  margin-left: auto;
+  font-size: 11px;
+}
+.timelog-module .gap-card:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.timelog-module .timer-card {
+  width: 100%;
+  min-height: 65px;
+  border: 1px solid var(--line);
+  background: var(--active);
+  color: var(--accent);
+  padding: 15px 20px;
+  justify-content: flex-start;
+}
+.timelog-module .timer-card > span:last-child {
+  margin-left: auto;
+}
+.timelog-module .empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 50px 18px;
+  gap: 14px;
+  color: var(--muted);
+  text-align: center;
+}
+.timelog-module .timer-previous {
+  margin: 0 0 22px;
+}
+.timelog-module .activity-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 15px;
+}
+.timelog-module .activity-tile {
+  min-height: 99px;
+  text-align: left;
+  padding: 19px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  justify-content: flex-start;
+  gap: 13px;
+}
+.timelog-module .activity-tile:hover {
+  border-color: var(--activity-color);
+}
+.timelog-module .activity-text {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 4px;
+}
+.timelog-module .activity-text strong {
+  font-size: 16px;
+  font-weight: 600;
+}
+.timelog-module .activity-text small {
+  font-size: 11px;
+  color: var(--muted);
+}
+.timelog-module .activity-tile > svg {
+  color: var(--activity-color);
+}
+.timelog-module .timer-detail {
+  width: min(100%, 610px);
+  margin: 30px auto;
+  text-align: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  padding: 30px 48px;
+}
+.timelog-module .timer-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 27px;
+}
+.timelog-module .timer-state {
+  color: var(--muted);
+  font-size: 12px;
+}
+.timelog-module .timer-detail h2,
+.timelog-module .focus-content h2 {
+  font-size: 21px;
+  font-weight: 600;
+}
+.timelog-module .timer-clock {
+  display: block;
+  font-family: 'Bahnschrift', 'SFMono-Regular', 'Consolas', monospace;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(45px, 6vw, 70px);
+  letter-spacing: 1px;
+  line-height: 1.35;
+  margin: 18px 0 8px;
+}
+.timelog-module .timer-start {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 25px;
+}
+.timelog-module .timer-detail textarea {
+  background: var(--canvas);
+  text-align: left;
+  margin-bottom: 24px;
+}
+.timelog-module .timer-controls {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+.timelog-module .timer-controls > button {
+  min-width: 124px;
+  min-height: 43px;
+}
+.timelog-module .timer-secondary {
+  display: flex;
+  justify-content: center;
+  gap: 25px;
+  margin: 18px 0;
+}
+.timelog-module .focus-content {
+  text-align: center;
+  padding: 35px 20px 50px;
+}
+.timelog-module .focus-content > p {
+  color: var(--muted);
+  margin-bottom: 30px;
+}
+.timelog-module .section-note {
+  font-size: 12px;
+  margin-bottom: 22px;
+}
+.timelog-module .goal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+.timelog-module .goal-card {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  padding: 23px;
+}
+.timelog-module .goal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 15px;
+}
+.timelog-module .period-badge {
+  display: inline-block;
+  color: var(--activity-color);
+  font-size: 10px;
+  padding: 2px 6px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  margin-bottom: 9px;
+}
+.timelog-module .goal-header h3 {
+  font-size: 17px;
+}
+.timelog-module .goal-header p {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 6px;
+}
+.timelog-module .goal-numbers {
+  margin: 25px 0 13px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.timelog-module .goal-numbers strong {
+  font-family: 'Bahnschrift', 'Consolas', sans-serif;
+  font-size: 27px;
+  font-weight: 500;
+}
+.timelog-module .goal-numbers small {
+  font-family: 'Segoe UI', sans-serif;
+  font-size: 12px;
+  color: var(--muted);
+}
+.timelog-module .goal-numbers > span {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  color: var(--activity-color);
+  font-size: 12px;
+}
+.timelog-module .progress-track {
+  background: var(--soft);
+  height: 6px;
+  border-radius: 5px;
+  overflow: hidden;
+}
+.timelog-module .progress-track > span {
+  display: block;
+  height: 100%;
+  background: var(--activity-color);
+  border-radius: inherit;
+}
+.timelog-module .goal-card footer {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--muted);
+}
+.timelog-module .segmented {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.timelog-module .segmented button {
+  padding: 6px 13px;
+  font-size: 12px;
+}
+.timelog-module .segmented .selected {
+  background: var(--surface);
+  color: var(--accent);
+  box-shadow: 0 1px 4px var(--shadow);
+}
+.timelog-module .analysis-summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  padding: 24px 0;
+  margin-bottom: 24px;
+}
+.timelog-module .analysis-summary > div {
+  padding: 0 24px;
+  border-right: 1px solid var(--line);
+}
+.timelog-module .analysis-summary > div:last-child {
+  border: 0;
+}
+.timelog-module .analysis-summary span {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+}
+.timelog-module .analysis-summary strong {
+  display: block;
+  font-size: 24px;
+  font-weight: 550;
+  margin-top: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.timelog-module .analysis-summary small {
+  font-size: 12px;
+  font-weight: 400;
+}
+.timelog-module .analysis-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 23px;
+  margin-bottom: 20px;
+}
+.timelog-module .bar-chart {
+  display: flex;
+  gap: 9px;
+  height: 187px;
+  margin-top: 24px;
+}
+.timelog-module .bar-chart button {
+  flex-direction: column;
+  padding: 0;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+  border-radius: 3px;
+}
+.timelog-module .bar-chart button > div {
+  width: 100%;
+  height: 155px;
+  display: flex;
+  align-items: flex-end;
+  background: var(--canvas);
+  border-radius: 4px;
+}
+.timelog-module .bar-chart button span {
+  display: block;
+  width: 100%;
+  min-height: 2px;
+  border-radius: 4px;
+  background: var(--accent);
+  opacity: 0.75;
+}
+.timelog-module .bar-chart button small {
+  color: var(--muted);
+  font-size: 10px;
+}
+.timelog-module .bar-chart.days-1 button {
+  max-width: 130px;
+  margin: auto;
+}
+.timelog-module .bar-chart.days-30 {
+  gap: 5px;
+}
+.timelog-module .bar-chart.days-30 button:not(:nth-child(5n + 1)):not(:last-child) small {
+  visibility: hidden;
+}
+.timelog-module .activity-stats {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  margin-top: 15px;
+}
+.timelog-module .activity-stats th {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 400;
+}
+.timelog-module .activity-stats td,
+.timelog-module .activity-stats th {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.timelog-module .activity-stats td:not(:first-child),
+.timelog-module .activity-stats th:not(:first-child) {
+  text-align: right;
+}
+.timelog-module .activity-stats tr:last-child td {
+  border: 0;
+}
+.timelog-module .activity-stats i,
+.timelog-module .setting-row i {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-right: 9px;
+}
+.timelog-module dialog {
+  width: min(620px, calc(100% - 36px));
+  max-height: calc(100dvh - 50px);
+  padding: 0;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: 12px;
+  box-shadow: 0 15px 70px #0003;
+}
+.timelog-module dialog::backdrop {
+  background: var(--backdrop);
+}
+.timelog-module dialog.wide-dialog {
+  width: min(740px, calc(100% - 36px));
+}
+.timelog-module .dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--line);
+}
+.timelog-module .dialog-header h2 {
+  font-size: 17px;
+}
+.timelog-module .editor {
+  padding: 23px 24px;
+  display: grid;
+  gap: 17px;
+}
+.timelog-module .editor label {
+  font-size: 12px;
+}
+.timelog-module .form-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.timelog-module .editor input[type='color'] {
+  padding: 3px;
+  width: 64px;
+  height: 35px;
+}
+.timelog-module .time-shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.timelog-module .chip {
+  background: var(--soft);
+  padding: 5px 10px;
+  color: var(--text);
+  font-size: 11px;
+}
+.timelog-module .time-shortcuts .text-button {
+  font-size: 11px;
+}
+.timelog-module .dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  border-top: 1px solid var(--line);
+  margin-top: 5px;
+  padding-top: 19px;
+}
+.timelog-module .confirm-body {
+  padding: 24px;
+  line-height: 1.8;
+}
+.timelog-module .confirm-body + .dialog-actions {
+  padding: 18px 24px;
+}
+.timelog-module .form-error {
+  border: 1px solid color-mix(in srgb, var(--negative) 35%, transparent);
+  background: color-mix(in srgb, var(--negative) 8%, var(--surface));
+  color: var(--negative);
+  border-radius: 7px;
+  padding: 11px 13px;
+  font-size: 12px;
+}
+.timelog-module .settings-content {
+  padding: 0 24px;
+}
+.timelog-module .settings-content section {
+  padding: 23px 0;
+  border-bottom: 1px solid var(--line);
+}
+.timelog-module .settings-content section > h3 {
+  margin-bottom: 15px;
+}
+.timelog-module .settings-content section > p {
+  font-size: 12px;
+  margin-bottom: 14px;
+  line-height: 1.8;
+}
+.timelog-module .setting-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+}
+.timelog-module .setting-row > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.timelog-module .setting-row small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  margin-top: 3px;
+}
+.timelog-module .setting-row select {
+  width: 175px;
+}
+.timelog-module .inline-actions,
+.timelog-module .export-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+.timelog-module .export-actions button {
+  font-size: 12px;
+}
+.timelog-module .import-preview {
+  margin-top: 19px;
+  background: var(--soft);
+  border-radius: 8px;
+  padding: 18px;
+  display: grid;
+  gap: 15px;
+}
+.timelog-module .import-preview p {
+  font-size: 12px;
+}
+.timelog-module .api-settings label {
+  margin-top: 15px;
+  font-size: 12px;
+}
+.timelog-module .token-row {
+  display: flex;
+  gap: 8px;
+}
+.timelog-module .api-path {
+  display: block;
+  margin-top: 14px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+  font-size: 11px;
+}
+.timelog-module .settings-about {
+  padding: 23px 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+.timelog-module .settings-about p {
+  margin-top: 7px;
+}
+.timelog-module .activity-management {
+  padding: 22px 24px;
+}
+.timelog-module .activity-management > .primary {
+  margin-bottom: 15px;
+}
+.timelog-module .activity-management .setting-row {
+  border-bottom: 1px solid var(--line);
+}
+.timelog-module .toast {
+  position: fixed;
+  bottom: 28px;
+  left: calc(50% + 87px);
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  z-index: 100;
+  padding: 8px 11px 8px 18px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  color: var(--ink);
+  background: var(--surface);
+  box-shadow: 0 5px 24px var(--shadow);
+  max-width: calc(100vw - 40px);
+  font-size: 13px;
+}
+.timelog-module .toast.error {
+  color: var(--negative);
+}
+.timelog-module .loading {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+  padding: 35px;
+}
+@media (max-width: 1330px) {
+  .timelog-module .panel-content {
+    margin: 0 40px;
+  }
+}
+@media (max-width: 1060px) {
+  .timelog-module .navigation {
+    width: 145px;
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+  .timelog-module .main {
+    margin-left: 145px;
+  }
+  .timelog-module .page-header {
+    padding: 0 28px;
+  }
+  .timelog-module .panel-content {
+    margin: 0 28px;
+  }
+  .timelog-module .activity-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .timelog-module .goal-card {
+    padding: 18px;
+  }
+  .timelog-module .analysis-summary > div {
+    padding: 0 15px;
+  }
+  .timelog-module .analysis-summary strong {
+    font-size: 20px;
+  }
+  .timelog-module .toast {
+    left: calc(50% + 72px);
+  }
+}
+@media (max-width: 720px) {
+  .timelog-module {
+    font-size: 13px;
+  }
+  .timelog-module .navigation {
+    inset: auto 0 0;
+    width: 100%;
+    height: calc(66px + env(safe-area-inset-bottom));
+    padding: 4px 10px env(safe-area-inset-bottom);
+    border: 0;
+    border-top: 1px solid var(--line);
+  }
+  .timelog-module .brand,
+  .timelog-module .nav-footer {
+    display: none;
+  }
+  .timelog-module .navigation nav {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 3px;
+    height: 61px;
+  }
+  .timelog-module .navigation nav button {
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+    padding: 6px 3px;
+    font-size: 10px;
+    border-radius: 7px;
+  }
+  .timelog-module .navigation nav .running-dot {
+    position: absolute;
+    margin: 0;
+    top: 7px;
+    right: calc(50% - 19px);
+  }
+  .timelog-module .main {
+    margin-left: 0;
+    padding-bottom: calc(72px + env(safe-area-inset-bottom));
+  }
+  .timelog-module .page-header {
+    height: 68px;
+    padding: 0 19px;
+  }
+  .timelog-module h1 {
+    font-size: 21px;
+  }
+  .timelog-module .header-actions {
+    gap: 5px;
+  }
+  .timelog-module .saved-indicator {
+    margin-left: 5px;
+    font-size: 10px;
+  }
+  .timelog-module .mobile-settings {
+    display: inline-flex;
+  }
+  .timelog-module .panel-content {
+    margin: 0 17px;
+    padding-top: 5px;
+    padding-bottom: 25px;
+  }
+  .timelog-module .panel-toolbar {
+    gap: 11px;
+    margin-bottom: 17px;
+  }
+  .timelog-module .panel-toolbar > .primary,
+  .timelog-module .panel-toolbar > .secondary {
+    font-size: 12px;
+    padding: 8px 10px;
+  }
+  .timelog-module .date-picker {
+    gap: 0;
+  }
+  .timelog-module .date-picker input {
+    width: 133px;
+    padding: 6px;
+    font-size: 12px;
+  }
+  .timelog-module .date-picker .icon-button {
+    width: 27px;
+  }
+  .timelog-module .date-picker .text-button {
+    font-size: 11px;
+    padding: 5px;
+  }
+  .timelog-module .timeline-summary {
+    gap: 11px;
+    font-size: 10px;
+    padding-bottom: 15px;
+    margin-bottom: 15px;
+  }
+  .timelog-module .timeline-summary strong {
+    font-size: 12px;
+    margin-left: 3px;
+  }
+  .timelog-module .timeline-summary .weekday {
+    display: none;
+  }
+  .timelog-module .timeline-options {
+    gap: 11px;
+    margin-bottom: 17px;
+  }
+  .timelog-module .timeline-options > .check-label {
+    width: 100%;
+    margin: 0;
+    font-size: 10px;
+  }
+  .timelog-module .search-field {
+    max-width: none;
+  }
+  .timelog-module .timeline-entry {
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 9px;
+    margin-bottom: 12px;
+  }
+  .timelog-module .time-rail {
+    font-size: 10px;
+  }
+  .timelog-module .time-rail span {
+    margin-right: 10px;
+  }
+  .timelog-module .card-main {
+    gap: 9px;
+    padding: 13px 10px 11px;
+  }
+  .timelog-module .record-card .activity-mark {
+    width: 27px;
+    height: 29px;
+    font-size: 12px;
+    border-radius: 7px;
+  }
+  .timelog-module .card-content h3 {
+    font-size: 13px;
+    gap: 7px;
+    line-height: 21px;
+  }
+  .timelog-module .record-note {
+    font-size: 12px;
+  }
+  .timelog-module .card-meta {
+    font-size: 10px;
+    gap: 5px 11px;
+  }
+  .timelog-module .card-menu summary {
+    padding: 1px;
+  }
+  .timelog-module .fill-actions {
+    gap: 0 11px;
+    padding: 3px 9px;
+  }
+  .timelog-module .fill-actions button {
+    font-size: 10px;
+    min-height: 35px;
+  }
+  .timelog-module .gap-card {
+    padding: 13px 12px;
+    min-height: 65px;
+    gap: 8px;
+    font-size: 11px;
+    flex-wrap: wrap;
+  }
+  .timelog-module .gap-card .gap-hint {
+    font-size: 10px;
+  }
+  .timelog-module .active-timer-strip {
+    padding: 11px;
+    font-size: 11px;
+    gap: 8px;
+  }
+  .timelog-module .timer-card {
+    font-size: 11px;
+    padding: 12px;
+  }
+  .timelog-module .activity-grid {
+    gap: 11px;
+  }
+  .timelog-module .activity-tile {
+    min-height: 112px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    padding: 14px;
+    gap: 9px;
+  }
+  .timelog-module .activity-tile > svg {
+    display: none;
+  }
+  .timelog-module .activity-text {
+    flex-basis: 100%;
+  }
+  .timelog-module .activity-text strong {
+    font-size: 14px;
+  }
+  .timelog-module .activity-text small {
+    font-size: 10px;
+  }
+  .timelog-module .timer-detail {
+    padding: 23px 20px;
+    margin: 12px auto;
+  }
+  .timelog-module .timer-detail-header {
+    margin-bottom: 26px;
+  }
+  .timelog-module .timer-clock {
+    font-size: clamp(37px, 11vw, 57px);
+  }
+  .timelog-module .timer-controls > button {
+    min-width: 0;
+    flex: 1;
+  }
+  .timelog-module .timer-previous {
+    flex-wrap: wrap;
+    font-size: 11px;
+  }
+  .timelog-module .goal-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .timelog-module .analysis-summary {
+    grid-template-columns: 1fr 1fr;
+    padding: 5px 18px;
+  }
+  .timelog-module .analysis-summary > div {
+    padding: 17px 10px;
+    border-right: 0;
+  }
+  .timelog-module .analysis-summary > div:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--line);
+  }
+  .timelog-module .analysis-summary strong {
+    font-size: 22px;
+  }
+  .timelog-module .analysis-card {
+    padding: 17px;
+  }
+  .timelog-module .bar-chart {
+    gap: 5px;
+  }
+  .timelog-module .bar-chart.days-30 {
+    gap: 2px;
+  }
+  .timelog-module .bar-chart.days-30 button:not(:nth-child(10n + 1)) small {
+    visibility: hidden;
+  }
+  .timelog-module .bar-chart small {
+    font-size: 8px;
+  }
+  .timelog-module dialog,
+  .timelog-module dialog.wide-dialog {
+    width: calc(100% - 22px);
+    max-height: calc(100dvh - 30px);
+    border-radius: 11px;
+  }
+  .timelog-module .dialog-header {
+    padding: 16px 18px;
+  }
+  .timelog-module .editor {
+    padding: 19px 18px;
+  }
+  .timelog-module .form-columns {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+  .timelog-module .editor input,
+  .timelog-module .editor select,
+  .timelog-module .editor textarea {
+    font-size: 16px;
+  }
+  .timelog-module .settings-content {
+    padding: 0 18px;
+  }
+  .timelog-module .export-actions button {
+    flex: 1 1 40%;
+  }
+  .timelog-module .import-preview {
+    padding: 13px;
+  }
+  .timelog-module .import-preview .primary {
+    font-size: 11px;
+  }
+  .timelog-module .activity-management {
+    padding: 17px;
+  }
+  .timelog-module .toast {
+    bottom: calc(82px + env(safe-area-inset-bottom));
+    left: 50%;
+    font-size: 12px;
+  }
+  .timelog-module .confirm-body {
+    padding: 22px 18px;
+  }
+  .timelog-module .focus-content {
+    padding: 30px 12px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .timelog-module * {
+    scroll-behavior: auto !important;
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+.timelog-module .workspace-shell {
+  display: block;
+  min-height: 0;
+  height: auto;
+  background: transparent;
+}
+.timelog-module .navigation {
+  position: static;
+  display: flex;
+  flex-direction: row;
+  width: auto;
+  height: auto;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  padding: 0 0 12px;
+  gap: 8px;
+  background: transparent;
+}
+.timelog-module .navigation .brand {
+  display: none;
+}
+.timelog-module .navigation nav {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+}
+.timelog-module .navigation nav button {
+  padding: 10px 16px;
+  min-height: 44px;
+}
+.timelog-module .nav-footer {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.timelog-module .nav-footer small {
+  display: none;
+}
+.timelog-module .main {
+  padding: 18px 0 0;
+  margin: 0;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+}
+.timelog-module .page-header {
+  padding: 0 0 16px;
+}
+.timelog-module .page-header h1 {
+  font-size: 20px;
+}
+.timelog-module .panel-content {
+  padding: 0;
+  max-width: none;
+}
+.timelog-module {
+  min-width: 0;
+  border-radius: 12px;
+}
+@media (max-width: 700px) {
+  .timelog-module .navigation nav button {
+    padding: 10px;
+    flex: 1;
+  }
+  .timelog-module .navigation nav button span {
+    font-size: 12px;
+  }
+  .timelog-module .nav-footer {
+    display: none;
+  }
+  .timelog-module .mobile-settings {
+    display: inline-flex;
+  }
+  .timelog-module .main {
+    padding-bottom: 12px;
+  }
+  .timelog-module .workspace-shell {
+    display: block;
+  }
+}

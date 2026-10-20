@@ -1,3 +1,4 @@
+import { timeZones, deviceZone, zoneLabel } from '../timezone';
 import { useEffect, useRef, useState } from 'react';
 import {
   X,
@@ -59,8 +60,8 @@ export function Settings({
       >
         <header className="modal-header">
           <div>
-            <span className="eyebrow">CLEARLIST</span>
-            <h2 id="settings-title">让简清适合你</h2>
+            <span className="eyebrow">DAYWEAVE</span>
+            <h2 id="settings-title">让时织适合你</h2>
           </div>
           <button className="icon-button" aria-label="关闭设置" onClick={onClose}>
             <X size={20} />
@@ -135,9 +136,40 @@ export function Settings({
             <p className="field-hint">新时长会用于下一次计时。</p>
           </section>
           <section className="settings-section">
+            <h3>日程时区</h3>
+            <p>任务的今天、日历和时间统计按此时区计算。课程表可在学期设置中独立指定课程时区。</p>
+            <label className="timezone-setting">
+              日程时区
+              <input
+                key={settings.timeZone}
+                aria-label="日程时区"
+                list="app-timezones"
+                defaultValue={settings.timeZone}
+                onBlur={(e) => {
+                  try {
+                    update({ timeZone: e.target.value });
+                  } catch (error) {
+                    setError(String(error));
+                  }
+                }}
+              />
+              <datalist id="app-timezones">
+                {timeZones.map(([zone, label]) => (
+                  <option key={zone} value={zone}>
+                    {label}
+                  </option>
+                ))}
+              </datalist>
+            </label>
+            <p className="field-hint">
+              设备：{zoneLabel(deviceZone())} · 日程：{zoneLabel(settings.timeZone)}
+            </p>
+          </section>
+          <section className="settings-section">
             <h3>数据与备份</h3>
             <p className="setting-description">
-              任务保存在本地，无需注册。导出一份备份，也可以在另一台设备上导入。
+              待办、时间记录、课程和时区设置共用一个备份。支持导入 Clearlist 和 Open Timelog 的 JSON
+              备份。
             </p>
             <div className="data-actions">
               <button
@@ -172,7 +204,7 @@ export function Settings({
                     const value = await window.clearlist.importData();
                     if (value) receive(value);
                   } catch {
-                    setError('导入失败：请使用有效的简清 JSON 备份，版本需为 1。原有数据未改变。');
+                    setError('导入失败：请使用有效的时织 JSON 备份，版本需为 1。原有数据未改变。');
                   } finally {
                     setBusy(false);
                   }
@@ -196,7 +228,7 @@ export function Settings({
                   if (file.size > 50 * 1024 * 1024) throw new Error('文件过大');
                   receive(JSON.parse(await file.text()));
                 } catch {
-                  setError('导入失败：请使用有效的简清 JSON 备份，版本需为 1。原有数据未改变。');
+                  setError('导入失败：请使用有效的时织 JSON 备份，版本需为 1。原有数据未改变。');
                 } finally {
                   setBusy(false);
                   e.target.value = '';
@@ -266,7 +298,7 @@ export function Settings({
                 </>
               ) : (
                 <p className="field-hint">
-                  接口未启用。若未主动关闭，请重新打开简清并检查数据目录。
+                  接口未启用。若未主动关闭，请重新打开时织并检查数据目录。
                 </p>
               )}
             </section>
@@ -277,7 +309,7 @@ export function Settings({
             </span>
             <div>
               <strong>
-                简清 <span>Clearlist 0.2.0</span>
+                时织 <span>Dayweave 0.3.0</span>
               </strong>
               <p>
                 <ShieldCheck size={12} />

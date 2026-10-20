@@ -9,9 +9,9 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const base = path.join(os.tmpdir(), '.agents');
 await mkdir(base, { recursive: true });
 const profile = await mkdtemp(path.join(base, 'clearlist-desktop-'));
-const env = { ...process.env, CLEARLIST_DATA_DIR: profile, CLEARLIST_API_PORT: '0' };
+const env = { ...process.env, DAYWEAVE_DATA_DIR: profile, DAYWEAVE_API_PORT: '0' };
 delete env.ELECTRON_RUN_AS_NODE;
-delete env.CLEARLIST_DEV_URL;
+delete env.DAYWEAVE_DEV_URL;
 let app;
 async function readSavedState() {
   try {
@@ -23,10 +23,10 @@ async function readSavedState() {
 }
 async function launch() {
   app = await electron.launch({
-    ...(process.env.CLEARLIST_EXECUTABLE
-      ? { executablePath: path.resolve(process.env.CLEARLIST_EXECUTABLE) }
+    ...(process.env.DAYWEAVE_EXECUTABLE
+      ? { executablePath: path.resolve(process.env.DAYWEAVE_EXECUTABLE) }
       : {}),
-    args: process.env.CLEARLIST_EXECUTABLE ? [] : ['.'],
+    args: process.env.DAYWEAVE_EXECUTABLE ? [] : ['.'],
     cwd: root,
     env,
     timeout: 30000,

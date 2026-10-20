@@ -18,6 +18,7 @@ export function Focus({ preferredTask, clock }: { preferredTask: string | null; 
   const progress = timer ? (duration - seconds) / duration : 0;
   const todaySessions = data.sessions.filter((s) => dateKey(new Date(s.completedAt)) === dateKey());
   const start = () => {
+    if (data.timelog.timer) return;
     const task = activeTasks.find((t) => t.id === taskId);
     const title = currentKind === 'break' ? '休息一下' : (task?.title ?? '自由专注');
     store.update((s) => ({
@@ -35,6 +36,9 @@ export function Focus({ preferredTask, clock }: { preferredTask: string | null; 
   };
   return (
     <div className="focus-view">
+      {data.timelog.timer && (
+        <p className="field-hint">正在记录时间，请先到时间记录中保存当前计时。</p>
+      )}
       <div className="focus-mode" role="group" aria-label="计时模式">
         <button
           className={currentKind === 'focus' ? 'active' : ''}
@@ -101,7 +105,11 @@ export function Focus({ preferredTask, clock }: { preferredTask: string | null; 
       )}
       <div className="focus-controls">
         {!timer ? (
-          <button className="button primary timer-start" onClick={start}>
+          <button
+            className="button primary timer-start"
+            onClick={start}
+            disabled={!!data.timelog.timer}
+          >
             <Play size={17} fill="currentColor" />
             {currentKind === 'focus' ? '开始专注' : '开始休息'}
           </button>

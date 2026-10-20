@@ -2,7 +2,8 @@ import { useSyncExternalStore } from 'react';
 import { emptyState, mergeImport, now, stateSchema, type AppState, type Task } from './model';
 import { applyDelta, diffState, type StateDelta } from './state-delta';
 
-const key = 'clearlist.v1';
+import { setTimeZone } from './timezone';
+const key = 'dayweave.v1';
 type Snapshot = {
   data: AppState;
   loaded: boolean;
@@ -38,6 +39,7 @@ let pumping = false,
   stateListenerAttached = false;
 function emit(patch: Partial<Snapshot>) {
   snapshot = { ...snapshot, ...patch };
+  setTimeZone(snapshot.data.settings.timeZone);
   listeners.forEach((f) => f());
 }
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
@@ -129,6 +131,19 @@ export const store = {
     }
   },
   get: () => snapshot.data,
+  subscribe(fn: () => void) {
+    listeners.add(fn);
+    return () => {
+      listeners.delete(fn);
+    };
+  },
+  async transact(transform: (state: AppState) => AppState) {
+    if (!snapshot.loaded || snapshot.error) throw new Error(snapshot.error || '数据尚未载入');
+    store.update(transform);
+    await store.flush();
+    if (snapshot.error) throw new Error(snapshot.error);
+    return snapshot.data;
+  },
   update(transform: (state: AppState) => AppState) {
     if (!snapshot.loaded) return;
     let data: AppState;
@@ -171,7 +186,7 @@ export const store = {
     );
     const link = document.createElement('a');
     link.href = url;
-    link.download = `Clearlist-${Date.now()}.json`;
+    link.download = `Dayweave-${Date.now()}.json`;
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 2000);
     return true;
@@ -198,7 +213,7 @@ export const store = {
         });
       }
     } catch {
-      emit({ error: '恢复失败：请选择有效的简清 JSON 备份。原文件仍保留。' });
+      emit({ error: '恢复失败：请选择有效的时织 JSON 备份。原文件仍保留。' });
     }
   },
 };

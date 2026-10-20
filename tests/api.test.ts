@@ -10,6 +10,115 @@ import { startApi } from '../electron/api';
 import { applyDelta, diffState, StateConflict } from '../src/state-delta';
 import { emptyState, newTask, now } from '../src/model';
 
+test('unified context, timetable writes and stale course revisions share the persisted API state', async () =>
+  fixture(async ({ request }) => {
+    let response = await request('PATCH', '/schedule', {
+      semesterStart: '2026-09-07',
+      totalWeeks: 18,
+      timeZone: 'Asia/Shanghai',
+    });
+    assert.equal(response.status, 200);
+    const input = {
+      name: 'API Chemistry',
+      weekday: 1,
+      start: '08:00',
+      end: '09:40',
+      weeks: [1, 3],
+      location: 'H4306',
+      teacher: '',
+      color: '#4264b2',
+      excludedDates: [],
+    };
+    response = await request('POST', '/schedule/courses', input);
+    assert.equal(response.status, 200);
+    const etag = response.headers.get('etag')!,
+      { data: course } = await response.json();
+    assert.equal(
+      (
+        await request(
+          'PATCH',
+          `/schedule/courses/${course.id}`,
+          { location: 'H3304' },
+          { 'If-Match': etag },
+        )
+      ).status,
+      200,
+    );
+    assert.equal(
+      (
+        await request(
+          'PATCH',
+          `/schedule/courses/${course.id}`,
+          { location: 'stale' },
+          { 'If-Match': etag },
+        )
+      ).status,
+      409,
+    );
+    const { data: events } = await (
+      await request('GET', '/schedule/occurrences?from=1788737400000&until=1791329400000')
+    ).json();
+    assert.equal(events[0].start, Date.parse('2026-09-07T00:00:00Z'));
+    assert.equal(events[0].location, 'H3304');
+    const { data: context } = await (await request('GET', '/context')).json();
+    assert.equal(context.timeZone, 'Asia/Shanghai');
+    assert.equal(context.courseTimeZone, 'Asia/Shanghai');
+    assert.ok(Array.isArray(context.tasks));
+  }));
+
+test('task tracking appears in shared timer, survives pause/resume and writes the task-linked record', async () =>
+  fixture(async ({ request, service }) => {
+    const { data: task } = await (await request('POST', '/tasks', { title: 'Track this' })).json();
+    const response = await request('POST', `/tasks/${task.id}/track`, {});
+    assert.equal(response.status, 200);
+    const { data: timer } = await response.json();
+    assert.equal(timer.taskId, task.id);
+    assert.equal((await request('POST', '/timelog/timer/pause', { timerId: 'stale' })).status, 409);
+    assert.equal(
+      (await request('POST', '/timelog/timer/pause', { timerId: timer.id })).status,
+      200,
+    );
+    await service.mutate((s) => ({
+      ...s,
+      timelog: {
+        ...s.timelog,
+        timer: {
+          ...s.timelog.timer!,
+          startedAt: Date.now() - 60000,
+          runningSince: Date.now() - 60000,
+          spans: [],
+        },
+      },
+    }));
+    assert.equal((await request('POST', '/timelog/timer/stop', { timerId: timer.id })).status, 200);
+    const { data: records } = await (await request('GET', '/timelog/records')).json();
+    assert.equal(records.items[0].taskId, task.id);
+    assert.equal((await service.snapshot()).state.timelog.records[0].taskId, task.id);
+  }));
+
+test('course import preview is read-only and repeat import keeps a single stable course ID', async () =>
+  fixture(async ({ request, service }) => {
+    const content = 'name,weekday,start,end,weeks,location\nCSV Class,1,08:00,09:40,1-16,H4306';
+    const input = { name: 'course.csv', content };
+    assert.equal((await request('POST', '/schedule/import', input)).status, 200);
+    assert.equal((await service.snapshot()).state.schedule.courses.length, 0);
+    assert.equal(
+      (await request('POST', '/schedule/import', { ...input, preview: false })).status,
+      200,
+    );
+    assert.equal(
+      (await request('POST', '/schedule/import', { ...input, preview: false })).status,
+      200,
+    );
+    assert.equal((await service.snapshot()).state.schedule.courses.length, 1);
+    assert.equal(
+      (await request('POST', '/schedule/import', { ...input, content: 'bad', preview: false }))
+        .status,
+      400,
+    );
+    assert.equal((await service.snapshot()).state.schedule.courses.length, 1);
+  }));
+
 async function fixture(
   run: (context: {
     service: StateService;

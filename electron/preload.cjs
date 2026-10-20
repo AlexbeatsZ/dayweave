@@ -1,6 +1,8 @@
 const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('clearlist', {
   platform: process.platform,
+  pickText: () => ipcRenderer.invoke('text:pick'),
+  exportText: (name, data) => ipcRenderer.invoke('text:export', name, data),
   setTheme: (theme) => ipcRenderer.invoke('theme:set', theme),
   patch: (delta) => ipcRenderer.invoke('store:patch', delta),
   onState: (callback) => ipcRenderer.on('store:changed', (_event, snapshot) => callback(snapshot)),

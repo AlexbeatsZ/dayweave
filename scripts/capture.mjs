@@ -4,7 +4,7 @@ import { mkdir } from 'node:fs/promises';
 
 const edge = 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
 const browser = await chromium.launch({
-  executablePath: process.env.CLEARLIST_BROWSER ?? (fs.existsSync(edge) ? edge : undefined),
+  executablePath: process.env.DAYWEAVE_BROWSER ?? (fs.existsSync(edge) ? edge : undefined),
 });
 try {
   const page = await browser.newPage({

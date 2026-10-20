@@ -1,7 +1,10 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">简清</string>
-    <string name="title_activity_main">简清</string>
-    <string name="package_name">org.clearlist.mobile</string>
-    <string name="custom_url_scheme">org.clearlist.mobile</string>
+    <string name="app_name">时织</string>
+    <string name="title_activity_main">时织</string>
+    <string name="package_name">org.dayweave.mobile</string>
+    <string name="custom_url_scheme">org.dayweave.mobile</string>
+    <string name="widget_wide_label">时织课程表 4×2</string>
+    <string name="widget_small_label">时织下一节课 2×2</string>
+    <string name="widget_description">按课程时区显示当前或下一节课、时间、教室和倒计时</string>
 </resources>

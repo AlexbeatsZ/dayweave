@@ -1,3 +1,7 @@
+import { Timetable, NextClass } from './components/Timetable';
+import { TimeLog } from './components/TimeLog';
+import { startTimer as startTracking, liveSpans, duration, formatClock } from './timelog/domain';
+import { getTimeZone, zoneLabel } from './timezone';
 import { useEffect, useRef, useState } from 'react';
 import {
   CalendarDays,
@@ -55,6 +59,8 @@ import { ListModal, Settings } from './components/Settings';
 import { applyTheme } from './theme';
 
 const navigation = [
+  { view: 'timetable', label: '课程表', Icon: CalendarDays },
+  { view: 'timelog', label: '时间记录', Icon: Timer },
   { view: 'today', label: '今天', Icon: Sun },
   { view: 'upcoming', label: '最近七天', Icon: CalendarDays },
   { view: 'all', label: '全部任务', Icon: ListTodo },
@@ -69,7 +75,9 @@ const tools = [
   { view: 'trash', label: '回收站', Icon: Trash2 },
 ] as const;
 const descriptions: Record<string, string> = {
-  today: '留一点时间，给真正重要的事。',
+  today: '课程、待办与时间，都在今天。',
+  timetable: '按课程时区安排这一周。',
+  timelog: '记录时间，补上空档，看见投入。',
   upcoming: '把这一周，安排得从容一点。',
   all: '每一件放在心上的事，都在这里。',
   inbox: '先记下来，稍后再安排。',
@@ -83,9 +91,18 @@ const descriptions: Record<string, string> = {
 type Toast = { message: string; undo?: () => void };
 
 export function App() {
+  useEffect(() => {
+    const open = () => {
+      if (location.hash === '#timetable') setView('timetable');
+    };
+    window.addEventListener('hashchange', open);
+    return () => window.removeEventListener('hashchange', open);
+  }, []);
   const snapshot = useStore();
   const { data } = snapshot;
-  const [view, setView] = useState<View>('today');
+  const [view, setView] = useState<View>(() =>
+    location.hash === '#timetable' ? 'timetable' : 'today',
+  );
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<'manual' | 'date' | 'priority'>('manual');
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -105,14 +122,24 @@ export function App() {
   const composer = useRef<HTMLInputElement>(null);
   const search = useRef<HTMLInputElement>(null);
   const today = dateKey(new Date(clock));
+  useEffect(() => {
+    if (snapshot.loaded) {
+      setCalendarDate(dateKey());
+      if (['today', 'upcoming', 'quadrants'].includes(view)) setDraftDue(dateKey());
+    }
+  }, [snapshot.loaded, data.settings.timeZone]);
   const live = data.tasks.filter((t) => !t.deletedAt && !t.completedAt);
   const tags = [...new Set(data.tasks.filter((t) => !t.deletedAt).flatMap((t) => t.tags))].sort(
     (a, b) => a.localeCompare(b, 'zh-CN'),
   );
   const selectedTask = data.tasks.find((t) => t.id === selectedId);
-  const taskViews = !['focus', 'stats', 'calendar', 'quadrants'].includes(view);
+  const taskViews = !['timetable', 'timelog', 'focus', 'stats', 'calendar', 'quadrants'].includes(
+    view,
+  );
   const taskScreen = taskViews || !!query.trim();
-  const allowComposer = !!query.trim() || !['focus', 'stats', 'completed', 'trash'].includes(view);
+  const allowComposer =
+    !!query.trim() ||
+    !['timetable', 'timelog', 'focus', 'stats', 'completed', 'trash'].includes(view);
   const tasks = selectTasks(data, view, query, sort, today);
   const title = query.trim()
     ? '搜索结果'
@@ -175,7 +202,7 @@ export function App() {
         ? `完成了 ${Math.round(timer.duration / 60)} 分钟专注，休息一下吧。`
         : '休息结束，可以开始下一件事了。';
     message(text);
-    void window.clearlist?.notify('简清', text).catch(() => {});
+    void window.clearlist?.notify('时织', text).catch(() => {});
   }, [clock]);
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -358,7 +385,7 @@ export function App() {
         <span className="brand-mark">
           <Check size={28} />
         </span>
-        <h1>简清</h1>
+        <h1>时织</h1>
         {snapshot.error ? (
           <div role="alert">
             <p>{snapshot.error}</p>
@@ -392,7 +419,7 @@ export function App() {
         </button>
         <div>
           <img src="./icon.svg" alt="" />
-          <strong>简清</strong>
+          <strong>时织</strong>
         </div>
         <button
           className="icon-button"
@@ -427,8 +454,8 @@ export function App() {
         <div className="brand">
           <img src="./icon.svg" alt="" />
           <div>
-            <strong>简清</strong>
-            <span>CLEARLIST</span>
+            <strong>时织</strong>
+            <span>DAYWEAVE</span>
           </div>
           <button
             className="icon-button sidebar-toggle"
@@ -604,11 +631,12 @@ export function App() {
             <div>
               <div className="date-eyebrow">
                 {new Date(clock).toLocaleDateString('zh-CN', {
+                  timeZone: getTimeZone(),
                   month: 'long',
                   day: 'numeric',
                   weekday: 'long',
                 })}
-                <span>把日子理清楚</span>
+                <span>{zoneLabel(data.settings.timeZone, clock)}</span>
               </div>
               <h1>
                 {title}
@@ -651,6 +679,23 @@ export function App() {
         )}
         <div className="main-scroll">
           <div className={`page-content ${view === 'calendar' ? 'calendar-content' : ''}`}>
+            {!query && view === 'timetable' && <Timetable clock={clock} />}
+            {!query && view === 'timelog' && <TimeLog />}
+            {!query && view === 'today' && (
+              <NextClass clock={clock} compact onOpen={() => navigate('timetable')} />
+            )}
+            {data.timelog.timer && view !== 'timelog' && (
+              <button className="tracking-strip" onClick={() => navigate('timelog')}>
+                <Timer size={18} />
+                <span>
+                  {data.timelog.timer.note ||
+                    data.timelog.activities.find((a) => a.id === data.timelog.timer?.activityId)
+                      ?.name}
+                </span>
+                <strong>{formatClock(duration(liveSpans(data.timelog.timer, clock)))}</strong>
+                <ChevronRight size={16} />
+              </button>
+            )}
             {allowComposer && (
               <form className="composer" onSubmit={add}>
                 <div className="composer-title">
@@ -914,7 +959,7 @@ export function App() {
             <span className="key-hint">N</span>新建任务<span className="key-hint">/</span>搜索
             <span className="key-hint">Esc</span>返回
           </span>
-          <span>简清 · 给生活一点条理</span>
+          <span>时织 · 给生活一点条理</span>
         </footer>
       </main>
       {selectedTask ? (
@@ -922,6 +967,26 @@ export function App() {
           id={selectedTask.id}
           onClose={() => setSelectedId(null)}
           onDelete={remove}
+          onTrack={async (id) => {
+            try {
+              await store.transact((s) => {
+                if (s.timer) throw new Error('请先结束番茄计时');
+                const task = s.tasks.find((t) => t.id === id);
+                if (!task) throw new Error('任务不存在');
+                const timelog = startTracking(
+                  s.timelog,
+                  s.timelog.activities.find((a) => !a.archived)?.id ?? '',
+                  task!.title,
+                  Date.now(),
+                );
+                timelog.timer!.taskId = id;
+                return { ...s, timelog };
+              });
+              navigate('timelog');
+            } catch (e) {
+              message(e instanceof Error ? e.message : String(e));
+            }
+          }}
           onFocus={(id) => {
             setFocusTask(id);
             navigate('focus');
@@ -988,8 +1053,8 @@ export function App() {
           [
             { next: 'today', label: '今天', Icon: Sun },
             { next: 'all', label: '清单', Icon: ListTodo },
-            { next: 'calendar', label: '日历', Icon: CalendarDays },
-            { next: 'focus', label: '专注', Icon: Timer },
+            { next: 'timetable', label: '课表', Icon: CalendarDays },
+            { next: 'timelog', label: '记录', Icon: Timer },
           ] as const
         ).map(({ next, label, Icon }) => (
           <button

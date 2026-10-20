@@ -21,6 +21,8 @@ jobs:
       - run: npm run format:check
       - run: npm test
       - run: npm run build
+      - run: npm run bundle:ai
+      - run: npm run test:headless
       - run: npx playwright install chromium
       - run: npm run test:e2e
       - run: node scripts/smoke-desktop.mjs
@@ -29,8 +31,8 @@ jobs:
       - run: npm run test:portable
       - uses: actions/upload-artifact@v4
         with:
-          name: Clearlist-Windows-x64
-          path: release/Clearlist-*-Windows-x64.exe
+          name: Dayweave-Windows-x64
+          path: release/Dayweave-*-Windows-x64.exe
   android:
     runs-on: ubuntu-24.04
     steps:
@@ -48,8 +50,8 @@ jobs:
       - run: node scripts/package-android.mjs --unsigned
       - uses: actions/upload-artifact@v4
         with:
-          name: Clearlist-Android-unsigned
-          path: release/Clearlist-*-Android-unsigned.apk
+          name: Dayweave-Android-unsigned
+          path: release/Dayweave-*-Android-unsigned.apk
   macos:
     strategy:
       fail-fast: false
@@ -76,10 +78,10 @@ jobs:
       - run: node scripts/package-macos.mjs ${{ matrix.arch }}
       - run: node scripts/smoke-api.mjs
         env:
-          CLEARLIST_EXECUTABLE: release/${{ matrix.app-dir }}/Clearlist.app/Contents/MacOS/Clearlist
+          DAYWEAVE_EXECUTABLE: release/${{ matrix.app-dir }}/Dayweave.app/Contents/MacOS/Dayweave
       - uses: actions/upload-artifact@v4
         with:
-          name: Clearlist-macOS-${{ matrix.arch }}
+          name: Dayweave-macOS-${{ matrix.arch }}
           path: |
-            release/Clearlist-*-macOS-${{ matrix.arch }}.dmg
-            release/Clearlist-*-macOS-${{ matrix.arch }}.zip
+            release/Dayweave-*-macOS-${{ matrix.arch }}.dmg
+            release/Dayweave-*-macOS-${{ matrix.arch }}.zip

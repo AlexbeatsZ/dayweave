@@ -1,14 +1,19 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace = "org.clearlist.mobile"
+    namespace = "org.dayweave.mobile"
     compileSdk = rootProject.ext.compileSdkVersion
+    compileOptions {
+        coreLibraryDesugaringEnabled true
+        sourceCompatibility JavaVersion.VERSION_21
+        targetCompatibility JavaVersion.VERSION_21
+    }
     defaultConfig {
-        applicationId "org.clearlist.mobile"
+        applicationId "org.dayweave.mobile"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 2
-        versionName "0.2.0"
+        versionCode 3
+        versionName "0.3.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -18,17 +23,17 @@ android {
     }
     signingConfigs {
         release {
-            if (System.getenv('CLEARLIST_KEYSTORE')) {
-                storeFile file(System.getenv('CLEARLIST_KEYSTORE'))
-                storePassword System.getenv('CLEARLIST_KEY_PASSWORD')
-                keyAlias 'clearlist'
-                keyPassword System.getenv('CLEARLIST_KEY_PASSWORD')
+            if (System.getenv('DAYWEAVE_KEYSTORE')) {
+                storeFile file(System.getenv('DAYWEAVE_KEYSTORE'))
+                storePassword System.getenv('DAYWEAVE_KEY_PASSWORD')
+                keyAlias 'dayweave'
+                keyPassword System.getenv('DAYWEAVE_KEY_PASSWORD')
             }
         }
     }
     buildTypes {
         release {
-            if (System.getenv('CLEARLIST_KEYSTORE')) {
+            if (System.getenv('DAYWEAVE_KEYSTORE')) {
                 signingConfig signingConfigs.release
             }
             minifyEnabled false
@@ -44,6 +49,7 @@ repositories {
 }
 
 dependencies {
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.5'
     implementation fileTree(include: ['*.jar'], dir: 'libs')
     implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"

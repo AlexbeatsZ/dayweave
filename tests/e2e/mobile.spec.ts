@@ -23,7 +23,8 @@ test('phone navigation, full-screen task detail and dark preference work with to
   await page.getByLabel('清单名称').fill('随手记');
   await page.getByRole('button', { name: '创建清单', exact: true }).tap();
   await page.getByRole('button', { name: '收起侧栏', exact: true }).tap();
-  await page.getByRole('button', { name: '手机日历', exact: true }).tap();
+  await page.getByRole('button', { name: '手机更多', exact: true }).tap();
+  await page.getByRole('button', { name: '日历', exact: true }).tap();
   await expect(page.getByRole('region', { name: '月历' })).toBeVisible();
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');

@@ -1,3 +1,5 @@
+import { setTimeZone } from '../src/timezone';
+setTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone);
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {

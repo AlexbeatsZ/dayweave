@@ -7,7 +7,7 @@ import path from 'node:path';
 import assert from 'node:assert/strict';
 
 const { version } = JSON.parse(await readFile('package.json', 'utf8'));
-const executable = path.resolve(`release/Clearlist-${version}-Windows-x64.exe`);
+const executable = path.resolve(`release/Dayweave-${version}-Windows-x64.exe`);
 const base = path.join(os.tmpdir(), '.agents');
 await mkdir(base, { recursive: true });
 const temporary = await mkdtemp(path.join(base, 'clearlist-portable-'));
@@ -18,9 +18,9 @@ const server = net.createServer();
 await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
 const port = server.address().port;
 await new Promise((resolve) => server.close(resolve));
-const env = { ...process.env, CLEARLIST_DATA_DIR: profile, TEMP: extraction, TMP: extraction };
+const env = { ...process.env, DAYWEAVE_DATA_DIR: profile, TEMP: extraction, TMP: extraction };
 delete env.ELECTRON_RUN_AS_NODE;
-delete env.CLEARLIST_DEV_URL;
+delete env.DAYWEAVE_DEV_URL;
 const child = spawn(executable, [`--remote-debugging-port=${port}`], {
   env,
   stdio: 'ignore',

@@ -1,157 +1,79 @@
-# 简清 · Clearlist
+# 时织 · Dayweave
 
-一个离线优先、无需账号的开源待办与专注工具。把想到的事记下来，安排到合适的日期，再留一段时间认真完成。
+把待办、时间记录和课程表放在一个离线程序里。基于本人的开源项目 [Clearlist](https://github.com/AlexbeatsZ/clearlist) 和 [Open Timelog](https://github.com/AlexbeatsZ/open-timelog) 整合，MIT 许可。
 
-**Windows / macOS / Android · 离线数据 · 本机 AI API · MIT**
+## 下载
 
-[下载安装包](https://github.com/AlexbeatsZ/clearlist/releases/latest) · [AI 接口文档](docs/api/README.md) · [版本记录](https://github.com/AlexbeatsZ/clearlist/releases) · [反馈问题](https://github.com/AlexbeatsZ/clearlist/issues)
+[GitHub Releases](https://github.com/AlexbeatsZ/dayweave/releases) 提供 Windows x64 便携 EXE、Android APK、macOS Apple Silicon / Intel DMG 与 ZIP，以及独立 AI 接口工具包。
 
-![简清的今天视图](docs/images/today.png)
+Windows 直接运行 EXE；macOS 将应用拖入 Applications；Android 安装 APK 后打开时织。macOS 包使用 ad-hoc 签名，未做 Apple Developer ID 公证；Windows 包未购买代码签名证书。
 
-## 现在可以做什么
+## 一个程序，三种安排
 
-- **管理待办**：今天（含逾期）、最近七天、全部任务和无日期收集箱。
-- **整理任务**：彩色清单、标签、文字搜索、置顶、手动拖动排序，以及按日期或优先级排序。
-- **细化行动**：备注、子任务、计划日期和四级优先级。
-- **重复安排**：每天、每周、每月重复；完成后生成下一次，保留已完成记录。月底任务会保留原始日期锚点，例如 1 月 31 日 → 2 月 28 日 → 3 月 31 日。
-- **换个角度看**：月历中拖动任务改期；四象限按优先级和到期状态划分。
-- **专注与回顾**：关联任务的番茄计时、自定义专注和休息时长、暂停与恢复、完成记录，以及近七天任务和专注统计。
-- **掌握自己的数据**：本地保存、上一版本备份、损坏恢复、JSON 导出和合并导入。
-- **舒适地使用**：浅色、深色、跟随系统、键盘快捷键和窄屏布局。
-- **随设备调整**：手机底部导航、全屏详情、系统返回与文件选择器；Mac 原生菜单与 Dock 行为。
-- **交给 AI 整理**：Windows / macOS 提供需 Bearer 令牌的本机 REST API、OpenAPI 文档和自动读取本机配置的命令行客户端。界面与 AI 修改共享持久化队列，不同字段可并行合并。
+- **待办**：清单、标签、备注、子任务、优先级、重复任务、月历、四象限、搜索、回收站、番茄专注和统计。
+- **时间记录**：正向计时、暂停与继续、活动分类、时间线、补空档、目标与时长分析。从任务详情点击「开始记录时间」会关联该任务，结束后写入同一份时间线。
+- **课程表**：按周浏览，设置开学周一和学期周数，支持单双周、指定教学周、教师、教室、全校停课与单课停课日期。显示当前课程、下一节课及倒计时。
+- **桌面小组件**：Android 2×2 下一节课与 4×2 课程表卡片；适配小米独立组件进程、曝光刷新、点击跳转和系统重启。可在课程表中请求添加，也可长按桌面 → 小组件 → 时织。
+- **AI 控制**：统一 REST API、OpenAPI、命令行客户端、独立无界面服务。ROG 上的决策系统可以查询上下文、管理任务、控制计时器和修改课程。
+- **浅色 / 深色 / 跟随系统**；所有数据保存在本地，无需账号。
 
-初次启动为空白清单，可以选择添加入门示例。示例与正常任务一样，可以自由修改和删除。
+## UTC−4 设备，UTC+8 课程
 
-<details>
-<summary>更多界面</summary>
+首次启动默认将日程时区设为 `Asia/Shanghai`。任务的「今天」、时间记录日界线和统计按这个时区计算，**不修改操作系统时区**。
 
-![任务详情](docs/images/detail.png)
+「课程表 → 学期设置」还可以独立设置课程时区。例：课程是北京时间周一 08:00，设备为固定 UTC−4，则同一节课的设备时间为周日 20:00。上课时刻和倒计时保持一致。
 
-![月历](docs/images/calendar.png)
+支持 IANA 地区时区（如 `Asia/Shanghai`、`America/New_York`）与固定偏移（如 `-04:00`）。纽约时区自动跟随夏令时；固定 `-04:00` 永远是 UTC−4。
 
-![四象限](docs/images/quadrants.png)
+## 导入与迁移
 
-![深色专注视图](docs/images/focus-dark.png)
+先在原 Clearlist 与 Open Timelog 中导出各自的 JSON 备份，再在时织「设置 → 数据与备份」逐一导入。相同 ID 按更新时间合并，保留本地设置。计时中的 Open Timelog 备份请先结束计时再导出。
 
-![暗色今天视图](docs/images/today-dark.png)
+时织使用独立桌面数据目录 `Dayweave` 和 Android 包名 `org.dayweave.mobile`。旧程序和旧数据不会被覆盖。新版完整 JSON 备份包含待办、时间记录、课程、计时与时区设置。各设备的数据仍独立，通过备份显式交换；本版没有自动同步。
 
-![手机暗色界面](docs/images/mobile-dark.png)
+课程导入支持：
 
-</details>
+1. **CSV**：从课表下载模板，支持中文或英文表头。字段 `name,weekday,start,end,weeks,location,teacher`；星期 1–7，时间如 `08:00`，周次如 `1-16`、`1-15单`、`2-16双`、`1,3,5-7`。重复导入相同课程不会新增副本。
+2. **JSON**：时织导出的课程表，保留学期、周次、时区和例外日期。
+3. **ICS**：日历导出文件，在当前学期范围内展开重复规则、排除日期和移动课程。浮动时间采用课程时区；带时区或 UTC 的事件保留真实时刻。
 
-## 安装与运行
+所有课程导入先预览，确认后合并。学校教务网站、截图或小爱课表的私有数据格式暂未提供直接转换。
 
-在 [GitHub Releases](https://github.com/AlexbeatsZ/clearlist/releases/latest) 下载对应设备的文件，无需安装 Node.js。源码自行构建时，产物位于 `release/`。
+## AI / ROG 接入
 
-| 设备               | 0.2.0 文件                                             |
-| ------------------ | ------------------------------------------------------ |
-| Windows x64        | `Clearlist-0.2.0-Windows-x64.exe`，便携启动            |
-| Mac Apple Silicon  | `Clearlist-0.2.0-macOS-arm64.dmg` 或 `.zip`，macOS 13+ |
-| Mac Intel          | `Clearlist-0.2.0-macOS-x64.dmg` 或 `.zip`，macOS 13+   |
-| Android 7.0 及以上 | `Clearlist-0.2.0-Android.apk`                          |
-
-Windows 用户数据保存在 `%APPDATA%\Clearlist`，不在 EXE 旁边；首次便携解压启动可能需要几秒钟，程序尚无代码签名。Mac 将 DMG 中的应用拖到 Applications，或解压 ZIP 后运行；当前使用 ad-hoc 签名，未通过 Apple 公证，下载后的 Gatekeeper 体验尚待验证。Mac 数据位于 `~/Library/Application Support/Clearlist`；关闭窗口保留 Dock 和 AI 接口，Cmd+Q 退出应用。
-
-Android 使用应用私有目录存储任务，设置中通过系统文件选择器导入或导出 JSON；发布 APK 使用固定本地签名密钥。各设备的离线数据独立，可用 JSON 转移；卸载或清除 Android 应用数据前请先导出。当前手机版为 Android，尚不提供 iOS 安装包。
-
-计时截止时间会保留，恢复应用时结算。应用完全退出期间不会发送通知；桌面通知取决于系统设置，Android 当前不提供后台计时通知。
-
-## 让 AI 操作
-
-桌面版运行时，在设置的「AI 接口」中复制地址或访问令牌。本机默认地址为 `http://127.0.0.1:49721/api/v1`，端口冲突时自动调整。接口需要认证，固定监听本机，不对局域网开放。
-
-源码目录自带客户端，自动读取当前用户的地址和令牌：
-
-```sh
-npm run ai -- GET "/tasks?view=today"
-npm run ai -- POST /tasks --body-file task.json
-npm run ai -- POST /tasks/TASK_ID/complete
-```
-
-`task.json` 可写为 `{"title":"整理实验记录","priority":2}`。任务、清单、标签、子任务、专注、统计、导入导出等端点及并发处理见 [AI 使用说明](docs/api/README.md) 和 [OpenAPI](docs/api/openapi.json)。Android 当前不运行 HTTP 服务。
-
-## 从源码开发
-
-需要 Node.js 24 LTS 和 npm。所有依赖安装在当前项目内。
+桌面运行时提供 `http://127.0.0.1:49731/api/v1`，实际端口和随机令牌保存于用户数据目录 `api.json`，可用 CLI 自动读取。
 
 ```powershell
-git clone https://github.com/AlexbeatsZ/clearlist.git
-cd clearlist
+node scripts/api.mjs GET /context
+node scripts/api.mjs GET /schedule/next
+node scripts/api.mjs GET /timelog/timer
+```
+
+`GET /context` 一次返回日程时区、今天任务、两类计时器、正在上的课、下一节课以及未来七天课程。写请求可携带响应 ETag 作为 `If-Match`，冲突返回 409。
+
+[完整接口说明与 ROG 用法](docs/api/README.md) · [OpenAPI](docs/api/openapi.json)
+
+独立 AI 工具包只需 Node.js 24，运行 `node headless.mjs` 即可，不需要安装 Electron。桌面程序和独立服务不能同时占用同一数据目录；远程访问可用 SSH 本地端口转发。Android 本版不运行 HTTP 服务。
+
+## 开发与构建
+
+```powershell
 npm ci
 npm run dev
-```
-
-浏览器界面：
-
-```powershell
-npm run dev:web
-```
-
-打开 `http://127.0.0.1:5178`。浏览器使用自己的 localStorage，与桌面文件数据分开；清理网站数据前请先导出备份。该开发入口需要本地服务运行。
-
-如果网络必须通过现有 HTTP(S) 代理下载 Electron，可仅对当前 PowerShell 进程设置其代理开关：
-
-```powershell
-$env:ELECTRON_GET_USE_PROXY = '1'
-npm run dev
-```
-
-此开关只启用已有代理配置，不会修改系统代理。Electron 的下载器在首次启动或构建时准备对应运行时。
-
-## 检查与打包
-
-```powershell
-npm run format:check
-npm run check
 npm test
+npm run build
 npm run test:e2e
-npm run test:desktop
 npm run test:api
 npm run dist:win
-npm run test:portable
-npm run dist:mac
 npm run dist:android
 ```
 
-浏览器测试优先使用 Windows 已有的 Edge；其他环境可运行项目本地的 `npx playwright install chromium`，或将 `CLEARLIST_BROWSER` 指向已有 Chromium 浏览器。桌面测试会在系统临时目录 `.agents/clearlist-*` 中创建隔离数据，结束后删除。
+macOS 上执行 `npm run dist:mac`，Intel 包执行 `npm run dist:mac -- x64`。Android 使用 Java 21、SDK 36，签名材料仅保存在忽略的 `.local/` 内。CI 在 Windows、Android 和两种 Mac 架构上分别构建。
 
-`test:portable` 需要先生成 Windows 便携包；它启动最终的单文件 EXE，通过仅本次测试使用的调试端口检查界面、任务写入和窗口关闭，结束后退出程序并清理隔离数据。
+构建、自动化场景与真实设备验收分别记录于 [验证记录](docs/verification.md)。小米商店中的组件分发仍需开发者账号和平台审核；随 APK 安装的桌面组件可以从系统组件选择器添加。系统省电策略可能延迟后台课程边界刷新，组件曝光或手动打开应用时会重新计算。
 
-图标由 `scripts/make-icon.mjs` 独立绘制；如需修改并重新生成，运行 `node scripts/make-icon.mjs`。`npm run screenshots` 需要浏览器开发服务运行，截图使用独立浏览器上下文和示例任务。
+## 来源
 
-`dist:mac` 在 Mac 上构建当前架构，`npm run dist:mac -- x64` 可指定 Intel；GitHub Actions 分别在 arm64 和 Intel runner 构建。`dist:android` 需要已有 Android SDK 与 Java 21，可用 `CLEARLIST_JAVA_HOME` 指定项目使用的 Java；脚本优先使用已有 Android Studio JBR。首次发布构建在忽略的 `.local/android-signing/` 生成私钥与密码，务必自行安全备份以支持以后覆盖升级，绝不可提交或公开。CI 构建未签名 release APK；下载后用 `node scripts/package-android.mjs --sign-only release/Clearlist-0.2.0-Android-unsigned.apk` 在本机签名，不向 CI 上传发布私钥。
+保留 Clearlist 的 Git 历史、任务持久化与 API 并发契约，保留 Open Timelog 完整时间记录领域实现和交互；二者统一到同一份可验证状态。本项目没有使用原版 Todo清单、UpTimer 或小米应用的专有代码、素材、账户或数据库。
 
-## 数据与恢复
-
-| 文件 / 操作                     | 含义                                                           |
-| ------------------------------- | -------------------------------------------------------------- |
-| `%APPDATA%\Clearlist\data.json` | 当前桌面数据                                                   |
-| `data.backup.json`              | 上一次有效保存的数据                                           |
-| `data.corrupt-*.json`           | 自动恢复时保留的损坏原文件                                     |
-| 设置 → 导出 JSON                | 创建可携带的备份                                               |
-| 设置 → 合并导入                 | 保留现有任务，合并有效备份；同 ID 任务使用更新时间较新的版本   |
-| 无法读取数据 → 选择备份恢复     | 主数据与自动备份均不可读时，从手动导出的备份恢复，并保留原文件 |
-
-数据不加密。需要保密时，请将导出文件和用户目录放在受保护的设备或磁盘上。`CLEARLIST_DATA_DIR` 可以为独立测试指定其他数据目录。
-
-删除任务会先移入回收站，可以恢复。删除清单会把其中任务移到收集箱。合并导入保留当前外观、计时设置及正在运行的计时器。
-
-## 当前范围
-
-0.2.0 提供 Windows、Mac 与 Android 包、完整暗色主题和桌面 AI API。当前还没有多设备自动同步、iOS 安装包、定时任务提醒、附件、自然语言日期识别、桌面小组件和自动更新。收集箱按“未安排日期”定义，不等同于默认清单。
-
-原应用账号、云服务及数据库格式不兼容。此版本不读取或迁移原应用的个人任务数据。各平台构建、自动化界面与实体设备的检查范围分别记录在 [验证记录](docs/verification.md)。
-
-## 参考与许可证
-
-本项目参考本机 Todo清单 3.14.2 发行包中的功能结构，通过只读静态检查确认任务、清单、标签、日历、重复任务和专注等工作流，然后独立实现代码、数据结构、界面、图标和文案。仓库不包含原发行包、提取源码、商标素材或服务凭据。
-
-- [参考分析与功能映射](docs/design/reference-analysis.md)
-- [存储、日期与计时设计](docs/design/storage.md)
-- [多平台、主题与打包](docs/design/platforms.md)
-- [AI API 与并发设计](docs/design/api.md)
-- [验证记录](docs/verification.md)
-- [贡献说明](CONTRIBUTING.md)
-
-简清与 Todo清单及其开发者没有隶属关系。简清自身代码采用 [MIT](LICENSE)；第三方依赖与 Electron 运行时保留各自许可证。IPC 桥接和隔离设置参考 [Electron 官方进程通信文档](https://www.electronjs.org/docs/latest/tutorial/ipc) 与 [contextBridge 文档](https://www.electronjs.org/docs/latest/api/context-bridge)。
+[许可证](LICENSE) · [来源说明](THIRD_PARTY_NOTICES.md)

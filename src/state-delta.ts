@@ -17,6 +17,7 @@ export const deltaSchema = z
       )
       .max(150000),
     settings: z.object({ before: jsonObject, after: jsonObject }).strict().optional(),
+    modules: z.object({ before: z.unknown(), after: z.unknown() }).optional(),
     timer: z.object({ before: z.unknown(), after: z.unknown() }).strict().optional(),
   })
   .strict();
@@ -43,6 +44,11 @@ export function diffState(before: AppState, after: AppState): StateDelta {
   if (!equal(before.settings, after.settings))
     delta.settings = { before: before.settings, after: after.settings };
   if (!equal(before.timer, after.timer)) delta.timer = { before: before.timer, after: after.timer };
+  if (!equal(before.timelog, after.timelog) || !equal(before.schedule, after.schedule))
+    delta.modules = {
+      before: { timelog: before.timelog, schedule: before.schedule },
+      after: { timelog: after.timelog, schedule: after.schedule },
+    };
   return delta;
 }
 
@@ -92,6 +98,15 @@ export function applyDelta(state: AppState, value: StateDelta, strict = true): A
     if (strict && !equal(next.timer, delta.timer.before) && !equal(next.timer, delta.timer.after))
       throw new StateConflict();
     next.timer = delta.timer.after as AppState['timer'];
+  }
+  if (delta.modules) {
+    const b = delta.modules.before as Pick<AppState, 'timelog' | 'schedule'>,
+      a = delta.modules.after as Pick<AppState, 'timelog' | 'schedule'>;
+    for (const k of ['timelog', 'schedule'] as const)
+      if (!equal(b[k], a[k])) {
+        if (strict && !equal(next[k], b[k]) && !equal(next[k], a[k])) throw new StateConflict();
+        (next as unknown as Record<string, unknown>)[k] = structuredClone(a[k]);
+      }
   }
   return stateSchema.parse(next);
 }

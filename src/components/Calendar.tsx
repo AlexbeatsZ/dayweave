@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
-import { dateKey, fromDateKey, shiftDate, type Task } from '../model';
+import { civilDateKey, dateKey, fromDateKey, shiftDate, type Task } from '../model';
 
 export function Calendar({
   tasks,
@@ -15,10 +15,8 @@ export function Calendar({
   onSelect: (id: string) => void;
   onDrop: (id: string, date: string) => void;
 }) {
-  const [month, setMonth] = useState(
-    () => new Date(new Date().getFullYear(), new Date().getMonth(), 1, 12),
-  );
-  const first = dateKey(month);
+  const [month, setMonth] = useState(() => fromDateKey(dateKey().slice(0, 7) + '-01'));
+  const first = civilDateKey(month);
   const mondayOffset = (month.getDay() + 6) % 7;
   const start = shiftDate(first, -mondayOffset);
   const days = Array.from({ length: 42 }, (_, i) => shiftDate(start, i));
@@ -32,7 +30,7 @@ export function Calendar({
           <button
             className="button small"
             onClick={() => {
-              const today = new Date();
+              const today = fromDateKey(dateKey());
               setMonth(new Date(today.getFullYear(), today.getMonth(), 1, 12));
               onDate(dateKey());
             }}

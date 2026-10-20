@@ -1,0 +1,1662 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Open Timelog local API",
+    "version": "0.2.0",
+    "description": "Desktop only. Start the app and read its local api.json discovery file. API listens on 127.0.0.1; requires Bearer authentication and rejects browser Origin headers. No arbitrary scripts, shell, filesystem access or destructive full-state restore."
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:43127",
+      "description": "Preferred port; use actual address from api.json if occupied."
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  },
+  "paths": {
+    "/v1/health": {
+      "get": {
+        "operationId": "get_v1_health",
+        "summary": "Application and API version",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success; JSON entity or list"
+          },
+          "400": {
+            "description": "Invalid request or domain validation failure"
+          },
+          "401": {
+            "description": "Missing or wrong token"
+          },
+          "403": {
+            "description": "Browser Origin or non-loopback Host rejected"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Concurrent edit, timer mismatch or reused key"
+          },
+          "428": {
+            "description": "Missing expectedUpdatedAt"
+          },
+          "503": {
+            "description": "App unavailable. Query state before retrying writes."
+          }
+        }
+      }
+    },
+    "/v1/openapi": {
+      "get": {
+        "operationId": "get_v1_openapi",
+        "summary": "OpenAPI description",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success; JSON entity or list"
+          },
+          "400": {
+            "description": "Invalid request or domain validation failure"
+          },
+          "401": {
+            "description": "Missing or wrong token"
+          },
+          "403": {
+            "description": "Browser Origin or non-loopback Host rejected"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Concurrent edit, timer mismatch or reused key"
+          },
+          "428": {
+            "description": "Missing expectedUpdatedAt"
+          },
+          "503": {
+            "description": "App unavailable. Query state before retrying writes."
+          }
+        }
+      }
+    },
+    "/v1/backup": {
+      "get": {
+        "operationId": "get_v1_backup",
+        "summary": "Read full portable backup without changing data",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success; JSON entity or list"
+          },
+          "400": {
+            "description": "Invalid request or domain validation failure"
+          },
+          "401": {
+            "description": "Missing or wrong token"
+          },
+          "403": {
+            "description": "Browser Origin or non-loopback Host rejected"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Concurrent edit, timer mismatch or reused key"
+          },
+          "428": {
+            "description": "Missing expectedUpdatedAt"
+          },
+          "503": {
+            "description": "App unavailable. Query state before retrying writes."
+          }
+        }
+      }
+    },
+    "/v1/stats": {
+      "get": {
+        "operationId": "get_v1_stats",
+        "summary": "Daily union duration, points and all-time balance",
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Device-local date YYYY-MM-DD; defaults to today where supported."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; JSON entity or list"
+          },
+          "400": {
+            "description": "Invalid request or domain validation failure"
+          },
+          "401": {
+            "description": "Missing or wrong token"
+          },
+          "403": {
+            "description": "Browser Origin or non-loopback Host rejected"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Concurrent edit, timer mismatch or reused key"
+          },
+          "428": {
+            "description": "Missing expectedUpdatedAt"
+          },
+          "503": {
+            "description": "App unavailable. Query state before retrying writes."
+          }
+        }
+      }
+    },
+    "/v1/timer": {
+      "get": {
+        "operationId": "get_v1_timer",
+        "summary": "Active timer and elapsed active milliseconds",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success; JSON entity or list"
+          },
+          "400": {
+            "description": "Invalid request or domain validation failure"
+          },
+          "401": {
+            "description": "Missing or wrong token"
+          },
+          "403": {
+            "description": "Browser Origin or non-loopback Host rejected"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Concurrent edit, timer mismatch or reused key"
+          },
+          "428": {
+            "description": "Missing expectedUpdatedAt"
+          },
+          "503": {
+            "description": "App unavailable. Query state before retrying writes."
+          }
+        }
+      }
+    },
+    "/v1/timeline": {
+      "get": {
+        "operationId": "get_v1_timeline",
+        "summary": "Latest-first records, active timer and idle cards for a day",
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Device-local date YYYY-MM-DD; defaults to today where supported."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; JSON entity or list"
+          },
+          "400": {
+            "description": "Invalid request or domain validation failure"
+          },
+          "401": {
+            "description": "Missing or wrong token"
+          },
+          "403": {
+            "description": "Browser Origin or non-loopback Host rejected"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Concurrent edit, timer mismatch or reused key"
+          },
+          "428": {
+            "description": "Missing expectedUpdatedAt"
+          },
+          "503": {
+            "description": "App unavailable. Query state before retrying writes."
+          }
+        }
+      }
+    },
+    "/v1/records/{id}/fill": {
+      "post": {
+        "operationId": "post_v1_records_id_fill",
+        "summary": "Extend one record span into its adjacent idle interval",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "description": "Write deduplication in the current app process (up to 256 keys)."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "spanIndex": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "direction": {
+                    "type": "string",
+                    "enum": ["up", "down"]
+                  },
+                  "expectedUpdatedAt": {
+                    "type": "number",
+                    "description": "Required for PATCH/DELETE: the exact updatedAt last read from the entity."
+                  }
+                },
+                "required": ["date", "spanIndex", "direction", "expectedUpdatedAt"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success; JSON entity or list"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "400": {
+            "description": "Invalid request or domain validation failure"
+          },
+          "401": {
+            "description": "Missing or wrong token"
+          },
+          "403": {
+            "description": "Browser Origin or non-loopback Host rejected"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Concurrent edit, timer mismatch or reused key"
+          },
+          "428": {
+            "description": "Missing expectedUpdatedAt"
+          },
+          "503": {
+            "description": "App unavailable. Query state before retrying writes."
+          }
+        }
+      }
+    },
+    "/v1/timer/start": {
+      "post": {
+        "operationId": "post_v1_timer_start",
+        "summary": "Start a timer; reject if another timer is active",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "description": "Write deduplication in the current app process (up to 256 keys)."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "activityId": {
+                    "type": "string"
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 4000
+                  },
+                  "fromPreviousRecord": {
+                    "type": "boolean"
+                  }
+                },
+                "required": ["activityId"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success; JSON entity or list"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "400": {
+            "description": "Invalid request or domain validation failure"
+          },
+          "401": {
+            "description": "Missing or wrong token"
+          },
+          "403": {
+            "description": "Browser Origin or non-loopback Host rejected"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Concurrent edit, timer mismatch or reused key"
+          },
+          "428": {
+            "description": "Missing expectedUpdatedAt"
+          },
+          "503": {
+            "description": "App unavailable. Query state before retrying writes."
+          }
+        }
+      }
+    },
+    "/v1/timer/pause": {
+      "post": {
+        "operationId": "post_v1_timer_pause",
+        "summary": "pause the matching active timer",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "description": "Write deduplication in the current app process (up to 256 keys)."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "timerId": {
+                    "type": "string"
+                  }
+                },
+                "required": ["timerId"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success; JSON entity or list"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "400": {
+            "description": "Invalid request or domain validation failure"
+          },
+          "401": {
+            "description": "Missing or wrong token"
+          },
+          "403": {
+            "description": "Browser Origin or non-loopback Host rejected"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Concurrent edit, timer mismatch or reused key"
+          },
+          "428": {
+            "description": "Missing expectedUpdatedAt"
+          },
+          "503": {
+            "description": "App unavailable. Query state before retrying writes."
+          }
+        }
+      }
+    },
+    "/v1/timer/resume": {
+      "post": {
+        "operationId": "post_v1_timer_resume",
+        "summary": "resume the matching active timer",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "description": "Write deduplication in the current app process (up to 256 keys)."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "timerId": {
+                    "type": "string"
+                  }
+                },
+                "required": ["timerId"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success; JSON entity or list"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "400": {
+            "description": "Invalid request or domain validation failure"
+          },
+          "401": {
+            "description": "Missing or wrong token"
+          },
+          "403": {
+            "description": "Browser Origin or non-loopback Host rejected"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Concurrent edit, timer mismatch or reused key"
+          },
+          "428": {
+            "description": "Missing expectedUpdatedAt"
+          },
+          "503": {
+            "description": "App unavailable. Query state before retrying writes."
+          }
+        }
+      }
+    },
+    "/v1/timer/stop": {
+      "post": {
+        "operationId": "post_v1_timer_stop",
+        "summary": "stop the matching active timer",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "description": "Write deduplication in the current app process (up to 256 keys)."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "timerId": {
+                    "type": "string"
+                  }
+                },
+                "required": ["timerId"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success; JSON entity or list"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "400": {
+            "description": "Invalid request or domain validation failure"
+          },
+          "401": {
+            "description": "Missing or wrong token"
+          },
+          "403": {
+            "description": "Browser Origin or non-loopback Host rejected"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Concurrent edit, timer mismatch or reused key"
+          },
+          "428": {
+            "description": "Missing expectedUpdatedAt"
+          },
+          "503": {
+            "description": "App unavailable. Query state before retrying writes."
+          }
+        }
+      }
+    },
+    "/v1/timer/cancel": {
+      "post": {
+        "operationId": "post_v1_timer_cancel",
+        "summary": "cancel the matching active timer",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "description": "Write deduplication in the current app process (up to 256 keys)."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "timerId": {
+                    "type": "string"
+                  }
+                },
+                "required": ["timerId"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success; JSON entity or list"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "400": {
+            "description": "Invalid request or domain validation failure"
+          },
+          "401": {
+            "description": "Missing or wrong token"
+          },
+          "403": {
+            "description": "Browser Origin or non-loopback Host rejected"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Concurrent edit, timer mismatch or reused key"
+          },
+          "428": {
+            "description": "Missing expectedUpdatedAt"
+          },
+          "503": {
+            "description": "App unavailable. Query state before retrying writes."
+          }
+        }
+      }
+    },
+    "/v1/activities": {
+      "get": {
+        "operationId": "get_v1_activities",
+        "summary": "List activities",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success; JSON entity or list"
+          },
+          "400": {
+            "description": "Invalid request or domain validation failure"
+          },
+          "401": {
+            "description": "Missing or wrong token"
+          },
+          "403": {
+            "description": "Browser Origin or non-loopback Host rejected"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Concurrent edit, timer mismatch or reused key"
+          },
+          "428": {
+            "description": "Missing expectedUpdatedAt"
+          },
+          "503": {
+            "description": "App unavailable. Query state before retrying writes."
+          }
+        }
+      },
+      "post": {
+        "operationId": "post_v1_activities",
+        "summary": "Create activities entity",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "description": "Write deduplication in the current app process (up to 256 keys)."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "color": {
+                    "type": "string",
+                    "pattern": "^#[0-9a-fA-F]{6}$"
+                  },
+                  "nature": {
+                    "type": "string",
+                    "enum": ["positive", "neutral", "negative"]
+                  },
+                  "pointsPerHour": {
+                    "type": "number"
+                  },
+                  "archived": {
+                    "type": "boolean"
+                  }
+                },
+                "required": ["name"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success; JSON entity or list"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "400": {
+            "description": "Invalid request or domain validation failure"
+          },
+          "401": {
+            "description": "Missing or wrong token"
+          },
+          "403": {
+            "description": "Browser Origin or non-loopback Host rejected"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Concurrent edit, timer mismatch or reused key"
+          },
+          "428": {
+            "description": "Missing expectedUpdatedAt"
+          },
+          "503": {
+            "description": "App unavailable. Query state before retrying writes."
+          }
+        }
+      }
+    },
+    "/v1/activities/{id}": {
+      "get": {
+        "operationId": "get_v1_activities_id_",
+        "summary": "Read one activities entity",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; JSON entity or list"
+          },
+          "400": {
+            "description": "Invalid request or domain validation failure"
+          },
+          "401": {
+            "description": "Missing or wrong token"
+          },
+          "403": {
+            "description": "Browser Origin or non-loopback Host rejected"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Concurrent edit, timer mismatch or reused key"
+          },
+          "428": {
+            "description": "Missing expectedUpdatedAt"
+          },
+          "503": {
+            "description": "App unavailable. Query state before retrying writes."
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patch_v1_activities_id_",
+        "summary": "Edit activities using an optimistic version precondition",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "description": "Write deduplication in the current app process (up to 256 keys)."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "color": {
+                    "type": "string",
+                    "pattern": "^#[0-9a-fA-F]{6}$"
+                  },
+                  "nature": {
+                    "type": "string",
+                    "enum": ["positive", "neutral", "negative"]
+                  },
+                  "pointsPerHour": {
+                    "type": "number"
+                  },
+                  "archived": {
+                    "type": "boolean"
+                  },
+                  "expectedUpdatedAt": {
+                    "type": "number",
+                    "description": "Required for PATCH/DELETE: the exact updatedAt last read from the entity."
+                  }
+                },
+                "required": ["expectedUpdatedAt"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success; JSON entity or list"
+          },
+          "400": {
+            "description": "Invalid request or domain validation failure"
+          },
+          "401": {
+            "description": "Missing or wrong token"
+          },
+          "403": {
+            "description": "Browser Origin or non-loopback Host rejected"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Concurrent edit, timer mismatch or reused key"
+          },
+          "428": {
+            "description": "Missing expectedUpdatedAt"
+          },
+          "503": {
+            "description": "App unavailable. Query state before retrying writes."
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete_v1_activities_id_",
+        "summary": "Soft delete or archive activities entity",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "description": "Write deduplication in the current app process (up to 256 keys)."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "expectedUpdatedAt": {
+                    "type": "number",
+                    "description": "Required for PATCH/DELETE: the exact updatedAt last read from the entity."
+                  }
+                },
+                "required": ["expectedUpdatedAt"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success; JSON entity or list"
+          },
+          "400": {
+            "description": "Invalid request or domain validation failure"
+          },
+          "401": {
+            "description": "Missing or wrong token"
+          },
+          "403": {
+            "description": "Browser Origin or non-loopback Host rejected"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Concurrent edit, timer mismatch or reused key"
+          },
+          "428": {
+            "description": "Missing expectedUpdatedAt"
+          },
+          "503": {
+            "description": "App unavailable. Query state before retrying writes."
+          }
+        }
+      }
+    },
+    "/v1/records": {
+      "get": {
+        "operationId": "get_v1_records",
+        "summary": "List records",
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Device-local date YYYY-MM-DD; defaults to today where supported."
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "activityId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "includeDeleted",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; JSON entity or list"
+          },
+          "400": {
+            "description": "Invalid request or domain validation failure"
+          },
+          "401": {
+            "description": "Missing or wrong token"
+          },
+          "403": {
+            "description": "Browser Origin or non-loopback Host rejected"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Concurrent edit, timer mismatch or reused key"
+          },
+          "428": {
+            "description": "Missing expectedUpdatedAt"
+          },
+          "503": {
+            "description": "App unavailable. Query state before retrying writes."
+          }
+        }
+      },
+      "post": {
+        "operationId": "post_v1_records",
+        "summary": "Create records entity",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "description": "Write deduplication in the current app process (up to 256 keys)."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "maxLength": 100
+                  },
+                  "activityId": {
+                    "type": "string"
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 4000
+                  },
+                  "tags": {
+                    "type": "array",
+                    "maxItems": 16,
+                    "items": {
+                      "type": "string",
+                      "maxLength": 40
+                    }
+                  },
+                  "spans": {
+                    "type": "array",
+                    "minItems": 1,
+                    "description": "Ordered non-overlapping active intervals, in Unix epoch milliseconds. Pauses are gaps.",
+                    "items": {
+                      "type": "object",
+                      "required": ["start", "end"],
+                      "properties": {
+                        "start": {
+                          "type": "number"
+                        },
+                        "end": {
+                          "type": "number"
+                        }
+                      }
+                    }
+                  },
+                  "restore": {
+                    "type": "boolean"
+                  }
+                },
+                "required": ["activityId", "spans"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success; JSON entity or list"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "400": {
+            "description": "Invalid request or domain validation failure"
+          },
+          "401": {
+            "description": "Missing or wrong token"
+          },
+          "403": {
+            "description": "Browser Origin or non-loopback Host rejected"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Concurrent edit, timer mismatch or reused key"
+          },
+          "428": {
+            "description": "Missing expectedUpdatedAt"
+          },
+          "503": {
+            "description": "App unavailable. Query state before retrying writes."
+          }
+        }
+      }
+    },
+    "/v1/records/{id}": {
+      "get": {
+        "operationId": "get_v1_records_id_",
+        "summary": "Read one records entity",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; JSON entity or list"
+          },
+          "400": {
+            "description": "Invalid request or domain validation failure"
+          },
+          "401": {
+            "description": "Missing or wrong token"
+          },
+          "403": {
+            "description": "Browser Origin or non-loopback Host rejected"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Concurrent edit, timer mismatch or reused key"
+          },
+          "428": {
+            "description": "Missing expectedUpdatedAt"
+          },
+          "503": {
+            "description": "App unavailable. Query state before retrying writes."
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patch_v1_records_id_",
+        "summary": "Edit records using an optimistic version precondition",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "description": "Write deduplication in the current app process (up to 256 keys)."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "activityId": {
+                    "type": "string"
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 4000
+                  },
+                  "tags": {
+                    "type": "array",
+                    "maxItems": 16,
+                    "items": {
+                      "type": "string",
+                      "maxLength": 40
+                    }
+                  },
+                  "spans": {
+                    "type": "array",
+                    "minItems": 1,
+                    "description": "Ordered non-overlapping active intervals, in Unix epoch milliseconds. Pauses are gaps.",
+                    "items": {
+                      "type": "object",
+                      "required": ["start", "end"],
+                      "properties": {
+                        "start": {
+                          "type": "number"
+                        },
+                        "end": {
+                          "type": "number"
+                        }
+                      }
+                    }
+                  },
+                  "restore": {
+                    "type": "boolean"
+                  },
+                  "expectedUpdatedAt": {
+                    "type": "number",
+                    "description": "Required for PATCH/DELETE: the exact updatedAt last read from the entity."
+                  }
+                },
+                "required": ["expectedUpdatedAt"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success; JSON entity or list"
+          },
+          "400": {
+            "description": "Invalid request or domain validation failure"
+          },
+          "401": {
+            "description": "Missing or wrong token"
+          },
+          "403": {
+            "description": "Browser Origin or non-loopback Host rejected"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Concurrent edit, timer mismatch or reused key"
+          },
+          "428": {
+            "description": "Missing expectedUpdatedAt"
+          },
+          "503": {
+            "description": "App unavailable. Query state before retrying writes."
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete_v1_records_id_",
+        "summary": "Soft delete or archive records entity",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "description": "Write deduplication in the current app process (up to 256 keys)."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "expectedUpdatedAt": {
+                    "type": "number",
+                    "description": "Required for PATCH/DELETE: the exact updatedAt last read from the entity."
+                  }
+                },
+                "required": ["expectedUpdatedAt"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success; JSON entity or list"
+          },
+          "400": {
+            "description": "Invalid request or domain validation failure"
+          },
+          "401": {
+            "description": "Missing or wrong token"
+          },
+          "403": {
+            "description": "Browser Origin or non-loopback Host rejected"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Concurrent edit, timer mismatch or reused key"
+          },
+          "428": {
+            "description": "Missing expectedUpdatedAt"
+          },
+          "503": {
+            "description": "App unavailable. Query state before retrying writes."
+          }
+        }
+      }
+    },
+    "/v1/goals": {
+      "get": {
+        "operationId": "get_v1_goals",
+        "summary": "List goals",
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Device-local date YYYY-MM-DD; defaults to today where supported."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; JSON entity or list"
+          },
+          "400": {
+            "description": "Invalid request or domain validation failure"
+          },
+          "401": {
+            "description": "Missing or wrong token"
+          },
+          "403": {
+            "description": "Browser Origin or non-loopback Host rejected"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Concurrent edit, timer mismatch or reused key"
+          },
+          "428": {
+            "description": "Missing expectedUpdatedAt"
+          },
+          "503": {
+            "description": "App unavailable. Query state before retrying writes."
+          }
+        }
+      },
+      "post": {
+        "operationId": "post_v1_goals",
+        "summary": "Create goals entity",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "description": "Write deduplication in the current app process (up to 256 keys)."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "activityId": {
+                    "type": "string"
+                  },
+                  "minutes": {
+                    "type": "number",
+                    "minimum": 1
+                  },
+                  "period": {
+                    "type": "string",
+                    "enum": ["day", "week"]
+                  },
+                  "archived": {
+                    "type": "boolean"
+                  }
+                },
+                "required": ["name", "activityId", "minutes"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success; JSON entity or list"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "400": {
+            "description": "Invalid request or domain validation failure"
+          },
+          "401": {
+            "description": "Missing or wrong token"
+          },
+          "403": {
+            "description": "Browser Origin or non-loopback Host rejected"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Concurrent edit, timer mismatch or reused key"
+          },
+          "428": {
+            "description": "Missing expectedUpdatedAt"
+          },
+          "503": {
+            "description": "App unavailable. Query state before retrying writes."
+          }
+        }
+      }
+    },
+    "/v1/goals/{id}": {
+      "get": {
+        "operationId": "get_v1_goals_id_",
+        "summary": "Read one goals entity",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; JSON entity or list"
+          },
+          "400": {
+            "description": "Invalid request or domain validation failure"
+          },
+          "401": {
+            "description": "Missing or wrong token"
+          },
+          "403": {
+            "description": "Browser Origin or non-loopback Host rejected"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Concurrent edit, timer mismatch or reused key"
+          },
+          "428": {
+            "description": "Missing expectedUpdatedAt"
+          },
+          "503": {
+            "description": "App unavailable. Query state before retrying writes."
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patch_v1_goals_id_",
+        "summary": "Edit goals using an optimistic version precondition",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "description": "Write deduplication in the current app process (up to 256 keys)."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "activityId": {
+                    "type": "string"
+                  },
+                  "minutes": {
+                    "type": "number",
+                    "minimum": 1
+                  },
+                  "period": {
+                    "type": "string",
+                    "enum": ["day", "week"]
+                  },
+                  "archived": {
+                    "type": "boolean"
+                  },
+                  "expectedUpdatedAt": {
+                    "type": "number",
+                    "description": "Required for PATCH/DELETE: the exact updatedAt last read from the entity."
+                  }
+                },
+                "required": ["expectedUpdatedAt"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success; JSON entity or list"
+          },
+          "400": {
+            "description": "Invalid request or domain validation failure"
+          },
+          "401": {
+            "description": "Missing or wrong token"
+          },
+          "403": {
+            "description": "Browser Origin or non-loopback Host rejected"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Concurrent edit, timer mismatch or reused key"
+          },
+          "428": {
+            "description": "Missing expectedUpdatedAt"
+          },
+          "503": {
+            "description": "App unavailable. Query state before retrying writes."
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete_v1_goals_id_",
+        "summary": "Soft delete or archive goals entity",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "description": "Write deduplication in the current app process (up to 256 keys)."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "expectedUpdatedAt": {
+                    "type": "number",
+                    "description": "Required for PATCH/DELETE: the exact updatedAt last read from the entity."
+                  }
+                },
+                "required": ["expectedUpdatedAt"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success; JSON entity or list"
+          },
+          "400": {
+            "description": "Invalid request or domain validation failure"
+          },
+          "401": {
+            "description": "Missing or wrong token"
+          },
+          "403": {
+            "description": "Browser Origin or non-loopback Host rejected"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Concurrent edit, timer mismatch or reused key"
+          },
+          "428": {
+            "description": "Missing expectedUpdatedAt"
+          },
+          "503": {
+            "description": "App unavailable. Query state before retrying writes."
+          }
+        }
+      }
+    }
+  }
+}

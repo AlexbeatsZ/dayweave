@@ -21,11 +21,13 @@ export function TaskEditor({
   onClose,
   onDelete,
   onFocus,
+  onTrack,
 }: {
   id: string;
   onClose: () => void;
   onDelete: (task: Task) => void;
   onFocus: (id: string) => void;
+  onTrack: (id: string) => void;
 }) {
   const { data } = useStore();
   const task = data.tasks.find((t) => t.id === id);
@@ -308,10 +310,15 @@ export function TaskEditor({
           />
         </section>
         {!task.deletedAt && !task.completedAt && (
-          <button className="button focus-task-button" onClick={() => onFocus(id)}>
-            <Play size={15} />
-            为这件事专注
-          </button>
+          <div className="task-timer-actions">
+            <button className="button primary" onClick={() => onTrack(id)}>
+              <Play size={15} />
+              开始记录时间
+            </button>
+            <button className="button focus-task-button" onClick={() => onFocus(id)}>
+              番茄专注
+            </button>
+          </div>
         )}
       </div>
       <footer className="detail-footer">

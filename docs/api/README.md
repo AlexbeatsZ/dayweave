@@ -1,82 +1,109 @@
-# 让 AI 操作简清
+# 时织 AI 接口与 ROG 接入
 
-Windows 或 macOS 打开简清后，本机接口默认位于 `http://127.0.0.1:49721/api/v1`。实际地址和访问令牌可在设置的「AI 接口」中复制；端口被占用时会选择空闲端口。接口只监听本机，不对局域网开放。Android 当前通过界面操作和 JSON 导入导出使用同一数据格式，不运行 HTTP 服务。
+Windows/macOS 程序启动后提供本机 HTTP API；也可使用 Release 的 `Dayweave-AI-tools` 包在 ROG 上运行无界面服务。所有写入与界面共用领域校验、串行事务和原子落盘，成功后才广播给界面。
 
-完整机器可读文档为 [openapi.json](openapi.json)。运行中的 `/openapi.json` 也返回同一份文档，需要 Bearer 认证。
+## 连接与鉴权
 
-## 推荐：使用命令行客户端
+- 默认 `http://127.0.0.1:49731/api/v1`。端口占用时选择空闲端口，以发现文件为准。
+- Windows 发现文件 `%APPDATA%\Dayweave\api.json`；Mac 为 `~/Library/Application Support/Dayweave/api.json`。
+- 每个数据目录拥有独立随机令牌，使用 `Authorization: Bearer <token>`；CLI 自动读取，不输出令牌。
+- 拒绝浏览器 Origin、伪造 Host 和非 loopback 连接，不提供 CORS。
+- `DAYWEAVE_DATA_DIR`、`DAYWEAVE_API_PORT` 只对当前启动进程设置。`DAYWEAVE_API_DISABLE=1` 关闭桌面接口。
+- GET/写入响应为 `{data,revision}`，ETag 也是该 revision。OpenAPI 文档端点直接返回文档。
+- 写入建议带 `If-Match: "<revision>"`。409 后先重读并重新决策，避免盲目重试。时迹实体编辑另需 `expectedUpdatedAt`；暂停/继续/停止计时需 `timerId`。
 
-在源码目录运行，客户端自动从当前用户的 `api.json` 读取地址和令牌，不会把令牌打印出来：
+## ROG 上的运行方式
 
-```sh
-npm run ai -- GET /health
-npm run ai -- GET "/tasks?view=today"
-npm run ai -- GET /lists
-npm run ai -- POST /tasks --body-file task.json
-npm run ai -- PATCH /tasks/TASK_ID --body-file changes.json
-npm run ai -- POST /tasks/TASK_ID/complete
-npm run ai -- POST /tasks/TASK_ID/reopen
-npm run ai -- DELETE /tasks/TASK_ID
-npm run ai -- POST /tasks/TASK_ID/restore
-npm run ai -- GET /stats
+### 与桌面同机
+
+启动 Dayweave，再运行：
+
+```powershell
+node api.mjs GET /context
+node api.mjs GET /schedule/next
 ```
 
-创建任务的 `task.json` 示例：
+原始仓库中 CLI 路径是 `scripts/api.mjs`；AI 工具 ZIP 中为 `api.mjs`。本机 AI 读取 `api.json` 即可直接发 HTTP 请求。
+
+### ROG 无界面服务
+
+解压 AI 工具包，仅需现有 Node.js 24，无需 npm 安装。默认数据路径与桌面一致。
+
+```powershell
+node headless.mjs
+```
+
+服务启动时打印接口地址与发现文件路径，不打印令牌。Ctrl+C 安全退出。与桌面共用同一数据目录时，两者互斥；关闭服务后可用桌面编辑同一份数据。若使用独立 profile，CLI 也要指定同一目录：
+
+```powershell
+$env:DAYWEAVE_DATA_DIR = 'C:\Users\Meta\Project\Workspaces\dayweave-data'
+node headless.mjs
+node api.mjs --profile 'C:\Users\Meta\Project\Workspaces\dayweave-data' GET /context
+```
+
+此处只演示配置，不代表发行包已在 ROG 安装或启动。
+
+### ROG 控制另一台设备
+
+可用 SSH 隧道连接运行 Dayweave 的电脑，保留 loopback 与 Bearer 保护。例如在 ROG 执行：
+
+```powershell
+ssh -N -L 49732:127.0.0.1:49731 meta@192.168.31.214
+```
+
+实际目标电脑、远端端口以其发现文件为准。AI 通过 `127.0.0.1:49732` 调用，并在本地安全配置中使用目标 profile 的令牌。CLI 有意拒绝远程 URL，隧道端点仍是本机地址。
+
+## 常用端点
+
+| 端点                                                                    | 用途                                                                               |
+| ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `GET /context`                                                          | 真实时刻、日程时区、课程时区、今天待办、正向/番茄计时、当前/下一节课、未来七天课程 |
+| `GET/POST /tasks`                                                       | 查找 / 创建任务                                                                    |
+| `GET/PATCH/DELETE /tasks/{id}`                                          | 详情 / 修改 / 软删除                                                               |
+| `POST /tasks/{id}/complete`、`reopen`、`restore`                        | 显式幂等动作                                                                       |
+| `POST /tasks/{id}/track`                                                | 开始关联任务的正向计时；请求体可用 `{}` 或 `{activityId}`                          |
+| `GET/POST /lists`、`PATCH/DELETE /lists/{id}`                           | 清单管理                                                                           |
+| `GET/PATCH /settings`                                                   | 日程时区 `timeZone`、外观、番茄时长                                                |
+| `GET /schedule`、`PATCH /schedule`                                      | 学期设置、课程时区、全校停课                                                       |
+| `GET /schedule/next`                                                    | 当前课程数组与下一节课                                                             |
+| `GET /schedule/occurrences?from=<epochMs>&until=<epochMs>`              | 展开最多 400 天范围内的课程                                                        |
+| `POST /schedule/import`                                                 | `{name,content,preview:true}` 预览 CSV/JSON/ICS；`preview:false` 合并              |
+| `POST /schedule/courses`、`PATCH/DELETE /schedule/courses/{id}`         | 周课程创建与维护                                                                   |
+| `GET/POST /schedule/events`、`PATCH/DELETE /schedule/events/{id}`       | 单次或 ICS 课程实例                                                                |
+| `GET /timelog/timer`                                                    | 活动计时及实际有效时长                                                             |
+| `POST /timelog/timer/start`                                             | `{activityId,note?,fromPreviousRecord?}`                                           |
+| `POST /timelog/timer/pause`、`resume`、`stop`、`cancel`                 | `{timerId}`；界面与 AI 使用同一计时器                                              |
+| `GET/POST /timelog/activities`、`/records`、`/goals`                    | 时间记录实体管理                                                                   |
+| `PATCH/DELETE /timelog/activities/{id}`、`/records/{id}`、`/goals/{id}` | 编辑 / 归档 / 软删除，需 `expectedUpdatedAt`                                       |
+| `POST /timelog/records/{id}/fill`                                       | 相邻空档填充，需 `date,direction,spanIndex,expectedUpdatedAt`                      |
+| `GET /timelog/timeline?date=YYYY-MM-DD`                                 | 日程时区下的时间线                                                                 |
+| `GET /timelog/stats?date=YYYY-MM-DD`                                    | 时长与积分统计                                                                     |
+| `GET /export`、`POST /import`                                           | 完整备份或兼容旧程序备份的合并导入                                                 |
+| `GET /openapi.json`                                                     | 统一 OpenAPI                                                                       |
+
+新建周课程示例：
 
 ```json
 {
-  "title": "整理下周的实验计划",
-  "notes": "先列出要验证的假设",
-  "due": "2026-10-26",
-  "priority": 2,
-  "tags": ["实验"],
-  "repeat": "none"
+  "name": "量子化学",
+  "weekday": 1,
+  "start": "08:00",
+  "end": "09:40",
+  "weeks": [1, 3, 5, 7, 9, 11, 13, 15],
+  "location": "H4306",
+  "teacher": "",
+  "color": "#4264b2",
+  "excludedDates": []
 }
 ```
 
-清单不指定时使用默认清单。标题必填，其他字段可省略；优先级 1 最高、4 无优先级。子任务使用 `{ "id": "唯一ID", "title": "步骤", "done": false }`。不要在普通 PATCH 中提交完成时间、创建时间或任务 ID，完成和恢复应调用专门动作。
+写请求体可保存为 UTF-8 文件后调用：
 
-## 直接 HTTP 调用
-
-请求携带 `Authorization: Bearer <访问令牌>`；有 JSON 请求体时携带 `Content-Type: application/json`。
-
-```http
-POST /api/v1/tasks HTTP/1.1
-Host: 127.0.0.1:49721
-Authorization: Bearer <访问令牌>
-Content-Type: application/json
-
-{"title":"阅读一篇论文","priority":2}
+```powershell
+node api.mjs --body-file course.json POST /schedule/courses
+node api.mjs --if-match '<revision>' --body-file change.json PATCH /settings
 ```
 
-成功响应格式：
+课程实例中的 `start/end` 为 UTC epoch 毫秒。周课程的 `start/end` 为课程时区下的 `HH:mm`。日期字符串是日历日，不应由设备 UTC−4 转换后重写成另一日。`Asia/Shanghai` 与固定 `-04:00` 可同时存在，不修改设备时区。
 
-```json
-{
-  "data": { "id": "任务ID", "title": "阅读一篇论文" },
-  "revision": "当前状态版本"
-}
-```
-
-任务列表返回 `data.items`、`total`、`offset`、`limit`，每页最多 500 项。`view` 可为 `all`、`today`、`upcoming`、`inbox`、`completed`、`trash`、`list:<清单ID>`、`tag:<标签>`，`q` 搜索标题、备注、子任务和标签。
-
-读取响应的 `ETag` 可以用于下次写请求的 `If-Match`。若期间有其他修改，返回 409，请先读取最新数据再决定如何修改；不要自动用旧快照覆盖。
-
-## 其他接口
-
-| 方法与路径                                            | 操作                                                    |
-| ----------------------------------------------------- | ------------------------------------------------------- |
-| `GET /tasks/{id}`                                     | 读取单个任务，含完成与回收站状态                        |
-| `GET /lists`, `POST /lists`                           | 列出、创建清单                                          |
-| `PATCH /lists/{id}`, `DELETE /lists/{id}`             | 修改或删除清单；删除后任务移到默认清单                  |
-| `GET /settings`, `PATCH /settings`                    | 外观和专注偏好                                          |
-| `GET /focus`                                          | 当前计时器及最近专注记录                                |
-| `POST /focus/start`                                   | JSON：`{"taskId":"任务ID","minutes":25,"kind":"focus"}` |
-| `POST /focus/pause`, `/focus/resume`, `/focus/cancel` | 暂停、继续或取消计时                                    |
-| `GET /stats`                                          | 七天和累计统计                                          |
-| `GET /export`                                         | 在 `data` 中导出完整 v1 JSON，不含令牌                  |
-| `POST /import`                                        | 请求体为完整 v1 JSON，按更新时间合并                    |
-
-应用运行时才提供接口。配置文件位于 Windows `%APPDATA%\Clearlist\api.json`、macOS `~/Library/Application Support/Clearlist/api.json`。可通过当前进程环境变量 `CLEARLIST_API_PORT` 指定端口，`CLEARLIST_API_DISABLE=1` 关闭接口。测试独立数据目录可向客户端传入 `--profile <目录>`。
-
-令牌相当于本机任务的访问权限，交给需要操作简清的 AI 工具即可，不要放入公开提示词、仓库、截图或共享文档。
+Android 当前只提供原生桌面组件和应用内操作，不运行 HTTP 服务。各平台本地数据不自动同步；ROG 系统对哪个 profile 调用，就控制那一份数据。

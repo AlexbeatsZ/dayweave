@@ -1,3 +1,4 @@
+import { handleExtendedRoute } from './extended-api.js';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { timingSafeEqual, randomBytes } from 'node:crypto';
 import { readFile, writeFile, chmod } from 'node:fs/promises';
@@ -59,7 +60,7 @@ async function body(request: IncomingMessage, limit = 1024 * 1024): Promise<unkn
   }
 }
 
-export async function startApi(service: StateService, requestedPort = 49721) {
+export async function startApi(service: StateService, requestedPort = 49731) {
   await service.snapshot();
   const credentialFile = path.join(service.storage.directory, 'api.json');
   let token: string;
@@ -108,8 +109,23 @@ export async function startApi(service: StateService, requestedPort = 49721) {
       const expected = request.headers['if-match']?.toString().replace(/^"|"$/g, '');
       const mutate = (fn: (state: AppState) => AppState) => service.mutate(fn, expected);
       let snapshot = await service.snapshot();
+      if (
+        await handleExtendedRoute({
+          route,
+          method,
+          url,
+          request,
+          response,
+          service,
+          snapshot,
+          mutate,
+          send,
+          readBody: body,
+        })
+      )
+        return;
       if (route === '/health' && method === 'GET')
-        return send({ app: 'Clearlist', version: '0.2.0', storage: 'ready' }, snapshot);
+        return send({ app: 'Dayweave', version: '0.3.0', storage: 'ready' }, snapshot);
       if (route === '/openapi.json' && method === 'GET') {
         response.end(JSON.stringify(openapi));
         return;

@@ -22,7 +22,7 @@ const studioJava = windows
   ? 'C:/Program Files/Android/Android Studio/jbr'
   : '/Applications/Android Studio.app/Contents/jbr/Contents/Home';
 const java =
-  process.env.CLEARLIST_JAVA_HOME ?? (existsSync(studioJava) ? studioJava : process.env.JAVA_HOME);
+  process.env.DAYWEAVE_JAVA_HOME ?? (existsSync(studioJava) ? studioJava : process.env.JAVA_HOME);
 const env = {
   ...process.env,
   ANDROID_HOME: sdk,
@@ -58,7 +58,7 @@ if (!debug && !unsigned) {
   const directory = path.join(root, '.local/android-signing');
   await mkdir(directory, { recursive: true });
   const credentialPath = path.join(directory, 'credentials.json'),
-    keystore = path.join(directory, 'clearlist-release.jks');
+    keystore = path.join(directory, 'dayweave-release.jks');
   let credentials;
   if (existsSync(credentialPath)) credentials = JSON.parse(await readFile(credentialPath, 'utf8'));
   else {
@@ -89,7 +89,7 @@ if (!debug && !unsigned) {
         '-storetype',
         'PKCS12',
         '-alias',
-        'clearlist',
+        'dayweave',
         '-keyalg',
         'RSA',
         '-keysize',
@@ -97,28 +97,33 @@ if (!debug && !unsigned) {
         '-validity',
         '10000',
         '-dname',
-        'CN=Clearlist, O=Clearlist contributors, C=CN',
+        'CN=Dayweave, O=Dayweave contributors, C=CN',
         '-storepass:env',
-        'CLEARLIST_KEY_PASSWORD',
+        'DAYWEAVE_KEY_PASSWORD',
         '-keypass:env',
-        'CLEARLIST_KEY_PASSWORD',
+        'DAYWEAVE_KEY_PASSWORD',
       ],
       root,
-      { ...env, CLEARLIST_KEY_PASSWORD: credentials.password },
+      { ...env, DAYWEAVE_KEY_PASSWORD: credentials.password },
     );
   }
-  env.CLEARLIST_KEYSTORE = keystore;
-  env.CLEARLIST_KEY_PASSWORD = credentials.password;
+  env.DAYWEAVE_KEYSTORE = keystore;
+  env.DAYWEAVE_KEY_PASSWORD = credentials.password;
 }
 if (!signOnly)
   await run(
     windows ? 'gradlew.bat' : './gradlew',
-    ['--no-daemon', debug ? ':app:assembleDebug' : ':app:assembleRelease', ':app:lintDebug'],
+    [
+      '--no-daemon',
+      debug ? ':app:assembleDebug' : ':app:assembleRelease',
+      debug ? ':app:lintDebug' : ':app:lintRelease',
+      ':app:testReleaseUnitTest',
+    ],
     path.join(root, 'android'),
   );
 const { version } = JSON.parse(await readFile('package.json', 'utf8'));
 await mkdir('release', { recursive: true });
-const target = `release/Clearlist-${version}-Android${debug ? '-debug' : unsigned ? '-unsigned' : ''}.apk`;
+const target = `release/Dayweave-${version}-Android${debug ? '-debug' : unsigned ? '-unsigned' : ''}.apk`;
 if (signOnly) {
   if (debug || unsigned)
     throw new Error('--sign-only cannot be combined with --debug or --unsigned.');
@@ -134,13 +139,13 @@ if (signOnly) {
   await run(signer, [
     'sign',
     '--ks',
-    env.CLEARLIST_KEYSTORE,
+    env.DAYWEAVE_KEYSTORE,
     '--ks-key-alias',
-    'clearlist',
+    'dayweave',
     '--ks-pass',
-    'env:CLEARLIST_KEY_PASSWORD',
+    'env:DAYWEAVE_KEY_PASSWORD',
     '--key-pass',
-    'env:CLEARLIST_KEY_PASSWORD',
+    'env:DAYWEAVE_KEY_PASSWORD',
     '--out',
     path.resolve(target),
     path.resolve(signOnly),

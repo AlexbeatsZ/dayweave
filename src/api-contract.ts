@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { extraPaths } from './extra-contract.js';
 import { taskSchema, listSchema, stateSchema, timerSchema } from './model.js';
 
 export const taskInputSchema = taskSchema
@@ -33,7 +34,7 @@ export const focusInputSchema = z
   .strict();
 
 const json = (schema: z.ZodType) =>
-  z.toJSONSchema(schema, { target: 'openapi-3.0', unrepresentable: 'any' });
+  z.toJSONSchema(schema, { target: 'openapi-3.0', unrepresentable: 'any', io: 'output' });
 const response = {
   description: '成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。',
   content: {
@@ -74,14 +75,14 @@ function operation(summary: string, schema?: z.ZodType, pathId = false) {
 export const openapi = {
   openapi: '3.0.3',
   info: {
-    title: 'Clearlist AI API',
-    version: '0.2.0',
+    title: 'Dayweave AI API',
+    version: '0.3.0',
     description:
-      '简清 Windows/macOS 本机接口。应用运行时可用；实际地址与令牌见设置或用户数据目录 api.json。默认不对局域网开放。所有写入先持久化再通知界面；DELETE 任务为软删除。',
+      '时织 Windows/macOS 本机接口。应用运行时可用；实际地址与令牌见设置或用户数据目录 api.json。默认不对局域网开放。所有写入先持久化再通知界面；DELETE 任务为软删除。',
   },
   servers: [
     {
-      url: 'http://127.0.0.1:49721/api/v1',
+      url: 'http://127.0.0.1:49731/api/v1',
       description: '默认地址；被占用时使用 api.json 的实际地址',
     },
   ],
@@ -105,6 +106,7 @@ export const openapi = {
     },
   },
   paths: {
+    ...extraPaths,
     '/health': { get: operation('检查应用状态与版本') },
     '/openapi.json': { get: operation('读取当前 OpenAPI 文档') },
     '/tasks': {

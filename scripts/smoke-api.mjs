@@ -8,16 +8,16 @@ import { execFileSync } from 'node:child_process';
 const base = path.join(os.tmpdir(), '.agents');
 await mkdir(base, { recursive: true });
 const profile = await mkdtemp(path.join(base, 'clearlist-ui-api-'));
-const env = { ...process.env, CLEARLIST_DATA_DIR: profile, CLEARLIST_API_PORT: '0' };
+const env = { ...process.env, DAYWEAVE_DATA_DIR: profile, DAYWEAVE_API_PORT: '0' };
 delete env.ELECTRON_RUN_AS_NODE;
-delete env.CLEARLIST_DEV_URL;
+delete env.DAYWEAVE_DEV_URL;
 let app;
 try {
   app = await electron.launch({
-    ...(process.env.CLEARLIST_EXECUTABLE
-      ? { executablePath: path.resolve(process.env.CLEARLIST_EXECUTABLE) }
+    ...(process.env.DAYWEAVE_EXECUTABLE
+      ? { executablePath: path.resolve(process.env.DAYWEAVE_EXECUTABLE) }
       : {}),
-    args: process.env.CLEARLIST_EXECUTABLE ? [] : ['.'],
+    args: process.env.DAYWEAVE_EXECUTABLE ? [] : ['.'],
     cwd: process.cwd(),
     env,
   });
@@ -46,10 +46,9 @@ try {
     assert.equal(response.status, 200);
     return response.json();
   };
-  const today = await page.evaluate(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  });
+  const {
+    data: { today },
+  } = await request('GET', '/context');
   const { data: task } = await request('POST', '/tasks', { title: 'AI 创建的任务', due: today });
   await page.getByRole('button', { name: '编辑 AI 创建的任务', exact: true }).click();
   await page.getByLabel('任务备注').fill('界面补充的备注');

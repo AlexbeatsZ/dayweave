@@ -1,4 +1,7 @@
 import { z } from 'zod';
+import { initialState, validateState, mergeBackup, parseBackup } from './timelog/domain.js';
+import { scheduleSchema, emptySchedule, mergeSchedule, zoneSchema } from './schedule.js';
+import { zoneDateKey, shiftDay as shiftCalendarDay } from './timezone.js';
 
 export const idSchema = z.string().min(1).max(100);
 export const dateSchema = z
@@ -76,6 +79,11 @@ export const timerSchema = z
 export const stateSchema = z
   .object({
     version: z.literal(1),
+    timelog: z
+      .unknown()
+      .default(initialState)
+      .transform((v) => validateState(v)),
+    schedule: scheduleSchema.default(emptySchedule),
     lists: z.array(listSchema).min(1).max(200),
     tasks: z.array(taskSchema).max(50000),
     sessions: z.array(focusSessionSchema).max(100000),
@@ -83,6 +91,7 @@ export const stateSchema = z
     settings: z
       .object({
         theme: z.enum(['light', 'dark', 'system']),
+        timeZone: zoneSchema.default('Asia/Shanghai'),
         focusMinutes: z.number().int().min(1).max(180),
         breakMinutes: z.number().int().min(1).max(60),
         showCompleted: z.boolean(),
@@ -91,6 +100,12 @@ export const stateSchema = z
   })
   .strict()
   .superRefine((state, ctx) => {
+    if (state.timer && state.timelog.timer)
+      ctx.addIssue({
+        code: 'custom',
+        path: ['timer'],
+        message: '请先结束当前计时再开始另一个计时',
+      });
     const unique = (values: string[], path: string) => {
       if (new Set(values).size !== values.length)
         ctx.addIssue({ code: 'custom', path: [path], message: '存在重复 ID' });
@@ -125,6 +140,8 @@ export type Task = z.infer<typeof taskSchema>;
 export type TaskList = z.infer<typeof listSchema>;
 export type Timer = z.infer<typeof timerSchema>;
 export type View =
+  | 'timetable'
+  | 'timelog'
   | 'today'
   | 'upcoming'
   | 'all'
@@ -143,6 +160,9 @@ export const uid = () => globalThis.crypto.randomUUID();
 export const now = () => new Date().toISOString();
 
 export function dateKey(date = new Date()): string {
+  return zoneDateKey(date.getTime());
+}
+export function civilDateKey(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 export function fromDateKey(key: string): Date {
@@ -150,9 +170,7 @@ export function fromDateKey(key: string): Date {
   return new Date(y, m - 1, d, 12);
 }
 export function shiftDate(key: string, days: number): string {
-  const date = fromDateKey(key);
-  date.setDate(date.getDate() + days);
-  return dateKey(date);
+  return shiftCalendarDay(key, days);
 }
 export function formatDate(key: string | null): string {
   if (!key) return '无日期';
@@ -165,11 +183,19 @@ export function formatDate(key: string | null): string {
 export function emptyState(): AppState {
   return {
     version: 1,
+    timelog: initialState(),
+    schedule: emptySchedule(),
     lists: [{ id: 'inbox', name: '收集箱', color: '#7e8b8b', order: 0 }],
     tasks: [],
     sessions: [],
     timer: null,
-    settings: { theme: 'system', focusMinutes: 25, breakMinutes: 5, showCompleted: false },
+    settings: {
+      timeZone: 'Asia/Shanghai',
+      theme: 'system',
+      focusMinutes: 25,
+      breakMinutes: 5,
+      showCompleted: false,
+    },
   };
 }
 export function newTask(title: string, partial: Partial<Task> = {}): Task {
@@ -203,7 +229,7 @@ export function nextRepeatDate(task: Pick<Task, 'due' | 'repeat' | 'repeatDay'>)
   const target = new Date(date.getFullYear(), date.getMonth() + 1, 1, 12);
   const last = new Date(target.getFullYear(), target.getMonth() + 1, 0, 12).getDate();
   target.setDate(Math.min(task.repeatDay, last));
-  return dateKey(target);
+  return civilDateKey(target);
 }
 export function toggleTask(state: AppState, id: string): AppState {
   const task = state.tasks.find((t) => t.id === id);
@@ -290,6 +316,15 @@ export function selectTasks(
 }
 
 export function mergeImport(local: AppState, incoming: unknown): AppState {
+  if (
+    incoming &&
+    typeof incoming === 'object' &&
+    'format' in incoming &&
+    incoming.format === 'open-timelog'
+  ) {
+    const backup = parseBackup(JSON.stringify(incoming));
+    return { ...local, timelog: mergeBackup(local.timelog, backup.data) };
+  }
   const imported = stateSchema.parse(incoming);
   const lists = new Map(local.lists.map((x) => [x.id, x]));
   for (const list of imported.lists) if (!lists.has(list.id)) lists.set(list.id, list);
@@ -302,6 +337,14 @@ export function mergeImport(local: AppState, incoming: unknown): AppState {
     if (!sessions.has(session.id)) sessions.set(session.id, session);
   return stateSchema.parse({
     ...local,
+    timelog:
+      incoming && typeof incoming === 'object' && 'timelog' in incoming
+        ? mergeBackup(local.timelog, imported.timelog)
+        : local.timelog,
+    schedule:
+      incoming && typeof incoming === 'object' && 'schedule' in incoming
+        ? mergeSchedule(local.schedule, imported.schedule)
+        : local.schedule,
     lists: [...lists.values()],
     tasks: [...tasks.values()],
     sessions: [...sessions.values()],

@@ -3,6 +3,7 @@ import { App } from './App';
 import { store } from './store';
 import './styles.css';
 import './mobile.css';
+import './dayweave.css';
 import { initializeTheme } from './theme';
 import { initializeMobile } from './mobile';
 

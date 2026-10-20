@@ -1,18 +1,18 @@
 {
-  "name": "clearlist",
-  "productName": "Clearlist",
-  "version": "0.2.0",
+  "name": "dayweave",
+  "productName": "Dayweave",
+  "version": "0.3.0",
   "private": true,
-  "description": "简清 — 离线优先的开源待办与专注工具",
+  "description": "时织 — 待办、时间记录与跨时区课程表",
   "license": "MIT",
-  "author": "Clearlist contributors",
+  "author": "Dayweave contributors",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/AlexbeatsZ/clearlist.git"
+    "url": "git+https://github.com/AlexbeatsZ/dayweave.git"
   },
-  "homepage": "https://github.com/AlexbeatsZ/clearlist#readme",
+  "homepage": "https://github.com/AlexbeatsZ/dayweave#readme",
   "bugs": {
-    "url": "https://github.com/AlexbeatsZ/clearlist/issues"
+    "url": "https://github.com/AlexbeatsZ/dayweave/issues"
   },
   "type": "module",
   "main": "dist-electron/electron/main.js",
@@ -39,11 +39,14 @@
     "dist:android": "npm run android:sync && node scripts/package-android.mjs",
     "dist:mac": "npm run build && node scripts/package-macos.mjs",
     "start": "electron .",
-    "dist:win": "npm run build && node scripts/package-windows.mjs"
+    "dist:win": "npm run build && node scripts/package-windows.mjs",
+    "serve:api": "node dist-electron/electron/headless.js",
+    "bundle:ai": "npm run api:docs && node scripts/bundle-ai.mjs",
+    "test:headless": "node scripts/smoke-headless.mjs"
   },
   "build": {
-    "appId": "org.clearlist.desktop",
-    "productName": "Clearlist",
+    "appId": "org.dayweave.desktop",
+    "productName": "Dayweave",
     "directories": {
       "output": "release"
     },
@@ -51,7 +54,8 @@
       "dist/**/*",
       "dist-electron/**/*",
       "package.json",
-      "LICENSE"
+      "LICENSE",
+      "THIRD_PARTY_NOTICES.md"
     ],
     "win": {
       "target": "portable",
@@ -68,11 +72,11 @@
       "identity": "-",
       "hardenedRuntime": false,
       "notarize": false,
-      "artifactName": "Clearlist-${version}-macOS-${arch}.${ext}",
+      "artifactName": "Dayweave-${version}-macOS-${arch}.${ext}",
       "minimumSystemVersion": "13.0"
     },
     "portable": {
-      "artifactName": "Clearlist-${version}-Windows-x64.exe"
+      "artifactName": "Dayweave-${version}-Windows-x64.exe"
     },
     "electronLanguages": [
       "zh-CN",
@@ -80,6 +84,8 @@
     ]
   },
   "dependencies": {
+    "@js-temporal/polyfill": "^0.5.1",
+    "ical.js": "^2.2.1",
     "zod": "^4.6.7"
   },
   "devDependencies": {

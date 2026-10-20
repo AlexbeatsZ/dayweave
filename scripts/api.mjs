@@ -13,12 +13,12 @@ const option = (name) => {
 };
 const profile =
   option('--profile') ??
-  process.env.CLEARLIST_DATA_DIR ??
+  process.env.DAYWEAVE_DATA_DIR ??
   (process.platform === 'win32'
-    ? path.join(process.env.APPDATA, 'Clearlist')
+    ? path.join(process.env.APPDATA, 'Dayweave')
     : process.platform === 'darwin'
-      ? path.join(os.homedir(), 'Library/Application Support/Clearlist')
-      : path.join(process.env.XDG_CONFIG_HOME ?? path.join(os.homedir(), '.config'), 'Clearlist'));
+      ? path.join(os.homedir(), 'Library/Application Support/Dayweave')
+      : path.join(process.env.XDG_CONFIG_HOME ?? path.join(os.homedir(), '.config'), 'Dayweave'));
 const bodyFile = option('--body-file');
 const match = option('--if-match');
 const [method = 'GET', endpoint = '/health'] = args;
@@ -43,6 +43,6 @@ try {
   console.log(JSON.stringify(value, null, 2));
   if (!response.ok) process.exitCode = 1;
 } catch (error) {
-  console.error(`Clearlist API: ${error.message}`);
+  console.error(`Dayweave API: ${error.message}`);
   process.exitCode = 1;
 }
