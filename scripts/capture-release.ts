@@ -112,6 +112,9 @@ try {
   await page.goto('http://127.0.0.1:5191');
   await page.getByRole('button', { name: '课程表', exact: true }).click();
   await page.locator('.course-card').first().waitFor();
+  await page.locator('.brand img').evaluate(async (image: HTMLImageElement) => {
+    await image.decode();
+  });
   await mkdir('.local/screenshots', { recursive: true });
   await page.screenshot({ path: '.local/screenshots/timetable-desktop.png', fullPage: true });
   await page.getByRole('button', { name: '今天', exact: true }).click();

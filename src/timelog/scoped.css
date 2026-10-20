@@ -23,7 +23,7 @@
   background: var(--canvas);
   color: var(--ink);
 }
-.timelog-module[data-theme='dark'] {
+:root[data-theme='dark'] .timelog-module {
   color-scheme: dark;
   --canvas: #131e23;
   --surface: #1c2a30;
