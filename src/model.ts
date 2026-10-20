@@ -100,7 +100,7 @@ export const stateSchema = z
   })
   .strict()
   .superRefine((state, ctx) => {
-    if (state.timer && state.timelog.timer)
+    if (state.timer && (state.timelog.timer || state.timelog.conflictedTimers?.length))
       ctx.addIssue({
         code: 'custom',
         path: ['timer'],

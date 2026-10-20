@@ -13,6 +13,34 @@ const op = (summary: string, schema?: unknown) => ({
 const free = { type: 'object', additionalProperties: true };
 const id = [{ in: 'path', name: 'id', required: true, schema: { type: 'string' } }];
 export const extraPaths: Record<string, unknown> = {
+  '/sync/status': { get: op('同步状态与已配对设备，不返回密钥') },
+  '/sync/invite': { post: op('在已开启的中心生成单次五分钟配对邀请；邀请含密钥') },
+  '/sync/hub': { post: op('开启本机局域网同步中心') },
+  '/sync/now': { post: op('立即同步本机修改') },
+  '/time-records': {
+    get: op('统一时间记录，endAt=null 表示计时；最近 1000 条'),
+    post: op('只给 startAt 即开始计时；给 endAt 则创建结束记录', {
+      type: 'object',
+      required: ['startAt'],
+      properties: {
+        startAt: { type: 'number', description: 'UTC epoch 毫秒' },
+        endAt: { type: ['number', 'null'] },
+        activityId: { type: 'string' },
+        taskId: { type: 'string' },
+        note: { type: 'string' },
+        tags: { type: 'array', items: { type: 'string' } },
+      },
+      additionalProperties: false,
+    }),
+  },
+  '/time-records/{id}/stop': {
+    parameters: id,
+    post: op('给原 ID 补结束时间；不创建另一条记录', {
+      type: 'object',
+      properties: { endAt: { type: 'number' } },
+      additionalProperties: false,
+    }),
+  },
   '/context': { get: op('AI 决策上下文：今天任务、活动计时、当前和下一节课以及未来七天课程') },
   '/tasks/{id}/track': {
     parameters: id,

@@ -106,4 +106,8 @@ node api.mjs --if-match '<revision>' --body-file change.json PATCH /settings
 
 课程实例中的 `start/end` 为 UTC epoch 毫秒。周课程的 `start/end` 为课程时区下的 `HH:mm`。日期字符串是日历日，不应由设备 UTC−4 转换后重写成另一日。`Asia/Shanghai` 与固定 `-04:00` 可同时存在，不修改设备时区。
 
-Android 当前只提供原生桌面组件和应用内操作，不运行 HTTP 服务。各平台本地数据不自动同步；ROG 系统对哪个 profile 调用，就控制那一份数据。
+Android 不运行 HTTP 服务；配对 ROG 中心后，应用内数据会自动与中心合并。ROG AI 应调用中心 profile 的接口，修改随同步传播到其他设备。
+
+统一记录接口：GET /time-records 读取最近 1000 条；POST /time-records 只需 {"startAt":<epochMs>} 即开始计时，可附 activityId/taskId/note/tags。提供 endAt 则直接创建已结束记录。POST /time-records/{id}/stop 给原 ID 补结束时间；不创建新的无关记录。
+
+无界面中心：设置进程环境变量 DAYWEAVE_SYNC_HUB=1 后运行 node headless.mjs。默认 LAN 同步端口 49732，AI 仍仅监听 loopback 49731。GET /sync/status 返回连接与已配对设备；POST /sync/invite 生成一次五分钟邀请（含配对密钥，请只交给自己的设备）；POST /sync/hub 开启中心；POST /sync/now 立即同步。邀请亦可在启动时使用 node headless.mjs --invite 生成。私有 sync.json 不得上传或作为普通业务备份传播。

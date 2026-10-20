@@ -10,6 +10,25 @@ import { startApi } from '../electron/api';
 import { applyDelta, diffState, StateConflict } from '../src/state-delta';
 import { emptyState, newTask, now } from '../src/model';
 
+test('start-only record is a live timer and stopping closes the same record ID', async () =>
+  fixture(async ({ request }) => {
+    const startAt = Date.now() - 60000;
+    const response = await request('POST', '/time-records', { startAt, note: 'AI 统一计时' });
+    assert.equal(response.status, 200);
+    const { data: record } = await response.json();
+    assert.equal(record.startAt, startAt);
+    assert.equal(record.endAt, null);
+    assert.ok(record.elapsedMs >= 60000);
+    const stopped = await request('POST', `/time-records/${record.id}/stop`, {});
+    assert.equal(stopped.status, 200);
+    const { data: closed } = await stopped.json();
+    assert.equal(closed.id, record.id);
+    assert.ok(closed.endAt > startAt);
+    assert.equal((await request('POST', `/time-records/${record.id}/stop`, {})).status, 409);
+    const { data: records } = await (await request('GET', '/time-records')).json();
+    assert.equal(records.length, 1);
+  }));
+
 test('unified context, timetable writes and stale course revisions share the persisted API state', async () =>
   fixture(async ({ request }) => {
     let response = await request('PATCH', '/schedule', {

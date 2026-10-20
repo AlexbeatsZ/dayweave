@@ -10,5 +10,11 @@ export interface NativeFiles {
   }): Promise<{ saved: boolean }>;
   appearance(options: { dark: boolean }): Promise<void>;
   pinWidget(): Promise<{ supported: boolean; requested: boolean }>;
+  discoverSync(): Promise<{ peers: import('./sync/types').Peer[] }>;
+  postSync(options: {
+    endpoint: string;
+    path: string;
+    body: import('./sync/crypto').Envelope;
+  }): Promise<{ body: import('./sync/crypto').Envelope }>;
 }
 export const nativeFiles = registerPlugin<NativeFiles>('DayweaveFiles');

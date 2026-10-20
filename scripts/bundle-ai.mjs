@@ -12,6 +12,7 @@ await copyFile('docs/api/openapi.json', 'release/Dayweave-AI-tools/openapi.json'
 await copyFile('docs/api/README.md', 'release/Dayweave-AI-tools/README.md');
 await copyFile('LICENSE', 'release/Dayweave-AI-tools/LICENSE');
 await copyFile('THIRD_PARTY_NOTICES.md', 'release/Dayweave-AI-tools/THIRD_PARTY_NOTICES.md');
+await copyFile('THIRD_PARTY_LICENSES.txt', 'release/Dayweave-AI-tools/THIRD_PARTY_LICENSES.txt');
 await writeFile(
   'release/Dayweave-AI-tools/package.json',
   JSON.stringify(

@@ -4,12 +4,13 @@
 
 日期：2026-10-20（America/New_York）。所有数据验证使用隔离 profile 或浏览器上下文。
 
-- 42 项领域、持久化、API 测试通过；包括 UTC−4/UTC+8 跨日、IANA 夏令时 23/25 小时日界线、单双周/停课、CSV/ICS 重复与移动课程、旧备份迁移、任务关联计时及模块并发冲突。
+- 49 项领域、持久化、API 与同步测试通过；加密真实双客户端离线合并、跨设备停止、并发开始、重放/撤销、请求期间编辑均覆盖。包括 UTC−4/UTC+8 跨日、IANA 夏令时 23/25 小时日界线、单双周/停课、CSV/ICS 重复与移动课程、旧备份迁移、任务关联计时及模块并发冲突。
 - 11 组浏览器桌面与手机流程通过。固定设备纽约时区并冻结到 2026-09-06T23:30Z，北京时间周一 08:00 课程正确显示为设备周日 20:00，并倒计时 30 分钟。
 - Windows 真实 Electron UI/API/CLI、界面/API 字段合并、关闭刷新落盘、重启、损坏主文件恢复通过。
 - 独立 Node API 包无 npm 运行依赖；启动、Bearer、CLI、任务持久化、上下文及第二个进程拒绝占用同一 profile 均通过。
 - 新项目独立身份与数据目录；原 Clearlist/Open Timelog 仓库与 profiles 均未写入。
-- Android 原生 Java/widget 单元测试、lint、签名与 Windows/macOS 发行包构建仍在本轮发布流程中，最终结果将补在此处。
+- Android assembleRelease、lintRelease 和 3 项 Java 课程计算测试通过；已用稳定密钥签名并安装 Redmi K70 / Android 16 与 Pad 6 Pro / Android 15，已查看实际界面。记录页绿色主题已改为共用蓝灰变量，系统主题切换检查通过。
+- 基线源码 bf577bf 的四平台 CI 全通过；实际 Apple Silicon Mac 桌面/打包应用 API 与恢复、DMG 和签名检查通过。含同步的新提交四平台构建结果将在发布前补齐。
 
 未验收：实体小米组件添加、曝光刷新、锁屏、系统重启和长期后台；下载后的 Gatekeeper；用户实体 Intel Mac；现有 ROG AI 系统实际接入。macOS 使用 ad-hoc 签名，未 Apple 公证；Windows 未商业代码签名。
 

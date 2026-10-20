@@ -2,6 +2,11 @@ import { Capacitor } from '@capacitor/core';
 import { App as NativeApp } from '@capacitor/app';
 import { JsonRepository } from './persistence';
 import { stateSchema } from './model';
+import { SyncClient } from './sync/client';
+import { store } from './store';
+let syncClient: SyncClient | undefined;
+let appActive = true;
+let syncBusy = false;
 
 import { nativeFiles as files } from './native-files';
 export const isMobileApp = Capacitor.isNativePlatform();
@@ -44,6 +49,61 @@ export async function initializeMobile() {
     onBeforeClose: () => {},
     readyToClose: () => {},
   };
+  syncClient = new SyncClient(
+    {
+      read: async () => (await files.read({ name: 'sync.json' })).content,
+      write: (content) => files.write({ name: 'sync.json', content }),
+    },
+    {
+      snapshot: async () => {
+        await store.flush();
+        return { state: store.get() };
+      },
+      mutate: (transform) => store.transact(transform),
+    },
+    async (endpoint, path, body) => (await files.postSync({ endpoint, path, body })).body,
+    /tablet/i.test(navigator.userAgent) || innerWidth >= 800 ? '小米平板' : '小米手机',
+    async () => (await files.discoverSync()).peers,
+  );
+  try {
+    await syncClient.load();
+    const client = syncClient;
+    window.clearlist.sync = {
+      status: async () => client.status(),
+      discover: async () => (await files.discoverSync()).peers,
+      pair: async (invitation, endpoint) => {
+        await client.pair(invitation, endpoint);
+        return client.now();
+      },
+      now: () => client.now(),
+      disconnect: () => client.disconnect(),
+      resolve: (index, keepLocal) => client.resolve(index, keepLocal),
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const unavailable = async () => {
+      throw new Error(message);
+    };
+    syncClient = undefined;
+    window.clearlist.sync = {
+      status: async () => ({
+        mode: 'off',
+        name: '此设备',
+        connected: false,
+        error: message,
+        conflicts: [],
+      }),
+      discover: unavailable,
+      pair: unavailable,
+      now: unavailable,
+      disconnect: unavailable,
+      resolve: unavailable,
+    };
+  }
+  await NativeApp.addListener('appStateChange', ({ isActive }) => {
+    appActive = isActive;
+    if (isActive) void syncMobileNow();
+  });
   const openUrl = (url: string) => {
     if (url === 'dayweave://timetable') location.hash = 'timetable';
   };
@@ -54,4 +114,18 @@ export async function initializeMobile() {
     const event = new CustomEvent('clearlist:back', { cancelable: true });
     if (document.dispatchEvent(event)) void NativeApp.minimizeApp();
   });
+}
+async function syncMobileNow() {
+  if (!appActive || syncBusy || !syncClient) return;
+  syncBusy = true;
+  try {
+    await syncClient.now();
+  } finally {
+    syncBusy = false;
+  }
+}
+export function startMobileSync() {
+  if (!isMobileApp) return;
+  void syncMobileNow();
+  setInterval(() => void syncMobileNow(), 2000);
 }

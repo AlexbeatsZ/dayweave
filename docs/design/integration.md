@@ -16,6 +16,10 @@ Native RemoteViews, 2x2 and 4x2 variants, :widgetProvider process, miui exposure
 
 Authenticated loopback HTTP at 127.0.0.1:49731/api/v1, token discovery api.json, OpenAPI and CLI. ROG can run the app or standalone headless API against its own profile; remote control uses SSH forwarding rather than public unauthenticated listeners. Unified context includes today tasks, active timers, current/next courses and epoch instants. All writes share the same storage queue as UI; If-Match prevents stale writes.
 
+## Synchronization
+
+ROG owns an optional encrypted LAN listener at 49732; AI loopback and synchronization share StateService. Read sync.md before changing merge or transport logic. Android sync runs while the app is open; system background freezing is explicitly shown in settings.
+
 ## Visual direction
 
 Study planner with slate ink #25364b, blue #4264b2, pale blue #eef3fb, white #ffffff and amber #b57827. Segoe UI/PingFang body, condensed Bahnschrift numerals. Weekly course grid plus a narrow dual-timezone next-class rail is the characteristic element. Keep task navigation and timelog sub-tabs concise; no duplicated app chrome.

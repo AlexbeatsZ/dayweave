@@ -27,6 +27,7 @@ import {
 } from '../src/api-contract.js';
 import { StateConflict } from '../src/state-delta.js';
 import { StateService, type StateSnapshot } from './state-service.js';
+import type { SyncBridge } from '../src/sync/types.js';
 
 type ApiInfo = { enabled: boolean; url: string; token: string };
 function fail(status: number, message: string): never {
@@ -60,7 +61,11 @@ async function body(request: IncomingMessage, limit = 1024 * 1024): Promise<unkn
   }
 }
 
-export async function startApi(service: StateService, requestedPort = 49731) {
+export async function startApi(
+  service: StateService,
+  requestedPort = 49731,
+  getSync?: () => SyncBridge | undefined,
+) {
   await service.snapshot();
   const credentialFile = path.join(service.storage.directory, 'api.json');
   let token: string;
@@ -109,6 +114,18 @@ export async function startApi(service: StateService, requestedPort = 49731) {
       const expected = request.headers['if-match']?.toString().replace(/^"|"$/g, '');
       const mutate = (fn: (state: AppState) => AppState) => service.mutate(fn, expected);
       let snapshot = await service.snapshot();
+      if (route.startsWith('/sync/')) {
+        const sync = getSync?.();
+        if (!sync) fail(503, 'Sync unavailable');
+        if (route === '/sync/status' && method === 'GET')
+          return send(await sync!.status(), snapshot);
+        if (route === '/sync/invite' && method === 'POST' && sync!.invite)
+          return send({ invitation: await sync!.invite() }, snapshot);
+        if (route === '/sync/hub' && method === 'POST' && sync!.enableHub)
+          return send(await sync!.enableHub(), snapshot);
+        if (route === '/sync/now' && method === 'POST')
+          return send(await sync!.now(), await service.snapshot());
+      }
       if (
         await handleExtendedRoute({
           route,

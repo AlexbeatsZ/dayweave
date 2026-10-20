@@ -5,8 +5,10 @@ import './styles.css';
 import './mobile.css';
 import './dayweave.css';
 import { initializeTheme } from './theme';
-import { initializeMobile } from './mobile';
+import { initializeMobile, startMobileSync } from './mobile';
 
 initializeTheme();
 createRoot(document.getElementById('root')!).render(<App />);
-void initializeMobile().then(() => store.initialize());
+void initializeMobile()
+  .then(() => store.initialize())
+  .then(startMobileSync);

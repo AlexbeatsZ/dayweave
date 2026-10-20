@@ -72,6 +72,7 @@ export type State = {
   rewards: Reward[];
   redemptions: Redemption[];
   timer: Timer | null;
+  conflictedTimers?: Timer[];
   settings: { weekStartsOn: 1; updatedAt: number };
 };
 export type Backup = {
@@ -173,7 +174,8 @@ export function liveSpans(timer: Timer, now: number): Span[] {
     : [...timer.spans, { start: timer.runningSince, end: Math.max(timer.runningSince, now) }];
 }
 export function startTimer(state: State, activityId: string, note: string, now: number): State {
-  if (state.timer) throw new Error('已有计时，请先保存当前计时。');
+  if (state.timer || state.conflictedTimers?.length)
+    throw new Error('已有计时，请先保存当前计时。');
   const activity = state.activities.find((item) => item.id === activityId && !item.archived);
   if (!activity) throw new Error('请选择可用的活动。');
   return {
@@ -487,10 +489,9 @@ export function validateState(value: unknown): State {
       };
     }),
   );
-  let timer: Timer | null = null;
-  if (root.timer !== null) {
-    const o = obj(root.timer, '计时');
-    timer = {
+  const parseTimer = (value: unknown): Timer => {
+    const o = obj(value, '计时');
+    const timer: Timer = {
       id: id(o.id),
       activityId: activityId(o.activityId),
       ...(o.taskId === undefined ? {} : { taskId: id(o.taskId) }),
@@ -509,7 +510,11 @@ export function validateState(value: unknown): State {
         timer.runningSince < Math.max(timer.startedAt, ...timer.spans.map((span) => span.end)))
     )
       throw new Error('计时片段顺序错误。');
-  }
+    return timer;
+  };
+  const timer = root.timer === null ? null : parseTimer(root.timer);
+  const conflictedTimers = unique(list(root.conflictedTimers ?? [], '同时计时', 100, parseTimer));
+  if (conflictedTimers.some((item) => item.id === timer?.id)) throw new Error('计时 ID 重复。');
   const settings = obj(root.settings, '设置');
   if (settings.weekStartsOn !== 1) throw new Error('不支持的周起始设置。');
   return {
@@ -519,6 +524,7 @@ export function validateState(value: unknown): State {
     rewards,
     redemptions,
     timer,
+    ...(conflictedTimers.length ? { conflictedTimers } : {}),
     settings: {
       weekStartsOn: 1,
       updatedAt: num(settings.updatedAt, '设置更新时间'),
@@ -561,7 +567,13 @@ function mergeList<T extends { id: string; updatedAt: number }>(local: T[], inco
 export function mergeBackup(local: State, incoming: State): State {
   local = validateState(local);
   incoming = validateState(incoming);
-  if (local.timer || incoming.timer) throw new Error('请先在原设备保存计时，再导出并合并备份。');
+  if (
+    local.timer ||
+    incoming.timer ||
+    local.conflictedTimers?.length ||
+    incoming.conflictedTimers?.length
+  )
+    throw new Error('请先在原设备保存计时，再导出并合并备份。');
   return validateState({
     activities: mergeList(local.activities, incoming.activities),
     records: mergeList(local.records, incoming.records),

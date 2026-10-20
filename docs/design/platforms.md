@@ -2,7 +2,7 @@
 
 ## 共用产品逻辑
 
-React / TypeScript 继续负责任务、日期、重复、专注、统计和 v1 JSON 格式。Windows 和 macOS 使用 Electron，Android 使用 Capacitor 加载随 APK 打包的静态页面，不依赖远程网页。各端离线数据独立，导入导出是显式的数据交换方式，不承诺自动同步。
+React / TypeScript 继续负责任务、日期、重复、专注、统计和 v1 JSON 格式。Windows 和 macOS 使用 Electron，Android 使用 Capacitor 加载随 APK 打包的静态页面，不依赖远程网页。各端保留离线数据；配对 ROG 后通过局域网加密同步，协议和冲突处理见 sync.md。Android 当前只在前台/恢复前台时同步。
 
 ## Android
 

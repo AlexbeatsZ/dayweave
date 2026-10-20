@@ -4,6 +4,7 @@ import type { StateDelta } from './state-delta';
 declare global {
   interface Window {
     clearlist?: {
+      sync?: import('./sync/types').SyncBridge;
       pickText?(): Promise<string | null>;
       exportText?(name: string, data: string): Promise<boolean>;
       platform?: 'win32' | 'darwin' | 'linux' | 'android';

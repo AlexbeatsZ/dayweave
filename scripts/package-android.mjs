@@ -6,6 +6,11 @@ import os from 'node:os';
 import { randomBytes } from 'node:crypto';
 
 const root = process.cwd();
+await copyFile(
+  'THIRD_PARTY_LICENSES.txt',
+  path.join(root, 'android/app/src/main/assets/THIRD_PARTY_LICENSES.txt'),
+);
+await copyFile('LICENSE', path.join(root, 'android/app/src/main/assets/LICENSE'));
 const windows = process.platform === 'win32';
 const debug = process.argv.includes('--debug');
 const unsigned = process.argv.includes('--unsigned');

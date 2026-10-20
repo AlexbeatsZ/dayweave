@@ -25,9 +25,89 @@ import org.json.JSONObject;
 public class DayweaveFilesPlugin extends Plugin {
     private static final int MAX_BYTES = 50 * 1024 * 1024;
     private String exporting;
+    private final java.util.concurrent.ExecutorService network = java.util.concurrent.Executors.newSingleThreadExecutor();
+    private boolean discovering = false;
+
+    private String endpoint(String value) throws Exception {
+        java.net.URI uri = new java.net.URI(value);
+        String host=uri.getHost();
+        if(!"http".equals(uri.getScheme()) || uri.getUserInfo()!=null || uri.getQuery()!=null || uri.getFragment()!=null || host==null || !host.matches("[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+") || !(uri.getPath().isEmpty() || "/".equals(uri.getPath()))) throw new IllegalArgumentException("Use a local IP address");
+        String[] parts=host.split("\\."); int[] n=new int[4];for(int i=0;i<4;i++){ n[i]=Integer.parseInt(parts[i]);if(n[i]>255)throw new IllegalArgumentException("Invalid IP"); }
+        if(!(n[0]==10 || n[0]==127 || n[0]==192&&n[1]==168 || n[0]==172&&n[1]>=16&&n[1]<=31 || n[0]==100&&n[1]>=64&&n[1]<=127 || n[0]==169&&n[1]==254)) throw new IllegalArgumentException("Use a local IP address");
+        return "http://"+host+":"+(uri.getPort()<0?80:uri.getPort());
+    }
+
+    @PluginMethod
+    public void postSync(PluginCall call) {
+        network.execute(() -> {
+            java.net.HttpURLConnection connection=null;
+            try {
+                String route=call.getString("path");
+                if(!"/pair".equals(route)&&!"/sync".equals(route))throw new IllegalArgumentException("Invalid sync route");
+                JSObject body=call.getObject("body");
+                if(body==null || body.length()!=3 || !body.has("clientId") || !body.has("iv") || !body.has("data"))throw new IllegalArgumentException("Encrypted sync envelope required");
+                byte[] bytes=body.toString().getBytes(StandardCharsets.UTF_8);
+                if(bytes.length>70*1024*1024)throw new IllegalArgumentException("Message too large");
+                connection=(java.net.HttpURLConnection)new java.net.URL(endpoint(call.getString("endpoint"))+route).openConnection();
+                connection.setConnectTimeout(6000);connection.setReadTimeout(12000);connection.setInstanceFollowRedirects(false);connection.setRequestMethod("POST");connection.setDoOutput(true);connection.setRequestProperty("Content-Type","application/json");connection.setFixedLengthStreamingMode(bytes.length);
+                try(OutputStream output=connection.getOutputStream()){output.write(bytes);}
+                if(connection.getResponseCode()!=200)throw new IllegalStateException(connection.getResponseCode()==401?"Pairing expired; pair again":"Sync center returned "+connection.getResponseCode());
+                String content=text(connection.getInputStream());
+                call.resolve(new JSObject().put("body",new JSONObject(content)));
+            }catch(Exception error){call.reject("Unable to reach sync center: "+error.getMessage(),error);}
+            finally{if(connection!=null)connection.disconnect();}
+        });
+    }
+
+    @PluginMethod
+    @SuppressWarnings("deprecation")
+    public void discoverSync(PluginCall call) {
+        getActivity().runOnUiThread(() -> {
+            if(discovering){call.reject("Discovery already running");return;}discovering=true;
+            android.net.nsd.NsdManager manager=(android.net.nsd.NsdManager)getContext().getSystemService(android.content.Context.NSD_SERVICE);
+            java.util.Map<String,JSONObject> found=new java.util.concurrent.ConcurrentHashMap<>();
+            java.util.ArrayDeque<android.net.nsd.NsdServiceInfo> queue=new java.util.ArrayDeque<>();
+            boolean[] resolving={false},finished={false};
+            android.os.Handler handler=new android.os.Handler(android.os.Looper.getMainLooper());
+            Runnable[] next=new Runnable[1];
+            next[0]=()->{
+                if(finished[0]||resolving[0]||queue.isEmpty())return;
+                resolving[0]=true;
+                manager.resolveService(queue.remove(),new android.net.nsd.NsdManager.ResolveListener(){
+                    public void onResolveFailed(android.net.nsd.NsdServiceInfo service,int code){handler.post(()->{resolving[0]=false;next[0].run();});}
+                    public void onServiceResolved(android.net.nsd.NsdServiceInfo service){
+                        try{
+                            String address=endpoint("http://"+service.getHost().getHostAddress()+":"+service.getPort());
+                            byte[] id=service.getAttributes().get("id");
+                            if(id!=null)found.put(address,new JSONObject().put("name",service.getServiceName()).put("endpoint",address).put("hubId",new String(id,StandardCharsets.UTF_8)));
+                        }catch(Exception ignored){}
+                        handler.post(()->{resolving[0]=false;next[0].run();});
+                    }
+                });
+            };
+            android.net.nsd.NsdManager.DiscoveryListener listener=new android.net.nsd.NsdManager.DiscoveryListener(){
+                public void onDiscoveryStarted(String type){}
+                public void onServiceFound(android.net.nsd.NsdServiceInfo info){handler.post(()->{queue.add(info);next[0].run();});}
+                public void onServiceLost(android.net.nsd.NsdServiceInfo info){}
+                public void onDiscoveryStopped(String type){}
+                public void onStartDiscoveryFailed(String type,int code){}
+                public void onStopDiscoveryFailed(String type,int code){}
+            };
+            try{manager.discoverServices("_dayweave._tcp.",android.net.nsd.NsdManager.PROTOCOL_DNS_SD,listener);}
+            catch(Exception error){discovering=false;call.reject("Local discovery unavailable",error);return;}
+            handler.postDelayed(()->{
+                finished[0]=true;discovering=false;
+                try{manager.stopServiceDiscovery(listener);}catch(Exception ignored){}
+                call.resolve(new JSObject().put("peers",new org.json.JSONArray(found.values())));
+            },4000);
+        });
+    }
+
+    @Override
+    protected void handleOnDestroy(){network.shutdownNow();super.handleOnDestroy();}
 
     private File file(String name) {
-        if (name == null || !name.matches("^(data\\.json|data\\.backup\\.json|data\\.corrupt-[0-9]+\\.json|data\\.(json|backup\\.json)\\.before-restore-[0-9]+)$")) {
+        if (name == null || !name.matches("^(sync\\.json|data\\.json|data\\.backup\\.json|data\\.corrupt-[0-9]+\\.json|data\\.(json|backup\\.json)\\.before-restore-[0-9]+)$")) {
             throw new IllegalArgumentException("Unsupported data file");
         }
         return new File(getContext().getFilesDir(), name);

@@ -11,7 +11,8 @@ import {
 } from '../src/schedule.js';
 import { importCourses } from '../src/course-import.js';
 import { handleApi } from '../src/timelog/api.js';
-import { startTimer, liveSpans, duration } from '../src/timelog/domain.js';
+import { startTimer, finishTimer, liveSpans, duration } from '../src/timelog/domain.js';
+import { toDocument } from '../src/sync/document.js';
 import type { StateService, StateSnapshot } from './state-service.js';
 
 type Context = {
@@ -39,6 +40,7 @@ export function decisionContext(state: AppState, now = Date.now()) {
     tasks: selectTasks(state, 'today'),
     focusTimer: state.timer,
     timeTimer: state.timelog.timer,
+    simultaneousTimers: state.timelog.conflictedTimers ?? [],
     timeElapsedMs: state.timelog.timer ? duration(liveSpans(state.timelog.timer, now)) : 0,
     ...nextClasses(state.schedule, now),
     classes: courseOccurrences(state.schedule, now, now + 7 * 86400000).slice(0, 150),
@@ -49,6 +51,113 @@ export async function handleExtendedRoute(c: Context): Promise<boolean> {
   const { send, mutate } = c;
   if (route === '/context' && method === 'GET') {
     send(decisionContext(snapshot.state), snapshot);
+    return true;
+  }
+  const unifiedRecords = (state: AppState) =>
+    Object.entries(toDocument(state))
+      .filter(([key]) => key.startsWith('records/'))
+      .map(([, row]) => {
+        const { timing, ...rest } = row;
+        const t = timing as {
+          startAt: number;
+          endAt: number | null;
+          runningSince: number | null;
+          spans: { start: number; end: number }[];
+        };
+        return {
+          ...rest,
+          id: row.id as string,
+          ...t,
+          elapsedMs:
+            duration(t.spans) +
+            (t.runningSince === null ? 0 : Math.max(0, Date.now() - t.runningSince)),
+        };
+      });
+  if (route === '/time-records' && method === 'GET') {
+    send(
+      unifiedRecords(snapshot.state)
+        .sort((a, b) => b.startAt - a.startAt)
+        .slice(0, 1000),
+      snapshot,
+    );
+    return true;
+  }
+  if (route === '/time-records' && method === 'POST') {
+    const input = z
+      .object({
+        startAt: z.number().finite().min(946684800000),
+        endAt: z.number().finite().nullable().optional(),
+        activityId: z.string().optional(),
+        taskId: z.string().optional(),
+        note: z.string().max(10000).default(''),
+        tags: z.array(z.string().max(40)).max(16).default([]),
+      })
+      .strict()
+      .parse(await c.readBody(c.request));
+    if (
+      input.startAt > Date.now() ||
+      (input.endAt != null && (input.endAt <= input.startAt || input.endAt > Date.now()))
+    )
+      fail(400, '记录时间范围无效');
+    let createdId = '';
+    snapshot = await mutate((s) => {
+      if (input.endAt == null && (s.timer || s.timelog.timer || s.timelog.conflictedTimers?.length))
+        fail(409, '请先结束已有计时');
+      const work = startTimer(
+        { ...s.timelog, timer: null, conflictedTimers: [] },
+        input.activityId ?? s.timelog.activities.find((a) => !a.archived)?.id ?? '',
+        input.note,
+        input.startAt,
+      );
+      createdId = work.timer!.id;
+      work.timer!.tags = input.tags;
+      if (input.taskId) work.timer!.taskId = input.taskId;
+      const result = input.endAt == null ? work : finishTimer(work, input.endAt);
+      if (input.endAt != null) {
+        result.timer = s.timelog.timer;
+        result.conflictedTimers = s.timelog.conflictedTimers;
+      }
+      return { ...s, timelog: result };
+    });
+    send(
+      unifiedRecords(snapshot.state).find((r) => r.id === createdId),
+      snapshot,
+    );
+    return true;
+  }
+  const stopRecord = route.match(/^\/time-records\/([^/]+)\/stop$/);
+  if (stopRecord && method === 'POST') {
+    const id = decodeURIComponent(stopRecord[1]);
+    const input = z
+      .object({ endAt: z.number().finite().optional() })
+      .strict()
+      .parse(await c.readBody(c.request));
+    if (input.endAt !== undefined && input.endAt > Date.now())
+      fail(400, '结束时间不能晚于当前时间');
+    snapshot = await mutate((s) => {
+      const target =
+        s.timelog.timer?.id === id
+          ? s.timelog.timer
+          : s.timelog.conflictedTimers?.find((t) => t.id === id);
+      if (!target) fail(409, '计时已经结束或不存在');
+      const ended = finishTimer(
+        { ...s.timelog, timer: target!, conflictedTimers: [] },
+        input.endAt ?? Date.now(),
+      );
+      return {
+        ...s,
+        timelog: {
+          ...s.timelog,
+          timer: s.timelog.timer?.id === id ? null : s.timelog.timer,
+          records: ended.records,
+          conflictedTimers: s.timelog.conflictedTimers?.filter((t) => t.id !== id),
+        },
+      };
+    });
+    send(
+      unifiedRecords(snapshot.state).find((r) => r.id === id),
+      snapshot,
+    );
     return true;
   }
   if (route.startsWith('/timelog/')) {

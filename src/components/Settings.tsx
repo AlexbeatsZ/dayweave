@@ -14,6 +14,7 @@ import {
 import { colors, uid, type AppState, type TaskList } from '../model';
 import { store, useStore } from '../store';
 import { useDialogFocus } from './useDialogFocus';
+import { SyncSettings } from './SyncSettings';
 
 export function Settings({
   onClose,
@@ -68,6 +69,7 @@ export function Settings({
           </button>
         </header>
         <div className="modal-body">
+          <SyncSettings />
           <section className="settings-section">
             <h3>外观</h3>
             <div className="theme-choices">

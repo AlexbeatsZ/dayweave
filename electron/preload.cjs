@@ -1,6 +1,19 @@
 const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('clearlist', {
   platform: process.platform,
+  sync: Object.fromEntries(
+    [
+      'status',
+      'discover',
+      'pair',
+      'now',
+      'disconnect',
+      'enableHub',
+      'invite',
+      'revoke',
+      'resolve',
+    ].map((method) => [method, (...args) => ipcRenderer.invoke(`sync:${method}`, ...args)]),
+  ),
   pickText: () => ipcRenderer.invoke('text:pick'),
   exportText: (name, data) => ipcRenderer.invoke('text:export', name, data),
   setTheme: (theme) => ipcRenderer.invoke('theme:set', theme),

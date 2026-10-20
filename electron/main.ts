@@ -8,6 +8,7 @@ import { FileStore } from './storage.js';
 import { StateService } from './state-service.js';
 import { startApi } from './api.js';
 import { diffState } from '../src/state-delta.js';
+import { DesktopSync } from './sync.js';
 
 app.setName('Dayweave');
 app.setPath(
@@ -24,6 +25,8 @@ let allowClose = false,
   quitting = false;
 let api: Awaited<ReturnType<typeof startApi>> | undefined;
 let apiError = '';
+let sync: DesktopSync | undefined;
+let syncError = '';
 const locked = app.requestSingleInstanceLock();
 if (!locked) app.quit();
 else {
@@ -185,6 +188,24 @@ else {
       trusted(event);
       return api?.info ?? { enabled: false, url: '', token: '', error: apiError };
     });
+    for (const method of [
+      'status',
+      'discover',
+      'pair',
+      'now',
+      'disconnect',
+      'enableHub',
+      'invite',
+      'revoke',
+      'resolve',
+    ] as const) {
+      ipcMain.handle(`sync:${method}`, (event, ...args) => {
+        trusted(event);
+        if (!sync) throw new Error(syncError || '同步尚未启动');
+        const fn = sync[method] as (...args: unknown[]) => unknown;
+        return fn.apply(sync, args);
+      });
+    }
     ipcMain.handle('data:export', async (event, value: unknown) => {
       trusted(event);
       const data = stateSchema.parse(value);
@@ -251,6 +272,11 @@ else {
     });
     createWindow();
     await initializeApi();
+    try {
+      sync = await new DesktopSync(service, app.getPath('userData')).initialize();
+    } catch (error) {
+      syncError = (error as Error).message;
+    }
     app.on('activate', () => {
       if (!window) createWindow();
       else window.show();
@@ -261,7 +287,7 @@ else {
     try {
       const port = Number(process.env.DAYWEAVE_API_PORT ?? 49731);
       if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error('Invalid API port');
-      api = await startApi(service, port);
+      api = await startApi(service, port, () => sync);
     } catch (error) {
       apiError = (error as Error).message;
     }
@@ -271,5 +297,6 @@ else {
   });
   app.on('will-quit', () => {
     void api?.close();
+    void sync?.close();
   });
 }
