@@ -33,7 +33,7 @@
 
 Workspace 直接使用统一 store，不建立 `readState → setState → subscribe` 的异步副本。`timelog/storage.ts` 仅适配原模块事务/导入，不能再创建独立数据库或第二条写入通道。手机与桌面共享整个页面、任务编辑、时间线、计时和目标，而非保留两套页面再分别修补。`App.tsx` 只安装应用级运行逻辑并渲染一个应用壳；700 px 断点只改变呈现，不能重新挂载应用或复制导航状态。PC 常驻侧栏、不提供折叠，主导航与上下文分类保持可见；手机使用底部主导航与分类抽屉。宽屏样式集中在 `desktop.css`。
 
-`components/Timetable.tsx` 集中周网格、共用课程草稿和节次设置，不保存课程展示副本。`schedule.ts` 校验课程与节次，改变标尺不重写课程 HH:mm。网站导入由 `fudan-capture.ts` 一份提取脚本、`fudan-import.ts` 纯转换与原生窗口承载组成；它只生成已有 ImportPreview，确认后走同一个 mergeSchedule/store，不另建学校数据库。详见 fudan-import.md。
+`components/Timetable.tsx` 集中周网格、共用课程草稿和节次设置，不保存课程展示副本。`schedule.ts` 校验课程与节次，改变标尺不重写课程 HH:mm。网站导入由 `fudan-capture.ts` 一份提取脚本、`fudan-import.ts` 纯转换与原生窗口承载组成；它只生成已有 ImportPreview，确认后走同一个 mergeSchedule/store，不另建学校数据库。本机订阅元数据和更新生命周期分别由 fudan-refresh.ts / useFudanRefresh.ts 拥有，不复制业务课表；自动更新和确认导入复用 store 事务与所有权恢复记录，失败队列未恢复前不得根据乐观视图缩小该记录。详见 fudan-import.md。
 
 ## 合并功能的规则
 

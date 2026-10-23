@@ -1,6 +1,6 @@
 import './TimerPanel.css';
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
-import { ArrowRight, ChevronRight, Clock3, Pause, Play, Plus, X } from 'lucide-react';
+import { ArrowRight, ChevronRight, Pause, Pencil, Play, Plus, X } from 'lucide-react';
 import { dateKey, type Task } from '../../model';
 import { dateTimeInput, parseDateTimeInput, zoneClock } from '../../timezone';
 import {
@@ -18,6 +18,7 @@ import {
   toggleTimer,
   natureLabels,
   type Activity,
+  type Nature,
   type State,
 } from '../domain';
 import { lastRecordEnd } from '../timeline';
@@ -38,7 +39,7 @@ export function TimerPanel({
   tasks: Task[];
   now: number;
   commit: Commit;
-  editActivity: (activity?: Activity) => void;
+  editActivity: (activity?: Activity, nature?: Nature) => void;
   onFinished: () => void;
   tagColors: Record<string, string>;
 }) {
@@ -146,15 +147,10 @@ export function TimerPanel({
       value ? '已切换倒计时' : '已切换正计时',
     );
   }
-  const activityGrid = (select: (id: string) => void, editable = false) => (
+  const activityGrid = (select: (id: string) => void) => (
     <div className="activity-grid">
       {activities.map((activity) => (
-        <ActivityTile
-          key={activity.id}
-          activity={activity}
-          select={() => select(activity.id)}
-          edit={editable ? () => editActivity(activity) : undefined}
-        />
+        <ActivityTile key={activity.id} activity={activity} select={() => select(activity.id)} />
       ))}
     </div>
   );
@@ -366,23 +362,19 @@ export function TimerPanel({
           <header className="activity-library-heading">
             <div>
               <h2>选择活动</h2>
-              <p>点按开始计时，长按编辑活动</p>
+              <p className="activity-touch-hint">点按开始计时，长按编辑活动</p>
+              <p className="activity-pointer-hint">点击开始计时，点击铅笔编辑活动</p>
             </div>
-            <button
-              className="activity-create"
-              aria-label="新建活动"
-              onClick={() => editActivity()}
-            >
-              <Plus size={28} strokeWidth={1.5} />
-              <span>新建活动</span>
-            </button>
           </header>
           <div className="activity-groups">
             {(['positive', 'neutral', 'negative'] as const).map((nature) => {
               const group = activities.filter((activity) => activity.nature === nature);
-              if (!group.length) return null;
               return (
-                <section className="activity-group" key={nature}>
+                <section
+                  className="activity-group"
+                  key={nature}
+                  aria-label={`${natureLabels[nature]}活动`}
+                >
                   <h3>
                     {natureLabels[nature]}
                     <small>{group.length}</small>
@@ -396,6 +388,14 @@ export function TimerPanel({
                         edit={() => editActivity(activity)}
                       />
                     ))}
+                    <button
+                      className="activity-create"
+                      aria-label={`新建${natureLabels[nature]}活动`}
+                      onClick={() => editActivity(undefined, nature)}
+                    >
+                      <Plus size={28} strokeWidth={1.5} />
+                      <span>新建活动</span>
+                    </button>
                   </div>
                 </section>
               );
@@ -623,7 +623,7 @@ export function TimerPanel({
   );
 }
 
-/** Press-and-hold edits; movement cancels the hold so the gallery stays scrollable. */
+/** Touch hold opens immediately; mouse editing uses a visible action or context menu. */
 function ActivityTile({
   activity,
   select,
@@ -636,78 +636,132 @@ function ActivityTile({
   const hold = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pointer = useRef<{ x: number; y: number } | null>(null);
   const consumed = useRef(false);
+  const releaseGuard = useRef<(() => void) | null>(null);
   const clear = () => {
     if (hold.current) clearTimeout(hold.current);
     hold.current = null;
     pointer.current = null;
   };
-  useEffect(() => clear, []);
+  useEffect(
+    () => () => {
+      clear();
+      releaseGuard.current?.();
+    },
+    [],
+  );
   return (
-    <button
-      className="activity-tile"
-      style={{ '--activity-color': activity.color } as CSSProperties}
-      aria-label={`开始 ${activity.name}`}
-      aria-description={edit ? '长按、右键或按 F2 编辑活动' : undefined}
-      onPointerDown={(event) => {
-        if (!edit || event.button !== 0) return;
-        clear();
-        consumed.current = false;
-        pointer.current = { x: event.clientX, y: event.clientY };
-        hold.current = setTimeout(() => {
-          consumed.current = true;
-          hold.current = null;
-        }, 450);
-      }}
-      onPointerMove={(event) => {
-        if (
-          pointer.current &&
-          Math.hypot(event.clientX - pointer.current.x, event.clientY - pointer.current.y) > 9
-        ) {
-          consumed.current = true;
+    <div className="activity-tile-wrap">
+      <button
+        className="activity-tile"
+        style={{ '--activity-color': activity.color } as CSSProperties}
+        aria-label={`开始 ${activity.name}`}
+        aria-description={edit ? '触屏长按，或使用编辑按钮、右键、F2 编辑活动' : undefined}
+        onPointerDown={(event) => {
           clear();
-        }
-      }}
-      onPointerUp={() => {
-        const held = consumed.current && pointer.current !== null;
-        clear();
-        // Open after release/click dispatch, so lifting a held finger cannot
-        // become a backdrop click and immediately close the new editor.
-        if (held && edit) requestAnimationFrame(edit);
-      }}
-      onPointerCancel={() => {
-        consumed.current = true;
-        clear();
-      }}
-      onPointerLeave={clear}
-      onContextMenu={(event) => {
-        if (edit) {
-          event.preventDefault();
-          consumed.current = true;
-          if (pointer.current) return;
-          clear();
-          edit();
-        }
-      }}
-      onKeyDown={(event) => {
-        if (edit && (event.key === 'F2' || (event.shiftKey && event.key === 'F10'))) {
-          event.preventDefault();
-          edit();
-        }
-      }}
-      onClick={() => {
-        if (consumed.current) {
           consumed.current = false;
-          return;
-        }
-        select();
-      }}
-    >
-      <span className="activity-mark">
-        <ActivityIcon name={activity.name} size={26} />
-      </span>
-      <span className="activity-text">
-        <strong>{activity.name}</strong>
-      </span>
-    </button>
+          if (!edit || event.button !== 0 || event.pointerType === 'mouse') return;
+          const pointerId = event.pointerId;
+          pointer.current = { x: event.clientX, y: event.clientY };
+          hold.current = setTimeout(() => {
+            consumed.current = true;
+            hold.current = null;
+            // showModal makes this tile inert and releases pointer capture. Guard
+            // the rest of this gesture before it can reach the new modal/backdrop.
+            const dispose = () => {
+              document.removeEventListener('pointerup', stopRelease, true);
+              document.removeEventListener('click', stopClick, true);
+              document.removeEventListener('pointerdown', dispose, true);
+              releaseGuard.current = null;
+            };
+            const stopRelease = (event: PointerEvent) => {
+              if (event.pointerId !== pointerId) return;
+              event.preventDefault();
+              event.stopImmediatePropagation();
+              clear();
+            };
+            const stopClick = (event: MouseEvent) => {
+              if (event instanceof PointerEvent && event.pointerId !== pointerId) return;
+              event.preventDefault();
+              event.stopImmediatePropagation();
+              dispose();
+            };
+            releaseGuard.current?.();
+            releaseGuard.current = dispose;
+            document.addEventListener('pointerup', stopRelease, true);
+            document.addEventListener('click', stopClick, true);
+            // Some browsers suppress the compatibility click. The next genuine
+            // pointer gesture ends the guard before interacting with the editor.
+            document.addEventListener('pointerdown', dispose, true);
+            edit();
+          }, 450);
+        }}
+        onPointerMove={(event) => {
+          if (
+            pointer.current &&
+            Math.hypot(event.clientX - pointer.current.x, event.clientY - pointer.current.y) > 9
+          ) {
+            consumed.current = true;
+            clear();
+          }
+        }}
+        onPointerUp={(event) => {
+          if (consumed.current) event.preventDefault();
+          clear();
+        }}
+        onTouchEnd={(event) => {
+          // Pointer release is not enough: the original touch also bubbles to
+          // the page swipe handler after the modal has opened.
+          if (releaseGuard.current) {
+            event.preventDefault();
+            event.stopPropagation();
+          }
+        }}
+        onPointerCancel={() => {
+          consumed.current = true;
+          clear();
+        }}
+        onPointerLeave={clear}
+        onContextMenu={(event) => {
+          if (edit) {
+            event.preventDefault();
+            consumed.current = true;
+            if (pointer.current) return;
+            clear();
+            edit();
+          }
+        }}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') consumed.current = false;
+          if (edit && (event.key === 'F2' || (event.shiftKey && event.key === 'F10'))) {
+            event.preventDefault();
+            edit();
+          }
+        }}
+        onClick={() => {
+          if (consumed.current) {
+            consumed.current = false;
+            return;
+          }
+          select();
+        }}
+      >
+        <span className="activity-mark">
+          <ActivityIcon name={activity.name} size={26} />
+        </span>
+        <span className="activity-text">
+          <strong>{activity.name}</strong>
+        </span>
+      </button>
+      {edit && (
+        <button
+          className="activity-edit"
+          aria-label={`编辑 ${activity.name}`}
+          title="编辑活动"
+          onClick={edit}
+        >
+          <Pencil size={15} />
+        </button>
+      )}
+    </div>
   );
 }

@@ -9,7 +9,10 @@ import os from 'node:os';
 import path from 'node:path';
 import {
   FUDAN_CAPTURE_SCRIPT,
+  FUDAN_CAPTURE_RESULT_SCRIPT,
+  FUDAN_CAPTURE_RESULT_FUNCTION,
   FUDAN_LOGIN_URL,
+  fudanCaptureError,
   isFudanCourseTable,
   isFudanNavigation,
 } from '../src/fudan-capture.js';
@@ -44,13 +47,26 @@ const schoolResponse = {
 };
 
 function fixture(
-  options: { url?: string; semesterId?: string; response?: unknown; ok?: boolean } = {},
+  options: {
+    url?: string;
+    semesterId?: string;
+    response?: unknown;
+    status?: number;
+    redirected?: boolean;
+    semesterBinding?: 'let' | 'const' | 'missing';
+    networkError?: boolean;
+    invalidJson?: boolean;
+    timeout?: boolean;
+    onJson?: () => void;
+    semesters?: unknown;
+  } = {},
 ) {
   const requests: Array<{ url: string; options: RequestInit }> = [];
+  let selected = options.semesterId ?? '215';
   const document = {
     querySelector(selector: string) {
       assert.equal(selector, '#semester');
-      return { value: options.semesterId ?? '215' };
+      return { value: selected };
     },
     get cookie(): never {
       throw new Error('Capture must never read cookies');
@@ -62,12 +78,12 @@ function fixture(
   const context = vm.createContext({
     URL,
     AbortController,
-    setTimeout,
+    setTimeout: options.timeout ? (callback: () => void) => setTimeout(callback, 1) : setTimeout,
     clearTimeout,
     location: { href: options.url ?? tableUrl },
     document,
     window: {
-      semesters: [
+      semesters: options.semesters ?? [
         {
           id: 215,
           startDate: '2026-09-07',
@@ -78,10 +94,52 @@ function fixture(
     },
     fetch: async (url: string, init: RequestInit) => {
       requests.push({ url, options: init });
-      return { ok: options.ok ?? true, json: async () => options.response ?? schoolResponse };
+      if (options.networkError) throw new Error('private-login-token');
+      if (options.timeout)
+        await new Promise((_, reject) =>
+          init.signal!.addEventListener('abort', () => reject(new Error('private-login-token')), {
+            once: true,
+          }),
+        );
+      const status = options.status ?? 200;
+      return {
+        ok: status >= 200 && status < 300,
+        status,
+        type: options.redirected ? 'opaqueredirect' : 'basic',
+        json: async () => {
+          options.onJson?.();
+          if (options.invalidJson) throw new Error('private-login-token');
+          return options.response ?? schoolResponse;
+        },
+      };
     },
   });
-  return { requests, run: () => vm.runInContext(FUDAN_CAPTURE_SCRIPT, context) as Promise<string> };
+  if (options.semesterBinding === 'missing') vm.runInContext('delete window.semesters', context);
+  else if (options.semesterBinding)
+    vm.runInContext(
+      `${options.semesterBinding} semesters = window.semesters; delete window.semesters;`,
+      context,
+    );
+  return {
+    requests,
+    select: (id: string) => {
+      selected = id;
+    },
+    navigate: (url: string) => {
+      context.location.href = url;
+    },
+    requested: (id: string) =>
+      vm.runInContext(FUDAN_CAPTURE_RESULT_FUNCTION, context)(id) as Promise<{
+        content?: string;
+        error?: string;
+      }>,
+    run: () => vm.runInContext(FUDAN_CAPTURE_SCRIPT, context) as Promise<string>,
+    result: () =>
+      vm.runInContext(FUDAN_CAPTURE_RESULT_SCRIPT, context) as Promise<{
+        content?: string;
+        error?: string;
+      }>,
+  };
 }
 
 test('Fudan navigation only accepts official HTTPS hosts and capture only accepts the course-table path', async () => {
@@ -121,7 +179,7 @@ test('the shared capture requests the selected semester and returns only minimal
   );
   assert.equal(browser.requests[0].options.method, 'GET');
   assert.equal(browser.requests[0].options.credentials, 'same-origin');
-  assert.equal(browser.requests[0].options.redirect, 'error');
+  assert.equal(browser.requests[0].options.redirect, 'manual');
   assert.equal(browser.requests[0].options.body, undefined);
   assert.equal(browser.requests[0].options.headers, undefined);
   const result = JSON.parse(content);
@@ -162,11 +220,42 @@ test('missing semester and unauthenticated responses fail without returning page
   const noSemester = fixture({ semesterId: '../other' });
   await assert.rejects(noSemester.run(), /学期/);
   assert.equal(noSemester.requests.length, 0);
-  await assert.rejects(fixture({ ok: false }).run(), /读取课表失败/);
+  await assert.rejects(fixture({ status: 401 }).run(), /FUDAN_SESSION/);
   await assert.rejects(
     fixture({ response: { html: 'private-login-token' } }).run(),
-    /有效的课程表/,
+    /FUDAN_FORMAT/,
   );
+});
+
+test('capture reads let and const semester bindings which are not window properties', async () => {
+  for (const semesterBinding of ['let', 'const'] as const) {
+    const result = await fixture({ semesterBinding }).result();
+    assert.equal(result.error, undefined);
+    const preview = parseFudanCourses(result.content!, emptySchedule());
+    assert.equal(preview.schedule.courses[0].name, '物理化学');
+  }
+});
+
+test('native capture preserves actionable error stages without exposing raw school errors', async () => {
+  const cases = [
+    [fixture({ semesterId: '' }), 'SEMESTER'],
+    [fixture({ semesterBinding: 'missing' }), 'SEMESTER_DATA'],
+    [fixture({ status: 403 }), 'SESSION'],
+    [fixture({ redirected: true, status: 0 }), 'SESSION'],
+    [fixture({ status: 404 }), 'REQUEST_404'],
+    [fixture({ status: 500 }), 'REQUEST_500'],
+    [fixture({ networkError: true }), 'NETWORK'],
+    [fixture({ invalidJson: true }), 'FORMAT'],
+    [fixture({ response: { lessons: [] } }), 'FORMAT'],
+    [fixture({ response: { studentTableVms: [{ activities: [] }] } }), 'EMPTY'],
+  ] as const;
+  for (const [browser, code] of cases) {
+    const result = await browser.result();
+    assert.equal(result.content, undefined);
+    assert.equal(typeof result.error, 'string');
+    assert.ok(result.error!.endsWith(`[FUDAN_${code}]`), result.error ?? code);
+    assert.equal(result.error!.includes('private-'), false);
+  }
 });
 
 test('the native Android asset contains the same executable JavaScript with no TypeScript runtime assumptions', async () => {
@@ -176,14 +265,17 @@ test('the native Android asset contains the same executable JavaScript with no T
   try {
     await promisify(execFile)(
       process.execPath,
-      [fileURLToPath(new URL('../scripts/build-fudan-capture.mjs', import.meta.url))],
+      [
+        fileURLToPath(new URL('../scripts/build-fudan-capture.mjs', import.meta.url)),
+        path.join(directory, 'android/app/src/main/assets/fudan-capture.js'),
+      ],
       { cwd: directory },
     );
     const asset = await readFile(
       path.join(directory, 'android/app/src/main/assets/fudan-capture.js'),
       'utf8',
     );
-    assert.equal(asset, FUDAN_CAPTURE_SCRIPT);
+    assert.equal(asset, FUDAN_CAPTURE_RESULT_FUNCTION);
     assert.doesNotThrow(() => new vm.Script(asset));
   } finally {
     assert.ok(path.resolve(directory).startsWith(path.resolve(root) + path.sep));
@@ -205,4 +297,106 @@ test('desktop cancellation returns null and plain web shows the installation bou
     if (before) Object.defineProperty(globalThis, 'window', before);
     else Reflect.deleteProperty(globalThis, 'window');
   }
+});
+
+test('refresh captures only its saved semester even when the page selected another semester', async () => {
+  const browser = fixture({ semesterId: '999' });
+  const result = await browser.requested('215');
+  assert.equal(result.error, undefined);
+  assert.equal(JSON.parse(result.content!).semester.id, 215);
+  assert.ok(browser.requests[0].url.includes('/semester/215/'));
+  for (const id of ['999', '../215', '', '215&token=private-login-token']) {
+    const missing = fixture();
+    assert.ok((await missing.requested(id)).error?.includes('[FUDAN_SEMESTER'));
+    assert.equal(missing.requests.length, 0);
+  }
+});
+
+test('empty refresh requires an explicit valid semester and one unambiguous table', async () => {
+  const response = { studentTableVms: [{ activities: [] }] };
+  const result = await fixture({ response }).requested('215');
+  assert.equal(result.error, undefined);
+  const base = emptySchedule();
+  const before = structuredClone(base);
+  assert.throws(() => parseFudanCourses(result.content!, base), /没有可导入/);
+  const preview = parseFudanCourses(result.content!, base, Date.now(), true);
+  assert.deepEqual(preview.schedule.courses, []);
+  assert.deepEqual(preview.schedule.events, []);
+  assert.equal(preview.source?.semesterId, '215');
+  assert.deepEqual(base, before);
+  for (const studentTableVms of [
+    [],
+    [{ activities: [] }, { activities: schoolResponse.studentTableVms[0].activities }],
+    [{ activities: null }],
+  ]) {
+    const invalid = await fixture({ response: { studentTableVms } }).requested('215');
+    assert.ok(invalid.error?.endsWith('[FUDAN_FORMAT]'));
+    assert.equal(invalid.content, undefined);
+  }
+});
+
+test('capture rejects a changed page or selected semester instead of delivering stale course rows', async () => {
+  for (const change of ['url', 'semester']) {
+    const browser = fixture({
+      onJson: () =>
+        change === 'url' ? browser.navigate(tableUrl + '/other') : browser.select('999'),
+    });
+    const result = await browser.result();
+    assert.equal(result.content, undefined);
+    assert.ok(result.error?.endsWith('[FUDAN_PAGE]'));
+  }
+});
+
+test('timeouts, invalid semester metadata and unexpected script errors never expose remote text', async () => {
+  const timeout = await fixture({ timeout: true }).result();
+  assert.ok(timeout.error?.endsWith('[FUDAN_TIMEOUT]'));
+  const missing = await fixture({
+    semesters: [{ id: 215, startDate: 'private-student-id', endDate: '2027-01-17' }],
+  }).result();
+  assert.ok(missing.error?.endsWith('[FUDAN_SEMESTER_DATA]'));
+  const script = await fixture({
+    onJson: () => {
+      throw new Error('private-student-name');
+    },
+  }).result();
+  assert.equal(script.error?.includes('private-'), false);
+  for (const value of [
+    'private-student-name',
+    'private-login-token [FUDAN_REQUEST_503]',
+    'private-login-token [FUDAN_UNKNOWN]',
+    null,
+    { error: 'private-student-id' },
+  ]) {
+    const message = fudanCaptureError(value);
+    assert.equal(message.includes('private-'), false);
+    assert.ok(
+      message.endsWith(
+        value === 'private-login-token [FUDAN_REQUEST_503]'
+          ? '[FUDAN_REQUEST_503]'
+          : '[FUDAN_SCRIPT]',
+      ),
+    );
+  }
+});
+
+test('parser errors redact invalid school field values and equivalent semester IDs stay stable', async () => {
+  const content = await fixture().run();
+  const capture = JSON.parse(content);
+  const first = parseFudanCourses(content, emptySchedule());
+  capture.semester.id = String(capture.semester.id);
+  const second = parseFudanCourses(JSON.stringify(capture), emptySchedule());
+  assert.equal(second.schedule.courses[0].id, first.schedule.courses[0].id);
+  for (const value of ['private-login-token', '25:00']) {
+    capture.activities[0].startTime = value;
+    assert.throws(
+      () => parseFudanCourses(JSON.stringify(capture), emptySchedule()),
+      (error: Error) => error.message.includes('[FUDAN_TIME]') && !error.message.includes(value),
+    );
+  }
+  capture.activities[0].startTime = '08:00';
+  capture.semester.startDate = '2026-99-99';
+  assert.throws(
+    () => parseFudanCourses(JSON.stringify(capture), emptySchedule()),
+    /FUDAN_SEMESTER_DATA/,
+  );
 });

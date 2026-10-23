@@ -9,28 +9,30 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 - Repository: https://github.com/AlexbeatsZ/dayweave, own main.
 - Source version 0.4.1 (Android versionCode 8): one responsive page tree for phone and PC, with tasks/records/arrangements/statistics. PC has a permanent sidebar with context categories/settings, no collapse; phone has a bottom bar/drawer. Resizing across 700 px preserves navigation, timer and task drafts. Natural-week plans, due-null inbox, shared create/edit task draft, optional effort minutes, list/activity mappings, four color categories, long-press ordering with visible ordinals and animated tabs. Completed items stay gray at the bottom only in daily/weekly plans. See mobile-interface.md and architecture.md before changing interactions.
 - Records owns timeline/timer/goals. One activity timer supports optional future deadline, editable presets/start/end, plan/tags/note and atomic next activity. Pomodoro UI/routes/helpers removed; legacy fields remain readable. Course grid has two-tap blank creation/shared bottom editor, adjustable morning/afternoon/evening periods and import actions under one shared FAB.
-- Timer idle page shows grouped activities and a create tile; hold/release, right-click or F2 edits via the existing Editor. Controls only appear after selecting an activity. Running UI uses a clock card, metadata card and one action row; TimerPanel.css owns all widths. Timetable fits all columns without horizontal scroll; displayDays auto/5/7 defaults to auto and checks actual weekend teaching across the semester, including events. Read the module docs before changing these behaviors.
+- Timer idle page shows a create tile at the end of each nature group, including empty groups. Touch hold opens the existing Editor at 450 ms, before release; release cannot dismiss it or start timing. Mouse has visible pencil actions plus right-click/F2. Controls only appear after selecting an activity. Running UI uses a clock card, metadata card and one action row; TimerPanel.css owns all widths. Timetable fits all columns without horizontal scroll; displayDays auto/5/7 defaults to auto and checks actual weekend teaching across the semester, including events. Read the module docs before changing these behaviors.
+- Android Fudan subscriptions refresh on startup/resume and every 15 foreground minutes using the chosen semester and existing school session. Only owned school rows are replaced; manual arrangements remain. Failed persistence retains the old/new ownership union, and explicit imports invalidate/hold automatic refresh. See fudan-import.md; true-account acceptance remains pending.
 - Fudan website import uses official user-operated SSO in a dedicated Android/Electron window and one minimal capture script; selected semester converts to a normal preview before merge. No credentials enter business data. Real-account import has not been accepted on a device; read docs/design/fudan-import.md before modifying this boundary.
 - Public v0.3.0 tag is 59c254ae63c0e32259dfcb7eb121e3c601a7754d; 13 uploaded assets match local names/sizes. Final four-platform CI 39471586657 succeeded. Release has Windows EXE, stable-signed APK, both Mac architectures DMG/ZIP, AI tools/guide, OpenAPI, CSV, licenses and source ZIP.
 - ROG hub encrypted LAN sync, mDNS discovery and first-use invitations; offline three-way merges preserve conflicts. Canonical time records are open while endAt=null.
-- Phone Redmi K70 and Pad 6 Pro have independent APK installed; installation and updates authorized. Never clear either profile. Device endpoints belong in the private task log.
-- Last confirmed physical device version is signed 0.3.0; latest phone update was install-only, no UI operations. Signed 0.4.0 APK is under release/. Wireless ADB discovers no device; phone/tablet updates await current endpoints. Keep all peers and ROG on compatible versions: old strict schemas reject effort, periods, tag colors and timer preferences. Preserve data and pairing during authorized updates.
-- ROG runs the packaged desktop 0.4.0 with --tray in current-user DayweaveHub logon task, installed at C:\Users\Meta\AppData\Local\Programs\Dayweave\Dayweave.exe. Hidden startup, close-to-tray and active background API verified (/health storage ready).
-- Local OMEN (win) desktop 0.4.0 installed at C:\Users\Meta\AppData\Local\Programs\Dayweave\Dayweave.exe with Desktop/Start Menu shortcuts.
-- Mac (arm64) desktop 0.4.0 installed at /Applications/Dayweave.app.
+- Deployment is user-owned following the explicit 2026-10-23 stop request. Do not install, upgrade, publish releases, modify pairing or operate devices automatically. Development and isolated validation only; preserve existing data and keys.
+- Previous-session handoff reports local Windows, ROG, Mac arm64 and Pad 6 Pro updated to 0.4.1, phone not updated and GitHub 0.4.1 unpublished. These are historical reports, not live checks in this continuation. Old strict schemas can reject new fields; do not claim compatible physical sync without verification.
+- Desktop installation paths remain Windows Local Programs/Dayweave and Mac /Applications/Dayweave.app; ROG uses the existing DayweaveHub tray task. Do not restart or replace them for source-only testing.
 - Real phone-start/tablet-stop synchronization preserved one record ID. Tablet 4x2 widget added through the standard Android picker, reads synced courses and opens the timetable. Phone widget checks paused at user's request; do not operate the phone while they are using it.
+
+- Continuation completes the pending activity interactions and Fudan capture/refresh implementation. Current source remains 0.4.1 plus unreleased changes. On the follow-up build request, Windows Setup/portable and stable-signed Android APK were rebuilt under release/ with this continuation; macOS packages there remain older. Installed applications were not updated.
+- Final continuation validation: 102 Node tests, all 56 browser workflows (10 Fudan refresh cases), 13 Android JVM checks, isolated Electron Fudan capture, desktop persistence/recovery and UI/API smoke pass. Web/Electron production builds pass with the existing chunk-size warning. No true-account or physical-device acceptance was performed.
 
 # Active Work
 
-- 0.4.0 checks: 85 Node tests and 32 browser workflows pass, including all shared phone flows and four PC flows. Final PC layout rerun passes at 1440x900, 1920x1080, 1280x800 and 900x700; cross-breakpoint draft/timer retention, mouse sorting and reduced motion pass. TypeScript/format/production build, Electron storage/UI-API/tray, isolated Fudan capture and headless API checks pass. Final Windows portable and unpacked API/tray checks pass; Android release/lint and stable APK signature pass (3 Java tests passed earlier this turn, cached in final asset-only rebuild). Artifacts and synthetic previews are under release/. No 0.4.0 published Release or local Mac package yet.
-- 0.4.1 source checks: 89 Node tests and 35 browser workflows pass; final timer spacing/preview rerun passes all 4 timer flows. TypeScript, format, production build and Electron storage/UI-API/tray pass. Windows/Android packages are being completed; previous 0.4.0 package checks remain a baseline. Desktop installations are 0.4.0, while phone/tablet last confirmed 0.3.0; finish coordinated compatible upgrades when authorized/reachable. Never run old clients with new fields and call it verified sync. Real Fudan login, physical gestures and cross-device new-field acceptance remain pending.
+- Real Fudan SSO/capture, physical gestures and new-field cross-device acceptance remain pending. The prior session diagnosed this PC as unpaired to ROG; this continuation does not change or re-query real pairing.
 - LAN direct pairing works. Automatic mDNS discovery on the actual LAN remains unconfirmed. Android sync is foreground/resume only; background instantaneous propagation is not implemented.
 - Preserve keys only under ignored .local. Keep original repos/profiles untouched.
 
 # Build / Run / Test
 
 - npm ci; npm test; npm run build; npm run test:e2e; npm run test:api.
-- npm run dist:win; npm run dist:android; npm run dist:mac (macOS).
+- npm run dist:win; npm run dist:android; npm run dist:mac (macOS). Packaging does not authorize installation/publication.
+- Fudan changes: npm run test:e2e -- tests/e2e/fudan-refresh.spec.ts; npm run build; node scripts/smoke-fudan.mjs; Android testDebugUnitTest.
 - Tests use DAYWEAVE_DATA_DIR under a dedicated temporary directory. Never use a live profile.
 
 # Architecture Principles
@@ -44,6 +46,7 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Durable Lessons
 
+- School refresh ownership is a recovery journal, not just the IDs in the optimistic view: retain old/new IDs until the business save queue is healthy, even for no-op refreshes. Pause refresh throughout explicit import preview/confirmation.
 - Save timestamps/segments, never tick counts. Storage corruption must remain recoverable, never silently become empty state.
 - All UI and API writes share StateService; module changes have optimistic conflict checks.
 - Zod defaults can survive .partial(): PATCH schemas must explicitly remove defaults for optional configuration fields (e.g. periods), otherwise an unrelated write silently resets saved configuration.

@@ -203,6 +203,7 @@ export const store = {
   },
   async flush() {
     await pending;
+    return snapshot;
   },
   async restore() {
     if (!window.clearlist) return;

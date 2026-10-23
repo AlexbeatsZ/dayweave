@@ -9,7 +9,12 @@ import {
 } from './schedule.js';
 import { shiftDay, wallTime, validTimeZone } from './timezone.js';
 
-export type ImportPreview = { schedule: Schedule; summary: string; warnings: string[] };
+export type ImportPreview = {
+  schedule: Schedule;
+  summary: string;
+  warnings: string[];
+  source?: { kind: 'fudan'; semesterId: string };
+};
 // RFC 4180 reader: quoted commas, doubled quotes, BOM, multiline cells.
 export function parseCsv(text: string): string[][] {
   const rows: string[][] = [];

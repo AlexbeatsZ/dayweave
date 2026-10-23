@@ -380,7 +380,7 @@ export default function Workspace({
               tasks={data.tasks}
               now={now}
               commit={commit}
-              editActivity={(activity) => setEditor({ kind: 'activity', activity })}
+              editActivity={(activity, nature) => setEditor({ kind: 'activity', activity, nature })}
               onFinished={() => {
                 setDate(dayKey(Date.now()));
                 onPageChange('timeline');

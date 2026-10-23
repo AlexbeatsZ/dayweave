@@ -19,7 +19,7 @@ import { usePhone } from '../../phone/usePhone';
 import { useStore } from '../../store';
 export type EditTarget =
   | { kind: 'record'; record?: TimeRecord; range?: Span; activityId?: string }
-  | { kind: 'activity'; activity?: Activity }
+  | { kind: 'activity'; activity?: Activity; nature?: Nature }
   | { kind: 'goal'; goal?: Goal };
 export type Commit = (transform: (state: State) => State, notice?: string) => Promise<boolean>;
 const localInput = (at: number) => (Number.isFinite(at) ? dateTimeInput(at) : '');
@@ -391,7 +391,10 @@ export function Editor({
             <div className="form-columns">
               <label>
                 性质
-                <select name="nature" defaultValue={target.activity?.nature || 'positive'}>
+                <select
+                  name="nature"
+                  defaultValue={target.activity?.nature || target.nature || 'positive'}
+                >
                   <option value="positive">积极</option>
                   <option value="neutral">日常</option>
                   <option value="negative">消极</option>

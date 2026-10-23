@@ -22,6 +22,13 @@ import {
 } from 'lucide-react';
 import { store, useStore } from '../store';
 import {
+  confirmCourseImport,
+  setFudanImportActive,
+  refreshFudan,
+  stopFudanRefresh,
+  useFudanSource,
+} from '../useFudanRefresh';
+import {
   courseOccurrences,
   semesterWeek,
   timetableDayCount,
@@ -29,7 +36,6 @@ import {
   occurrenceSchema,
   scheduleSchema,
   parseWeeks,
-  mergeSchedule,
   type Course,
   type CoursePeriod,
   type Occurrence,
@@ -784,6 +790,11 @@ export function Timetable({ clock }: { clock: number }) {
     [error, setError] = useState(''),
     [notice, setNotice] = useState(''),
     [busy, setBusy] = useState(false);
+  const fudan = useFudanSource();
+  useEffect(() => {
+    setFudanImportActive(busy || !!preview);
+  }, [busy, preview]);
+  useEffect(() => () => setFudanImportActive(false), []);
   useEffect(() => {
     setWeek((value) => Math.min(schedule.totalWeeks, Math.max(1, value)));
     setSelected(null);
@@ -857,6 +868,7 @@ export function Timetable({ clock }: { clock: number }) {
     if (busy) return;
     setMenu(false);
     setError('');
+    setFudanImportActive(true);
     setBusy(true);
     try {
       if (website) {
@@ -940,6 +952,18 @@ export function Timetable({ clock }: { clock: number }) {
         <p role="alert" className="form-error">
           {error}
         </p>
+      )}
+      {isMobileApp && fudan.error && (
+        <div role="alert" className="form-error">
+          <p>复旦课表未更新，已有课程仍保留。{fudan.error}</p>
+          <button
+            className="button"
+            disabled={busy || fudan.busy}
+            onClick={() => void receive(true)}
+          >
+            重新登录并读取课表
+          </button>
+        </div>
       )}
       {notice && (
         <p role="status" className="timetable-notice">
@@ -1119,6 +1143,25 @@ export function Timetable({ clock }: { clock: number }) {
             </button>
             <details>
               <summary>更多</summary>
+              {fudan.source && (
+                <div className="field-hint" role="status">
+                  <p>复旦课表自动更新已开启 · 本机学期 {fudan.source.semesterId}</p>
+                  <p>
+                    打开或回到前台时检查，前台每 15
+                    分钟更新。网站课程以学校为准，手动添加的安排保留。
+                  </p>
+                  <p>
+                    {fudan.busy
+                      ? '正在检查课表…'
+                      : `上次检查：${new Date(fudan.source.checkedAt).toLocaleString()}`}
+                  </p>
+                  {fudan.error && <p role="alert">{fudan.error}</p>}
+                  <button disabled={fudan.busy} onClick={() => void refreshFudan(true)}>
+                    立即更新课表
+                  </button>
+                  <button onClick={stopFudanRefresh}>关闭自动更新，保留课程</button>
+                </div>
+              )}
               <button
                 onClick={() => {
                   setMenu(false);
@@ -1203,6 +1246,12 @@ export function Timetable({ clock }: { clock: number }) {
               ))}
             </ul>
             <p className="field-hint">合并课程，相同编号按更新时间更新。</p>
+            {isMobileApp && preview.source?.kind === 'fudan' && (
+              <p className="field-hint">
+                确认后在这台设备自动检查所选学期；网站课程随学校更新，手动添加的课程保留。可在课程操作
+                → 更多中关闭。
+              </p>
+            )}
             {error && (
               <p role="alert" className="form-error">
                 {error}
@@ -1220,10 +1269,7 @@ export function Timetable({ clock }: { clock: number }) {
                   setBusy(true);
                   setError('');
                   try {
-                    await store.transact((state) => ({
-                      ...state,
-                      schedule: mergeSchedule(state.schedule, preview.schedule),
-                    }));
+                    await confirmCourseImport(preview);
                     setNotice('课程已导入');
                     setPreview(null);
                     setWeek(1);

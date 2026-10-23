@@ -20,6 +20,9 @@
   color: var(--muted);
   font-size: 12px;
 }
+.timelog-module .activity-pointer-hint {
+  display: none;
+}
 .timelog-module .activity-groups {
   display: grid;
   gap: 18px;
@@ -46,6 +49,28 @@
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
+}
+.timelog-module .activity-tile-wrap {
+  position: relative;
+  min-width: 0;
+}
+.timelog-module .activity-tile-wrap .activity-tile {
+  width: 100%;
+}
+.timelog-module .activity-edit {
+  display: none;
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 10px;
+  color: var(--muted);
+  background: var(--input);
+}
+.timelog-module .activity-edit:hover {
+  color: var(--accent);
 }
 .timelog-module .activity-timer-panel .activity-tile {
   display: flex;
@@ -96,14 +121,26 @@
   align-items: center;
   justify-content: center;
   gap: 12px;
-  flex-shrink: 0;
-  width: 74px;
+  width: 100%;
   min-height: 74px;
+  align-self: start;
+  margin-top: 10px;
   border-radius: 18px;
   border: 1px dashed var(--line);
   color: var(--muted);
   background: transparent;
   font-size: 12px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .timelog-module .activity-touch-hint {
+    display: none;
+  }
+  .timelog-module .activity-pointer-hint {
+    display: block;
+  }
+  .timelog-module .activity-edit {
+    display: inline-flex;
+  }
 }
 .timelog-module .activity-create:hover {
   color: var(--accent);
@@ -427,6 +464,10 @@
   .timelog-module .activity-timer-panel .activity-tile {
     min-height: 122px;
     padding-block: 12px;
+  }
+  .timelog-module .activity-timer-panel .activity-create {
+    min-height: 86px;
+    margin-top: 12px;
   }
   .timelog-module .timer-footer-actions {
     bottom: 0;

@@ -27,6 +27,57 @@ public class DayweaveFilesPlugin extends Plugin {
     private String exporting;
     private final java.util.concurrent.ExecutorService network = java.util.concurrent.Executors.newSingleThreadExecutor();
     private boolean discovering = false;
+    private static final class FudanRefresh {
+        final PluginCall call;
+        FudanBrowser browser;
+        FudanRefresh(PluginCall call) { this.call = call; }
+    }
+    private final FudanBrowser.Sessions<FudanRefresh> fudanSessions = new FudanBrowser.Sessions<>();
+
+    @PluginMethod
+    public void refreshFudan(PluginCall call) {
+        getActivity().runOnUiThread(() -> {
+            FudanRefresh active = new FudanRefresh(call);
+            if (!fudanSessions.beginRefresh(active)) {
+                call.reject("网站导入或课表更新正在进行，请稍后重试。 [FUDAN_BUSY]"); return;
+            }
+            try {
+                active.browser = new FudanBrowser(getActivity(), message -> {});
+                // Attach a noninteractive, transparent view so WebView has a live window,
+                // without replacing, navigating, or focusing the application WebView.
+                active.browser.web.setAlpha(0f);
+                active.browser.web.setEnabled(false);
+                active.browser.web.setFocusable(false);
+                active.browser.web.setImportantForAccessibility(android.view.View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
+                getActivity().addContentView(active.browser.web, new android.widget.FrameLayout.LayoutParams(1, 1));
+                active.browser.refresh(call.getString("semesterId"), (content, error) -> {
+                    if (fudanSessions.takeRefresh(active) == null) return;
+                    active.browser.destroy();
+                    if (error != null) call.reject(error);
+                    else call.resolve(new JSObject().put("content", content));
+                });
+            } catch (Exception error) {
+                if (fudanSessions.takeRefresh(active) == null) return;
+                if (active.browser != null) active.browser.destroy();
+                call.reject("无法启动课表更新，请稍后重试。 [FUDAN_BROWSER]");
+            }
+        });
+    }
+
+    private void cancelFudanRefresh(FudanRefresh active) {
+        if (active == null) return;
+        if (active.browser != null) active.browser.destroy();
+        active.call.reject(FudanBrowser.CANCELED);
+    }
+
+    @PluginMethod
+    public void cancelFudanRefresh(PluginCall call) {
+        getActivity().runOnUiThread(() -> {
+            cancelFudanRefresh(fudanSessions.takeRefresh());
+            call.resolve();
+        });
+    }
+
     @PluginMethod
     public void deviceInfo(PluginCall call) {
         boolean tablet=getContext().getResources().getConfiguration().smallestScreenWidthDp>=600;
@@ -112,7 +163,22 @@ public class DayweaveFilesPlugin extends Plugin {
     }
 
     @Override
-    protected void handleOnDestroy(){network.shutdownNow();super.handleOnDestroy();}
+    protected void handleOnPause() {
+        cancelFudanRefresh(fudanSessions.pause());
+        super.handleOnPause();
+    }
+
+    @Override
+    protected void handleOnResume() {
+        fudanSessions.resume();
+        super.handleOnResume();
+    }
+
+    @Override
+    protected void handleOnDestroy() {
+        cancelFudanRefresh(fudanSessions.close());
+        network.shutdownNow();super.handleOnDestroy();
+    }
 
     private File file(String name) {
         if (name == null || !name.matches("^(sync\\.json|data\\.json|data\\.backup\\.json|data\\.corrupt-[0-9]+\\.json|data\\.(json|backup\\.json)\\.before-restore-[0-9]+)$")) {
@@ -182,11 +248,21 @@ public class DayweaveFilesPlugin extends Plugin {
 
     @PluginMethod
     public void importFudan(PluginCall call) {
-        startActivityForResult(call, new Intent(getContext(), FudanImportActivity.class), "fudanImported");
+        getActivity().runOnUiThread(() -> {
+            if (!fudanSessions.beginImport()) { call.reject("网站导入正在进行或窗口已关闭。 [FUDAN_BUSY]"); return; }
+            // Explicit login wins over automatic refresh; both share Android's CookieManager.
+            cancelFudanRefresh(fudanSessions.takeRefresh());
+            try { startActivityForResult(call, new Intent(getContext(), FudanImportActivity.class), "fudanImported"); }
+            catch (Exception error) {
+                fudanSessions.endImport();
+                call.reject("无法打开学校登录窗口，请稍后重试。 [FUDAN_BROWSER]");
+            }
+        });
     }
 
     @ActivityCallback
     private void fudanImported(PluginCall call, ActivityResult result) {
+        fudanSessions.endImport();
         if (call == null) return;
         Intent intent = result.getData();
         String content = result.getResultCode() == Activity.RESULT_OK && intent != null ? intent.getStringExtra("content") : null;
