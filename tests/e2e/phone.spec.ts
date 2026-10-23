@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { emptyState, newTask } from '../../src/model';
-import { dayKey, dayStart } from '../../src/timelog/domain';
+import { dayKey, dayStart, shiftDay } from '../../src/timelog/domain';
 import { setTimeZone } from '../../src/timezone';
 
 test.use({
@@ -58,6 +58,192 @@ async function seed(page: Page) {
   return day;
 }
 
+async function swipe(page: Page, direction: 'left' | 'right' | 'down') {
+  const session = await page.context().newCDPSession(page);
+  const from = { x: direction === 'right' ? 65 : 310, y: 410 };
+  const to =
+    direction === 'down'
+      ? { x: from.x + 8, y: 620 }
+      : { x: direction === 'left' ? 65 : 310, y: 415 };
+  await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [from] });
+  for (let step = 1; step <= 5; step++) {
+    await session.send('Input.dispatchTouchEvent', {
+      type: 'touchMove',
+      touchPoints: [
+        { x: from.x + ((to.x - from.x) * step) / 5, y: from.y + ((to.y - from.y) * step) / 5 },
+      ],
+    });
+  }
+  await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await session.detach();
+}
+
+test('compact shared tabs swipe both ways, goals group densely, and all add buttons match', async ({
+  page,
+}, info) => {
+  await seed(page);
+  expect((await page.locator('.phone-header').boundingBox())!.height).toBeLessThanOrEqual(52);
+  await expect(page.getByRole('button', { name: '搜索任务' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '切换深浅主题' })).toHaveCount(0);
+  await expect(page.locator('.phone-nav > button')).toHaveCount(4);
+  await swipe(page, 'left');
+  await expect(page.getByRole('tab', { name: /^全部/ })).toHaveAttribute('aria-selected', 'true');
+  await swipe(page, 'left');
+  await expect(page.getByRole('tab', { name: /^收集箱/ })).toHaveAttribute('aria-selected', 'true');
+  await swipe(page, 'right');
+  await expect(page.getByRole('tab', { name: /^全部/ })).toHaveAttribute('aria-selected', 'true');
+  const appearance = () =>
+    page.locator('.phone-fab').evaluate((button) => {
+      const css = getComputedStyle(button),
+        icon = button.querySelector('svg')!;
+      return [
+        css.width,
+        css.height,
+        css.borderRadius,
+        css.backgroundColor,
+        css.color,
+        icon.getAttribute('stroke-width'),
+        icon.getAttribute('width'),
+      ];
+    });
+  const taskAdd = await appearance();
+  await page.getByRole('button', { name: '手机记录', exact: true }).click();
+  await expect(page.getByRole('tab', { name: '时间线', exact: true })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  expect(await appearance()).toEqual(taskAdd);
+  await swipe(page, 'left');
+  await expect(page.getByRole('tab', { name: '计时', exact: true })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await swipe(page, 'left');
+  await expect(page.getByRole('tab', { name: '目标', exact: true })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  expect(await appearance()).toEqual(taskAdd);
+  await page.evaluate(async () => {
+    const path = '/src/store.ts';
+    const { store } = await import(path);
+    await store.transact((state: ReturnType<typeof emptyState>) => ({
+      ...state,
+      timelog: {
+        ...state.timelog,
+        goals: [
+          ...state.timelog.goals,
+          {
+            id: 'exercise-goal',
+            name: '体育运动30分钟',
+            activityId: 'exercise',
+            minutes: 30,
+            period: 'day',
+            archived: false,
+            updatedAt: Date.now(),
+          },
+          {
+            id: 'weekly-goal',
+            name: '一周学习9小时',
+            activityId: 'study',
+            minutes: 540,
+            period: 'week',
+            archived: false,
+            updatedAt: Date.now(),
+          },
+          {
+            id: 'weekly-read',
+            name: '一周阅读2小时',
+            activityId: 'reading',
+            minutes: 120,
+            period: 'week',
+            archived: false,
+            updatedAt: Date.now(),
+          },
+        ],
+      },
+    }));
+  });
+  await expect(page.locator('.goal-group')).toHaveCount(2);
+  await expect(page.locator('.goal-card')).toHaveCount(4);
+  await page.screenshot({ path: info.outputPath('phone-goals-grouped.png') });
+  await swipe(page, 'down');
+  await expect(page.getByRole('tab', { name: '目标', exact: true })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await swipe(page, 'right');
+  await expect(page.getByRole('tab', { name: '计时', exact: true })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+});
+
+test('timeline auto-loads beyond seven days, visible-day points follow scrolling, and date jumps reset only the scroll window', async ({
+  page,
+}, info) => {
+  const today = await seed(page),
+    yesterday = shiftDay(today, -1),
+    older = shiftDay(today, -30);
+  await page.evaluate(
+    async ({ start }) => {
+      const path = '/src/store.ts';
+      const { store } = await import(path);
+      await store.transact((state: ReturnType<typeof emptyState>) => ({
+        ...state,
+        timelog: {
+          ...state.timelog,
+          records: [
+            ...state.timelog.records,
+            {
+              id: 'yesterday-record',
+              activityId: 'work',
+              note: '昨天的独立积分',
+              tags: [],
+              spans: [{ start, end: start + 3600000 }],
+              pointsPerHour: 15,
+              nature: 'positive',
+              deletedAt: null,
+              updatedAt: start + 3600000,
+            },
+          ],
+        },
+      }));
+    },
+    { start: dayStart(yesterday) + 3600000 },
+  );
+  await page.getByRole('button', { name: '手机记录', exact: true }).tap();
+  await expect(page.locator('.timeline-summary')).toContainText('+10');
+  const scroller = page.locator('.phone-content');
+  for (let index = 0; index < 12; index++) {
+    if ((await page.locator('.phone-timeline-day').count()) >= 9) break;
+    const count = await page.locator('.phone-timeline-day').count();
+    await scroller.evaluate((element) => element.scrollTo(0, element.scrollHeight));
+    await expect.poll(() => page.locator('.phone-timeline-day').count()).toBeGreaterThan(count);
+  }
+  expect(await page.locator('.phone-timeline-day').count()).toBeGreaterThan(7);
+  await page.locator(`[data-timeline-day="${yesterday}"]`).evaluate((section) => {
+    const container = section.closest('.phone-content')!,
+      toolbar = container.querySelector('.phone-record-toolbar')!;
+    container.scrollTop +=
+      section.getBoundingClientRect().top -
+      container.getBoundingClientRect().top -
+      toolbar.getBoundingClientRect().height;
+  });
+  await expect(page.getByLabel('查看日期')).toHaveValue(yesterday);
+  await expect(page.locator('.timeline-summary')).toContainText('+15');
+  await expect(page.locator('.timeline-summary')).toContainText('1 小时');
+  await page.screenshot({ path: info.outputPath('phone-history-points.png') });
+  await page.getByLabel('查看日期').fill(older);
+  await expect(page.locator('.phone-timeline-day').first()).toHaveAttribute(
+    'data-timeline-day',
+    older,
+  );
+  await expect(page.locator('.timeline-summary > span').nth(2)).toHaveText('积分 0');
+  await expect(page.locator(`[data-timeline-day="${today}"]`)).toHaveCount(0);
+  await expect.poll(() => scroller.evaluate((element) => element.scrollTop)).toBe(0);
+});
+
 test('week, task sheet, subtasks and no-date placement persist in the unified store', async ({
   page,
 }, info) => {
@@ -79,7 +265,7 @@ test('week, task sheet, subtasks and no-date placement persist in the unified st
   await page.screenshot({ path: info.outputPath('phone-task-sheet.png') });
   await sheet.getByRole('button', { name: '添加任务', exact: true }).tap();
   await expect(sheet).not.toBeVisible();
-  await page.getByRole('button', { name: /^收集箱/ }).tap();
+  await page.getByRole('tab', { name: /^收集箱/ }).tap();
   await page.getByRole('button', { name: '编辑 手机上安排下一步', exact: true }).tap();
   const detail = page.getByRole('complementary', { name: '任务详情' });
   await expect(detail.getByLabel('任务备注')).toHaveValue('写下明确的行动');
@@ -90,7 +276,7 @@ test('week, task sheet, subtasks and no-date placement persist in the unified st
   );
   await expect(detail).not.toBeVisible();
   await page.reload();
-  await page.getByRole('button', { name: /^全部/ }).tap();
+  await page.getByRole('tab', { name: /^全部/ }).tap();
   await expect(
     page.getByRole('button', { name: '编辑 手机上安排下一步', exact: true }),
   ).toBeVisible();
@@ -126,15 +312,20 @@ test('record sheet, native back and multi-day timeline retain time and historica
     'aria-current',
     'page',
   );
-  await page.getByRole('button', { name: '查看更早一天' }).tap();
-  await expect(page.locator('.phone-timeline-day')).toHaveCount(2);
+  const count = await page.locator('.phone-timeline-day').count();
+  await page
+    .locator('.phone-content')
+    .evaluate((element) => element.scrollTo(0, element.scrollHeight));
+  await expect.poll(() => page.locator('.phone-timeline-day').count()).toBeGreaterThan(count);
+  await expect(page.getByRole('button', { name: '查看更早一天' })).toHaveCount(0);
 });
 
 test('timer pause, cross-page dock, stop and analysis share one record identity', async ({
   page,
 }, info) => {
   await seed(page);
-  await page.getByRole('button', { name: '手机计时', exact: true }).tap();
+  await page.getByRole('button', { name: '手机记录', exact: true }).tap();
+  await page.getByRole('tab', { name: '计时', exact: true }).tap();
   await page.screenshot({ path: info.outputPath('phone-activity-picker.png') });
   await page.locator('.activity-tile').filter({ hasText: '工作' }).tap();
   await page.getByLabel('计时描述').fill('手机端计时验收');
@@ -214,12 +405,15 @@ test('light, system theme, 360px goals and desktop breakpoint remain usable', as
   page,
 }, info) => {
   await seed(page);
-  await page.getByRole('button', { name: '切换深浅主题' }).tap();
+  await page.getByRole('button', { name: '手机更多' }).tap();
+  await page.getByRole('button', { name: '设置与同步', exact: true }).tap();
+  await page.getByRole('button', { name: '浅色', exact: true }).tap();
+  await page.getByRole('button', { name: '关闭设置' }).tap();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   await page.screenshot({ path: info.outputPath('phone-tasks-light.png') });
   await page.setViewportSize({ width: 360, height: 780 });
-  await page.getByRole('button', { name: '手机更多', exact: true }).tap();
-  await page.getByRole('button', { name: '目标', exact: true }).tap();
+  await page.getByRole('button', { name: '手机记录', exact: true }).tap();
+  await page.getByRole('tab', { name: '目标', exact: true }).tap();
   await expect(page.locator('.goal-card')).toContainText('每天读一点');
   await page.screenshot({ path: info.outputPath('phone-goals.png') });
   await page.getByRole('button', { name: '手机课表', exact: true }).tap();

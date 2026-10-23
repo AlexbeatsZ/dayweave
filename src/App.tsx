@@ -28,8 +28,6 @@ import {
   Circle,
   PanelLeftClose,
   PanelLeftOpen,
-  Menu,
-  Moon,
 } from 'lucide-react';
 import {
   colors,
@@ -56,7 +54,7 @@ import { Calendar } from './components/Calendar';
 import { Focus } from './components/Focus';
 import { Statistics } from './components/Statistics';
 import { ListModal, Settings } from './components/Settings';
-import { applyTheme } from './theme';
+import { useClock, useApplicationTheme } from './runtime';
 import { pendingPairingKey } from './sync/invitation';
 import { MobileApp } from './phone/MobileApp';
 import { usePhone } from './phone/usePhone';
@@ -94,6 +92,7 @@ const descriptions: Record<string, string> = {
 type Toast = { message: string; undo?: () => void };
 
 export function App() {
+  useApplicationTheme();
   return usePhone() ? <MobileApp /> : <DesktopApp />;
 }
 
@@ -119,7 +118,7 @@ function DesktopApp() {
   }, [snapshot.loaded]);
   const [editingList, setEditingList] = useState<TaskList | 'new' | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
-  const [clock, setClock] = useState(Date.now());
+  const clock = useClock();
   const [calendarDate, setCalendarDate] = useState(dateKey());
   const [draftTitle, setDraftTitle] = useState('');
   const [draftDue, setDraftDue] = useState<string>(dateKey());
@@ -128,7 +127,6 @@ function DesktopApp() {
   const [focusTask, setFocusTask] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const composer = useRef<HTMLInputElement>(null);
   const search = useRef<HTMLInputElement>(null);
   const today = dateKey(new Date(clock));
@@ -163,7 +161,6 @@ function DesktopApp() {
     setView(next);
     setQuery('');
     setSelectedId(null);
-    setMobileNavOpen(false);
   };
   const openComposer = () => {
     if (!allowComposer) navigate('today');
@@ -172,22 +169,9 @@ function DesktopApp() {
   const focusSearch = () => {
     setSidebarOpen(true);
     setSearchOpen(true);
-    setMobileNavOpen(true);
     setTimeout(() => search.current?.focus(), 0);
   };
 
-  useEffect(() => {
-    const id = setInterval(() => setClock(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, []);
-  useEffect(() => {
-    if (!snapshot.loaded) return;
-    const media = matchMedia('(prefers-color-scheme: dark)');
-    const apply = () => applyTheme(data.settings.theme);
-    apply();
-    media.addEventListener('change', apply);
-    return () => media.removeEventListener('change', apply);
-  }, [data.settings.theme, snapshot.loaded]);
   useEffect(() => {
     if (!toast) return;
     const timeout = setTimeout(() => setToast(null), toast.undo ? 9000 : 4500);
@@ -253,8 +237,7 @@ function DesktopApp() {
       else if (query) {
         setQuery('');
         setSearchOpen(false);
-      } else if (mobileNavOpen) setMobileNavOpen(false);
-      else if (view !== 'today') navigate('today');
+      } else if (view !== 'today') navigate('today');
       else return;
       event.preventDefault();
     };
@@ -417,49 +400,8 @@ function DesktopApp() {
 
   return (
     <div
-      className={`app-shell ${selectedTask ? 'with-detail' : ''} ${sidebarOpen ? '' : 'sidebar-collapsed'} ${mobileNavOpen ? 'mobile-menu-open' : ''}`}
+      className={`app-shell ${selectedTask ? 'with-detail' : ''} ${sidebarOpen ? '' : 'sidebar-collapsed'}`}
     >
-      <header className="mobile-bar">
-        <button
-          className="icon-button"
-          aria-label="打开导航"
-          onClick={() => setMobileNavOpen(true)}
-        >
-          <Menu size={22} />
-        </button>
-        <div>
-          <img src="./icon.svg" alt="" />
-          <strong>时织</strong>
-        </div>
-        <button
-          className="icon-button"
-          aria-label="切换深浅主题"
-          onClick={() =>
-            store.update((s) => ({
-              ...s,
-              settings: {
-                ...s.settings,
-                theme: document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark',
-              },
-            }))
-          }
-        >
-          {data.settings.theme === 'dark' ||
-          (data.settings.theme === 'system' &&
-            matchMedia('(prefers-color-scheme: dark)').matches) ? (
-            <Sun size={21} />
-          ) : (
-            <Moon size={21} />
-          )}
-        </button>
-      </header>
-      {mobileNavOpen && (
-        <button
-          className="mobile-scrim"
-          aria-label="关闭导航"
-          onClick={() => setMobileNavOpen(false)}
-        />
-      )}
       <aside className="sidebar" aria-label="主导航">
         <div className="brand">
           <img src="./icon.svg" alt="" />
@@ -473,7 +415,6 @@ function DesktopApp() {
             aria-label="收起侧栏"
             onClick={() => {
               setSidebarOpen(false);
-              setMobileNavOpen(false);
             }}
           >
             <PanelLeftClose size={16} />
@@ -619,7 +560,6 @@ function DesktopApp() {
             title="设置"
             onClick={() => {
               setSettings(true);
-              setMobileNavOpen(false);
             }}
           >
             <SettingsIcon size={18} />
@@ -1058,35 +998,6 @@ function DesktopApp() {
           </aside>
         )
       )}
-      <nav className="mobile-bottom-nav" aria-label="手机底部导航">
-        {(
-          [
-            { next: 'today', label: '今天', Icon: Sun },
-            { next: 'all', label: '清单', Icon: ListTodo },
-            { next: 'timetable', label: '课表', Icon: CalendarDays },
-            { next: 'timelog', label: '记录', Icon: Timer },
-          ] as const
-        ).map(({ next, label, Icon }) => (
-          <button
-            key={next}
-            aria-label={`手机${label}`}
-            aria-current={view === next ? 'page' : undefined}
-            className={view === next ? 'active' : ''}
-            onClick={() => navigate(next)}
-          >
-            <Icon size={21} strokeWidth={1.7} />
-            <span>{label}</span>
-          </button>
-        ))}
-        <button
-          aria-label="手机更多"
-          className={mobileNavOpen ? 'active' : ''}
-          onClick={() => setMobileNavOpen(true)}
-        >
-          <Menu size={21} />
-          <span>更多</span>
-        </button>
-      </nav>
       {settings && <Settings onClose={() => setSettings(false)} onMessage={message} />}
       {editingList && (
         <ListModal

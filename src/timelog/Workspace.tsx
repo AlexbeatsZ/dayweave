@@ -35,7 +35,6 @@ import {
   formatDuration,
   formatPoints,
   formatTime,
-  goalProgress,
   liveSpans,
   natureLabels,
   recordPoints,
@@ -48,7 +47,9 @@ import {
   type State,
   type TimeRecord,
 } from './domain';
-import { download, mutateState, readRawStorage, readState, subscribe } from './storage';
+import { mutateState } from './storage';
+import { useStore } from '../store';
+import { useClock } from '../runtime';
 import {
   adjacentGap,
   buildTimeline,
@@ -63,6 +64,10 @@ import { Settings } from './components/Settings';
 import { usePhone } from '../phone/usePhone';
 import { PhoneAnalysis } from '../phone/Analysis';
 import { ActivityIcon } from '../phone/ActivityIcon';
+import { FloatingAdd } from '../phone/Navigation';
+import { TimelineEntries } from './components/TimelineEntries';
+import { Goals } from './components/Goals';
+import { useTimelineDays } from '../phone/useTimelineDays';
 export type TimePage = 'timeline' | 'timer' | 'goals' | 'analysis';
 type Confirm = { title: string; body: string; action: () => Promise<boolean> };
 const panels = [
@@ -86,13 +91,15 @@ export default function Workspace({
   const [localPage, setLocalPage] = useState<TimePage>('timeline');
   const page = controlledPage ?? localPage;
   const setPage = (next: TimePage) => {
-    setLocalPage(next);
-    onPageChange?.(next);
+    if (onPageChange) onPageChange(next);
+    else setLocalPage(next);
   };
-  const [state, setState] = useState<State | null>(null),
-    [loadError, setLoadError] = useState(''),
-    [date, setDate] = useState(dayKey(Date.now())),
-    [now, setNow] = useState(Date.now());
+  const { data, loaded } = useStore();
+  const state = data.timelog;
+  const [date, setVisibleDate] = useState(dayKey(Date.now()));
+  const now = useClock();
+  const timeline = useTimelineDays(phone && page === 'timeline', date, setVisibleDate);
+  const setDate = (next: string) => (phone ? timeline.jump(next) : setVisibleDate(next));
   const [editor, setEditor] = useState<EditTarget | null>(null),
     [settings, setSettings] = useState(false),
     [manage, setManage] = useState(false),
@@ -111,37 +118,9 @@ export default function Workspace({
     });
   const [selectedActivity, setSelectedActivity] = useState('study'),
     [busy, setBusy] = useState(false);
-  const [historyDays, setHistoryDays] = useState(1);
-  useEffect(() => setHistoryDays(1), [date]);
   const lock = useRef(false),
     noteInput = useRef<HTMLTextAreaElement>(null),
     theme = useTheme();
-  useEffect(() => {
-    let live = true;
-    const refresh = () =>
-      readState()
-        .then((next) => {
-          if (live) {
-            setState(next);
-            setLoadError('');
-          }
-        })
-        .catch((error) => {
-          if (live) setLoadError(errorText(error));
-        });
-    refresh();
-    const off = subscribe(refresh);
-    window.addEventListener('timelog-resume', refresh);
-    return () => {
-      live = false;
-      off();
-      window.removeEventListener('timelog-resume', refresh);
-    };
-  }, []);
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, []);
   useEffect(() => {
     const back = (event: Event) => {
       if (editor) setEditor(null);
@@ -175,8 +154,7 @@ export default function Workspace({
     lock.current = true;
     setBusy(true);
     try {
-      setState(await mutateState(transform));
-      setNow(Date.now());
+      await mutateState(transform);
       if (message) setNotice({ text: message, error: false });
       return true;
     } catch (error) {
@@ -187,26 +165,7 @@ export default function Workspace({
       setBusy(false);
     }
   }
-  if (loadError)
-    return (
-      <main className="loading">
-        <h1>暂时无法读取数据</h1>
-        <p>{loadError}</p>
-        <p>原始数据已保留，请先导出恢复文件。</p>
-        <button
-          className="primary"
-          onClick={() =>
-            readRawStorage()
-              .then((raw) => download('open-timelog-recovery.json', raw))
-              .catch((error) => setNotice({ text: errorText(error), error: true }))
-          }
-        >
-          导出恢复文件
-        </button>
-        {notice && <p role="alert">{notice.text}</p>}
-      </main>
-    );
-  if (!state)
+  if (!loaded)
     return (
       <main className="loading">
         <Clock3 />
@@ -353,7 +312,7 @@ export default function Workspace({
     if (!gap) return;
     setConfirmation({
       title: `填满${direction === 'up' ? '上方' : '下方'}空闲时间`,
-      body: `将「${getActivity(row.record.activityId).name}」延长 ${formatDuration(gap.end - gap.start)}（${formatTime(gap.start)}–${endText(gap.end)}）。`,
+      body: `将「${getActivity(row.record.activityId).name}」延长 ${formatDuration(gap.end - gap.start)}（${formatTime(gap.start)}–${endText(gap.end, day)}）。`,
       action: () =>
         commit(
           (current) =>
@@ -368,6 +327,14 @@ export default function Workspace({
             ),
           '已填满空闲时间',
         ),
+    });
+  }
+  function addRecord(range?: { start: number; end: number }) {
+    const end = Math.min(Date.now(), dayRange(date).end);
+    setEditor({
+      kind: 'record',
+      activityId: selectedActivity,
+      range: range ?? { start: Math.max(dayStart(date), end - 1800000), end },
     });
   }
   function renderRecord(
@@ -426,7 +393,7 @@ export default function Workspace({
             )}
             <div className="card-meta">
               <span>
-                {formatTime(row.start)}–{endText(row.end)}
+                {formatTime(row.start)}–{endText(row.end, day)}
               </span>
               <span>{formatDuration(row.end - row.start)}</span>
               <span className={record.pointsPerHour < 0 ? 'negative-text' : 'positive-text'}>
@@ -532,7 +499,7 @@ export default function Workspace({
               <Settings2 size={18} />
               <span>设置</span>
             </button>
-            <small>v{'0.3.2'}</small>
+            <small>v{'0.3.3'}</small>
           </div>
         </aside>
       )}
@@ -565,42 +532,46 @@ export default function Workspace({
         <div className={`panel-content ${page}`}>
           {page === 'timeline' && (
             <>
-              <div className="panel-toolbar">
-                {datePicker()}
-                <button
-                  className={phone ? 'phone-record-add' : 'primary'}
-                  disabled={date > dayKey(now)}
-                  onClick={() => {
-                    const end = Math.min(Date.now(), dayRange(date).end);
-                    setEditor({
-                      kind: 'record',
-                      activityId: selectedActivity,
-                      range: { start: Math.max(dayStart(date), end - 1800000), end },
-                    });
-                  }}
-                >
-                  <Plus size={16} />
-                  添加记录
-                </button>
+              <div className="phone-record-toolbar">
+                <div className="panel-toolbar">
+                  {datePicker()}
+                  {!phone && (
+                    <button
+                      className="primary"
+                      disabled={date > dayKey(now)}
+                      onClick={() => addRecord()}
+                    >
+                      <Plus size={16} />
+                      添加记录
+                    </button>
+                  )}
+                </div>
+                {phone && (
+                  <FloatingAdd
+                    label="添加记录"
+                    disabled={date > dayKey(now)}
+                    onClick={() => addRecord()}
+                  />
+                )}
+                <div className="timeline-summary">
+                  <span>
+                    已记录 <strong>{formatDuration(daily.tracked)}</strong>
+                  </span>
+                  <span>
+                    积极 <strong>{formatDuration(daily.positive)}</strong>
+                  </span>
+                  <span>
+                    积分 <strong>{points(daily.points)}</strong>
+                  </span>
+                  <span className="weekday">
+                    {new Date(dayStart(date)).toLocaleDateString('zh-CN', {
+                      timeZone: getTimeZone(),
+                      weekday: 'long',
+                    })}
+                  </span>
+                </div>
               </div>
-              <div className="timeline-summary">
-                <span>
-                  已记录 <strong>{formatDuration(daily.tracked)}</strong>
-                </span>
-                <span>
-                  积极 <strong>{formatDuration(daily.positive)}</strong>
-                </span>
-                <span>
-                  积分 <strong>{points(daily.points)}</strong>
-                </span>
-                <span className="weekday">
-                  {new Date(dayStart(date)).toLocaleDateString('zh-CN', {
-                    timeZone: getTimeZone(),
-                    weekday: 'long',
-                  })}
-                </span>
-              </div>
-              {timer && (
+              {!phone && timer && (
                 <button className="active-timer-strip" onClick={() => setPage('timer')}>
                   <span className="running-dot" />
                   <strong>{getActivity(timer.activityId).name}</strong>
@@ -609,39 +580,41 @@ export default function Workspace({
                   <ChevronRight size={16} />
                 </button>
               )}
-              <div className="timeline-options">
-                <label className="search-field">
-                  <Search size={16} />
-                  <input
-                    aria-label="搜索记录"
-                    placeholder="搜索活动、描述或标签"
-                    value={query}
-                    onChange={(event) => setQuery(event.target.value)}
-                  />
-                </label>
-                <label className="check-label">
-                  <input
-                    type="checkbox"
-                    checked={shortGaps}
-                    onChange={(event) => {
-                      setShortGaps(event.target.checked);
-                      try {
-                        localStorage.setItem('timelog-short-gaps', String(event.target.checked));
-                      } catch {}
-                    }}
-                  />
-                  显示不足一分钟空闲
-                </label>
-              </div>
+              {!phone && (
+                <div className="timeline-options">
+                  <label className="search-field">
+                    <Search size={16} />
+                    <input
+                      aria-label="搜索记录"
+                      placeholder="搜索活动、描述或标签"
+                      value={query}
+                      onChange={(event) => setQuery(event.target.value)}
+                    />
+                  </label>
+                  <label className="check-label">
+                    <input
+                      type="checkbox"
+                      checked={shortGaps}
+                      onChange={(event) => {
+                        setShortGaps(event.target.checked);
+                        try {
+                          localStorage.setItem('timelog-short-gaps', String(event.target.checked));
+                        } catch {}
+                      }}
+                    />
+                    显示不足一分钟空闲
+                  </label>
+                </div>
+              )}
               {phone ? (
-                <div className="timeline-list phone-day-groups">
-                  {Array.from({ length: historyDays }, (_, index) => {
-                    const day = shiftDay(date, -index),
-                      group = index ? buildTimeline(state, day, now, shortGaps) : entries;
+                <div ref={timeline.list} className="timeline-list phone-day-groups">
+                  {timeline.dates.map((day) => {
+                    const group = buildTimeline(state, day, now, shortGaps);
                     return (
                       <section
                         key={day}
                         className="phone-timeline-day"
+                        data-timeline-day={day}
                         aria-label={`${day} 时间线`}
                       >
                         <h2>
@@ -651,98 +624,33 @@ export default function Workspace({
                             weekday: 'short',
                           })}
                         </h2>
-                        {group.filter(matches).map((row) => (
-                          <div key={row.key} className={`timeline-entry ${row.kind}`}>
-                            <div className="time-rail">
-                              <time>{endText(row.end, day)}</time>
-                              <span />
-                              <time>{formatTime(row.start)}</time>
-                            </div>
-                            <div className="entry-body">
-                              {row.kind === 'record' ? (
-                                renderRecord(row, day, group)
-                              ) : row.kind === 'gap' ? (
-                                <button
-                                  className="gap-card"
-                                  aria-label={`添加空闲记录 ${formatTime(row.start)}-${endText(row.end, day)}`}
-                                  onClick={() =>
-                                    setEditor({
-                                      kind: 'record',
-                                      range: { start: row.start, end: row.end },
-                                      activityId: selectedActivity,
-                                    })
-                                  }
-                                >
-                                  <Plus size={17} />
-                                  <span>
-                                    空闲 <strong>{formatDuration(row.end - row.start)}</strong>
-                                  </span>
-                                </button>
-                              ) : (
-                                <button className="timer-card" onClick={() => setPage('timer')}>
-                                  <i className="running-dot" />
-                                  正在计时 · {timer && getActivity(timer.activityId).name}
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        ))}
+                        <TimelineEntries
+                          entries={group.filter(matches)}
+                          day={day}
+                          renderRecord={(row) => renderRecord(row, day, group)}
+                          addRecord={addRecord}
+                          showTimer={() => setPage('timer')}
+                          timerName={timer ? getActivity(timer.activityId).name : ''}
+                        />
                         {query && !group.some(matches) && (
                           <p className="phone-analysis-empty">没有匹配记录</p>
                         )}
                       </section>
                     );
                   })}
-                  {historyDays < 7 && (
-                    <button
-                      className="phone-load-history"
-                      onClick={() => setHistoryDays(historyDays + 1)}
-                    >
-                      查看更早一天 <ChevronLeft size={15} />
-                    </button>
-                  )}
+                  <div className="phone-history-sentinel" aria-hidden="true" />
                 </div>
               ) : (
                 <div className="timeline-list">
                   {shownEntries.length ? (
-                    shownEntries.map((row) => (
-                      <div key={row.key} className={`timeline-entry ${row.kind}`}>
-                        <div className="time-rail">
-                          <time>{endText(row.end)}</time>
-                          <span />
-                          {<time>{formatTime(row.start)}</time>}
-                        </div>
-                        <div className="entry-body">
-                          {row.kind === 'gap' ? (
-                            <button
-                              className="gap-card"
-                              aria-label={`添加空闲记录 ${formatTime(row.start)}-${endText(row.end)}`}
-                              onClick={() =>
-                                setEditor({
-                                  kind: 'record',
-                                  range: { start: row.start, end: row.end },
-                                  activityId: selectedActivity,
-                                })
-                              }
-                            >
-                              <Plus size={17} />
-                              <span>
-                                空闲 <strong>{formatDuration(row.end - row.start)}</strong>
-                              </span>
-                              <span className="gap-hint">点击添加记录</span>
-                            </button>
-                          ) : row.kind === 'timer' ? (
-                            <button className="timer-card" onClick={() => setPage('timer')}>
-                              <span className="running-dot" />
-                              正在计时 · {timer && getActivity(timer.activityId).name}
-                              <span>{formatDuration(row.end - row.start)}</span>
-                            </button>
-                          ) : (
-                            renderRecord(row)
-                          )}
-                        </div>
-                      </div>
-                    ))
+                    <TimelineEntries
+                      entries={shownEntries}
+                      day={date}
+                      renderRecord={renderRecord}
+                      addRecord={addRecord}
+                      showTimer={() => setPage('timer')}
+                      timerName={timer ? getActivity(timer.activityId).name : ''}
+                    />
                   ) : (
                     <div className="empty-state">
                       <History size={28} />
@@ -878,102 +786,34 @@ export default function Workspace({
             <>
               <div className="panel-toolbar">
                 {datePicker()}
-                <button className="primary" onClick={() => setEditor({ kind: 'goal' })}>
-                  <Plus size={16} />
-                  添加目标
-                </button>
-              </div>
-              <p className="section-note">进度来自已保存的记录，每周从周一开始。</p>
-              <div className="goal-grid">
-                {state.goals
-                  .filter((row) => !row.archived)
-                  .map((goal) => {
-                    const progress = goalProgress(state, goal, date),
-                      percent = Math.min(100, (progress / goal.minutes) * 100),
-                      activity = getActivity(goal.activityId);
-                    return (
-                      <article
-                        className="goal-card"
-                        key={goal.id}
-                        style={activityStyle(activity.color)}
-                      >
-                        <div className="goal-header">
-                          <div>
-                            <span className="period-badge">
-                              {goal.period === 'day' ? '每日' : '每周'}
-                            </span>
-                            <h3>{goal.name}</h3>
-                            <p>{activity.name}</p>
-                          </div>
-                          <button
-                            className="icon-button"
-                            aria-label={`编辑目标 ${goal.name}`}
-                            onClick={() => setEditor({ kind: 'goal', goal })}
-                          >
-                            <Pencil size={16} />
-                          </button>
-                        </div>
-                        <div className="goal-numbers">
-                          <strong>
-                            {Math.floor(progress)}
-                            <small> / {goal.minutes} 分钟</small>
-                          </strong>
-                          <span>
-                            {percent >= 100 ? (
-                              <>
-                                <Check size={15} />
-                                已达标
-                              </>
-                            ) : (
-                              `${Math.floor(percent)}%`
-                            )}
-                          </span>
-                        </div>
-                        <div className="progress-track">
-                          <span style={{ width: `${percent}%` }} />
-                        </div>
-                        <footer>
-                          <span>
-                            {percent >= 100
-                              ? '目标已完成'
-                              : `还需 ${Math.ceil(Math.max(0, goal.minutes - progress))} 分钟`}
-                          </span>
-                          <button
-                            className="text-button muted"
-                            onClick={() =>
-                              commit(
-                                (current) => ({
-                                  ...current,
-                                  goals: current.goals.map((row) =>
-                                    row.id === goal.id
-                                      ? {
-                                          ...row,
-                                          archived: true,
-                                          updatedAt: timestamp(row.updatedAt),
-                                        }
-                                      : row,
-                                  ),
-                                }),
-                                '目标已归档',
-                              )
-                            }
-                          >
-                            归档
-                          </button>
-                        </footer>
-                      </article>
-                    );
-                  })}
-              </div>
-              {!state.goals.some((row) => !row.archived) && (
-                <div className="empty-state">
-                  <Target size={28} />
-                  <p>还没有目标</p>
-                  <button className="secondary" onClick={() => setEditor({ kind: 'goal' })}>
+                {!phone && (
+                  <button className="primary" onClick={() => setEditor({ kind: 'goal' })}>
+                    <Plus size={16} />
                     添加目标
                   </button>
-                </div>
+                )}
+              </div>
+              {phone && (
+                <FloatingAdd label="添加目标" onClick={() => setEditor({ kind: 'goal' })} />
               )}
+              <Goals
+                state={state}
+                date={date}
+                edit={(goal) => setEditor({ kind: 'goal', goal })}
+                archive={(goal) => {
+                  void commit(
+                    (current) => ({
+                      ...current,
+                      goals: current.goals.map((row) =>
+                        row.id === goal.id
+                          ? { ...row, archived: true, updatedAt: timestamp(row.updatedAt) }
+                          : row,
+                      ),
+                    }),
+                    '目标已归档',
+                  );
+                }}
+              />
             </>
           )}
           {page === 'analysis' && phone && (

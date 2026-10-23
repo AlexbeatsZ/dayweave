@@ -10,15 +10,11 @@ import {
   Grid2X2,
   ListTodo,
   Menu,
-  Moon,
   MoreHorizontal,
   Pause,
   Play,
   Plus,
-  Search,
   Settings as SettingsIcon,
-  Sun,
-  Target,
   Tag,
   Timer,
   Trash2,
@@ -37,7 +33,7 @@ import {
   type View,
 } from '../model';
 import { store, useStore } from '../store';
-import { applyTheme } from '../theme';
+import { useClock } from '../runtime';
 import { weekday } from '../timezone';
 import { duration, formatClock, liveSpans, startTimer, toggleTimer } from '../timelog/domain';
 import { TaskRow } from '../components/TaskRow';
@@ -52,6 +48,7 @@ import { pendingPairingKey } from '../sync/invitation';
 import type { TimePage } from '../timelog/Workspace';
 import { Sheet } from './Sheet';
 import { TaskComposer } from './TaskComposer';
+import { FloatingAdd, PhoneTabs, PhoneTopbar, useSwipeTabs } from './Navigation';
 
 const titles: Record<string, string> = {
   today: '待办',
@@ -78,10 +75,8 @@ export function MobileApp() {
     { data } = snapshot;
   const [view, setView] = useState<View>(location.hash === '#timetable' ? 'timetable' : 'today');
   const [timePage, setTimePage] = useState<TimePage>('timeline');
-  const [clock, setClock] = useState(Date.now()),
-    [day, setDay] = useState(dateKey());
-  const [query, setQuery] = useState(''),
-    [searching, setSearching] = useState(false);
+  const clock = useClock();
+  const [day, setDay] = useState(dateKey());
   const [sort, setSort] = useState<'manual' | 'date' | 'priority'>('manual');
   const [drawer, setDrawer] = useState(false),
     [composer, setComposer] = useState(false),
@@ -90,25 +85,25 @@ export function MobileApp() {
     [selected, setSelected] = useState<string | null>(null);
   const [focusTask, setFocusTask] = useState<string | null>(null);
   const [toast, setToast] = useState<{ text: string; undo?: () => void } | null>(null);
-  const scroll = useRef<HTMLElement>(null),
-    search = useRef<HTMLInputElement>(null);
+  const scroll = useRef<HTMLElement>(null);
   const today = dateKey(new Date(clock));
-  const timeView = view === 'timelog' && !searching;
-  const taskView =
-    !['timetable', 'timelog', 'calendar', 'focus', 'stats', 'quadrants'].includes(view) ||
-    searching;
+  const timeView = view === 'timelog';
+  const taskView = !['timetable', 'timelog', 'calendar', 'focus', 'stats', 'quadrants'].includes(
+    view,
+  );
   const live = data.tasks.filter((task) => !task.completedAt && !task.deletedAt);
-  const title = searching
-    ? '搜索任务'
-    : view === 'timelog'
-      ? timeTitles[timePage]
+  const title =
+    view === 'timelog'
+      ? timePage === 'analysis'
+        ? timeTitles.analysis
+        : '记录'
       : view.startsWith('list:')
         ? data.lists.find((item) => item.id === view.slice(5))?.name || '清单'
         : view.startsWith('tag:')
           ? `#${view.slice(4)}`
           : titles[view] || '任务';
-  const tasks = selectTasks(data, searching ? 'all' : view, query, sort, day).filter(
-    (task) => searching || view !== 'today' || day === today || task.due === day,
+  const tasks = selectTasks(data, view, '', sort, day).filter(
+    (task) => view !== 'today' || day === today || task.due === day,
   );
   const weekStart = shiftDate(day, 1 - weekday(day));
   const weekdays = Array.from({ length: 7 }, (_, index) => shiftDate(weekStart, index));
@@ -116,26 +111,31 @@ export function MobileApp() {
   function navigate(next: View, panel?: TimePage) {
     setView(next);
     if (panel) setTimePage(panel);
-    setQuery('');
-    setSearching(false);
     setSelected(null);
     setDrawer(false);
     scroll.current?.scrollTo(0, 0);
   }
-  useEffect(() => {
-    const timer = setInterval(() => setClock(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, []);
+  const taskTabs = [
+    { id: 'today' as const, label: '日程' },
+    { id: 'all' as const, label: '全部', count: live.length },
+    { id: 'inbox' as const, label: '收集箱', count: live.filter((task) => !task.due).length },
+  ];
+  const recordTabs = [
+    { id: 'timeline' as const, label: '时间线' },
+    { id: 'timer' as const, label: '计时' },
+    { id: 'goals' as const, label: '目标' },
+  ];
+  const showTaskTabs = taskTabs.some((tab) => tab.id === view);
+  const showRecordTabs = timeView && timePage !== 'analysis';
+  const changeTimePage = (page: TimePage) => {
+    setTimePage(page);
+    scroll.current?.scrollTo(0, 0);
+  };
+  const taskSwipe = useSwipeTabs(taskTabs, view, navigate);
+  const recordSwipe = useSwipeTabs(recordTabs, timePage, changeTimePage);
   useEffect(() => {
     if (snapshot.loaded) setDay(dateKey());
   }, [snapshot.loaded, data.settings.timeZone]);
-  useEffect(() => {
-    const media = matchMedia('(prefers-color-scheme: dark)');
-    const update = () => applyTheme(data.settings.theme);
-    update();
-    media.addEventListener('change', update);
-    return () => media.removeEventListener('change', update);
-  }, [data.settings.theme]);
   useEffect(() => {
     if (!toast) return;
     const timer = setTimeout(() => setToast(null), toast.undo ? 9000 : 4500);
@@ -159,10 +159,7 @@ export function MobileApp() {
       if (settings) setSettings(false);
       else if (list) setList(null);
       else if (selected) setSelected(null);
-      else if (searching) {
-        setSearching(false);
-        setQuery('');
-      } else if (view !== 'today') navigate('today');
+      else if (view !== 'today') navigate('today');
       else return;
       event.preventDefault();
     };
@@ -176,9 +173,6 @@ export function MobileApp() {
       document.removeEventListener('keydown', keyboard);
     };
   });
-  useEffect(() => {
-    if (searching) search.current?.focus();
-  }, [searching]);
   useEffect(() => {
     const timer = data.timer;
     if (!timer?.endAt || timer.endAt > clock) return;
@@ -245,94 +239,40 @@ export function MobileApp() {
     <div
       className={`phone-shell ${timeView ? 'phone-time-view' : ''} ${dock ? 'has-timer-dock' : ''}`}
     >
-      <header className="phone-header">
-        <button className="icon-button" aria-label="打开导航" onClick={() => setDrawer(true)}>
-          <Menu size={23} />
-        </button>
-        <div className="phone-heading">
-          <h1>{title}</h1>
-          <span>
-            {data.settings.timeZone === 'Asia/Shanghai' ? 'UTC+8' : data.settings.timeZone}
-            {snapshot.saving ? ' · 保存中' : ''}
-          </span>
-        </div>
-        <button
-          className="icon-button"
-          aria-label="搜索任务"
-          onClick={() => {
-            setSearching(true);
-            setQuery('');
-          }}
-        >
-          <Search size={20} />
-        </button>
-        <button
-          className="icon-button"
-          aria-label="切换深浅主题"
-          onClick={() =>
-            store.update((state) => ({
-              ...state,
-              settings: {
-                ...state.settings,
-                theme: document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark',
-              },
-            }))
-          }
-        >
-          {document.documentElement.dataset.theme === 'dark' ? (
-            <Sun size={20} />
-          ) : (
-            <Moon size={20} />
-          )}
-        </button>
-      </header>
-      <main ref={scroll} className="phone-content" aria-label={title}>
+      <PhoneTopbar
+        title={showTaskTabs ? '待办' : title}
+        openMenu={
+          <button className="icon-button" aria-label="打开导航" onClick={() => setDrawer(true)}>
+            <Menu size={23} />
+          </button>
+        }
+      >
+        {showTaskTabs && (
+          <PhoneTabs tabs={taskTabs} value={view} onChange={navigate} label="待办子页面" />
+        )}
+        {showRecordTabs && (
+          <PhoneTabs
+            tabs={recordTabs}
+            value={timePage}
+            onChange={changeTimePage}
+            label="记录子页面"
+          />
+        )}
+      </PhoneTopbar>
+      <main
+        ref={scroll}
+        className="phone-content"
+        aria-label={title}
+        {...(showTaskTabs ? taskSwipe : showRecordTabs ? recordSwipe : {})}
+      >
         {snapshot.error && (
           <div className="error-banner" role="alert">
             {snapshot.error}
             <button onClick={() => setSettings(true)}>备份与恢复</button>
           </div>
         )}
-        {searching && (
-          <label className="phone-search">
-            <Search size={18} />
-            <input
-              ref={search}
-              aria-label="任务搜索内容"
-              placeholder="标题、备注或 #标签"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-            <button
-              className="icon-button"
-              aria-label="关闭搜索"
-              onClick={() => {
-                setSearching(false);
-                setQuery('');
-              }}
-            >
-              <X size={19} />
-            </button>
-          </label>
-        )}
-        {taskView && !searching && (
+        {taskView && (
           <>
-            <div className="phone-task-tabs" role="group" aria-label="任务范围">
-              {[
-                { id: 'today', label: '日程' },
-                { id: 'all', label: '全部', count: live.length },
-                { id: 'inbox', label: '收集箱', count: live.filter((task) => !task.due).length },
-              ].map((item) => (
-                <button
-                  key={item.id}
-                  aria-pressed={view === item.id}
-                  onClick={() => navigate(item.id as View)}
-                >
-                  {item.label}
-                  {item.count ? <small>{item.count}</small> : null}
-                </button>
-              ))}
-            </div>
             {view === 'today' && (
               <section className="phone-week" aria-label="待办周历">
                 <div className="phone-week-heading">
@@ -385,7 +325,6 @@ export function MobileApp() {
           </>
         )}
         {view === 'today' &&
-          !searching &&
           (data.schedule.courses.length > 0 || data.schedule.events.length > 0) && (
             <NextClass clock={clock} compact onOpen={() => navigate('timetable')} />
           )}
@@ -393,11 +332,9 @@ export function MobileApp() {
           <section className="phone-tasks">
             <div className="phone-section-heading">
               <h2>
-                {searching
-                  ? `搜索结果 · ${tasks.length}`
-                  : view === 'today'
-                    ? `${formatDate(day)} · ${tasks.length} 件`
-                    : `${title} · ${tasks.length}`}
+                {view === 'today'
+                  ? `${formatDate(day)} · ${tasks.length} 件`
+                  : `${title} · ${tasks.length}`}
               </h2>
               <label>
                 <span className="visually-hidden">任务排序</span>
@@ -417,21 +354,15 @@ export function MobileApp() {
             ) : (
               <div className="phone-empty">
                 <CircleCheck size={35} />
-                <h2>
-                  {view === 'today'
-                    ? '这一天暂时没有安排'
-                    : searching
-                      ? '没有找到匹配任务'
-                      : '这里暂时没有任务'}
-                </h2>
-                <p>{searching ? '换个关键词试试' : '点右下角 +，记下下一件事'}</p>
+                <h2>{view === 'today' ? '这一天暂时没有安排' : '这里暂时没有任务'}</h2>
+                <p>点右下角 +，记下下一件事</p>
               </div>
             )}
           </section>
         )}
-        {timeView && <TimeLog page={timePage} onPageChange={setTimePage} />}
-        {view === 'timetable' && !searching && <Timetable clock={clock} />}
-        {view === 'calendar' && !searching && (
+        {timeView && <TimeLog page={timePage} onPageChange={changeTimePage} />}
+        {view === 'timetable' && <Timetable clock={clock} />}
+        {view === 'calendar' && (
           <Calendar
             tasks={selectTasks(data, 'all', '', 'date', today)}
             selectedDate={day}
@@ -440,9 +371,9 @@ export function MobileApp() {
             onDrop={(id, due) => store.patchTask(id, { due, repeatDay: Number(due.slice(-2)) })}
           />
         )}
-        {view === 'focus' && !searching && <Focus preferredTask={focusTask} clock={clock} />}
-        {view === 'stats' && !searching && <Statistics />}
-        {view === 'quadrants' && !searching && (
+        {view === 'focus' && <Focus preferredTask={focusTask} clock={clock} />}
+        {view === 'stats' && <Statistics />}
+        {view === 'quadrants' && (
           <div className="phone-quadrants">
             {['重要且紧急', '重要不紧急', '紧急不重要', '不紧急不重要'].map((label, index) => (
               <section key={label}>
@@ -454,9 +385,7 @@ export function MobileApp() {
         )}
       </main>
       {taskView && !['trash', 'completed'].includes(view) && (
-        <button className="phone-fab" aria-label="新建任务" onClick={() => setComposer(true)}>
-          <Plus size={27} />
-        </button>
+        <FloatingAdd label="新建任务" onClick={() => setComposer(true)} />
       )}
       {dock && (
         <div className="phone-timer-dock">
@@ -497,15 +426,8 @@ export function MobileApp() {
             key: 'records',
             label: '记录',
             icon: Clock3,
-            active: timeView && timePage === 'timeline',
+            active: timeView,
             action: () => navigate('timelog', 'timeline'),
-          },
-          {
-            key: 'timer',
-            label: '计时',
-            icon: Timer,
-            active: timeView && timePage === 'timer',
-            action: () => navigate('timelog', 'timer'),
           },
           {
             key: 'courses',
@@ -518,7 +440,7 @@ export function MobileApp() {
             key: 'more',
             label: '更多',
             icon: MoreHorizontal,
-            active: drawer || (timeView && ['goals', 'analysis'].includes(timePage)),
+            active: drawer || (!taskView && !timeView && view !== 'timetable'),
             action: () => setDrawer(true),
           },
         ].map(({ key, label, icon: Icon, active, action }) => (
@@ -531,7 +453,7 @@ export function MobileApp() {
           >
             <span>
               <Icon size={22} strokeWidth={1.8} />
-              {key === 'timer' && timer && <i className="running-dot" />}
+              {key === 'records' && timer && <i className="running-dot" />}
             </span>
             <small>{label}</small>
           </button>
@@ -546,7 +468,6 @@ export function MobileApp() {
                 icon: ChartNoAxesCombined,
                 action: () => navigate('timelog', 'analysis'),
               },
-              { label: '目标', icon: Target, action: () => navigate('timelog', 'goals') },
               { label: '日历', icon: CalendarDays, action: () => navigate('calendar') },
               { label: '最近七天', icon: CalendarDays, action: () => navigate('upcoming') },
               { label: '四象限', icon: Grid2X2, action: () => navigate('quadrants') },

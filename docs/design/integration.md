@@ -22,4 +22,4 @@ ROG owns an optional encrypted LAN listener at 49732; AI loopback and synchroniz
 
 ## Visual direction
 
-Study planner with slate ink #25364b, blue #4264b2, pale blue #eef3fb, white #ffffff and amber #b57827. Segoe UI/PingFang body, condensed Bahnschrift numerals. Weekly course grid plus a narrow dual-timezone next-class rail is the characteristic element. Keep task navigation and timelog sub-tabs concise; no duplicated app chrome.
+Study planner with neutral gray surfaces (#181818 canvas / #252525 cards in dark mode), white/grayscale text and one ice-blue action accent #76b9ed. Activity colors remain small categorical markers. Segoe UI/PingFang body, condensed Bahnschrift numerals. Weekly course grid plus a narrow dual-timezone next-class rail is the characteristic element. Phone tasks and records each use three compact swipeable subpages; no duplicated app chrome. See mobile-interface.md for current color/layout and architecture.md for state ownership.

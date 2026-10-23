@@ -653,68 +653,84 @@
   font-size: 12px;
   margin-bottom: 22px;
 }
+.timelog-module .goal-group {
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 10px;
+  margin-bottom: 16px;
+}
+.timelog-module .goal-group > header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  color: var(--muted);
+  padding: 0 6px 6px;
+}
+.timelog-module .goal-group > header h2 {
+  font-size: 13px;
+  font-weight: 600;
+  flex: 1;
+}
+.timelog-module .goal-group > header > span {
+  font:
+    13px Bahnschrift,
+    Consolas,
+    monospace;
+}
 .timelog-module .goal-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
-}
-.timelog-module .goal-card {
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--surface);
-  padding: 23px;
-}
-.timelog-module .goal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 15px;
-}
-.timelog-module .period-badge {
-  display: inline-block;
-  color: var(--activity-color);
-  font-size: 10px;
-  padding: 2px 6px;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  margin-bottom: 9px;
-}
-.timelog-module .goal-header h3 {
-  font-size: 17px;
-}
-.timelog-module .goal-header p {
-  color: var(--muted);
-  font-size: 12px;
-  margin-top: 6px;
-}
-.timelog-module .goal-numbers {
-  margin: 25px 0 13px;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
   gap: 8px;
 }
-.timelog-module .goal-numbers strong {
-  font-family: 'Bahnschrift', 'Consolas', sans-serif;
-  font-size: 27px;
-  font-weight: 500;
+.timelog-module .goal-card {
+  position: relative;
+  min-width: 0;
+  border: 2px solid color-mix(in srgb, var(--activity-color) 30%, var(--surface));
+  border-radius: 15px;
+  background: transparent;
+  padding: 0;
 }
-.timelog-module .goal-numbers small {
-  font-family: 'Segoe UI', sans-serif;
-  font-size: 12px;
+.timelog-module .goal-card.achieved {
+  border-color: var(--activity-color);
+}
+.timelog-module .goal-card-main {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  padding: 12px;
+  align-items: stretch;
+  text-align: left;
+}
+.timelog-module .goal-card h3 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 14px;
+  padding-right: 10px;
+  line-height: 1.4;
+}
+.timelog-module .goal-card h3 > svg {
+  color: var(--activity-color);
+}
+.timelog-module .goal-card h3 > span {
+  overflow-wrap: anywhere;
+}
+.timelog-module .goal-card-status {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px;
+  font-size: 11px;
   color: var(--muted);
 }
-.timelog-module .goal-numbers > span {
-  display: inline-flex;
-  gap: 5px;
-  align-items: center;
-  color: var(--activity-color);
-  font-size: 12px;
+.timelog-module .goal-card-status strong {
+  font-weight: 500;
 }
 .timelog-module .progress-track {
   background: var(--soft);
-  height: 6px;
+  height: 3px;
   border-radius: 5px;
   overflow: hidden;
 }
@@ -724,13 +740,39 @@
   background: var(--activity-color);
   border-radius: inherit;
 }
-.timelog-module .goal-card footer {
-  margin-top: 10px;
+.timelog-module .goal-menu {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+.timelog-module .goal-menu summary {
+  list-style: none;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  font-size: 11px;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
   color: var(--muted);
+  cursor: pointer;
+}
+.timelog-module .goal-menu > div {
+  position: absolute;
+  top: 26px;
+  right: 0;
+  padding: 6px;
+  z-index: 6;
+  width: 115px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: 0 5px 15px var(--shadow);
+  border-radius: 10px;
+}
+.timelog-module .goal-menu button {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  text-align: left;
+  font-size: 12px;
 }
 .timelog-module .segmented {
   display: flex;
@@ -1087,9 +1129,6 @@
   .timelog-module .activity-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .timelog-module .goal-card {
-    padding: 18px;
-  }
   .timelog-module .analysis-summary > div {
     padding: 0 15px;
   }
@@ -1313,10 +1352,6 @@
   .timelog-module .timer-previous {
     flex-wrap: wrap;
     font-size: 11px;
-  }
-  .timelog-module .goal-grid {
-    grid-template-columns: 1fr;
-    gap: 14px;
   }
   .timelog-module .analysis-summary {
     grid-template-columns: 1fr 1fr;

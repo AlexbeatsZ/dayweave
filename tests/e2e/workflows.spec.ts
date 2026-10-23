@@ -141,7 +141,8 @@ test('all views render without errors; dark theme persists; compact viewport has
   );
   expect(errors).toEqual([]);
   await page.getByRole('button', { name: '关闭新建任务', exact: true }).click();
-  await page.getByRole('button', { name: '搜索任务', exact: true }).click();
-  await page.getByLabel('任务搜索内容').fill('#阅读');
+  await expect(page.getByRole('button', { name: '搜索任务', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: '手机更多', exact: true }).click();
+  await page.getByRole('button', { name: /^阅读/, exact: false }).click();
   await expect(page.getByTestId('task-row')).toHaveCount(1);
 });
