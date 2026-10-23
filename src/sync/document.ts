@@ -66,6 +66,7 @@ export function toDocument(state: AppState): SyncDocument {
         ...(row.taskId ? { taskId: row.taskId } : {}),
         timing: {
           startAt: row.startedAt,
+          ...(row.plannedEndAt === undefined ? {} : { plannedEndAt: row.plannedEndAt }),
           endAt: null,
           runningSince: row.runningSince,
           spans: row.spans,
@@ -75,9 +76,16 @@ export function toDocument(state: AppState): SyncDocument {
     semesterStart: state.schedule.semesterStart,
     totalWeeks: state.schedule.totalWeeks,
     timeZone: state.schedule.timeZone,
+    periods: state.schedule.periods,
     holidays: state.schedule.holidays,
   };
-  doc.preferences = { timeZone: state.settings.timeZone };
+  doc.preferences = {
+    taskTagColors: state.tagColors.tasks,
+    recordTagColors: state.tagColors.records,
+    timeZone: state.settings.timeZone,
+    timerPresets: state.timelog.settings.timerPresets ?? [5, 30, 45, 60],
+    timerPresetsUpdatedAt: state.timelog.settings.updatedAt,
+  };
   if (state.timer) doc.focus = { ...state.timer };
   return doc;
 }
@@ -91,7 +99,7 @@ export function fromDocument(doc: SyncDocument, local: AppState): AppState {
   next.lists = rows('lists') as AppState['lists'];
   next.sessions = rows('sessions') as AppState['sessions'];
   if (!next.lists.some((x) => x.id === 'inbox'))
-    next.lists.unshift({ id: 'inbox', name: '收集箱', color: '#7e8b8b', order: 0 });
+    next.lists.unshift({ id: 'inbox', name: '未分组', color: '#7e8b8b', order: 0 });
   for (const task of next.tasks)
     if (!next.lists.some((l) => l.id === task.listId)) task.listId = 'inbox';
   const timers: Timer[] = [],
@@ -99,6 +107,7 @@ export function fromDocument(doc: SyncDocument, local: AppState): AppState {
   for (const row of rows('records')) {
     const t = row.timing as {
       startAt: number;
+      plannedEndAt?: number | null;
       endAt: number | null;
       runningSince: number | null;
       spans: TimeRecord['spans'];
@@ -116,6 +125,7 @@ export function fromDocument(doc: SyncDocument, local: AppState): AppState {
       timers.push({
         ...common,
         startedAt: t.startAt,
+        ...(t.plannedEndAt === undefined ? {} : { plannedEndAt: t.plannedEndAt }),
         runningSince: t.runningSince,
         spans: t.spans,
       });
@@ -136,6 +146,15 @@ export function fromDocument(doc: SyncDocument, local: AppState): AppState {
     redemptions: rows('redemptions'),
     records,
     timer: timers[0] ?? null,
+    settings: {
+      ...next.timelog.settings,
+      ...(doc.preferences?.timerPresets === undefined
+        ? {}
+        : {
+            timerPresets: doc.preferences.timerPresets,
+            updatedAt: doc.preferences.timerPresetsUpdatedAt ?? next.timelog.settings.updatedAt,
+          }),
+    },
     conflictedTimers: timers.slice(1),
   });
   next.schedule = {
@@ -144,7 +163,18 @@ export function fromDocument(doc: SyncDocument, local: AppState): AppState {
     courses: rows('courses'),
     events: rows('events'),
   } as AppState['schedule'];
-  next.settings = { ...next.settings, ...doc.preferences };
+  next.tagColors = {
+    tasks: (doc.preferences?.taskTagColors ?? next.tagColors.tasks) as Record<string, string>,
+    records: (doc.preferences?.recordTagColors ?? next.tagColors.records) as Record<string, string>,
+  };
+  const {
+    taskTagColors: _taskColors,
+    recordTagColors: _recordColors,
+    timerPresets: _presets,
+    timerPresetsUpdatedAt: _presetsAt,
+    ...preferences
+  } = doc.preferences ?? {};
+  next.settings = { ...next.settings, ...preferences };
   next.timer = (doc.focus ?? null) as AppState['timer'];
   // Running record remains authoritative when a stale offline focus timer arrives.
   if (next.timelog.timer) next.timer = null;

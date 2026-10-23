@@ -1,8 +1,10 @@
+import { startTaskTimer } from '../src/model.js';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { z } from 'zod';
 import { type AppState, uid, selectTasks, dateKey } from '../src/model.js';
 import {
   scheduleSchema,
+  coursePeriodsSchema,
   courseSchema,
   occurrenceSchema,
   courseOccurrences,
@@ -11,7 +13,13 @@ import {
 } from '../src/schedule.js';
 import { importCourses } from '../src/course-import.js';
 import { handleApi } from '../src/timelog/api.js';
-import { startTimer, finishTimer, liveSpans, duration } from '../src/timelog/domain.js';
+import {
+  startTimer,
+  finishTimer,
+  liveSpans,
+  duration,
+  activeActivity,
+} from '../src/timelog/domain.js';
 import { toDocument } from '../src/sync/document.js';
 import type { StateService, StateSnapshot } from './state-service.js';
 
@@ -30,6 +38,13 @@ type Context = {
 const fail = (status: number, message: string): never => {
   throw Object.assign(new Error(message), { status });
 };
+function activityId(state: AppState, requested?: string) {
+  const activity = state.timelog.activities.find(
+    (item) => activeActivity(item) && (requested === undefined || item.id === requested),
+  );
+  if (!activity) return fail(400, '请选择可用的活动');
+  return activity.id;
+}
 export function decisionContext(state: AppState, now = Date.now()) {
   return {
     now: new Date(now).toISOString(),
@@ -38,7 +53,6 @@ export function decisionContext(state: AppState, now = Date.now()) {
     courseTimeZone: state.schedule.timeZone,
     today: dateKey(new Date(now)),
     tasks: selectTasks(state, 'today'),
-    focusTimer: state.timer,
     timeTimer: state.timelog.timer,
     simultaneousTimers: state.timelog.conflictedTimers ?? [],
     timeElapsedMs: state.timelog.timer ? duration(liveSpans(state.timelog.timer, now)) : 0,
@@ -61,6 +75,7 @@ export async function handleExtendedRoute(c: Context): Promise<boolean> {
         const t = timing as {
           startAt: number;
           endAt: number | null;
+          plannedEndAt?: number | null;
           runningSince: number | null;
           spans: { start: number; end: number }[];
         };
@@ -68,9 +83,12 @@ export async function handleExtendedRoute(c: Context): Promise<boolean> {
           ...rest,
           id: row.id as string,
           ...t,
+          plannedEndAt: t.plannedEndAt ?? null,
           elapsedMs:
             duration(t.spans) +
-            (t.runningSince === null ? 0 : Math.max(0, Date.now() - t.runningSince)),
+            (t.runningSince === null
+              ? 0
+              : Math.max(0, Math.min(Date.now(), t.plannedEndAt ?? Infinity) - t.runningSince)),
         };
       });
   if (route === '/time-records' && method === 'GET') {
@@ -87,33 +105,35 @@ export async function handleExtendedRoute(c: Context): Promise<boolean> {
       .object({
         startAt: z.number().finite().min(946684800000),
         endAt: z.number().finite().nullable().optional(),
-        activityId: z.string().optional(),
-        taskId: z.string().optional(),
-        note: z.string().max(10000).default(''),
+        activityId: z.string().min(1).max(100).optional(),
+        taskId: z.string().min(1).max(100).optional(),
+        note: z.string().max(4000).default(''),
         tags: z.array(z.string().max(40)).max(16).default([]),
       })
       .strict()
       .parse(await c.readBody(c.request));
-    if (
-      input.startAt > Date.now() ||
-      (input.endAt != null && (input.endAt <= input.startAt || input.endAt > Date.now()))
-    )
+    const now = Date.now();
+    if (input.startAt > now || (input.endAt != null && input.endAt - input.startAt < 1000))
       fail(400, '记录时间范围无效');
+    const open = input.endAt == null || input.endAt > now;
     let createdId = '';
     snapshot = await mutate((s) => {
-      if (input.endAt == null && (s.timer || s.timelog.timer || s.timelog.conflictedTimers?.length))
+      if (open && (s.timelog.timer || s.timelog.conflictedTimers?.length))
         fail(409, '请先结束已有计时');
       const work = startTimer(
         { ...s.timelog, timer: null, conflictedTimers: [] },
-        input.activityId ?? s.timelog.activities.find((a) => !a.archived)?.id ?? '',
+        activityId(s, input.activityId),
         input.note,
         input.startAt,
+        {
+          ...(open && input.endAt != null ? { plannedEndAt: input.endAt } : {}),
+          tags: input.tags,
+          ...(input.taskId ? { taskId: input.taskId } : {}),
+        },
       );
       createdId = work.timer!.id;
-      work.timer!.tags = input.tags;
-      if (input.taskId) work.timer!.taskId = input.taskId;
-      const result = input.endAt == null ? work : finishTimer(work, input.endAt);
-      if (input.endAt != null) {
+      const result = open ? work : finishTimer(work, input.endAt!);
+      if (!open) {
         result.timer = s.timelog.timer;
         result.conflictedTimers = s.timelog.conflictedTimers;
       }
@@ -188,19 +208,7 @@ export async function handleExtendedRoute(c: Context): Promise<boolean> {
       .strict()
       .parse(await c.readBody(c.request));
     const id = decodeURIComponent(tracking[1]);
-    snapshot = await mutate((s) => {
-      const task = s.tasks.find((t) => t.id === id && !t.deletedAt && !t.completedAt);
-      if (!task) fail(404, '未找到进行中的任务');
-      if (s.timer) fail(409, '请先完成或取消番茄计时');
-      const timelog = startTimer(
-        s.timelog,
-        input.activityId ?? s.timelog.activities.find((a) => !a.archived)?.id ?? '',
-        task!.title,
-        Date.now(),
-      );
-      timelog.timer!.taskId = id;
-      return { ...s, timelog };
-    });
+    snapshot = await mutate((state) => startTaskTimer(state, id, Date.now(), input.activityId));
     send(snapshot.state.timelog.timer, snapshot);
     return true;
   }
@@ -211,8 +219,15 @@ export async function handleExtendedRoute(c: Context): Promise<boolean> {
   if (route === '/schedule' && method === 'PATCH') {
     const input = z
       .object(scheduleSchema.shape)
-      .pick({ semesterStart: true, totalWeeks: true, timeZone: true, holidays: true })
+      .pick({
+        semesterStart: true,
+        totalWeeks: true,
+        timeZone: true,
+        holidays: true,
+        periods: true,
+      })
       .partial()
+      .extend({ periods: coursePeriodsSchema.optional() })
       .strict()
       .parse(await c.readBody(c.request));
     snapshot = await mutate((s) => ({

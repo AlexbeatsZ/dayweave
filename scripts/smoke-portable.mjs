@@ -60,7 +60,8 @@ try {
   browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`, { timeout: 60000 });
   const context = browser.contexts()[0];
   const page = context.pages()[0] ?? (await context.waitForEvent('page'));
-  await expect(page.getByRole('heading', { name: /^今天/, level: 1 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '待办', level: 1 })).toBeVisible();
+  await page.getByRole('button', { name: '新建任务', exact: true }).click();
   await page.getByLabel('新任务标题').fill('单文件便携启动检查');
   await page.getByRole('button', { name: '添加任务', exact: true }).click();
   await expect

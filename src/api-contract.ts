@@ -1,11 +1,13 @@
 import { z } from 'zod';
 import { extraPaths } from './extra-contract.js';
-import { taskSchema, listSchema, stateSchema, timerSchema } from './model.js';
+import { taskSchema, listSchema, stateSchema } from './model.js';
 
 export const taskInputSchema = taskSchema
   .pick({
     title: true,
     notes: true,
+    estimatedMinutes: true,
+    actualMinutes: true,
     listId: true,
     due: true,
     priority: true,
@@ -24,13 +26,9 @@ export const listInputSchema = listSchema
   .partial()
   .required({ name: true })
   .strict();
-export const settingsPatchSchema = stateSchema.shape.settings.partial().strict();
-export const focusInputSchema = z
-  .object({
-    taskId: z.string().nullable().optional(),
-    kind: z.enum(['focus', 'break']).default('focus'),
-    minutes: z.number().int().min(1).max(180).optional(),
-  })
+export const settingsPatchSchema = stateSchema.shape.settings
+  .omit({ focusMinutes: true, breakMinutes: true })
+  .partial()
   .strict();
 
 const json = (schema: z.ZodType) =>
@@ -76,7 +74,7 @@ export const openapi = {
   openapi: '3.0.3',
   info: {
     title: 'Dayweave AI API',
-    version: '0.3.0',
+    version: '0.4.0',
     description:
       '时织 Windows/macOS 本机接口。应用运行时可用；实际地址与令牌见设置或用户数据目录 api.json。默认不对局域网开放。所有写入先持久化再通知界面；DELETE 任务为软删除。',
   },
@@ -102,7 +100,6 @@ export const openapi = {
       Task: json(taskSchema),
       List: json(listSchema),
       State: json(stateSchema),
-      Timer: json(timerSchema),
     },
   },
   paths: {
@@ -150,13 +147,8 @@ export const openapi = {
     },
     '/settings': {
       get: operation('读取偏好'),
-      patch: operation('更新外观与专注设置', settingsPatchSchema),
+      patch: operation('更新外观与日程偏好', settingsPatchSchema),
     },
-    '/focus': { get: operation('读取计时器与最近专注记录') },
-    '/focus/start': { post: operation('开始专注或休息；已有计时时返回 409', focusInputSchema) },
-    '/focus/pause': { post: operation('暂停计时') },
-    '/focus/resume': { post: operation('继续计时') },
-    '/focus/cancel': { post: operation('取消计时，不计入专注记录') },
     '/stats': { get: operation('读取近七天统计与累计值') },
     '/export': { get: operation('导出完整 v1 JSON 数据（不含 API 令牌）') },
     '/import': { post: operation('合并导入完整 v1 JSON 数据', stateSchema) },

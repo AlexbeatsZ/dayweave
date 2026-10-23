@@ -32,7 +32,7 @@ async function launch() {
     timeout: 30000,
   });
   const page = await app.firstWindow();
-  await expect(page.getByRole('heading', { name: /^今天/, level: 1 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '待办', level: 1 })).toBeVisible();
   return page;
 }
 try {
@@ -45,11 +45,13 @@ try {
     true,
   );
   assert.equal(await page.evaluate(() => typeof window.require), 'undefined');
+  await page.getByRole('button', { name: '新建任务', exact: true }).click();
   await page.getByLabel('新任务标题').fill('桌面持久化检查');
   await page.getByRole('button', { name: '添加任务', exact: true }).click();
   await expect.poll(async () => (await readSavedState())?.tasks.length).toBe(1);
   await page.getByRole('button', { name: '编辑 桌面持久化检查', exact: true }).click();
   await page.getByLabel('任务备注').fill('关闭窗口前的最后一次编辑');
+  await page.getByRole('button', { name: '保存任务', exact: true }).click();
   // Exercise the real window close handshake rather than terminating the process.
   const closed = app.waitForEvent('close');
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].close());
@@ -65,6 +67,7 @@ try {
   await page.getByRole('button', { name: '编辑 桌面持久化检查', exact: true }).click();
   await expect(page.getByLabel('任务备注')).toHaveValue('关闭窗口前的最后一次编辑');
   await page.getByLabel('任务备注').fill('生成新备份');
+  await page.getByRole('button', { name: '保存任务', exact: true }).click();
   await expect.poll(async () => (await readSavedState())?.tasks[0]?.notes).toBe('生成新备份');
   await app.close();
   app = undefined;

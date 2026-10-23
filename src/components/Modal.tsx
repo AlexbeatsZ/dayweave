@@ -8,12 +8,14 @@ export function Modal({
   children,
   sheet = false,
   wide = false,
+  drawer = false,
 }: {
   title: string;
   close: () => void;
   children: ReactNode;
   sheet?: boolean;
   wide?: boolean;
+  drawer?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null),
     closeRef = useRef(close);
@@ -38,7 +40,7 @@ export function Modal({
   return (
     <dialog
       ref={ref}
-      className={sheet ? 'phone-sheet' : wide ? 'wide-dialog' : ''}
+      className={drawer ? 'phone-drawer' : sheet ? 'phone-sheet' : wide ? 'wide-dialog' : ''}
       aria-label={title}
       onCancel={(event) => {
         event.preventDefault();

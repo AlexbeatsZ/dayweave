@@ -9,6 +9,7 @@ import {
 export type Nature = 'positive' | 'neutral' | 'negative';
 export type Span = { start: number; end: number };
 export type Activity = {
+  deletedAt?: number;
   id: string;
   name: string;
   color: string;
@@ -30,6 +31,7 @@ export type TimeRecord = {
   updatedAt: number;
 };
 export type Timer = {
+  plannedEndAt?: number | null;
   taskId?: string;
   id: string;
   activityId: string;
@@ -73,7 +75,7 @@ export type State = {
   redemptions: Redemption[];
   timer: Timer | null;
   conflictedTimers?: Timer[];
-  settings: { weekStartsOn: 1; updatedAt: number };
+  settings: { weekStartsOn: 1; updatedAt: number; timerPresets?: number[] };
 };
 export type Backup = {
   format: 'open-timelog';
@@ -163,7 +165,7 @@ export function initialState(): State {
     rewards: [],
     redemptions: [],
     timer: null,
-    settings: { weekStartsOn: 1, updatedAt: at },
+    settings: { weekStartsOn: 1, updatedAt: at, timerPresets: [5, 30, 45, 60] },
   };
 }
 export const duration = (spans: Span[]) =>
@@ -171,12 +173,30 @@ export const duration = (spans: Span[]) =>
 export function liveSpans(timer: Timer, now: number): Span[] {
   return timer.runningSince === null
     ? timer.spans
-    : [...timer.spans, { start: timer.runningSince, end: Math.max(timer.runningSince, now) }];
+    : [
+        ...timer.spans,
+        {
+          start: timer.runningSince,
+          end: Math.max(timer.runningSince, Math.min(now, timer.plannedEndAt ?? Infinity)),
+        },
+      ];
 }
-export function startTimer(state: State, activityId: string, note: string, now: number): State {
+export const activeActivity = (activity: Activity) => !activity.archived && !activity.deletedAt;
+export function startTimer(
+  state: State,
+  activityId: string,
+  note: string,
+  now: number,
+  options: { plannedEndAt?: number | null; taskId?: string; tags?: string[] } = {},
+): State {
   if (state.timer || state.conflictedTimers?.length)
     throw new Error('已有计时，请先保存当前计时。');
-  const activity = state.activities.find((item) => item.id === activityId && !item.archived);
+  if (
+    options.plannedEndAt != null &&
+    (!Number.isFinite(options.plannedEndAt) || options.plannedEndAt - now < 1000)
+  )
+    throw new Error('倒计时至少需要一秒。');
+  const activity = state.activities.find((item) => item.id === activityId && activeActivity(item));
   if (!activity) throw new Error('请选择可用的活动。');
   return {
     ...state,
@@ -190,11 +210,18 @@ export function startTimer(state: State, activityId: string, note: string, now: 
       pointsPerHour: activity.pointsPerHour,
       nature: activity.nature,
       startedAt: now,
+      ...options,
     },
   };
 }
 export function toggleTimer(state: State, now: number): State {
   if (!state.timer) return state;
+  if (
+    state.timer.runningSince !== null &&
+    state.timer.plannedEndAt != null &&
+    now >= state.timer.plannedEndAt
+  )
+    return finishTimer(state, state.timer.plannedEndAt);
   const timer = state.timer;
   if (timer.runningSince !== null && now < timer.runningSince)
     throw new Error('系统时间早于计时开始时间，请校准时间后继续。');
@@ -202,7 +229,16 @@ export function toggleTimer(state: State, now: number): State {
     ...state,
     timer:
       timer.runningSince === null
-        ? { ...timer, runningSince: now }
+        ? {
+            ...timer,
+            runningSince: now,
+            ...(timer.plannedEndAt != null
+              ? {
+                  plannedEndAt:
+                    timer.plannedEndAt + now - (timer.spans.at(-1)?.end ?? timer.startedAt),
+                }
+              : {}),
+          }
         : {
             ...timer,
             runningSince: null,
@@ -235,6 +271,72 @@ export function finishTimer(state: State, now: number): State {
         deletedAt: null,
       },
     ],
+  };
+}
+
+export function finishDueTimer(state: State, now = Date.now()): State {
+  const timer = state.timer;
+  return timer?.runningSince != null && timer.plannedEndAt != null && now >= timer.plannedEndAt
+    ? finishTimer(state, timer.plannedEndAt)
+    : state;
+}
+export function countdownRemaining(timer: Timer, now: number): number {
+  const at = timer.runningSince === null ? (timer.spans.at(-1)?.end ?? timer.startedAt) : now;
+  return Math.max(0, (timer.plannedEndAt ?? at) - at);
+}
+export function adjustTimerStart(state: State, startAt: number, now = Date.now()): State {
+  const timer = state.timer;
+  if (!timer) throw new Error('计时已结束。');
+  if (!Number.isFinite(startAt) || startAt < 946684800000 || startAt > now)
+    throw new Error('开始时间不能晚于现在。');
+  if (timer.plannedEndAt != null && startAt > timer.plannedEndAt - 1000)
+    throw new Error('开始时间必须早于结束时间。');
+  if (timer.spans.length) {
+    if (startAt >= timer.spans[0].end)
+      throw new Error('新开始时间必须早于首段结束时间，暂停间隔会保留。');
+    return {
+      ...state,
+      timer: {
+        ...timer,
+        startedAt: startAt,
+        spans: timer.spans.map((span, index) => (index === 0 ? { ...span, start: startAt } : span)),
+      },
+    };
+  }
+  if (timer.runningSince === null && startAt > timer.startedAt)
+    throw new Error('开始时间不能晚于暂停时间。');
+  return {
+    ...state,
+    timer: {
+      ...timer,
+      startedAt: startAt,
+      runningSince: timer.runningSince === null ? null : startAt,
+      spans:
+        timer.runningSince === null && startAt < timer.startedAt
+          ? [{ start: startAt, end: timer.startedAt }]
+          : [],
+    },
+  };
+}
+export function nextActivity(state: State, activityId: string, at = Date.now()): State {
+  if (!state.timer) throw new Error('没有进行中的活动。');
+  const ended = finishTimer(state, at);
+  return startTimer(ended, activityId, '', at);
+}
+export function deleteActivity(state: State, id: string, at = Date.now()): State {
+  if ([state.timer, ...(state.conflictedTimers ?? [])].some((timer) => timer?.activityId === id))
+    throw new Error('请先结束这个活动的计时。');
+  const referenced = state.records.some((record) => record.activityId === id);
+  return {
+    ...state,
+    goals: state.goals.filter((goal) => goal.activityId !== id),
+    activities: referenced
+      ? state.activities.map((activity) =>
+          activity.id === id
+            ? { ...activity, deletedAt: at, updatedAt: timestamp(activity.updatedAt) }
+            : activity,
+        )
+      : state.activities.filter((activity) => activity.id !== id),
   };
 }
 
@@ -403,6 +505,11 @@ function unique<T extends { id: string }>(items: T[]): T[] {
   if (new Set(items.map((item) => item.id)).size !== items.length) throw new Error('存在重复 ID。');
   return items;
 }
+function presetMinutes(value: unknown) {
+  const minutes = num(value, '分钟', 1, 10080);
+  if (!Number.isInteger(minutes)) throw new Error('倒计时预设须为整数分钟。');
+  return minutes;
+}
 export function validateState(value: unknown): State {
   const root = obj(value, '数据');
   const activities = unique(
@@ -417,6 +524,7 @@ export function validateState(value: unknown): State {
         nature: nature(o.nature),
         pointsPerHour: num(o.pointsPerHour, '积分速率', -100000, 100000),
         archived: bool(o.archived),
+        ...(o.deletedAt === undefined ? {} : { deletedAt: num(o.deletedAt, '删除时间') }),
         updatedAt: num(o.updatedAt, '更新时间'),
       };
     }),
@@ -500,10 +608,21 @@ export function validateState(value: unknown): State {
       spans: spans(o.spans, true),
       runningSince: o.runningSince === null ? null : num(o.runningSince, '计时起点'),
       startedAt: num(o.startedAt, '开始时间'),
+      ...(o.plannedEndAt === undefined
+        ? {}
+        : { plannedEndAt: o.plannedEndAt === null ? null : num(o.plannedEndAt, '计划结束时间') }),
       pointsPerHour: num(o.pointsPerHour, '积分速率', -100000, 100000),
       nature: nature(o.nature),
     };
     if (records.some((record) => record.id === timer!.id)) throw new Error('计时与记录 ID 重复。');
+    if (
+      timer.plannedEndAt != null &&
+      timer.plannedEndAt <=
+        Math.max(timer.startedAt, timer.runningSince ?? 0, ...timer.spans.map((span) => span.end))
+    )
+      throw new Error('结束时间必须晚于开始与已有片段。');
+    if (timer.plannedEndAt != null && duration(liveSpans(timer, timer.plannedEndAt)) < 1000)
+      throw new Error('倒计时至少需要一秒。');
     if (
       timer.spans.some((span) => span.start < timer!.startedAt) ||
       (timer.runningSince !== null &&
@@ -528,6 +647,14 @@ export function validateState(value: unknown): State {
     settings: {
       weekStartsOn: 1,
       updatedAt: num(settings.updatedAt, '设置更新时间'),
+      timerPresets:
+        settings.timerPresets === undefined
+          ? [5, 30, 45, 60]
+          : [
+              ...new Set(
+                list(settings.timerPresets, '倒计时预设', 30, (value) => presetMinutes(value)),
+              ),
+            ],
     },
   };
 }

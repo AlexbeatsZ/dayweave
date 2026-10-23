@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld('clearlist', {
     ].map((method) => [method, (...args) => ipcRenderer.invoke(`sync:${method}`, ...args)]),
   ),
   pickText: () => ipcRenderer.invoke('text:pick'),
+  importFudan: () => ipcRenderer.invoke('fudan:import'),
   exportText: (name, data) => ipcRenderer.invoke('text:export', name, data),
   setTheme: (theme) => ipcRenderer.invoke('theme:set', theme),
   patch: (delta) => ipcRenderer.invoke('store:patch', delta),

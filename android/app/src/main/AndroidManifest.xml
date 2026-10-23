@@ -32,6 +32,10 @@
             <intent-filter><action android:name="android.intent.action.VIEW"/><category android:name="android.intent.category.DEFAULT"/><category android:name="android.intent.category.BROWSABLE"/><data android:scheme="dayweave" android:host="pair"/></intent-filter>
         </activity>
 
+        <activity android:name=".FudanImportActivity" android:exported="false"
+            android:configChanges="orientation|keyboardHidden|screenSize|uiMode"
+            android:theme="@style/AppTheme.NoActionBar" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

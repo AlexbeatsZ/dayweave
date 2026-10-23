@@ -10,8 +10,6 @@ import {
   uid,
   toggleTask,
   mergeImport,
-  finishTimer,
-  remainingSeconds,
   selectTasks,
   statistics,
   type AppState,
@@ -22,7 +20,6 @@ import {
   taskPatchSchema,
   listInputSchema,
   settingsPatchSchema,
-  focusInputSchema,
   openapi,
 } from '../src/api-contract.js';
 import { StateConflict } from '../src/state-delta.js';
@@ -142,7 +139,7 @@ export async function startApi(
       )
         return;
       if (route === '/health' && method === 'GET')
-        return send({ app: 'Dayweave', version: '0.3.3', storage: 'ready' }, snapshot);
+        return send({ app: 'Dayweave', version: '0.4.0', storage: 'ready' }, snapshot);
       if (route === '/openapi.json' && method === 'GET') {
         response.end(JSON.stringify(openapi));
         return;
@@ -296,57 +293,6 @@ export async function startApi(
           },
           snapshot,
         );
-      if (route === '/focus' && method === 'GET') {
-        snapshot = await service.mutate((s) => finishTimer(s));
-        return send(
-          { timer: snapshot.state.timer, sessions: snapshot.state.sessions.slice(-100).reverse() },
-          snapshot,
-        );
-      }
-      if (route === '/focus/start' && method === 'POST') {
-        const input = focusInputSchema.parse(await body(request));
-        snapshot = await mutate((s) => {
-          s = finishTimer(s);
-          if (s.timer) fail(409, 'A timer is already active');
-          const task = input.taskId ? taskAt(s, input.taskId) : null;
-          if (task?.deletedAt || task?.completedAt) fail(409, 'Choose an active task');
-          const duration =
-            (input.minutes ??
-              (input.kind === 'focus' ? s.settings.focusMinutes : s.settings.breakMinutes)) * 60;
-          return {
-            ...s,
-            timer: {
-              id: uid(),
-              taskId: task?.id ?? null,
-              title: input.kind === 'break' ? '休息一下' : (task?.title ?? '自由专注'),
-              kind: input.kind,
-              duration,
-              remaining: duration,
-              endAt: Date.now() + duration * 1000,
-            },
-          };
-        });
-        return send(snapshot.state.timer, snapshot);
-      }
-      if (/^\/focus\/(pause|resume|cancel)$/.test(route) && method === 'POST') {
-        snapshot = await mutate((s) => {
-          s = finishTimer(s);
-          const timer = s.timer;
-          if (!timer) return s;
-          if (route.endsWith('/cancel')) return { ...s, timer: null };
-          return {
-            ...s,
-            timer: {
-              ...timer,
-              remaining: remainingSeconds(timer),
-              endAt: route.endsWith('/pause')
-                ? null
-                : (timer.endAt ?? Date.now() + timer.remaining * 1000),
-            },
-          };
-        });
-        return send(snapshot.state.timer, snapshot);
-      }
       fail(404, 'Route not found');
     } catch (error) {
       const status =

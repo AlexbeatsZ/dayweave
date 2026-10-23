@@ -1,6 +1,8 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { useStore } from './store';
 import { applyTheme } from './theme';
+import { store } from './store';
+import { finishDueTimer } from './timelog/domain';
 
 let clock = Date.now();
 let interval: ReturnType<typeof setInterval> | undefined;
@@ -36,4 +38,22 @@ export function useApplicationTheme() {
     media.addEventListener('change', apply);
     return () => media.removeEventListener('change', apply);
   }, [data.settings.theme, loaded]);
+}
+
+export function useCountdownCompletion() {
+  const { data, loaded } = useStore(),
+    clock = useClock();
+  const timer = data.timelog.timer;
+  useEffect(() => {
+    if (
+      !loaded ||
+      timer?.runningSince == null ||
+      timer.plannedEndAt == null ||
+      clock < timer.plannedEndAt
+    )
+      return;
+    void store
+      .transact((state) => ({ ...state, timelog: finishDueTimer(state.timelog, Date.now()) }))
+      .catch(() => {});
+  }, [loaded, clock, timer?.id, timer?.runningSince, timer?.plannedEndAt]);
 }

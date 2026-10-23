@@ -6,12 +6,10 @@ import {
   dateKey,
   dateSchema,
   emptyState,
-  finishTimer,
   mergeImport,
   newTask,
   nextRepeatDate,
   quadrant,
-  remainingSeconds,
   selectTasks,
   shiftDate,
   stateSchema,
@@ -67,7 +65,7 @@ test('non-recurring and deleted tasks do not spawn follow-ups', () => {
   const deleted = { ...state, tasks: [{ ...task, deletedAt: new Date().toISOString() }] };
   assert.equal(toggleTask(deleted, task.id), deleted);
 });
-test('filters distinguish unscheduled tasks, today including overdue, the next seven days, and trash', () => {
+test('filters distinguish unscheduled tasks, today including overdue, the natural calendar week, and trash', () => {
   const tasks = [
     newTask('Overdue', { due: '2026-10-18' }),
     newTask('Today', { due: '2026-10-19' }),
@@ -147,42 +145,6 @@ test('malformed imports reject duplicate IDs, orphan lists, unknown versions and
   ])
     assert.throws(() => mergeImport(emptyState(), value));
   assert.deepEqual(stateSchema.parse(valid), valid);
-});
-test('timer survives elapsed wall-clock time and records exactly once at the scheduled end time', () => {
-  const end = Date.parse('2026-10-19T12:00:00.000Z');
-  const timer = {
-    id: 'timer',
-    taskId: null,
-    title: 'Deep work',
-    kind: 'focus' as const,
-    duration: 1500,
-    remaining: 1500,
-    endAt: end,
-  };
-  const state = { ...emptyState(), timer };
-  assert.equal(remainingSeconds(timer, end - 1001), 2);
-  const done = finishTimer(state, end + 3600000);
-  assert.equal(done.timer, null);
-  assert.equal(done.sessions.length, 1);
-  assert.equal(done.sessions[0].minutes, 25);
-  assert.equal(done.sessions[0].completedAt, '2026-10-19T12:00:00.000Z');
-  assert.equal(finishTimer(done, end + 3600000), done);
-  assert.equal(finishTimer({ ...state, sessions: done.sessions }, end + 1).sessions.length, 1);
-});
-test('paused timers and breaks do not create focus credit', () => {
-  const timer = {
-    id: 'timer',
-    taskId: null,
-    title: 'Rest',
-    kind: 'break' as const,
-    duration: 300,
-    remaining: 100,
-    endAt: null,
-  };
-  const state: AppState = { ...emptyState(), timer };
-  assert.equal(remainingSeconds(timer, Date.now() + 999999), 100);
-  assert.equal(finishTimer(state), state);
-  assert.equal(finishTimer({ ...state, timer: { ...timer, endAt: 1 } }).sessions.length, 0);
 });
 test('statistics use actual completion dates rather than due dates and exclude trashed tasks', () => {
   const completed = new Date(2026, 9, 19, 12).toISOString();

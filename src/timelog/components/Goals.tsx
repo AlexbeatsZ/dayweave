@@ -7,12 +7,12 @@ export function Goals({
   state,
   date,
   edit,
-  archive,
+  remove,
 }: {
   state: State;
   date: string;
   edit: (goal?: Goal) => void;
-  archive: (goal: Goal) => void;
+  remove: (goal: Goal) => void;
 }) {
   const active = state.goals.filter((goal) => !goal.archived);
   return (
@@ -72,7 +72,7 @@ export function Goals({
                       </summary>
                       <div>
                         <button onClick={() => edit(goal)}>编辑目标</button>
-                        <button onClick={() => archive(goal)}>归档目标</button>
+                        <button onClick={() => remove(goal)}>删除目标</button>
                       </div>
                     </details>
                   </article>

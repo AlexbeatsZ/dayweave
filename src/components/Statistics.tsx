@@ -1,20 +1,30 @@
-import { CheckCheck, Timer, ListTodo, TrendingUp } from 'lucide-react';
-import { fromDateKey, statistics } from '../model';
+import { CheckCheck, CalendarDays, ListTodo, TrendingUp } from 'lucide-react';
+import { dateKey, fromDateKey, shiftDate } from '../model';
 import { useStore } from '../store';
 
 export function Statistics() {
   const { data } = useStore();
-  const days = statistics(data);
+
   const live = data.tasks.filter((t) => !t.deletedAt);
   const completed = live.filter((t) => t.completedAt).length;
-  const minutes = data.sessions.reduce((sum, s) => sum + s.minutes, 0);
+  const planned = live.filter((task) => task.due).length;
+  const days = Array.from({ length: 7 }, (_, index) => {
+    const day = shiftDate(dateKey(), index - 6);
+    return {
+      day,
+      completed: live.filter(
+        (task) => task.completedAt && dateKey(new Date(task.completedAt)) === day,
+      ).length,
+      created: live.filter((task) => dateKey(new Date(task.createdAt)) === day).length,
+    };
+  });
   const rate = live.length ? Math.round((completed / live.length) * 100) : 0;
   return (
     <div className="stats-view">
       <div className="stat-cards">
         {[
           { icon: CheckCheck, label: '累计完成', value: completed, unit: '件' },
-          { icon: Timer, label: '累计专注', value: minutes, unit: '分钟' },
+          { icon: CalendarDays, label: '已安排计划', value: planned, unit: '件' },
           { icon: ListTodo, label: '尚待完成', value: live.length - completed, unit: '件' },
           { icon: TrendingUp, label: '任务完成率', value: rate, unit: '%' },
         ].map(({ icon: Icon, label, value, unit }) => (
@@ -34,7 +44,7 @@ export function Statistics() {
         {(
           [
             { field: 'completed', title: '每天完成一点', unit: '件任务' },
-            { field: 'minutes', title: '把时间留给专注', unit: '分钟' },
+            { field: 'created', title: '新增待办', unit: '件任务' },
           ] as const
         ).map(({ field, title, unit }) => {
           const max = Math.max(1, ...days.map((d) => d[field]));
@@ -78,7 +88,7 @@ export function Statistics() {
             <div className="distribution-row" key={list.id}>
               <span>
                 <i style={{ background: list.color }} />
-                {list.name}
+                {list.id === 'inbox' ? '未分组' : list.name}
               </span>
               <div className="progress-track">
                 <div
@@ -96,7 +106,7 @@ export function Statistics() {
         })}
       </section>
       <p className="stats-note">
-        统计来自你的任务与已完成的专注记录。回收站中的任务不计入任务统计。
+        统计包含全部未删除待办；完成率与清单进度按全部历史计算，上图展示最近七天的变化。
       </p>
     </div>
   );

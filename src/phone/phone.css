@@ -1,4 +1,4 @@
-/* A dedicated phone shell; desktop and tablet retain their own layout. */
+/* Shared page styles; desktop.css adapts the shell above the phone breakpoint. */
 .native-mobile,
 .phone-shell {
   --safe-top: max(env(safe-area-inset-top, 0px), var(--safe-area-inset-top, 0px));
@@ -44,22 +44,17 @@
   gap: 4px;
 }
 .phone-header h1 {
-  font-size: 17px;
+  font-size: 24px;
   font-weight: 650;
   flex: 1;
   margin: 0;
+  letter-spacing: 0.02em;
+}
+.phone-header-line {
+  min-height: 54px;
 }
 .phone-header.has-tabs {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0 8px;
-}
-.phone-header.has-tabs h1 {
-  font-size: 15px;
-}
-.phone-header.has-tabs .phone-header-line {
-  flex: 0 0 auto;
+  display: block;
 }
 .phone-tabs {
   display: flex;
@@ -72,9 +67,9 @@
   flex: 1;
   min-width: 0;
   padding: 0 8px;
-  min-height: 48px;
+  min-height: 44px;
   position: relative;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--muted);
   white-space: nowrap;
 }
@@ -1558,4 +1553,120 @@
 }
 .phone-content {
   touch-action: pan-y;
+}
+
+.phone-layout-switch {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--input);
+}
+.phone-layout-switch button {
+  min-height: 34px;
+  padding: 4px 8px;
+  color: var(--muted);
+  border-radius: 7px;
+  font-size: 12px;
+}
+.phone-layout-switch [aria-pressed='true'] {
+  background: var(--card);
+  color: var(--accent);
+}
+.phone-plan-day {
+  margin: 12px 0;
+  padding: 8px 0;
+}
+.phone-plan-day h3 {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 0 0 8px;
+}
+.phone-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 20px 0;
+}
+.phone-summary-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.phone-summary-grid strong {
+  font-size: 21px;
+  font-variant-numeric: tabular-nums;
+}
+.phone-summary-grid span {
+  color: var(--muted);
+  font-size: 12px;
+}
+.phone-stat-link {
+  color: var(--accent);
+  min-height: 44px;
+}
+.phone-filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0;
+}
+.phone-shell .phone-record-toolbar .phone-week {
+  width: 100%;
+  margin: 0;
+  padding: 0 0 10px;
+  border-radius: 0;
+}
+.phone-shell .phone-record-toolbar .panel-toolbar {
+  display: block;
+}
+.phone-shell .phone-section-heading {
+  flex-wrap: wrap;
+}
+.phone-shell .timer-related {
+  margin: 14px 0;
+  padding: 16px;
+  background: var(--card);
+  border-radius: 18px;
+}
+.phone-shell .timer-related label {
+  font-size: 13px;
+}
+.phone-shell .activity-clock-ring {
+  width: 210px;
+}
+
+.task-effort-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.task-effort-fields .form-label {
+  min-width: 0;
+}
+.task-effort-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.task-effort-input input {
+  width: 100%;
+  padding-right: 48px;
+}
+.task-effort-input > span {
+  position: absolute;
+  right: 12px;
+  color: var(--muted);
+  font-size: 12px;
+  pointer-events: none;
+}
+.task-effort-reference {
+  margin: -2px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.task-effort-meta {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }

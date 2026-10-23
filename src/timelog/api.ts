@@ -1,6 +1,9 @@
 import { buildTimeline, fillAdjacentGap, lastRecordEnd } from './timeline.js';
 import {
   balance,
+  activeActivity,
+  adjustTimerStart,
+  deleteActivity,
   dayKey,
   dayRange,
   finishTimer,
@@ -10,6 +13,7 @@ import {
   makeBackup,
   newId,
   natureLabels,
+  nextActivity,
   startTimer,
   stats,
   timestamp,
@@ -67,6 +71,23 @@ function range(url: URL) {
     fail(400, 'date must be a real local YYYY-MM-DD date');
   return { date, ...dayRange(date) };
 }
+function timerStart(body: Record<string, unknown>, state: State, now: number) {
+  if (body.startAt !== undefined && body.fromPreviousRecord === true)
+    fail(400, 'Choose startAt or fromPreviousRecord');
+  const start = bool(body.fromPreviousRecord)
+    ? lastRecordEnd(state, now)
+    : number(body.startAt, now);
+  if (!start) return fail(409, 'No previous record to continue from');
+  if (start < 946684800000 || start > now) fail(400, 'startAt must be a past UTC epoch instant');
+  return start;
+}
+function plannedEnd(body: Record<string, unknown>, start: number, now: number) {
+  if (body.endAt == null) return null;
+  const end = number(body.endAt);
+  if (end <= now || end - start < 1000)
+    fail(400, 'endAt must be in the future and at least one second after startAt');
+  return end;
+}
 
 export async function handleApi(
   request: ApiRequest,
@@ -112,6 +133,7 @@ export async function handleApi(
             elapsedMs: state.timer ? duration(liveSpans(state.timer, Date.now())) : 0,
           },
         };
+      if (resource === 'settings' && !itemId) return { status: 200, body: state.settings };
       if (resource === 'stats' && !itemId) {
         const period = range(url);
         return {
@@ -120,7 +142,7 @@ export async function handleApi(
         };
       }
       if (resource === 'activities') {
-        const items = state.activities;
+        const items = state.activities.filter((row) => !row.deletedAt);
         const item = itemId && items.find((row) => row.id === itemId);
         if (itemId && !item) fail(404, 'Activity not found');
         return { status: 200, body: item || { items, total: items.length } };
@@ -177,17 +199,63 @@ export async function handleApi(
     let result: unknown;
     await mutateState((state) => {
       const now = Date.now();
+      if (resource === 'settings' && !itemId && method === 'PATCH') {
+        expected(body, state.settings);
+        if (!Array.isArray(body.timerPresets) || body.timerPresets.length > 30)
+          fail(400, 'timerPresets must contain at most 30 durations in minutes');
+        const timerPresets = [
+          ...new Set(
+            (body.timerPresets as unknown[]).map((value) => {
+              const minutes = number(value);
+              if (!Number.isInteger(minutes) || minutes < 1 || minutes > 10080)
+                fail(400, 'Preset minutes must be integers in 1..10080');
+              return minutes;
+            }),
+          ),
+        ];
+        const settings = {
+          ...state.settings,
+          timerPresets,
+          updatedAt: timestamp(state.settings.updatedAt),
+        };
+        result = settings;
+        return { ...state, settings };
+      }
       if (resource === 'timer' && method === 'POST') {
         if (itemId === 'start') {
-          const start = bool(body.fromPreviousRecord) ? lastRecordEnd(state, now) : now;
-          if (!start) fail(409, 'No previous record to continue from');
-          const next = startTimer(state, text(body.activityId), text(body.note), start);
+          if (state.timer || state.conflictedTimers?.length)
+            fail(409, 'Finish the current timer before starting another');
+          const start = timerStart(body, state, now);
+          const next = startTimer(state, text(body.activityId), text(body.note), start, {
+            plannedEndAt: plannedEnd(body, start, now),
+            ...(body.taskId == null ? {} : { taskId: text(body.taskId) }),
+            ...(body.tags === undefined ? {} : { tags: body.tags as string[] }),
+          });
           result = next.timer;
           return next;
         }
         if (!state.timer) return fail(409, 'No active timer');
         if (body.timerId !== state.timer.id)
           return fail(409, 'timerId does not match the active timer');
+        if (itemId === 'configure') {
+          let next =
+            body.startAt !== undefined || body.fromPreviousRecord === true
+              ? adjustTimerStart(state, timerStart(body, state, now), now)
+              : state;
+          const timer = { ...next.timer! };
+          if (body.endAt !== undefined) timer.plannedEndAt = plannedEnd(body, timer.startedAt, now);
+          if (body.note !== undefined) timer.note = text(body.note);
+          if (body.tags !== undefined) timer.tags = body.tags as string[];
+          if (body.taskId === null) delete timer.taskId;
+          else if (body.taskId !== undefined) timer.taskId = text(body.taskId);
+          result = timer;
+          return { ...next, timer };
+        }
+        if (itemId === 'next') {
+          const next = nextActivity(state, text(body.activityId), now);
+          result = next.timer;
+          return next;
+        }
         if (itemId === 'pause' || itemId === 'resume') {
           const already =
             itemId === 'pause'
@@ -209,11 +277,19 @@ export async function handleApi(
         return fail(404, 'Timer action not found');
       }
       if (resource === 'activities') {
-        const previous = itemId ? state.activities.find((row) => row.id === itemId) : undefined;
+        const previous = itemId
+          ? state.activities.find((row) => row.id === itemId && !row.deletedAt)
+          : undefined;
         if (itemId && !previous) fail(404, 'Activity not found');
         if (previous) expected(body, previous);
         if ((!itemId && method !== 'POST') || (itemId && !['PATCH', 'DELETE'].includes(method)))
           fail(405, 'Method not allowed');
+        if (method === 'DELETE') {
+          const next = deleteActivity(state, itemId!, now);
+          result = { deleted: itemId };
+          return next;
+        }
+        if (body.archived !== undefined) fail(400, 'Use DELETE to remove an activity');
         const nature = text(body.nature, previous?.nature || 'positive') as Nature;
         if (!(nature in natureLabels)) fail(400, 'nature must be positive, neutral or negative');
         const raw = number(body.pointsPerHour, previous?.pointsPerHour ?? 20);
@@ -224,11 +300,9 @@ export async function handleApi(
           nature,
           pointsPerHour:
             nature === 'neutral' ? 0 : nature === 'negative' ? -Math.abs(raw) : Math.abs(raw),
-          archived: method === 'DELETE' ? true : bool(body.archived, previous?.archived),
+          archived: false,
           updatedAt: timestamp(previous?.updatedAt),
         };
-        if (state.timer?.activityId === item.id && item.archived)
-          fail(409, 'Save the active timer before archiving its activity');
         result = item;
         return {
           ...state,
@@ -268,6 +342,8 @@ export async function handleApi(
         const activityId = text(body.activityId, previous?.activityId),
           activity = state.activities.find((row) => row.id === activityId);
         if (!activity) return fail(400, 'Unknown activityId');
+        if (!activeActivity(activity) && previous?.activityId !== activityId)
+          return fail(400, 'Choose an available activity');
         const spans = body.spans === undefined ? previous?.spans : body.spans;
         if (!Array.isArray(spans) || !spans.length) fail(400, 'spans is required');
         const same = previous?.activityId === activityId;
@@ -309,10 +385,15 @@ export async function handleApi(
         if (previous) expected(body, previous);
         if ((!itemId && method !== 'POST') || (itemId && !['PATCH', 'DELETE'].includes(method)))
           fail(405, 'Method not allowed');
+        if (method === 'DELETE') {
+          result = { deleted: itemId };
+          return { ...state, goals: state.goals.filter((goal) => goal.id !== itemId) };
+        }
+        if (body.archived !== undefined) fail(400, 'Use DELETE to remove a goal');
         const base = {
           id: previous?.id || newId(),
           name: text(body.name, previous?.name),
-          archived: method === 'DELETE' ? true : bool(body.archived, previous?.archived),
+          archived: false,
           updatedAt: timestamp(previous?.updatedAt),
         };
         const old = previous as Goal | undefined;

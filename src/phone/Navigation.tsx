@@ -1,5 +1,6 @@
-import { useRef, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, type ReactNode, type RefObject } from 'react';
 import { Plus } from 'lucide-react';
+import './drag.css';
 
 export type PhoneTab<T extends string = string> = { id: T; label: string; count?: number };
 
@@ -26,6 +27,7 @@ export function useSwipeTabs<T extends string>(
     onTouchEnd(event: React.TouchEvent) {
       const previous = start.current;
       start.current = null;
+      if (event.defaultPrevented || document.body.classList.contains('task-sort-active')) return;
       if (!previous || !event.changedTouches.length) return;
       const touch = event.changedTouches[0],
         dx = touch.clientX - previous.x,
@@ -40,6 +42,39 @@ export function useSwipeTabs<T extends string>(
       start.current = null;
     },
   };
+}
+
+// Animate the existing content element rather than keying/remounting it: scroll
+// ownership, record timers and unsaved editor state must survive a tab change.
+export function useTabTransition(
+  ref: RefObject<HTMLElement | null>,
+  value: string,
+  order: readonly string[] = [],
+) {
+  const previous = useRef(value);
+  useLayoutEffect(() => {
+    const before = previous.current;
+    previous.current = value;
+    const element = ref.current;
+    if (
+      before === value ||
+      !element ||
+      !element.animate ||
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    )
+      return;
+    const from = order.indexOf(before);
+    const to = order.indexOf(value);
+    const direction = from >= 0 && to >= 0 && to < from ? -1 : 1;
+    const animation = element.animate(
+      [
+        { opacity: 0.65, transform: `translateX(${direction * 18}px)` },
+        { opacity: 1, transform: 'translateX(0)' },
+      ],
+      { duration: 180, easing: 'cubic-bezier(.2,.7,.2,1)' },
+    );
+    return () => animation.cancel();
+  }, [ref, value]);
 }
 
 export function PhoneTabs<T extends string>({

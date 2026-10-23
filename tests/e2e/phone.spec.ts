@@ -82,14 +82,16 @@ test('compact shared tabs swipe both ways, goals group densely, and all add butt
   page,
 }, info) => {
   await seed(page);
-  expect((await page.locator('.phone-header').boundingBox())!.height).toBeLessThanOrEqual(52);
+  expect((await page.locator('.phone-header').boundingBox())!.height).toBeLessThanOrEqual(100);
   await expect(page.getByRole('button', { name: '搜索任务' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: '切换深浅主题' })).toHaveCount(0);
   await expect(page.locator('.phone-nav > button')).toHaveCount(4);
   await swipe(page, 'left');
+  await expect(page.getByRole('tab', { name: '周计划' })).toHaveAttribute('aria-selected', 'true');
+  await swipe(page, 'left');
   await expect(page.getByRole('tab', { name: /^全部/ })).toHaveAttribute('aria-selected', 'true');
   await swipe(page, 'left');
-  await expect(page.getByRole('tab', { name: /^收集箱/ })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('tab', { name: /^待办箱/ })).toHaveAttribute('aria-selected', 'true');
   await swipe(page, 'right');
   await expect(page.getByRole('tab', { name: /^全部/ })).toHaveAttribute('aria-selected', 'true');
   const appearance = () =>
@@ -265,12 +267,12 @@ test('week, task sheet, subtasks and no-date placement persist in the unified st
   await page.screenshot({ path: info.outputPath('phone-task-sheet.png') });
   await sheet.getByRole('button', { name: '添加任务', exact: true }).tap();
   await expect(sheet).not.toBeVisible();
-  await page.getByRole('tab', { name: /^收集箱/ }).tap();
+  await page.getByRole('tab', { name: /^待办箱/ }).tap();
   await page.getByRole('button', { name: '编辑 手机上安排下一步', exact: true }).tap();
-  const detail = page.getByRole('complementary', { name: '任务详情' });
+  const detail = page.getByRole('dialog', { name: '编辑任务' });
   await expect(detail.getByLabel('任务备注')).toHaveValue('写下明确的行动');
   await expect(detail.getByRole('checkbox', { name: '子任务 读完第一节' })).toBeVisible();
-  expect((await detail.boundingBox())!.width).toBe(390);
+  expect((await detail.boundingBox())!.width).toBeLessThanOrEqual(390);
   await page.evaluate(() =>
     document.dispatchEvent(new CustomEvent('clearlist:back', { cancelable: true })),
   );
@@ -338,8 +340,8 @@ test('timer pause, cross-page dock, stop and analysis share one record identity'
   await page.locator('.phone-timer-dock > button').first().tap();
   await page.getByRole('button', { name: '继续', exact: true }).tap();
   await page.screenshot({ path: info.outputPath('phone-timer.png') });
-  await expect(page.getByRole('button', { name: '结束并保存', exact: true })).toBeEnabled();
-  await page.getByRole('button', { name: '结束并保存', exact: true }).tap();
+  await expect(page.getByRole('button', { name: '完成', exact: true })).toBeEnabled();
+  await page.getByRole('button', { name: '完成', exact: true }).tap();
   const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('dayweave.v1')!));
   expect(stored.timelog.timer).toBeNull();
   expect(stored.timelog.records.filter((r: { id: string }) => r.id === timerId)).toHaveLength(1);
@@ -347,9 +349,10 @@ test('timer pause, cross-page dock, stop and analysis share one record identity'
   await expect(page.locator('.record-card').filter({ hasText: '手机端计时验收' })).toHaveCount(
     saved.spans.length,
   );
-  await page.getByRole('button', { name: '手机更多', exact: true }).tap();
-  await page.getByRole('button', { name: '时间分析', exact: true }).tap();
-  await expect(page.getByRole('img', { name: '24小时活动分布' })).toBeVisible();
+  await page.getByRole('button', { name: '手机统计', exact: true }).tap();
+  await page.getByRole('tab', { name: '记录', exact: true }).tap();
+  await expect(page.getByRole('img', { name: '24小时活动分布' })).toHaveCount(0);
+  await expect(page.locator('.phone-analysis')).toBeVisible();
   await expect(page.locator('.toast')).not.toBeVisible();
   await page.screenshot({ path: info.outputPath('phone-analysis.png') });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -396,8 +399,8 @@ test('rejected operations allow subsequent saves and analytics retain historical
   await save.tap();
   await expect(sheet).not.toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.getByRole('button', { name: '手机更多', exact: true }).tap();
-  await page.getByRole('button', { name: '时间分析', exact: true }).tap();
+  await page.getByRole('button', { name: '手机统计', exact: true }).tap();
+  await page.getByRole('tab', { name: '记录', exact: true }).tap();
   await expect(page.getByRole('img', { name: '积极活动占比 100%' })).toBeVisible();
 });
 
@@ -405,7 +408,7 @@ test('light, system theme, 360px goals and desktop breakpoint remain usable', as
   page,
 }, info) => {
   await seed(page);
-  await page.getByRole('button', { name: '手机更多' }).tap();
+  await page.getByRole('button', { name: '打开导航' }).tap();
   await page.getByRole('button', { name: '设置与同步', exact: true }).tap();
   await page.getByRole('button', { name: '浅色', exact: true }).tap();
   await page.getByRole('button', { name: '关闭设置' }).tap();
@@ -416,16 +419,23 @@ test('light, system theme, 360px goals and desktop breakpoint remain usable', as
   await page.getByRole('tab', { name: '目标', exact: true }).tap();
   await expect(page.locator('.goal-card')).toContainText('每天读一点');
   await page.screenshot({ path: info.outputPath('phone-goals.png') });
-  await page.getByRole('button', { name: '手机课表', exact: true }).tap();
-  await expect(page.locator('.course-day-tabs')).toBeVisible();
+  await page.getByRole('button', { name: '手机安排', exact: true }).tap();
+  await page.getByRole('tab', { name: '课程表' }).tap();
+  await expect(page.getByRole('region', { name: '每周课程表' })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.getByRole('button', { name: '手机更多' }).tap();
+  await page.getByRole('button', { name: '打开导航' }).tap();
   await page.getByRole('button', { name: '设置与同步', exact: true }).tap();
   await page.getByRole('button', { name: '跟随系统', exact: true }).tap();
   await page.emulateMedia({ colorScheme: 'dark' });
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await page.getByRole('button', { name: '关闭设置' }).tap();
   await page.setViewportSize({ width: 1100, height: 850 });
-  await expect(page.locator('.app-shell')).toBeVisible();
-  await expect(page.locator('.phone-shell')).toHaveCount(0);
+  await expect(page.locator('[data-layout="desktop"]')).toBeVisible();
+  await expect(page.getByRole('navigation', { name: '主导航' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '打开导航', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('tab', { name: '课程表', exact: true })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await expect(page.getByRole('region', { name: '每周课程表' })).toBeVisible();
 });

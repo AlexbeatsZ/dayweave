@@ -4,6 +4,7 @@ export interface NativeFiles {
   read(options: { name: string }): Promise<{ content: string | null }>;
   write(options: { name: string; content: string }): Promise<void>;
   pickBackup(): Promise<{ content: string | null }>;
+  importFudan(): Promise<{ content: string | null }>;
   exportBackup(options: {
     content: string;
     name: string;

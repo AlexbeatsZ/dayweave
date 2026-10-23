@@ -11,9 +11,12 @@ import {
   FolderOpen,
   ShieldCheck,
 } from 'lucide-react';
-import { colors, uid, type AppState, type TaskList } from '../model';
+import { colors, uid, defaultTaskActivity, type AppState, type TaskList } from '../model';
 import { store, useStore } from '../store';
 import { useDialogFocus } from './useDialogFocus';
+import { ColorPicker } from './ColorPicker';
+import { activeActivity } from '../timelog/domain';
+import { Modal } from './Modal';
 import { SyncSettings } from './SyncSettings';
 
 export function Settings({
@@ -92,50 +95,6 @@ export function Settings({
                 </button>
               ))}
             </div>
-          </section>
-          <section className="settings-section">
-            <h3>专注节奏</h3>
-            <div className="duration-settings">
-              <label>
-                专注时长
-                <div>
-                  <input
-                    key={`focus-${settings.focusMinutes}`}
-                    aria-label="专注时长"
-                    type="number"
-                    min={1}
-                    max={180}
-                    defaultValue={settings.focusMinutes}
-                    onBlur={(e) => {
-                      const n = Number(e.target.value);
-                      if (Number.isInteger(n) && n >= 1 && n <= 180) update({ focusMinutes: n });
-                      else e.target.value = String(settings.focusMinutes);
-                    }}
-                  />
-                  分钟
-                </div>
-              </label>
-              <label>
-                休息时长
-                <div>
-                  <input
-                    key={`break-${settings.breakMinutes}`}
-                    aria-label="休息时长"
-                    type="number"
-                    min={1}
-                    max={60}
-                    defaultValue={settings.breakMinutes}
-                    onBlur={(e) => {
-                      const n = Number(e.target.value);
-                      if (Number.isInteger(n) && n >= 1 && n <= 60) update({ breakMinutes: n });
-                      else e.target.value = String(settings.breakMinutes);
-                    }}
-                  />
-                  分钟
-                </div>
-              </label>
-            </div>
-            <p className="field-hint">新时长会用于下一次计时。</p>
           </section>
           <section className="settings-section">
             <h3>日程时区</h3>
@@ -295,7 +254,7 @@ export function Settings({
                   </div>
                   <p className="field-hint">
                     使用 Bearer 令牌，只允许本机访问。接口文档位于项目
-                    docs/api/，支持任务、清单、专注与统计。
+                    docs/api/，支持任务、清单、时间记录与统计。
                   </p>
                 </>
               ) : (
@@ -311,7 +270,7 @@ export function Settings({
             </span>
             <div>
               <strong>
-                时织 <span>Dayweave 0.3.3</span>
+                时织 <span>Dayweave 0.4.0</span>
               </strong>
               <p>
                 <ShieldCheck size={12} />
@@ -336,104 +295,135 @@ export function ListModal({
 }) {
   const [name, setName] = useState(list?.name ?? '');
   const [color, setColor] = useState(list?.color ?? colors[0]);
+  const { data } = useStore();
+  const [activityId, setActivityId] = useState(list?.activityId ?? '');
   const [deleting, setDeleting] = useState(false);
-  const dialogRef = useDialogFocus();
+  const [busy, setBusy] = useState(false),
+    [error, setError] = useState('');
+  async function save(action: () => Promise<unknown>, message: string) {
+    if (busy) return;
+    setBusy(true);
+    setError('');
+    try {
+      await action();
+      onSaved(message);
+      onClose();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
-    <div
-      className="modal-backdrop"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <section
-        ref={dialogRef}
-        className="modal list-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="list-modal-title"
+    <Modal title={list ? '编辑清单' : '新的清单'} close={onClose}>
+      <form
+        className="modal-body"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          if (!name.trim()) return;
+          await save(
+            () =>
+              store.transact((s) => ({
+                ...s,
+                lists: list
+                  ? s.lists.map((l) =>
+                      l.id === list.id
+                        ? { ...l, name: name.trim(), color, activityId: activityId || null }
+                        : l,
+                    )
+                  : [
+                      ...s.lists,
+                      {
+                        id: uid(),
+                        name: name.trim(),
+                        color,
+                        activityId: activityId || null,
+                        order: Date.now(),
+                      },
+                    ],
+              })),
+            list ? '清单已更新' : '清单已创建',
+          );
+        }}
       >
-        <header className="modal-header">
-          <h2 id="list-modal-title">{list ? '编辑清单' : '新的清单'}</h2>
-          <button className="icon-button" aria-label="关闭清单编辑" onClick={onClose}>
-            <X size={19} />
-          </button>
-        </header>
-        <form
-          className="modal-body"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!name.trim()) return;
-            store.update((s) => ({
-              ...s,
-              lists: list
-                ? s.lists.map((l) => (l.id === list.id ? { ...l, name: name.trim(), color } : l))
-                : [...s.lists, { id: uid(), name: name.trim(), color, order: Date.now() }],
-            }));
-            onSaved(list ? '清单已更新' : '清单已创建');
-            onClose();
-          }}
-        >
-          <label className="form-label">
-            清单名称
-            <input
-              autoFocus
-              aria-label="清单名称"
-              className="text-input"
-              placeholder="例如：工作、生活、想学的事"
-              maxLength={60}
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-          </label>
-          <span className="form-label">清单颜色</span>
-          <div className="color-choices">
-            {colors.map((value) => (
-              <button
-                className={color === value ? 'selected-color' : ''}
-                style={{ background: value }}
-                type="button"
-                key={value}
-                aria-label={`颜色 ${value}`}
-                onClick={() => setColor(value)}
-              >
-                {color === value && <Check size={15} />}
-              </button>
+        <label className="form-label">
+          清单名称
+          <input
+            autoFocus
+            aria-label="清单名称"
+            className="text-input"
+            placeholder="例如：工作、生活、想学的事"
+            maxLength={60}
+            required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+        </label>
+        <span className="form-label">清单颜色</span>
+        <ColorPicker value={color} onChange={setColor} label="清单颜色" />
+        <label className="form-label">
+          默认计时活动
+          <select
+            className="text-input"
+            aria-label="清单计时活动"
+            value={activityId}
+            onChange={(event) => setActivityId(event.target.value)}
+          >
+            <option value="">
+              自动匹配
+              {defaultTaskActivity(name.trim())
+                ? ` · ${defaultTaskActivity(name.trim())}`
+                : ' · 学习'}
+            </option>
+            {data.timelog.activities.filter(activeActivity).map((activity) => (
+              <option key={activity.id} value={activity.id}>
+                {activity.name}
+              </option>
             ))}
-          </div>
-          {deleting && <p className="form-error">删除清单后，其中的任务将移到收集箱。</p>}
-          <footer className="list-modal-footer">
-            {list && (
-              <button
-                className="text-button danger"
-                type="button"
-                onClick={() => {
-                  if (!deleting) {
-                    setDeleting(true);
-                    return;
-                  }
-                  store.update((s) => ({
-                    ...s,
-                    lists: s.lists.filter((l) => l.id !== list.id),
-                    tasks: s.tasks.map((t) =>
-                      t.listId === list.id
-                        ? { ...t, listId: 'inbox', updatedAt: new Date().toISOString() }
-                        : t,
-                    ),
-                  }));
-                  onSaved('清单已删除，任务已移到收集箱');
-                  onClose();
-                }}
-              >
-                {deleting ? '确认删除清单' : '删除清单'}
-              </button>
-            )}
-            <button className="button primary" disabled={!name.trim()} type="submit">
-              {list ? '保存清单' : '创建清单'}
+          </select>
+        </label>
+        <p className="field-hint">学习→学习，工作→实操，生活→日常。也可以为任意清单指定活动。</p>
+        {error && (
+          <p className="form-error" role="alert">
+            {error}
+          </p>
+        )}
+        {deleting && (
+          <p className="form-error">删除清单后，其中的任务将移到未分组，计划日期保持不变。</p>
+        )}
+        <footer className="list-modal-footer">
+          {list && (
+            <button
+              className="text-button danger"
+              type="button"
+              onClick={async () => {
+                if (!deleting) {
+                  setDeleting(true);
+                  return;
+                }
+                await save(
+                  () =>
+                    store.transact((s) => ({
+                      ...s,
+                      lists: s.lists.filter((l) => l.id !== list.id),
+                      tasks: s.tasks.map((task) =>
+                        task.listId === list.id
+                          ? { ...task, listId: 'inbox', updatedAt: new Date().toISOString() }
+                          : task,
+                      ),
+                    })),
+                  '清单已删除，任务已移到未分组',
+                );
+              }}
+            >
+              {deleting ? '确认删除清单' : '删除清单'}
             </button>
-          </footer>
-        </form>
-      </section>
-    </div>
+          )}
+          <button className="button primary" disabled={busy || !name.trim()} type="submit">
+            {list ? '保存清单' : '创建清单'}
+          </button>
+        </footer>
+      </form>
+    </Modal>
   );
 }

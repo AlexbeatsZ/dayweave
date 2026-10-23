@@ -293,20 +293,43 @@ test('soft deletion and list removal preserve task data and support restoration'
     assert.equal(state.tasks[0].title, 'Keep me');
     assert.equal((await request('DELETE', '/lists/inbox')).status, 409);
   }));
-test('focus actions reject overlapping starts and keep pause/resume/cancel consistent', async () =>
+test('removed Pomodoro routes cannot create or modify legacy focus data', async () =>
   fixture(async ({ request, service }) => {
+    const original = await service.mutate((state) => ({
+      ...state,
+      timer: {
+        id: 'legacy-focus-timer',
+        taskId: null,
+        title: 'Old active focus',
+        kind: 'focus',
+        duration: 1500,
+        remaining: 1500,
+        endAt: null,
+      },
+      sessions: [
+        {
+          id: 'legacy-focus-session',
+          taskId: null,
+          title: 'Old completed focus',
+          minutes: 25,
+          completedAt: '2026-10-01T00:00:00.000Z',
+        },
+      ],
+    }));
+    assert.equal((await request('GET', '/focus')).status, 404);
+    for (const action of ['start', 'pause', 'resume', 'cancel'])
+      assert.equal(
+        (await request('POST', `/focus/${action}`, { minutes: 1, kind: 'focus' })).status,
+        404,
+      );
+    assert.equal((await request('PATCH', '/settings', { focusMinutes: 1 })).status, 400);
+    assert.equal((await request('PATCH', '/settings', { breakMinutes: 1 })).status, 400);
+    assert.deepEqual(await service.snapshot(), original);
+    const spec = await (await request('GET', '/openapi.json')).json();
     assert.equal(
-      (await request('POST', '/focus/start', { minutes: 1, kind: 'focus' })).status,
-      200,
+      Object.keys(spec.paths).some((route) => route.startsWith('/focus')),
+      false,
     );
-    assert.equal((await request('POST', '/focus/start', {})).status, 409);
-    await request('POST', '/focus/pause');
-    assert.equal((await service.snapshot()).state.timer?.endAt, null);
-    await request('POST', '/focus/resume');
-    assert.ok((await service.snapshot()).state.timer?.endAt);
-    await request('POST', '/focus/cancel');
-    assert.equal((await service.snapshot()).state.timer, null);
-    assert.equal((await service.snapshot()).state.sessions.length, 0);
   }));
 test('JSON import/export excludes credentials and invalid imports do not change data', async () =>
   fixture(async ({ request, token, service }) => {

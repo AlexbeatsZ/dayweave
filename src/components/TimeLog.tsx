@@ -6,9 +6,13 @@ import { useState } from 'react';
 export function TimeLog({
   page,
   onPageChange,
+  initialDate,
+  filter,
 }: {
-  page?: TimePage;
-  onPageChange?: (page: TimePage) => void;
+  page: TimePage;
+  onPageChange: (page: TimePage) => void;
+  initialDate?: string;
+  filter?: { activityId?: string; tag?: string };
 }) {
   const { data } = useStore();
   const [error, setError] = useState('');
@@ -58,7 +62,12 @@ export function TimeLog({
           {error && <p role="alert">{error}</p>}
         </section>
       )}
-      <Workspace page={page} onPageChange={onPageChange} />
+      <Workspace
+        page={page}
+        onPageChange={onPageChange}
+        initialDate={initialDate}
+        filter={filter}
+      />
     </div>
   );
 }

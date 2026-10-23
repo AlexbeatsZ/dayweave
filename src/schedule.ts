@@ -22,6 +22,50 @@ export const calendarDateSchema = z
     }
   }, '日期无效');
 const clockSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
+export const coursePeriodSchema = z
+  .object({
+    start: clockSchema,
+    end: clockSchema,
+    section: z.enum(['morning', 'afternoon', 'evening']),
+  })
+  .strict()
+  .refine((period) => period.end > period.start, '节次结束时间必须晚于开始时间');
+export type CoursePeriod = z.infer<typeof coursePeriodSchema>;
+export const defaultCoursePeriods: CoursePeriod[] = [
+  ['08:00', '08:45', 'morning'],
+  ['08:55', '09:40', 'morning'],
+  ['09:55', '10:40', 'morning'],
+  ['10:50', '11:35', 'morning'],
+  ['11:45', '12:30', 'morning'],
+  ['13:30', '14:15', 'afternoon'],
+  ['14:25', '15:10', 'afternoon'],
+  ['15:25', '16:10', 'afternoon'],
+  ['16:20', '17:05', 'afternoon'],
+  ['17:15', '18:00', 'afternoon'],
+  ['18:30', '19:15', 'evening'],
+  ['19:25', '20:10', 'evening'],
+  ['20:20', '21:05', 'evening'],
+].map(([start, end, section]) => ({ start, end, section: section as CoursePeriod['section'] }));
+export const coursePeriodsSchema = z
+  .array(coursePeriodSchema)
+  .min(1)
+  .max(30)
+  .superRefine((periods, ctx) => {
+    const sections = ['morning', 'afternoon', 'evening'];
+    periods.forEach((period, index) => {
+      const previous = periods[index - 1];
+      if (
+        previous &&
+        (period.start < previous.end ||
+          sections.indexOf(period.section) < sections.indexOf(previous.section))
+      )
+        ctx.addIssue({
+          code: 'custom',
+          path: [index],
+          message: '节次需按上午、下午、晚上及时间顺序排列，时间不能重叠',
+        });
+    });
+  });
 export const courseSchema = z
   .object({
     id: z.string().min(1).max(200),
@@ -64,6 +108,9 @@ export const scheduleSchema = z
     semesterStart: calendarDateSchema.refine((d) => weekday(d) === 1, '开学日期必须为周一'),
     totalWeeks: z.number().int().min(1).max(60),
     timeZone: zoneSchema,
+    periods: coursePeriodsSchema.default(() =>
+      defaultCoursePeriods.map((period) => ({ ...period })),
+    ),
     courses: z.array(courseSchema).max(2000),
     events: z.array(occurrenceSchema).max(15000),
     holidays: z.array(calendarDateSchema).max(1000),
@@ -85,6 +132,7 @@ export function emptySchedule(): Schedule {
     semesterStart: shiftDay(day, 1 - weekday(day)),
     totalWeeks: 20,
     timeZone: DEFAULT_ZONE,
+    periods: defaultCoursePeriods.map((period) => ({ ...period })),
     courses: [],
     events: [],
     holidays: [],
@@ -155,6 +203,7 @@ export function mergeSchedule(local: Schedule, incoming: Schedule): Schedule {
           semesterStart: incoming.semesterStart,
           totalWeeks: incoming.totalWeeks,
           timeZone: incoming.timeZone,
+          periods: incoming.periods,
         }
       : {}),
     courses: merge(local.courses, incoming.courses),

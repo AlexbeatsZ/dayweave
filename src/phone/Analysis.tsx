@@ -22,14 +22,24 @@ export function PhoneAnalysis({
   date,
   setDate,
   onTimeline,
+  allTime = false,
 }: {
   state: State;
   date: string;
   setDate: (date: string) => void;
   onTimeline: (date: string) => void;
+  allTime?: boolean;
 }) {
   const [days, setDays] = useState(1);
-  const range = { start: dayRange(shiftDay(date, 1 - days)).start, end: dayRange(date).end };
+  const range = allTime
+    ? {
+        start: state.records.reduce(
+          (start, row) => (row.deletedAt ? start : Math.min(start, row.spans[0].start)),
+          Date.now(),
+        ),
+        end: Date.now() + 1,
+      }
+    : { start: dayRange(shiftDay(date, 1 - days)).start, end: dayRange(date).end };
   const total = stats(state, range);
   const records = recordsIn(state, range);
   const breakdown = state.activities
@@ -82,42 +92,46 @@ export function PhoneAnalysis({
   }, [state, date]);
   return (
     <div className="phone-analysis">
-      <div className="phone-segments" aria-label="分析范围">
-        {[1, 7, 30].map((value) => (
-          <button key={value} aria-pressed={days === value} onClick={() => setDays(value)}>
-            {value === 1 ? '当日' : value === 7 ? '近七天' : '近一月'}
-          </button>
-        ))}
-      </div>
-      <div className="phone-analysis-date">
-        <button
-          className="icon-button"
-          aria-label="上一分析周期"
-          onClick={() => setDate(shiftDay(date, -days))}
-        >
-          <ChevronLeft size={20} />
-        </button>
-        <label>
-          {days === 1
-            ? date.replaceAll('-', '/')
-            : `${shiftDay(date, 1 - days).slice(5)} — ${date.slice(5)}`}
-          <input
-            type="date"
-            aria-label="分析结束日期"
-            value={date}
-            onChange={(e) => {
-              if (e.target.value) setDate(e.target.value);
-            }}
-          />
-        </label>
-        <button
-          className="icon-button"
-          aria-label="下一分析周期"
-          onClick={() => setDate(shiftDay(date, days))}
-        >
-          <ChevronRight size={20} />
-        </button>
-      </div>
+      {!allTime && (
+        <>
+          <div className="phone-segments" aria-label="分析范围">
+            {[1, 7, 30].map((value) => (
+              <button key={value} aria-pressed={days === value} onClick={() => setDays(value)}>
+                {value === 1 ? '当日' : value === 7 ? '近七天' : '近一月'}
+              </button>
+            ))}
+          </div>
+          <div className="phone-analysis-date">
+            <button
+              className="icon-button"
+              aria-label="上一分析周期"
+              onClick={() => setDate(shiftDay(date, -days))}
+            >
+              <ChevronLeft size={20} />
+            </button>
+            <label>
+              {days === 1
+                ? date.replaceAll('-', '/')
+                : `${shiftDay(date, 1 - days).slice(5)} — ${date.slice(5)}`}
+              <input
+                type="date"
+                aria-label="分析结束日期"
+                value={date}
+                onChange={(e) => {
+                  if (e.target.value) setDate(e.target.value);
+                }}
+              />
+            </label>
+            <button
+              className="icon-button"
+              aria-label="下一分析周期"
+              onClick={() => setDate(shiftDay(date, days))}
+            >
+              <ChevronRight size={20} />
+            </button>
+          </div>
+        </>
+      )}
       <section className="phone-analysis-card">
         <header>
           <h2>时间投入</h2>
@@ -167,50 +181,51 @@ export function PhoneAnalysis({
         ))}
         {!breakdown.length && <p className="phone-analysis-empty">这个时段还没有记录</p>}
       </section>
-      {days === 1 ? (
-        <section className="phone-analysis-card">
-          <header>
-            <h2>一天的时间分布</h2>
-            <span>每格 5 分钟</span>
-          </header>
-          <div className="phone-heatmap" role="img" aria-label="24小时活动分布">
-            {Array.from({ length: 24 }, (_, hour) => (
-              <div key={hour}>
-                <time>{String(hour).padStart(2, '0')}</time>
-                {heat.slice(hour * 12, hour * 12 + 12).map((cell, index) => (
-                  <span
-                    key={index}
-                    title={`${hour}:${String(index * 5).padStart(2, '0')} ${cell.activity || '空闲'}`}
-                    style={{ '--cell-color': cell.color || 'var(--input)' } as CSSProperties}
-                  />
-                ))}
-              </div>
-            ))}
-          </div>
-        </section>
-      ) : (
-        <section className="phone-analysis-card">
-          <header>
-            <h2>每日投入</h2>
-          </header>
-          <div className="phone-daily-bars">
-            {Array.from({ length: days }, (_, index) => {
-              const value = shiftDay(date, index + 1 - days),
-                ms = stats(state, dayRange(value)).tracked;
-              return (
-                <button
-                  key={value}
-                  title={`${value} ${formatDuration(ms)}`}
-                  onClick={() => onTimeline(value)}
-                >
-                  <span style={{ height: `${Math.min(100, (ms / 86400000) * 100)}%` }} />
-                  <small>{value.slice(-2)}</small>
-                </button>
-              );
-            })}
-          </div>
-        </section>
-      )}
+      {!allTime &&
+        (days === 1 ? (
+          <section className="phone-analysis-card">
+            <header>
+              <h2>一天的时间分布</h2>
+              <span>每格 5 分钟</span>
+            </header>
+            <div className="phone-heatmap" role="img" aria-label="24小时活动分布">
+              {Array.from({ length: 24 }, (_, hour) => (
+                <div key={hour}>
+                  <time>{String(hour).padStart(2, '0')}</time>
+                  {heat.slice(hour * 12, hour * 12 + 12).map((cell, index) => (
+                    <span
+                      key={index}
+                      title={`${hour}:${String(index * 5).padStart(2, '0')} ${cell.activity || '空闲'}`}
+                      style={{ '--cell-color': cell.color || 'var(--input)' } as CSSProperties}
+                    />
+                  ))}
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : (
+          <section className="phone-analysis-card">
+            <header>
+              <h2>每日投入</h2>
+            </header>
+            <div className="phone-daily-bars">
+              {Array.from({ length: days }, (_, index) => {
+                const value = shiftDay(date, index + 1 - days),
+                  ms = stats(state, dayRange(value)).tracked;
+                return (
+                  <button
+                    key={value}
+                    title={`${value} ${formatDuration(ms)}`}
+                    onClick={() => onTimeline(value)}
+                  >
+                    <span style={{ height: `${Math.min(100, (ms / 86400000) * 100)}%` }} />
+                    <small>{value.slice(-2)}</small>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        ))}
       <section className="phone-analysis-card">
         <header>
           <h2>活动汇总</h2>

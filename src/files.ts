@@ -43,3 +43,9 @@ export async function exportText(
 export async function requestWidget() {
   return native.pinWidget();
 }
+
+export async function importFudan(): Promise<string | null> {
+  if (isMobileApp) return (await native.importFudan()).content;
+  if (window.clearlist?.importFudan) return window.clearlist.importFudan();
+  throw new Error('网站导入需要使用 Windows、macOS 或 Android 安装版；浏览器版请使用文件导入。');
+}

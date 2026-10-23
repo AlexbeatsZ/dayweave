@@ -1,0 +1,43 @@
+.task-sort-active,
+.task-sort-active * {
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grabbing !important;
+}
+
+.task-row.task-sort-source {
+  opacity: 0.3;
+  outline: 1px dashed var(--accent);
+  outline-offset: -1px;
+  background: var(--bg);
+}
+
+.task-sort-overlay {
+  display: contents;
+}
+
+.task-row.task-sort-ghost {
+  position: fixed;
+  z-index: 10000;
+  margin: 0;
+  pointer-events: none;
+  border-radius: 12px;
+  background: var(--bg);
+  box-shadow: 0 12px 30px #0006;
+  outline: 1px solid var(--accent);
+  transform: scale(1.015);
+}
+
+@media (max-width: 700px) {
+  .task-row[data-task-sortable='true'] .task-body {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .task-row.task-sort-ghost {
+    transform: none;
+  }
+}

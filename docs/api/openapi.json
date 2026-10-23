@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Dayweave AI API",
-    "version": "0.3.0",
+    "version": "0.4.0",
     "description": "时织 Windows/macOS 本机接口。应用运行时可用；实际地址与令牌见设置或用户数据目录 api.json。默认不对局域网开放。所有写入先持久化再通知界面；DELETE 任务为软删除。"
   },
   "servers": [
@@ -30,6 +30,8 @@
           "id": { "type": "string", "minLength": 1, "maxLength": 100 },
           "title": { "type": "string", "minLength": 1, "maxLength": 500 },
           "notes": { "type": "string", "maxLength": 50000 },
+          "estimatedMinutes": { "nullable": true, "type": "number", "minimum": 0 },
+          "actualMinutes": { "nullable": true, "type": "number", "minimum": 0 },
           "listId": { "type": "string", "minLength": 1, "maxLength": 100 },
           "due": { "nullable": true, "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
           "priority": {
@@ -116,6 +118,7 @@
           "id": { "type": "string", "minLength": 1, "maxLength": 100 },
           "name": { "type": "string", "minLength": 1, "maxLength": 60 },
           "color": { "type": "string", "pattern": "^#[0-9a-f]{6}$" },
+          "activityId": { "nullable": true, "type": "string", "minLength": 1, "maxLength": 100 },
           "order": { "type": "number" }
         },
         "required": ["id", "name", "color", "order"],
@@ -131,6 +134,21 @@
               "semesterStart": "2026-10-19",
               "totalWeeks": 20,
               "timeZone": "Asia/Shanghai",
+              "periods": [
+                { "start": "08:00", "end": "08:45", "section": "morning" },
+                { "start": "08:55", "end": "09:40", "section": "morning" },
+                { "start": "09:55", "end": "10:40", "section": "morning" },
+                { "start": "10:50", "end": "11:35", "section": "morning" },
+                { "start": "11:45", "end": "12:30", "section": "morning" },
+                { "start": "13:30", "end": "14:15", "section": "afternoon" },
+                { "start": "14:25", "end": "15:10", "section": "afternoon" },
+                { "start": "15:25", "end": "16:10", "section": "afternoon" },
+                { "start": "16:20", "end": "17:05", "section": "afternoon" },
+                { "start": "17:15", "end": "18:00", "section": "afternoon" },
+                { "start": "18:30", "end": "19:15", "section": "evening" },
+                { "start": "19:25", "end": "20:10", "section": "evening" },
+                { "start": "20:20", "end": "21:05", "section": "evening" }
+              ],
               "courses": [],
               "events": [],
               "holidays": []
@@ -140,6 +158,36 @@
               "semesterStart": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
               "totalWeeks": { "type": "integer", "minimum": 1, "maximum": 60 },
               "timeZone": { "type": "string", "maxLength": 100 },
+              "periods": {
+                "default": [
+                  { "start": "08:00", "end": "08:45", "section": "morning" },
+                  { "start": "08:55", "end": "09:40", "section": "morning" },
+                  { "start": "09:55", "end": "10:40", "section": "morning" },
+                  { "start": "10:50", "end": "11:35", "section": "morning" },
+                  { "start": "11:45", "end": "12:30", "section": "morning" },
+                  { "start": "13:30", "end": "14:15", "section": "afternoon" },
+                  { "start": "14:25", "end": "15:10", "section": "afternoon" },
+                  { "start": "15:25", "end": "16:10", "section": "afternoon" },
+                  { "start": "16:20", "end": "17:05", "section": "afternoon" },
+                  { "start": "17:15", "end": "18:00", "section": "afternoon" },
+                  { "start": "18:30", "end": "19:15", "section": "evening" },
+                  { "start": "19:25", "end": "20:10", "section": "evening" },
+                  { "start": "20:20", "end": "21:05", "section": "evening" }
+                ],
+                "minItems": 1,
+                "maxItems": 30,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "start": { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" },
+                    "end": { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" },
+                    "section": { "type": "string", "enum": ["morning", "afternoon", "evening"] }
+                  },
+                  "required": ["start", "end", "section"],
+                  "additionalProperties": false
+                }
+              },
               "courses": {
                 "maxItems": 2000,
                 "type": "array",
@@ -234,6 +282,7 @@
               "semesterStart",
               "totalWeeks",
               "timeZone",
+              "periods",
               "courses",
               "events",
               "holidays"
@@ -250,11 +299,33 @@
                 "id": { "type": "string", "minLength": 1, "maxLength": 100 },
                 "name": { "type": "string", "minLength": 1, "maxLength": 60 },
                 "color": { "type": "string", "pattern": "^#[0-9a-f]{6}$" },
+                "activityId": {
+                  "nullable": true,
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
                 "order": { "type": "number" }
               },
               "required": ["id", "name", "color", "order"],
               "additionalProperties": false
             }
+          },
+          "tagColors": {
+            "default": { "tasks": {}, "records": {} },
+            "type": "object",
+            "properties": {
+              "tasks": {
+                "type": "object",
+                "additionalProperties": { "type": "string", "pattern": "^#[0-9a-f]{6}$" }
+              },
+              "records": {
+                "type": "object",
+                "additionalProperties": { "type": "string", "pattern": "^#[0-9a-f]{6}$" }
+              }
+            },
+            "required": ["tasks", "records"],
+            "additionalProperties": false
           },
           "tasks": {
             "maxItems": 50000,
@@ -265,6 +336,8 @@
                 "id": { "type": "string", "minLength": 1, "maxLength": 100 },
                 "title": { "type": "string", "minLength": 1, "maxLength": 500 },
                 "notes": { "type": "string", "maxLength": 50000 },
+                "estimatedMinutes": { "nullable": true, "type": "number", "minimum": 0 },
+                "actualMinutes": { "nullable": true, "type": "number", "minimum": 0 },
                 "listId": { "type": "string", "minLength": 1, "maxLength": 100 },
                 "due": { "nullable": true, "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
                 "priority": {
@@ -409,25 +482,12 @@
           "timelog",
           "schedule",
           "lists",
+          "tagColors",
           "tasks",
           "sessions",
           "timer",
           "settings"
         ],
-        "additionalProperties": false
-      },
-      "Timer": {
-        "type": "object",
-        "properties": {
-          "id": { "type": "string", "minLength": 1, "maxLength": 100 },
-          "taskId": { "nullable": true, "type": "string", "minLength": 1, "maxLength": 100 },
-          "title": { "type": "string", "maxLength": 500 },
-          "kind": { "type": "string", "enum": ["focus", "break"] },
-          "duration": { "type": "integer", "minimum": 60, "maximum": 10800 },
-          "remaining": { "type": "integer", "minimum": 0, "maximum": 10800 },
-          "endAt": { "nullable": true, "type": "number", "minimum": 0 }
-        },
-        "required": ["id", "taskId", "title", "kind", "duration", "remaining", "endAt"],
         "additionalProperties": false
       }
     }
@@ -486,7 +546,7 @@
     },
     "/time-records": {
       "get": {
-        "summary": "统一时间记录，endAt=null 表示计时；最近 1000 条",
+        "summary": "统一时间记录；endAt=null 表示未结束，plannedEndAt 为倒计时截止；最近 1000 条",
         "responses": {
           "200": {
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
@@ -496,7 +556,7 @@
         }
       },
       "post": {
-        "summary": "只给 startAt 即开始计时；给 endAt 则创建结束记录",
+        "summary": "只给 startAt 即正向计时；未来 endAt 开始倒计时；过去 endAt 创建结束记录",
         "responses": {
           "200": {
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
@@ -513,7 +573,10 @@
                 "required": ["startAt"],
                 "properties": {
                   "startAt": { "type": "number", "description": "UTC epoch 毫秒" },
-                  "endAt": { "type": ["number", "null"] },
+                  "endAt": {
+                    "type": ["number", "null"],
+                    "description": "未来时刻设为 plannedEndAt；null/缺省正向计时，过去时刻保存历史记录"
+                  },
                   "activityId": { "type": "string" },
                   "taskId": { "type": "string" },
                   "note": { "type": "string" },
@@ -621,7 +684,22 @@
                   "semesterStart": { "type": "string", "format": "date" },
                   "totalWeeks": { "type": "integer", "minimum": 1, "maximum": 60 },
                   "timeZone": { "type": "string", "example": "Asia/Shanghai" },
-                  "holidays": { "type": "array", "items": { "type": "string", "format": "date" } }
+                  "holidays": { "type": "array", "items": { "type": "string", "format": "date" } },
+                  "periods": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 30,
+                    "items": {
+                      "type": "object",
+                      "required": ["start", "end", "section"],
+                      "additionalProperties": false,
+                      "properties": {
+                        "start": { "type": "string", "example": "08:00" },
+                        "end": { "type": "string", "example": "08:45" },
+                        "section": { "type": "string", "enum": ["morning", "afternoon", "evening"] }
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -862,7 +940,7 @@
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
       },
       "delete": {
-        "summary": "归档活动，需 expectedUpdatedAt",
+        "summary": "删除活动及其目标；历史记录保留；需 expectedUpdatedAt",
         "responses": {
           "200": {
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
@@ -981,7 +1059,7 @@
     },
     "/timelog/timer": {
       "get": {
-        "summary": "当前正向计时",
+        "summary": "当前计时：plannedEndAt 非空为倒计时；elapsedMs 为有效时长",
         "responses": {
           "200": {
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
@@ -993,7 +1071,7 @@
     },
     "/timelog/timer/start": {
       "post": {
-        "summary": "开始计时，需 activityId",
+        "summary": "开始同一活动计时器，可指定开始及未来结束时刻",
         "responses": {
           "200": {
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
@@ -1004,7 +1082,94 @@
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": { "schema": { "type": "object", "additionalProperties": true } }
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["activityId"],
+                "properties": {
+                  "activityId": { "type": "string" },
+                  "note": { "type": "string" },
+                  "startAt": { "type": "number", "description": "UTC epoch 毫秒，不晚于现在" },
+                  "fromPreviousRecord": {
+                    "type": "boolean",
+                    "description": "从上一条记录末尾开始；不能与 startAt 同用"
+                  },
+                  "endAt": {
+                    "type": ["number", "null"],
+                    "description": "未来 UTC epoch 毫秒；null/缺省正向计时"
+                  },
+                  "taskId": { "type": "string" },
+                  "tags": { "type": "array", "items": { "type": "string" } }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
+      }
+    },
+    "/timelog/timer/configure": {
+      "post": {
+        "summary": "调整运行中计时的起止、任务、描述和标签；保留原记录 ID 及暂停片段",
+        "responses": {
+          "200": {
+            "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
+          },
+          "400": { "description": "输入无效" },
+          "409": { "description": "版本冲突" }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["timerId"],
+                "properties": {
+                  "timerId": { "type": "string" },
+                  "startAt": { "type": "number" },
+                  "fromPreviousRecord": { "type": "boolean" },
+                  "endAt": {
+                    "type": ["number", "null"],
+                    "description": "未来 UTC epoch 截止；null 清除截止并转正向计时"
+                  },
+                  "taskId": { "type": ["string", "null"] },
+                  "note": { "type": "string" },
+                  "tags": { "type": "array", "items": { "type": "string" } }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
+      }
+    },
+    "/timelog/timer/next": {
+      "post": {
+        "summary": "结束当前计时并从同一时刻开始下一个活动",
+        "responses": {
+          "200": {
+            "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
+          },
+          "400": { "description": "输入无效" },
+          "409": { "description": "版本冲突" }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["timerId", "activityId"],
+                "properties": {
+                  "timerId": { "type": "string" },
+                  "activityId": { "type": "string" }
+                },
+                "additionalProperties": false
+              }
+            }
           }
         },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
@@ -1012,7 +1177,7 @@
     },
     "/timelog/timer/pause": {
       "post": {
-        "summary": "计时操作，需匹配 timerId",
+        "summary": "计时操作，需匹配 timerId；倒计时暂停后继续会顺延截止时刻",
         "responses": {
           "200": {
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
@@ -1031,7 +1196,7 @@
     },
     "/timelog/timer/resume": {
       "post": {
-        "summary": "计时操作，需匹配 timerId",
+        "summary": "计时操作，需匹配 timerId；倒计时暂停后继续会顺延截止时刻",
         "responses": {
           "200": {
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
@@ -1050,7 +1215,7 @@
     },
     "/timelog/timer/stop": {
       "post": {
-        "summary": "计时操作，需匹配 timerId",
+        "summary": "计时操作，需匹配 timerId；倒计时暂停后继续会顺延截止时刻",
         "responses": {
           "200": {
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
@@ -1069,7 +1234,7 @@
     },
     "/timelog/timer/cancel": {
       "post": {
-        "summary": "计时操作，需匹配 timerId",
+        "summary": "计时操作，需匹配 timerId；倒计时暂停后继续会顺延截止时刻",
         "responses": {
           "200": {
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
@@ -1081,6 +1246,49 @@
           "required": true,
           "content": {
             "application/json": { "schema": { "type": "object", "additionalProperties": true } }
+          }
+        },
+        "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
+      }
+    },
+    "/timelog/settings": {
+      "get": {
+        "summary": "读取记录偏好与倒计时预设 timerPresets（分钟）",
+        "responses": {
+          "200": {
+            "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
+          },
+          "400": { "description": "输入无效" },
+          "409": { "description": "版本冲突" }
+        }
+      },
+      "patch": {
+        "summary": "替换倒计时预设；设置同步到已配对设备",
+        "responses": {
+          "200": {
+            "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
+          },
+          "400": { "description": "输入无效" },
+          "409": { "description": "版本冲突" }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["expectedUpdatedAt", "timerPresets"],
+                "properties": {
+                  "expectedUpdatedAt": { "type": "number" },
+                  "timerPresets": {
+                    "type": "array",
+                    "maxItems": 30,
+                    "items": { "type": "integer", "minimum": 1, "maximum": 10080 }
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
           }
         },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
@@ -1171,7 +1379,7 @@
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
       },
       "delete": {
-        "summary": "归档目标，需 expectedUpdatedAt",
+        "summary": "删除目标，需 expectedUpdatedAt",
         "responses": {
           "200": {
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
@@ -1313,6 +1521,8 @@
                 "properties": {
                   "title": { "type": "string", "minLength": 1, "maxLength": 500 },
                   "notes": { "type": "string", "maxLength": 50000 },
+                  "estimatedMinutes": { "nullable": true, "type": "number", "minimum": 0 },
+                  "actualMinutes": { "nullable": true, "type": "number", "minimum": 0 },
                   "listId": { "type": "string", "minLength": 1, "maxLength": 100 },
                   "due": {
                     "nullable": true,
@@ -1425,6 +1635,8 @@
                 "properties": {
                   "title": { "type": "string", "minLength": 1, "maxLength": 500 },
                   "notes": { "type": "string", "maxLength": 50000 },
+                  "estimatedMinutes": { "nullable": true, "type": "number", "minimum": 0 },
+                  "actualMinutes": { "nullable": true, "type": "number", "minimum": 0 },
                   "listId": { "type": "string", "minLength": 1, "maxLength": 100 },
                   "due": {
                     "nullable": true,
@@ -1650,6 +1862,12 @@
                 "properties": {
                   "name": { "type": "string", "minLength": 1, "maxLength": 60 },
                   "color": { "type": "string", "pattern": "^#[0-9a-f]{6}$" },
+                  "activityId": {
+                    "nullable": true,
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
                   "order": { "type": "number" }
                 },
                 "required": ["name"],
@@ -1699,6 +1917,12 @@
                 "properties": {
                   "name": { "type": "string", "minLength": 1, "maxLength": 60 },
                   "color": { "type": "string", "pattern": "^#[0-9a-f]{6}$" },
+                  "activityId": {
+                    "nullable": true,
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
                   "order": { "type": "number" }
                 },
                 "additionalProperties": false
@@ -1786,7 +2010,7 @@
         }
       },
       "patch": {
-        "summary": "更新外观与专注设置",
+        "summary": "更新外观与日程偏好",
         "requestBody": {
           "required": true,
           "content": {
@@ -1796,8 +2020,6 @@
                 "properties": {
                   "theme": { "type": "string", "enum": ["light", "dark", "system"] },
                   "timeZone": { "default": "Asia/Shanghai", "type": "string", "maxLength": 100 },
-                  "focusMinutes": { "type": "integer", "minimum": 1, "maximum": 180 },
-                  "breakMinutes": { "type": "integer", "minimum": 1, "maximum": 60 },
                   "showCompleted": { "type": "boolean" }
                 },
                 "additionalProperties": false
@@ -1805,162 +2027,6 @@
             }
           }
         },
-        "responses": {
-          "200": {
-            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "required": ["data", "revision"],
-                  "properties": { "data": {}, "revision": { "type": "string" } }
-                }
-              }
-            },
-            "headers": {
-              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
-            }
-          },
-          "400": { "description": "参数或 JSON 无效" },
-          "401": { "description": "缺少或错误的 Bearer 令牌" },
-          "403": { "description": "拒绝跨站或非本机请求" },
-          "404": { "description": "未找到对象" },
-          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
-        },
-        "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
-      }
-    },
-    "/focus": {
-      "get": {
-        "summary": "读取计时器与最近专注记录",
-        "responses": {
-          "200": {
-            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "required": ["data", "revision"],
-                  "properties": { "data": {}, "revision": { "type": "string" } }
-                }
-              }
-            },
-            "headers": {
-              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
-            }
-          },
-          "400": { "description": "参数或 JSON 无效" },
-          "401": { "description": "缺少或错误的 Bearer 令牌" },
-          "403": { "description": "拒绝跨站或非本机请求" },
-          "404": { "description": "未找到对象" },
-          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
-        }
-      }
-    },
-    "/focus/start": {
-      "post": {
-        "summary": "开始专注或休息；已有计时时返回 409",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "taskId": { "nullable": true, "type": "string" },
-                  "kind": { "default": "focus", "type": "string", "enum": ["focus", "break"] },
-                  "minutes": { "type": "integer", "minimum": 1, "maximum": 180 }
-                },
-                "required": ["kind"],
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "required": ["data", "revision"],
-                  "properties": { "data": {}, "revision": { "type": "string" } }
-                }
-              }
-            },
-            "headers": {
-              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
-            }
-          },
-          "400": { "description": "参数或 JSON 无效" },
-          "401": { "description": "缺少或错误的 Bearer 令牌" },
-          "403": { "description": "拒绝跨站或非本机请求" },
-          "404": { "description": "未找到对象" },
-          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
-        },
-        "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
-      }
-    },
-    "/focus/pause": {
-      "post": {
-        "summary": "暂停计时",
-        "responses": {
-          "200": {
-            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "required": ["data", "revision"],
-                  "properties": { "data": {}, "revision": { "type": "string" } }
-                }
-              }
-            },
-            "headers": {
-              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
-            }
-          },
-          "400": { "description": "参数或 JSON 无效" },
-          "401": { "description": "缺少或错误的 Bearer 令牌" },
-          "403": { "description": "拒绝跨站或非本机请求" },
-          "404": { "description": "未找到对象" },
-          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
-        },
-        "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
-      }
-    },
-    "/focus/resume": {
-      "post": {
-        "summary": "继续计时",
-        "responses": {
-          "200": {
-            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "required": ["data", "revision"],
-                  "properties": { "data": {}, "revision": { "type": "string" } }
-                }
-              }
-            },
-            "headers": {
-              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
-            }
-          },
-          "400": { "description": "参数或 JSON 无效" },
-          "401": { "description": "缺少或错误的 Bearer 令牌" },
-          "403": { "description": "拒绝跨站或非本机请求" },
-          "404": { "description": "未找到对象" },
-          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
-        },
-        "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
-      }
-    },
-    "/focus/cancel": {
-      "post": {
-        "summary": "取消计时，不计入专注记录",
         "responses": {
           "200": {
             "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
@@ -2057,6 +2123,21 @@
                       "semesterStart": "2026-10-19",
                       "totalWeeks": 20,
                       "timeZone": "Asia/Shanghai",
+                      "periods": [
+                        { "start": "08:00", "end": "08:45", "section": "morning" },
+                        { "start": "08:55", "end": "09:40", "section": "morning" },
+                        { "start": "09:55", "end": "10:40", "section": "morning" },
+                        { "start": "10:50", "end": "11:35", "section": "morning" },
+                        { "start": "11:45", "end": "12:30", "section": "morning" },
+                        { "start": "13:30", "end": "14:15", "section": "afternoon" },
+                        { "start": "14:25", "end": "15:10", "section": "afternoon" },
+                        { "start": "15:25", "end": "16:10", "section": "afternoon" },
+                        { "start": "16:20", "end": "17:05", "section": "afternoon" },
+                        { "start": "17:15", "end": "18:00", "section": "afternoon" },
+                        { "start": "18:30", "end": "19:15", "section": "evening" },
+                        { "start": "19:25", "end": "20:10", "section": "evening" },
+                        { "start": "20:20", "end": "21:05", "section": "evening" }
+                      ],
                       "courses": [],
                       "events": [],
                       "holidays": []
@@ -2066,6 +2147,39 @@
                       "semesterStart": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
                       "totalWeeks": { "type": "integer", "minimum": 1, "maximum": 60 },
                       "timeZone": { "type": "string", "maxLength": 100 },
+                      "periods": {
+                        "default": [
+                          { "start": "08:00", "end": "08:45", "section": "morning" },
+                          { "start": "08:55", "end": "09:40", "section": "morning" },
+                          { "start": "09:55", "end": "10:40", "section": "morning" },
+                          { "start": "10:50", "end": "11:35", "section": "morning" },
+                          { "start": "11:45", "end": "12:30", "section": "morning" },
+                          { "start": "13:30", "end": "14:15", "section": "afternoon" },
+                          { "start": "14:25", "end": "15:10", "section": "afternoon" },
+                          { "start": "15:25", "end": "16:10", "section": "afternoon" },
+                          { "start": "16:20", "end": "17:05", "section": "afternoon" },
+                          { "start": "17:15", "end": "18:00", "section": "afternoon" },
+                          { "start": "18:30", "end": "19:15", "section": "evening" },
+                          { "start": "19:25", "end": "20:10", "section": "evening" },
+                          { "start": "20:20", "end": "21:05", "section": "evening" }
+                        ],
+                        "minItems": 1,
+                        "maxItems": 30,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "start": { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" },
+                            "end": { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" },
+                            "section": {
+                              "type": "string",
+                              "enum": ["morning", "afternoon", "evening"]
+                            }
+                          },
+                          "required": ["start", "end", "section"],
+                          "additionalProperties": false
+                        }
+                      },
                       "courses": {
                         "maxItems": 2000,
                         "type": "array",
@@ -2160,6 +2274,7 @@
                       "semesterStart",
                       "totalWeeks",
                       "timeZone",
+                      "periods",
                       "courses",
                       "events",
                       "holidays"
@@ -2176,11 +2291,33 @@
                         "id": { "type": "string", "minLength": 1, "maxLength": 100 },
                         "name": { "type": "string", "minLength": 1, "maxLength": 60 },
                         "color": { "type": "string", "pattern": "^#[0-9a-f]{6}$" },
+                        "activityId": {
+                          "nullable": true,
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 100
+                        },
                         "order": { "type": "number" }
                       },
                       "required": ["id", "name", "color", "order"],
                       "additionalProperties": false
                     }
+                  },
+                  "tagColors": {
+                    "default": { "tasks": {}, "records": {} },
+                    "type": "object",
+                    "properties": {
+                      "tasks": {
+                        "type": "object",
+                        "additionalProperties": { "type": "string", "pattern": "^#[0-9a-f]{6}$" }
+                      },
+                      "records": {
+                        "type": "object",
+                        "additionalProperties": { "type": "string", "pattern": "^#[0-9a-f]{6}$" }
+                      }
+                    },
+                    "required": ["tasks", "records"],
+                    "additionalProperties": false
                   },
                   "tasks": {
                     "maxItems": 50000,
@@ -2191,6 +2328,8 @@
                         "id": { "type": "string", "minLength": 1, "maxLength": 100 },
                         "title": { "type": "string", "minLength": 1, "maxLength": 500 },
                         "notes": { "type": "string", "maxLength": 50000 },
+                        "estimatedMinutes": { "nullable": true, "type": "number", "minimum": 0 },
+                        "actualMinutes": { "nullable": true, "type": "number", "minimum": 0 },
                         "listId": { "type": "string", "minLength": 1, "maxLength": 100 },
                         "due": {
                           "nullable": true,
@@ -2362,6 +2501,7 @@
                   "timelog",
                   "schedule",
                   "lists",
+                  "tagColors",
                   "tasks",
                   "sessions",
                   "timer",

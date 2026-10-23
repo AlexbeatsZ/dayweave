@@ -4,6 +4,7 @@ import { store } from './store';
 import './styles.css';
 import './dayweave.css';
 import './phone/phone.css';
+import './desktop.css';
 import { initializeTheme } from './theme';
 import { initializeMobile, startMobileSync } from './mobile';
 

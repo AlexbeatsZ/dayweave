@@ -3,76 +3,57 @@ import {
   CalendarDays,
   ChartNoAxesCombined,
   Check,
-  ChevronLeft,
-  ChevronRight,
   CircleCheck,
   Clock3,
-  Grid2X2,
   ListTodo,
   Menu,
-  MoreHorizontal,
   Pause,
   Play,
-  Plus,
-  Settings as SettingsIcon,
-  Tag,
-  Timer,
-  Trash2,
   X,
 } from 'lucide-react';
 import {
   dateKey,
-  finishTimer as finishFocus,
+  startTaskTimer,
   formatDate,
   now,
   quadrant,
+  reorderTasks,
   selectTasks,
-  shiftDate,
   type Task,
-  type TaskList,
   type View,
 } from '../model';
 import { store, useStore } from '../store';
 import { useClock } from '../runtime';
-import { weekday } from '../timezone';
-import { duration, formatClock, liveSpans, startTimer, toggleTimer } from '../timelog/domain';
+import { duration, formatClock, liveSpans, toggleTimer } from '../timelog/domain';
 import { TaskRow } from '../components/TaskRow';
-import { TaskEditor } from '../components/TaskEditor';
-import { Settings, ListModal } from '../components/Settings';
+import { Settings } from '../components/Settings';
 import { Timetable, NextClass } from '../components/Timetable';
 import { Calendar } from '../components/Calendar';
-import { Focus } from '../components/Focus';
-import { Statistics } from '../components/Statistics';
 import { TimeLog } from '../components/TimeLog';
 import { pendingPairingKey } from '../sync/invitation';
 import type { TimePage } from '../timelog/Workspace';
-import { Sheet } from './Sheet';
 import { TaskComposer } from './TaskComposer';
-import { FloatingAdd, PhoneTabs, PhoneTopbar, useSwipeTabs } from './Navigation';
+import { FloatingAdd, PhoneTabs, PhoneTopbar, useSwipeTabs, useTabTransition } from './Navigation';
+import { DateNavigator, calendarWeek } from './DateNavigator';
+import { PhoneStatistics, type StatisticsPage } from './Statistics';
+import { PhoneSidebar, type RecordFilter } from './Sidebar';
+import { usePhone } from './usePhone';
 
 const titles: Record<string, string> = {
-  today: '待办',
+  today: '日计划',
   all: '全部任务',
-  inbox: '收集箱',
-  upcoming: '最近七天',
-  completed: '已完成',
-  trash: '回收站',
+  inbox: '待办箱',
+  upcoming: '周计划',
   calendar: '任务日历',
-  timetable: '课程表',
-  focus: '番茄专注',
-  stats: '任务统计',
+  timetable: '安排',
+  stats: '统计',
   quadrants: '四象限',
-};
-const timeTitles: Record<TimePage, string> = {
-  timeline: '时间记录',
-  timer: '计时',
-  analysis: '时间分析',
-  goals: '目标',
 };
 
 export function MobileApp() {
   const snapshot = useStore(),
     { data } = snapshot;
+  const phone = usePhone();
   const [view, setView] = useState<View>(location.hash === '#timetable' ? 'timetable' : 'today');
   const [timePage, setTimePage] = useState<TimePage>('timeline');
   const clock = useClock();
@@ -81,9 +62,15 @@ export function MobileApp() {
   const [drawer, setDrawer] = useState(false),
     [composer, setComposer] = useState(false),
     [settings, setSettings] = useState(false);
-  const [list, setList] = useState<TaskList | 'new' | null>(null),
-    [selected, setSelected] = useState<string | null>(null);
-  const [focusTask, setFocusTask] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [recordFilter, setRecordFilter] = useState<RecordFilter>({});
+  const [arrangement, setArrangement] = useState<'calendar' | 'timetable'>(
+    location.hash === '#timetable' ? 'timetable' : 'calendar',
+  );
+  const [statisticsPage, setStatisticsPage] = useState<StatisticsPage>('daily');
+  const [statisticsDate, setStatisticsDate] = useState(dateKey());
+  const [recordDate, setRecordDate] = useState<string>();
+  const [quadrants, setQuadrants] = useState(false);
   const [toast, setToast] = useState<{ text: string; undo?: () => void } | null>(null);
   const scroll = useRef<HTMLElement>(null);
   const today = dateKey(new Date(clock));
@@ -94,19 +81,56 @@ export function MobileApp() {
   const live = data.tasks.filter((task) => !task.completedAt && !task.deletedAt);
   const title =
     view === 'timelog'
-      ? timePage === 'analysis'
-        ? timeTitles.analysis
-        : '记录'
+      ? '记录'
       : view.startsWith('list:')
         ? data.lists.find((item) => item.id === view.slice(5))?.name || '清单'
         : view.startsWith('tag:')
           ? `#${view.slice(4)}`
           : titles[view] || '任务';
-  const tasks = selectTasks(data, view, '', sort, day).filter(
-    (task) => view !== 'today' || day === today || task.due === day,
+  const week = calendarWeek(day);
+  const tasks = selectTasks(data, view === 'timetable' ? 'all' : view, '', sort, day).filter(
+    (task) =>
+      view === 'timetable'
+        ? task.due === day
+        : view !== 'today' || day === today || task.due === day,
   );
-  const weekStart = shiftDate(day, 1 - weekday(day));
-  const weekdays = Array.from({ length: 7 }, (_, index) => shiftDate(weekStart, index));
+  const unfinished = tasks.filter((task) => !task.completedAt);
+  const ordered =
+    quadrants && (view === 'today' || view === 'all')
+      ? [0, 1, 2, 3].flatMap((index) => unfinished.filter((task) => quadrant(task, day) === index))
+      : view === 'upcoming'
+        ? week.flatMap((date) => unfinished.filter((task) => task.due === date))
+        : unfinished;
+  const ordinal = new Map(ordered.map((task, index) => [task.id, index + 1]));
+  const completed = tasks.filter((task) => task.completedAt);
+  function moveTask(source: string, target: string) {
+    const from = tasks.find((task) => task.id === source),
+      to = tasks.find((task) => task.id === target);
+    if (!from || !to) return;
+    if (view === 'upcoming' && from.due !== to.due) {
+      notice('周计划按日期分组，请在同一天内调整顺序');
+      return;
+    }
+    if (
+      quadrants &&
+      (view === 'today' || view === 'all') &&
+      quadrant(from, day) !== quadrant(to, day)
+    ) {
+      notice('请在同一象限内调整顺序');
+      return;
+    }
+    void store
+      .transact((state) =>
+        reorderTasks(
+          state,
+          ordered.map((task) => task.id),
+          source,
+          target,
+        ),
+      )
+      .catch((error) => notice(String(error)));
+    setSort('manual');
+  }
   const notice = (text: string) => setToast({ text });
   function navigate(next: View, panel?: TimePage) {
     setView(next);
@@ -116,23 +140,68 @@ export function MobileApp() {
     scroll.current?.scrollTo(0, 0);
   }
   const taskTabs = [
-    { id: 'today' as const, label: '日程' },
+    { id: 'today' as const, label: '日计划' },
+    { id: 'upcoming' as const, label: '周计划' },
     { id: 'all' as const, label: '全部', count: live.length },
-    { id: 'inbox' as const, label: '收集箱', count: live.filter((task) => !task.due).length },
+    { id: 'inbox' as const, label: '待办箱', count: live.filter((task) => !task.due).length },
   ];
   const recordTabs = [
     { id: 'timeline' as const, label: '时间线' },
     { id: 'timer' as const, label: '计时' },
     { id: 'goals' as const, label: '目标' },
   ];
+  const arrangementTabs = [
+    { id: 'calendar', label: '月历' },
+    { id: 'timetable', label: '课程表' },
+  ];
+  const statisticsTabs = [
+    { id: 'daily', label: '每日' },
+    { id: 'tasks', label: '待办' },
+    { id: 'records', label: '记录' },
+  ];
   const showTaskTabs = taskTabs.some((tab) => tab.id === view);
-  const showRecordTabs = timeView && timePage !== 'analysis';
-  const changeTimePage = (page: TimePage) => {
-    setTimePage(page);
+  const tabs = showTaskTabs
+    ? taskTabs
+    : timeView
+      ? recordTabs
+      : view === 'timetable'
+        ? arrangementTabs
+        : view === 'stats'
+          ? statisticsTabs
+          : [];
+  const activeTab = showTaskTabs
+    ? view
+    : timeView
+      ? timePage
+      : view === 'timetable'
+        ? arrangement
+        : statisticsPage;
+  useTabTransition(scroll, showTaskTabs ? view : `${view}:${activeTab}`, [
+    'today',
+    'upcoming',
+    'all',
+    'inbox',
+    'timelog:timeline',
+    'timelog:timer',
+    'timelog:goals',
+    'timetable:calendar',
+    'timetable:timetable',
+    'stats:daily',
+    'stats:tasks',
+    'stats:records',
+  ]);
+  const changeTab = (id: string) => {
+    if (showTaskTabs) navigate(id as View);
+    else if (timeView) setTimePage(id as TimePage);
+    else if (view === 'timetable') setArrangement(id as 'calendar' | 'timetable');
+    else setStatisticsPage(id as StatisticsPage);
     scroll.current?.scrollTo(0, 0);
   };
-  const taskSwipe = useSwipeTabs(taskTabs, view, navigate);
-  const recordSwipe = useSwipeTabs(recordTabs, timePage, changeTimePage);
+  const swipe = useSwipeTabs(tabs, activeTab, changeTab);
+  const openRecords = (date: string) => {
+    setRecordDate(date);
+    navigate('timelog', 'timeline');
+  };
   useEffect(() => {
     if (snapshot.loaded) setDay(dateKey());
   }, [snapshot.loaded, data.settings.timeZone]);
@@ -144,7 +213,10 @@ export function MobileApp() {
   useEffect(() => {
     const open = () => setSettings(true);
     const hash = () => {
-      if (location.hash === '#timetable') navigate('timetable');
+      if (location.hash === '#timetable') {
+        setArrangement('timetable');
+        navigate('timetable');
+      }
     };
     document.addEventListener('clearlist:settings', open);
     window.addEventListener('hashchange', hash);
@@ -157,14 +229,29 @@ export function MobileApp() {
   useEffect(() => {
     const back = (event: Event) => {
       if (settings) setSettings(false);
-      else if (list) setList(null);
       else if (selected) setSelected(null);
       else if (view !== 'today') navigate('today');
       else return;
       event.preventDefault();
     };
     const keyboard = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') back(event);
+      if (event.key === 'Escape' && !document.querySelector('dialog[open]')) back(event);
+      if (
+        !phone &&
+        event.key.toLowerCase() === 'n' &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey &&
+        !event.repeat &&
+        !(event.target as Element | null)?.closest(
+          'input, textarea, select, [contenteditable="true"]',
+        ) &&
+        !document.querySelector('dialog[open], .modal-backdrop')
+      ) {
+        event.preventDefault();
+        if (!taskView && !(view === 'timetable' && arrangement === 'calendar')) navigate('today');
+        setComposer(true);
+      }
     };
     document.addEventListener('clearlist:back', back);
     document.addEventListener('keydown', keyboard);
@@ -173,27 +260,10 @@ export function MobileApp() {
       document.removeEventListener('keydown', keyboard);
     };
   });
-  useEffect(() => {
-    const timer = data.timer;
-    if (!timer?.endAt || timer.endAt > clock) return;
-    store.update((state) => finishFocus(state, clock));
-    notice(timer.kind === 'focus' ? '专注已完成' : '休息结束');
-  }, [clock]);
 
   async function track(id: string) {
     try {
-      await store.transact((state) => {
-        if (state.timer) throw new Error('请先结束当前番茄专注。');
-        const task = state.tasks.find((task) => task.id === id);
-        if (!task || task.deletedAt) throw new Error('任务已变化，请重新查看。');
-        const activity =
-          state.timelog.activities.find(
-            (activity) => !activity.archived && activity.name === '学习',
-          ) || state.timelog.activities.find((activity) => !activity.archived);
-        if (!activity) throw new Error('请先添加一个计时活动。');
-        const timelog = startTimer(state.timelog, activity.id, task.title, Date.now());
-        return { ...state, timelog: { ...timelog, timer: { ...timelog.timer!, taskId: id } } };
-      });
+      await store.transact((state) => startTaskTimer(state, id));
       navigate('timelog', 'timer');
     } catch (error) {
       notice(error instanceof Error ? error.message : String(error));
@@ -203,7 +273,7 @@ export function MobileApp() {
     store.patchTask(task.id, { deletedAt: now() });
     setSelected(null);
     setToast({
-      text: '任务已移入回收站',
+      text: '任务已删除',
       undo: () => store.patchTask(task.id, { deletedAt: null }),
     });
   }
@@ -212,6 +282,8 @@ export function MobileApp() {
       <TaskRow
         key={task.id}
         task={task}
+        index={ordinal.get(task.id)}
+        onMove={task.completedAt ? undefined : moveTask}
         selected={task.id === selected}
         onSelect={setSelected}
         onDelete={remove}
@@ -234,28 +306,66 @@ export function MobileApp() {
   const timer = data.timelog.timer;
   const dock = timer && !(timeView && timePage === 'timer');
   const listId = view.startsWith('list:') ? view.slice(5) : 'inbox';
+  const sidebar = (
+    <PhoneSidebar
+      persistent={!phone}
+      open={drawer}
+      kind={taskView ? 'tasks' : timeView ? 'records' : 'other'}
+      view={view}
+      recordFilter={recordFilter}
+      close={() => setDrawer(false)}
+      onSettings={() => {
+        setDrawer(false);
+        setSettings(true);
+      }}
+      onList={(id) => navigate(id === 'inbox' ? 'inbox' : `list:${id}`)}
+      onTaskTag={(tag) => navigate(`tag:${tag}`)}
+      onRecordFilter={(filter) => {
+        setRecordFilter(filter);
+        navigate('timelog', 'timeline');
+      }}
+    />
+  );
 
   return (
     <div
-      className={`phone-shell ${timeView ? 'phone-time-view' : ''} ${dock ? 'has-timer-dock' : ''}`}
+      className={`phone-shell app-shell ${phone ? 'mobile-shell' : 'desktop-shell'} ${timeView ? 'phone-time-view' : ''} ${dock ? 'has-timer-dock' : ''}`}
+      data-layout={phone ? 'phone' : 'desktop'}
+      data-section={
+        taskView
+          ? 'tasks'
+          : timeView
+            ? 'records'
+            : view === 'timetable'
+              ? 'arrangements'
+              : 'statistics'
+      }
+      data-view={view}
     >
       <PhoneTopbar
         title={showTaskTabs ? '待办' : title}
         openMenu={
-          <button className="icon-button" aria-label="打开导航" onClick={() => setDrawer(true)}>
-            <Menu size={23} />
-          </button>
+          phone && (
+            <button className="icon-button" aria-label="打开导航" onClick={() => setDrawer(true)}>
+              <Menu size={23} />
+            </button>
+          )
         }
       >
-        {showTaskTabs && (
-          <PhoneTabs tabs={taskTabs} value={view} onChange={navigate} label="待办子页面" />
-        )}
-        {showRecordTabs && (
+        {tabs.length > 0 && (
           <PhoneTabs
-            tabs={recordTabs}
-            value={timePage}
-            onChange={changeTimePage}
-            label="记录子页面"
+            tabs={tabs}
+            value={activeTab}
+            onChange={changeTab}
+            label={
+              showTaskTabs
+                ? '待办子页面'
+                : timeView
+                  ? '记录子页面'
+                  : view === 'timetable'
+                    ? '安排子页面'
+                    : '统计子页面'
+            }
           />
         )}
       </PhoneTopbar>
@@ -263,70 +373,55 @@ export function MobileApp() {
         ref={scroll}
         className="phone-content"
         aria-label={title}
-        {...(showTaskTabs ? taskSwipe : showRecordTabs ? recordSwipe : {})}
+        {...(tabs.length ? swipe : {})}
       >
+        {snapshot.recovered && (
+          <div className="recovery-banner" role="status">
+            已从备份恢复最近可用的数据。可在设置中导出备份并检查内容。
+            <button className="text-button" onClick={() => setSettings(true)}>
+              数据与备份
+            </button>
+          </div>
+        )}
         {snapshot.error && (
           <div className="error-banner" role="alert">
             {snapshot.error}
             <button onClick={() => setSettings(true)}>备份与恢复</button>
           </div>
         )}
-        {taskView && (
-          <>
-            {view === 'today' && (
-              <section className="phone-week" aria-label="待办周历">
-                <div className="phone-week-heading">
-                  <button
-                    className="icon-button"
-                    aria-label="前一周待办"
-                    onClick={() => setDay(shiftDate(day, -7))}
-                  >
-                    <ChevronLeft size={18} />
-                  </button>
-                  <label>
-                    {day.slice(0, 4)}年{Number(day.slice(5, 7))}月
-                    <input
-                      type="date"
-                      aria-label="待办日期"
-                      value={day}
-                      onChange={(e) => {
-                        if (e.target.value) setDay(e.target.value);
-                      }}
-                    />
-                  </label>
-                  <button className="text-button" onClick={() => setDay(today)}>
-                    今天
-                  </button>
-                  <button
-                    className="icon-button"
-                    aria-label="后一周待办"
-                    onClick={() => setDay(shiftDate(day, 7))}
-                  >
-                    <ChevronRight size={18} />
-                  </button>
-                </div>
-                <div className="phone-week-days">
-                  {weekdays.map((date, index) => (
-                    <button
-                      key={date}
-                      aria-label={`查看 ${date} 的任务`}
-                      aria-pressed={day === date}
-                      aria-current={date === today ? 'date' : undefined}
-                      onClick={() => setDay(date)}
-                    >
-                      <span>{['一', '二', '三', '四', '五', '六', '日'][index]}</span>
-                      <strong>{Number(date.slice(-2))}</strong>
-                      <i className={live.some((task) => task.due === date) ? 'has-tasks' : ''} />
-                    </button>
-                  ))}
-                </div>
-              </section>
-            )}
-          </>
+        {timeView && (recordFilter.activityId || recordFilter.tag) && (
+          <div className="phone-filter-bar">
+            <span>
+              {recordFilter.tag
+                ? `#${recordFilter.tag}`
+                : data.timelog.activities.find(
+                    (activity) => activity.id === recordFilter.activityId,
+                  )?.name}
+            </span>
+            <button className="text-button" onClick={() => setRecordFilter({})}>
+              清除筛选
+            </button>
+          </div>
+        )}
+        {(view === 'today' || view === 'upcoming') && (
+          <DateNavigator
+            date={day}
+            onDate={setDay}
+            label="待办日期"
+            week={view === 'upcoming'}
+            taskDates={live.flatMap((task) => (task.due ? [task.due] : []))}
+          />
         )}
         {view === 'today' &&
           (data.schedule.courses.length > 0 || data.schedule.events.length > 0) && (
-            <NextClass clock={clock} compact onOpen={() => navigate('timetable')} />
+            <NextClass
+              clock={clock}
+              compact
+              onOpen={() => {
+                setArrangement('timetable');
+                navigate('timetable');
+              }}
+            />
           )}
         {taskView && (
           <section className="phone-tasks">
@@ -336,6 +431,16 @@ export function MobileApp() {
                   ? `${formatDate(day)} · ${tasks.length} 件`
                   : `${title} · ${tasks.length}`}
               </h2>
+              {(view === 'today' || view === 'all') && (
+                <div className="phone-layout-switch" role="group" aria-label="待办显示方式">
+                  <button aria-pressed={!quadrants} onClick={() => setQuadrants(false)}>
+                    列表
+                  </button>
+                  <button aria-pressed={quadrants} onClick={() => setQuadrants(true)}>
+                    四象限
+                  </button>
+                </div>
+              )}
               <label>
                 <span className="visually-hidden">任务排序</span>
                 <select
@@ -350,7 +455,34 @@ export function MobileApp() {
               </label>
             </div>
             {tasks.length ? (
-              tasks.map(row)
+              quadrants && (view === 'today' || view === 'all') ? (
+                <div className="phone-quadrants">
+                  {['重要且紧急', '重要不紧急', '紧急不重要', '不紧急不重要'].map(
+                    (label, index) => (
+                      <section key={label}>
+                        <h2>{label}</h2>
+                        {tasks
+                          .filter((task) => !task.completedAt && quadrant(task, day) === index)
+                          .map(row)}
+                      </section>
+                    ),
+                  )}
+                </div>
+              ) : view === 'upcoming' ? (
+                <div className="weekly-plan-grid">
+                  {week.map((date) => (
+                    <section className="phone-plan-day" key={date}>
+                      <h3>{formatDate(date)}</h3>
+                      {tasks.filter((task) => task.due === date && !task.completedAt).map(row)}
+                      {!tasks.some((task) => task.due === date) && (
+                        <p className="muted">暂无计划</p>
+                      )}
+                    </section>
+                  ))}
+                </div>
+              ) : (
+                <>{tasks.filter((task) => !task.completedAt).map(row)}</>
+              )
             ) : (
               <div className="phone-empty">
                 <CircleCheck size={35} />
@@ -358,10 +490,46 @@ export function MobileApp() {
                 <p>点右下角 +，记下下一件事</p>
               </div>
             )}
+            {completed.length > 0 && (
+              <details className="completed-plans" open>
+                <summary>已完成 · {completed.length}</summary>
+                {completed.map(row)}
+              </details>
+            )}
           </section>
         )}
-        {timeView && <TimeLog page={timePage} onPageChange={changeTimePage} />}
-        {view === 'timetable' && <Timetable clock={clock} />}
+        {timeView && (
+          <TimeLog
+            page={timePage}
+            onPageChange={(page) => {
+              setTimePage(page);
+              scroll.current?.scrollTo(0, 0);
+            }}
+            initialDate={recordDate}
+            filter={recordFilter}
+          />
+        )}
+        {view === 'timetable' &&
+          (arrangement === 'timetable' ? (
+            <Timetable clock={clock} />
+          ) : (
+            <div className="arrangement-calendar">
+              <Calendar
+                tasks={data.tasks.filter((task) => !task.deletedAt && !task.completedAt)}
+                selectedDate={day}
+                onDate={setDay}
+                onSelect={setSelected}
+                onDrop={(id, due) => store.patchTask(id, { due, repeatDay: Number(due.slice(-2)) })}
+              />
+              <section className="phone-plan-day">
+                <h3>{formatDate(day)}</h3>
+                {tasks.map(row)}
+                <button className="button" onClick={() => setComposer(true)}>
+                  添加当天计划
+                </button>
+              </section>
+            </div>
+          ))}
         {view === 'calendar' && (
           <Calendar
             tasks={selectTasks(data, 'all', '', 'date', today)}
@@ -371,17 +539,13 @@ export function MobileApp() {
             onDrop={(id, due) => store.patchTask(id, { due, repeatDay: Number(due.slice(-2)) })}
           />
         )}
-        {view === 'focus' && <Focus preferredTask={focusTask} clock={clock} />}
-        {view === 'stats' && <Statistics />}
-        {view === 'quadrants' && (
-          <div className="phone-quadrants">
-            {['重要且紧急', '重要不紧急', '紧急不重要', '不紧急不重要'].map((label, index) => (
-              <section key={label}>
-                <h2>{label}</h2>
-                {live.filter((task) => quadrant(task, today) === index).map(row)}
-              </section>
-            ))}
-          </div>
+        {view === 'stats' && (
+          <PhoneStatistics
+            page={statisticsPage}
+            date={statisticsDate}
+            setDate={setStatisticsDate}
+            onTimeline={openRecords}
+          />
         )}
       </main>
       {taskView && !['trash', 'completed'].includes(view) && (
@@ -413,142 +577,67 @@ export function MobileApp() {
           </button>
         </div>
       )}
-      <nav className="phone-nav" aria-label="手机底部导航">
-        {[
-          {
-            key: 'tasks',
-            label: '待办',
-            icon: ListTodo,
-            active: taskView,
-            action: () => navigate('today'),
-          },
-          {
-            key: 'records',
-            label: '记录',
-            icon: Clock3,
-            active: timeView,
-            action: () => navigate('timelog', 'timeline'),
-          },
-          {
-            key: 'courses',
-            label: '课表',
-            icon: CalendarDays,
-            active: view === 'timetable',
-            action: () => navigate('timetable'),
-          },
-          {
-            key: 'more',
-            label: '更多',
-            icon: MoreHorizontal,
-            active: drawer || (!taskView && !timeView && view !== 'timetable'),
-            action: () => setDrawer(true),
-          },
-        ].map(({ key, label, icon: Icon, active, action }) => (
-          <button
-            key={key}
-            className={active ? 'active' : ''}
-            aria-label={`手机${label}`}
-            aria-current={active ? 'page' : undefined}
-            onClick={action}
-          >
-            <span>
-              <Icon size={22} strokeWidth={1.8} />
-              {key === 'records' && timer && <i className="running-dot" />}
+      <div className="app-navigation">
+        <nav className="phone-nav app-nav" aria-label={phone ? '手机底部导航' : '主导航'}>
+          <div className="app-brand" aria-label="时织 Dayweave">
+            <span className="app-brand-mark">
+              <ListTodo size={23} strokeWidth={1.8} />
             </span>
-            <small>{label}</small>
-          </button>
-        ))}
-      </nav>
-      {drawer && (
-        <Sheet title="更多" close={() => setDrawer(false)}>
-          <div className="phone-more-grid">
-            {[
-              {
-                label: '时间分析',
-                icon: ChartNoAxesCombined,
-                action: () => navigate('timelog', 'analysis'),
-              },
-              { label: '日历', icon: CalendarDays, action: () => navigate('calendar') },
-              { label: '最近七天', icon: CalendarDays, action: () => navigate('upcoming') },
-              { label: '四象限', icon: Grid2X2, action: () => navigate('quadrants') },
-              { label: '番茄专注', icon: Timer, action: () => navigate('focus') },
-              { label: '已完成', icon: CircleCheck, action: () => navigate('completed') },
-              { label: '回收站', icon: Trash2, action: () => navigate('trash') },
-              { label: '任务统计', icon: ChartNoAxesCombined, action: () => navigate('stats') },
-              {
-                label: '设置与同步',
-                icon: SettingsIcon,
-                action: () => {
-                  setDrawer(false);
-                  setSettings(true);
-                },
-              },
-            ].map(({ label, icon: Icon, action }) => (
-              <button key={label} onClick={action}>
-                <Icon size={23} />
-                <span>{label}</span>
-              </button>
-            ))}
+            <div>
+              <strong>时织</strong>
+              <small>Dayweave</small>
+            </div>
           </div>
-          <div className="phone-list-heading">
-            <h3>我的清单</h3>
+          {[
+            {
+              key: 'tasks',
+              label: '待办',
+              icon: ListTodo,
+              active: taskView,
+              action: () => navigate('today'),
+            },
+            {
+              key: 'records',
+              label: '记录',
+              icon: Clock3,
+              active: timeView,
+              action: () => navigate('timelog', 'timeline'),
+            },
+            {
+              key: 'courses',
+              label: '安排',
+              icon: CalendarDays,
+              active: view === 'timetable',
+              action: () => navigate('timetable'),
+            },
+            {
+              key: 'statistics',
+              label: '统计',
+              icon: ChartNoAxesCombined,
+              active: view === 'stats',
+              action: () => navigate('stats'),
+            },
+          ].map(({ key, label, icon: Icon, active, action }) => (
             <button
-              className="icon-button"
-              aria-label="新建清单"
-              onClick={() => {
-                setDrawer(false);
-                setList('new');
-              }}
+              key={key}
+              className={active ? 'active' : ''}
+              aria-label={phone ? `手机${label}` : label}
+              aria-current={active ? 'page' : undefined}
+              onClick={action}
             >
-              <Plus size={20} />
+              <span>
+                <Icon size={22} strokeWidth={1.8} />
+                {key === 'records' && timer && <i className="running-dot" />}
+              </span>
+              <small>{label}</small>
             </button>
-          </div>
-          <div className="phone-list-links">
-            {data.lists.map((item) => (
-              <div key={item.id}>
-                <button onClick={() => navigate(item.id === 'inbox' ? 'inbox' : `list:${item.id}`)}>
-                  <i style={{ background: item.color }} />
-                  {item.name}
-                  <small>{live.filter((task) => task.listId === item.id).length}</small>
-                </button>
-                {item.id !== 'inbox' && (
-                  <button
-                    className="icon-button"
-                    aria-label={`编辑清单 ${item.name}`}
-                    onClick={() => {
-                      setDrawer(false);
-                      setList(item);
-                    }}
-                  >
-                    <MoreHorizontal size={18} />
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-          {[...new Set(live.flatMap((task) => task.tags))].length > 0 && (
-            <>
-              <div className="phone-list-heading">
-                <h3>标签</h3>
-              </div>
-              <div className="phone-list-links">
-                {[...new Set(live.flatMap((task) => task.tags))].sort().map((tag) => (
-                  <div key={tag}>
-                    <button onClick={() => navigate(`tag:${tag}`)}>
-                      <Tag size={16} />
-                      {tag}
-                      <small>{live.filter((task) => task.tags.includes(tag)).length}</small>
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-        </Sheet>
-      )}
+          ))}
+        </nav>
+        {sidebar}
+      </div>
       {composer && (
         <TaskComposer
-          due={view === 'today' ? day : view === 'calendar' ? day : ''}
+          due={['today', 'upcoming', 'calendar', 'timetable'].includes(view) ? day : ''}
           listId={listId}
           today={today}
           close={() => setComposer(false)}
@@ -558,26 +647,23 @@ export function MobileApp() {
           }}
         />
       )}
-      {selected && (
-        <TaskEditor
-          id={selected}
-          onClose={() => setSelected(null)}
+      {selected && data.tasks.find((task) => task.id === selected) && (
+        <TaskComposer
+          key={selected}
+          task={data.tasks.find((task) => task.id === selected)}
+          due=""
+          listId="inbox"
+          today={today}
+          close={() => setSelected(null)}
+          saved={() => {
+            setSelected(null);
+            notice('任务已保存');
+          }}
           onDelete={remove}
           onTrack={track}
-          onFocus={(id) => {
-            setFocusTask(id);
-            navigate('focus');
-          }}
         />
       )}
       {settings && <Settings onClose={() => setSettings(false)} onMessage={notice} />}
-      {list && (
-        <ListModal
-          list={list === 'new' ? undefined : list}
-          onClose={() => setList(null)}
-          onSaved={notice}
-        />
-      )}
       {toast && (
         <div className="phone-toast" role="status">
           <Check size={17} />

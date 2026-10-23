@@ -16,6 +16,7 @@ import {
 import { lastRecordEnd } from '../timeline';
 import { Dialog } from './Dialog';
 import { usePhone } from '../../phone/usePhone';
+import { useStore } from '../../store';
 export type EditTarget =
   | { kind: 'record'; record?: TimeRecord; range?: Span; activityId?: string }
   | { kind: 'activity'; activity?: Activity }
@@ -34,6 +35,7 @@ export function Editor({
   close: () => void;
 }) {
   const phone = usePhone();
+  const tagColors = useStore().data.tagColors.records;
   const record = target.kind === 'record' ? target.record : undefined;
   const fallback = { start: Date.now() - 30 * 60000, end: Date.now() };
   const [spans, setSpans] = useState<Span[]>(
@@ -45,11 +47,13 @@ export function Editor({
   const [activityId, setActivityId] = useState(
     record?.activityId ||
       (target.kind === 'record' ? target.activityId : undefined) ||
-      state.activities.find((row) => !row.archived)?.id ||
+      state.activities.find((row) => !row.archived && !row.deletedAt)?.id ||
       '',
   );
   const [tags, setTags] = useState(record?.tags || []);
-  const tagOptions = [...new Set(state.records.flatMap((row) => row.tags))].sort();
+  const tagOptions = [
+    ...new Set([...Object.keys(tagColors), ...state.records.flatMap((row) => row.tags)]),
+  ].sort();
   const [saving, setSaving] = useState(false);
   const title =
     target.kind === 'record'
@@ -132,7 +136,8 @@ export function Editor({
           };
           if (
             current.activities.some(
-              (row) => row.id !== next.id && !row.archived && row.name === next.name,
+              (row) =>
+                row.id !== next.id && !row.archived && !row.deletedAt && row.name === next.name,
             )
           )
             throw new Error('已有同名活动。');
@@ -178,7 +183,7 @@ export function Editor({
   }
   const activityOptions = (selected?: string) =>
     state.activities
-      .filter((row) => !row.archived || row.id === selected)
+      .filter((row) => (!row.archived && !row.deletedAt) || row.id === selected)
       .map((row) => (
         <option key={row.id} value={row.id}>
           {row.name}
@@ -209,7 +214,9 @@ export function Editor({
             {phone && (
               <div className="phone-activity-chips" aria-label="选择记录活动">
                 {state.activities
-                  .filter((row) => !row.archived || row.id === record?.activityId)
+                  .filter(
+                    (row) => (!row.archived && !row.deletedAt) || row.id === record?.activityId,
+                  )
                   .map((activity) => (
                     <button
                       type="button"
@@ -358,6 +365,7 @@ export function Editor({
                   <button
                     key={tag}
                     type="button"
+                    style={{ color: tagColors[tag] }}
                     aria-pressed={tags.includes(tag)}
                     onClick={() =>
                       setTags(
@@ -426,7 +434,8 @@ export function Editor({
               <select
                 name="activityId"
                 defaultValue={
-                  target.goal?.activityId || state.activities.find((row) => !row.archived)?.id
+                  target.goal?.activityId ||
+                  state.activities.find((row) => !row.archived && !row.deletedAt)?.id
                 }
                 required
               >

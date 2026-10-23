@@ -19,6 +19,7 @@ import { StateService } from './state-service.js';
 import { startApi } from './api.js';
 import { diffState } from '../src/state-delta.js';
 import { DesktopSync } from './sync.js';
+import { importFudan } from './fudan-import.js';
 
 app.setName('Dayweave');
 app.setPath(
@@ -155,6 +156,10 @@ else {
         ]),
       );
     else Menu.setApplicationMenu(null);
+    ipcMain.handle('fudan:import', (event) => {
+      trusted(event);
+      return importFudan(window!);
+    });
     ipcMain.handle('text:pick', async (event) => {
       trusted(event);
       const result = await dialog.showOpenDialog(window!, {

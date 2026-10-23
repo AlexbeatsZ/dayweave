@@ -1,0 +1,132 @@
+.activity-timer-panel {
+  max-width: 760px;
+  margin: 0 auto;
+}
+.timer-presets {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 12px 0 16px;
+}
+.timer-presets > button {
+  min-height: 40px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  background: var(--card);
+  color: var(--muted);
+  border: 1px solid var(--line);
+}
+.timer-presets > [aria-pressed='true'] {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.activity-clock-ring {
+  --progress: 0deg;
+  width: 230px;
+  aspect-ratio: 1;
+  margin: 22px auto;
+  padding: 12px;
+  border-radius: 50%;
+  background: conic-gradient(var(--accent) var(--progress), var(--line) var(--progress));
+}
+.activity-clock-ring > div {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: var(--card);
+  gap: 6px;
+}
+.activity-clock-ring .timer-clock {
+  font-size: clamp(24px, 6vw, 36px);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  margin: 0;
+}
+.activity-clock-ring span {
+  color: var(--muted);
+  font-size: 13px;
+}
+.timer-time-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.timer-time-summary > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.timer-related {
+  margin: 18px 0;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--card);
+}
+.timer-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.timer-section-title h3 {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 500;
+}
+.timer-related label {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+  color: var(--muted);
+}
+.timer-related select,
+.timer-related textarea {
+  padding: 12px;
+  width: 100%;
+  min-height: 46px;
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--input);
+  font: inherit;
+  font-size: 16px;
+}
+.timer-related textarea {
+  resize: vertical;
+}
+.timer-footer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 20px 0;
+}
+.timer-start-shortcuts {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.preset-edit-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.preset-edit-list > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px 4px 14px;
+  background: var(--card);
+  border-radius: 12px;
+}

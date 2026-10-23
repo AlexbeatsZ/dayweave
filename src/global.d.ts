@@ -6,6 +6,7 @@ declare global {
     clearlist?: {
       sync?: import('./sync/types').SyncBridge;
       pickText?(): Promise<string | null>;
+      importFudan?(): Promise<string | null>;
       exportText?(name: string, data: string): Promise<boolean>;
       platform?: 'win32' | 'darwin' | 'linux' | 'android';
       setTheme?(theme: 'light' | 'dark' | 'system'): Promise<void>;

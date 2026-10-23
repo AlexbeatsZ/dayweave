@@ -22,7 +22,7 @@ try {
     env,
   });
   let page = await app.firstWindow();
-  await expect(page.getByLabel('新任务标题')).toBeVisible();
+  await expect(page.getByRole('button', { name: '新建任务', exact: true })).toBeVisible();
   await expect
     .poll(() => page.evaluate(async () => (await window.clearlist.apiInfo()).enabled))
     .toBe(true);
@@ -53,18 +53,26 @@ try {
   await page.getByRole('button', { name: '编辑 AI 创建的任务', exact: true }).click();
   await page.getByLabel('任务备注').fill('界面补充的备注');
   await request('PATCH', `/tasks/${task.id}`, { priority: 1 });
-  await expect(page.getByLabel('任务优先级', { exact: true })).toHaveValue('1');
   await request('PATCH', `/tasks/${task.id}`, { title: 'AI 更新的标题' });
-  await expect(page.getByLabel('任务标题', { exact: true })).toHaveValue('AI 更新的标题');
+  // A shared draft is explicit: concurrent AI writes cannot overwrite it, and
+  // saving a stale revision must not overwrite the newer AI fields either.
   await expect(page.getByLabel('任务备注')).toHaveValue('界面补充的备注');
+  await page.getByRole('button', { name: '保存任务', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('任务已在其他位置修改');
+  assert.equal((await request('GET', `/tasks/${task.id}`)).data.notes, '');
+  await page.getByRole('button', { name: '关闭对话框', exact: true }).click();
+  await page.getByRole('button', { name: '编辑 AI 更新的标题', exact: true }).click();
+  await expect(page.getByLabel('任务优先级', { exact: true })).toHaveValue('1');
+  await expect(page.getByLabel('任务标题', { exact: true })).toHaveValue('AI 更新的标题');
+  await page.getByLabel('任务备注').fill('界面补充的备注');
+  await page.getByRole('button', { name: '保存任务', exact: true }).click();
   await expect
     .poll(async () => (await request('GET', `/tasks/${task.id}`)).data.notes)
     .toBe('界面补充的备注');
-  await page.getByRole('button', { name: '关闭详情', exact: true }).click();
   await request('POST', `/tasks/${task.id}/complete`);
-  await expect(page.getByRole('button', { name: '编辑 AI 更新的标题', exact: true })).toHaveCount(
-    0,
-  );
+  await expect(
+    page.getByRole('checkbox', { name: '完成 AI 更新的标题', exact: true }),
+  ).toBeChecked();
   await request('PATCH', '/settings', { theme: 'dark' });
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   const disk = JSON.parse(await readFile(path.join(profile, 'data.json'), 'utf8'));
@@ -78,7 +86,7 @@ try {
     const reopened = app.waitForEvent('window');
     await app.evaluate(({ app }) => app.emit('activate'));
     page = await reopened;
-    await expect(page.getByLabel('新任务标题')).toBeVisible();
+    await expect(page.getByRole('button', { name: '新建任务', exact: true })).toBeVisible();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   }
   console.log(

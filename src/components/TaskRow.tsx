@@ -8,25 +8,43 @@ import {
   GripVertical,
   Timer,
 } from 'lucide-react';
-import { dateKey, formatDate, now, priorityLabels, toggleTask, type Task } from '../model';
+import {
+  dateKey,
+  formatDate,
+  formatTaskMinutes,
+  now,
+  priorityLabels,
+  toggleTask,
+  type Task,
+} from '../model';
 import { store, useStore } from '../store';
+import { useTaskDrag } from '../phone/useTaskDrag';
+import '../phone/drag.css';
 
 type Props = {
   task: Task;
+  index?: number;
   selected: boolean;
   onSelect: (id: string) => void;
   onDelete: (task: Task) => void;
   onMove?: (source: string, target: string) => void;
   onTrack?: (id: string) => void;
 };
-export function TaskRow({ task, selected, onSelect, onDelete, onMove, onTrack }: Props) {
+export function TaskRow({ task, index, selected, onSelect, onDelete, onMove, onTrack }: Props) {
   const { data } = useStore();
+  const drag = useTaskDrag(task.id, onMove, !!task.deletedAt || !!task.completedAt);
   const list = data.lists.find((l) => l.id === task.listId);
   const completed = task.subtasks.filter((s) => s.done).length;
   return (
     <article
-      className={`task-row ${selected ? 'selected' : ''} ${task.completedAt ? 'done' : ''}`}
+      ref={drag.ref}
+      className={`task-row ${selected ? 'selected' : ''} ${task.completedAt ? 'done' : ''} ${drag.dragging ? 'task-sort-source' : ''}`}
       data-testid="task-row"
+      data-task-id={task.id}
+      data-task-sortable={!!onMove && !task.deletedAt && !task.completedAt}
+      data-priority={task.priority}
+      style={{ '--task-color': list?.color ?? '#7e8b8b' } as React.CSSProperties}
+      onClickCapture={drag.onClickCapture}
       draggable={!task.deletedAt && !onTrack}
       onDragStart={(event) => {
         event.dataTransfer.setData('application/clearlist-task', task.id);
@@ -60,7 +78,7 @@ export function TaskRow({ task, selected, onSelect, onDelete, onMove, onTrack }:
           aria-label={`完成 ${task.title}`}
           onClick={() => store.update((s) => toggleTask(s, task.id))}
         >
-          {task.completedAt && <Check size={13} strokeWidth={3} />}
+          {task.completedAt ? <Check size={13} strokeWidth={3} /> : (index ?? 1)}
         </button>
       )}
       <button
@@ -76,7 +94,7 @@ export function TaskRow({ task, selected, onSelect, onDelete, onMove, onTrack }:
         <span className="task-meta">
           <span className="list-meta">
             <i style={{ background: list?.color }} />
-            {list?.name}
+            {list?.id === 'inbox' ? '未分组' : list?.name}
           </span>
           {task.due && (
             <span
@@ -93,6 +111,14 @@ export function TaskRow({ task, selected, onSelect, onDelete, onMove, onTrack }:
             </span>
           )}
           {task.repeat !== 'none' && <Repeat2 size={12} aria-label="重复任务" />}
+          {task.estimatedMinutes != null && (
+            <span className="task-effort-meta">
+              预计 {formatTaskMinutes(task.estimatedMinutes)}
+            </span>
+          )}
+          {task.actualMinutes != null && (
+            <span className="task-effort-meta">实际 {formatTaskMinutes(task.actualMinutes)}</span>
+          )}
           {!!task.subtasks.length && (
             <span>
               <ListChecks size={12} />
@@ -100,7 +126,7 @@ export function TaskRow({ task, selected, onSelect, onDelete, onMove, onTrack }:
             </span>
           )}
           {task.tags.slice(0, 2).map((tag) => (
-            <span className="tag-label" key={tag}>
+            <span className="tag-label" key={tag} style={{ color: data.tagColors.tasks[tag] }}>
               #{tag}
             </span>
           ))}
@@ -132,7 +158,7 @@ export function TaskRow({ task, selected, onSelect, onDelete, onMove, onTrack }:
       {!task.deletedAt && (
         <button
           className="icon-button row-action danger-hover"
-          title="移入回收站"
+          title="删除任务"
           aria-label={`删除 ${task.title}`}
           onClick={() => onDelete(task)}
         >

@@ -1,0 +1,586 @@
+/* One page tree: narrow screens use the bottom bar, wider windows keep navigation visible. */
+.app-shell.phone-shell {
+  min-width: 0;
+}
+.app-navigation {
+  display: contents;
+}
+.app-brand {
+  display: none;
+}
+
+@media (min-width: 701px) {
+  .desktop-shell {
+    --desktop-sidebar-width: 248px;
+    --desktop-gutter: clamp(24px, 3vw, 52px);
+    --phone-nav: 0px;
+    display: grid;
+    grid-template-columns: var(--desktop-sidebar-width) minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    min-width: 0;
+    height: 100dvh;
+    background: var(--canvas);
+  }
+  .desktop-shell > .app-navigation {
+    grid-column: 1;
+    grid-row: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
+    background: var(--sidebar);
+    border-right: 1px solid var(--line);
+  }
+  .desktop-shell .app-nav {
+    display: flex;
+    flex-direction: column;
+    padding: 0 16px 18px;
+    min-height: 0;
+    background: transparent;
+    border: 0;
+    gap: 4px;
+    z-index: auto;
+  }
+  .desktop-shell .app-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 100px;
+    padding: 18px 8px 12px;
+    flex-shrink: 0;
+  }
+  .desktop-shell .app-brand-mark {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--accent);
+    border-radius: 13px;
+  }
+  .desktop-shell .app-brand > div {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .desktop-shell .app-brand strong {
+    font-size: 19px;
+    font-weight: 650;
+    letter-spacing: 0.08em;
+  }
+  .desktop-shell .app-brand small {
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 0.04em;
+  }
+  .desktop-shell .app-nav > button {
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 46px;
+    padding: 0 13px;
+    border-radius: 12px;
+    text-align: left;
+    font-weight: 500;
+  }
+  .desktop-shell .app-nav > button > span {
+    width: 23px;
+    height: 28px;
+    background: transparent;
+    flex: 0 0 23px;
+  }
+  .desktop-shell .app-nav > button small {
+    font-size: 14px;
+  }
+  .desktop-shell .app-nav > button.active {
+    background: var(--accent-tint);
+    color: var(--accent);
+  }
+  .desktop-shell .app-nav .running-dot {
+    top: 0;
+    right: -2px;
+  }
+  .desktop-shell .persistent-sidebar {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    border-top: 1px solid var(--line);
+  }
+  .desktop-shell .phone-sidebar-body {
+    padding: 14px 12px 24px;
+  }
+  .desktop-shell .phone-sidebar-group > header {
+    min-height: 36px;
+  }
+  .desktop-shell .phone-sidebar-group + .phone-sidebar-group {
+    margin-top: 20px;
+    padding-top: 14px;
+  }
+  .desktop-shell .phone-sidebar-row {
+    min-height: 42px;
+    gap: 2px;
+  }
+  .desktop-shell .phone-sidebar-link {
+    min-height: 42px;
+    gap: 9px;
+    font-size: 12px;
+  }
+  .desktop-shell .phone-sidebar-row > .icon-button,
+  .desktop-shell .phone-sidebar-group > header > .icon-button {
+    width: 28px;
+    min-width: 28px;
+    height: 36px;
+    border-radius: 8px;
+    color: var(--muted);
+  }
+  .desktop-shell .phone-sidebar-link[aria-current='page'] {
+    color: var(--accent);
+    background: var(--accent-tint);
+  }
+  .desktop-shell .phone-sidebar-footer {
+    padding: 12px 16px;
+  }
+  .desktop-shell .phone-sidebar-footer .phone-sidebar-link {
+    font-size: 13px;
+  }
+  .desktop-shell > .phone-header {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+    padding: 14px var(--desktop-gutter) 0;
+    background: var(--canvas);
+  }
+  .desktop-shell .phone-header-line {
+    min-height: 53px;
+  }
+  .desktop-shell .phone-header h1 {
+    font-size: 28px;
+    letter-spacing: 0.01em;
+    line-height: 1.4;
+  }
+  .desktop-shell .phone-tabs {
+    flex: none;
+    width: fit-content;
+    gap: 22px;
+    margin-top: 5px;
+  }
+  .desktop-shell .phone-tabs button {
+    flex: none;
+    padding: 0 4px;
+    min-height: 44px;
+    font-size: 14px;
+  }
+  .desktop-shell .phone-tabs small {
+    margin-left: 6px;
+    font-size: 10px;
+  }
+  .desktop-shell .phone-tabs button[aria-selected='true']::after {
+    width: 100%;
+    left: 0;
+    height: 2px;
+  }
+  .desktop-shell > .phone-content {
+    grid-column: 2;
+    grid-row: 2;
+    min-width: 0;
+    padding: 22px var(--desktop-gutter) 100px;
+    touch-action: pan-y;
+    scrollbar-gutter: stable;
+  }
+  .desktop-shell .phone-content > * {
+    max-width: 1440px;
+    margin-inline: auto;
+  }
+  .desktop-shell[data-section='tasks']:not([data-view='upcoming']) .phone-content > * {
+    max-width: 1080px;
+  }
+  .desktop-shell .phone-week {
+    width: 100%;
+    margin: 0 auto 18px;
+    padding: 10px 20px 14px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+  }
+  .desktop-shell .phone-week-days {
+    gap: 8px;
+  }
+  .desktop-shell .phone-week-days button {
+    min-height: 72px;
+  }
+  .desktop-shell .phone-section-heading {
+    min-height: 54px;
+    margin-bottom: 10px;
+    gap: 14px;
+  }
+  .desktop-shell .phone-section-heading h2 {
+    margin-right: auto;
+    font-size: 14px;
+  }
+  .desktop-shell .phone-section-heading select {
+    font-size: 12px;
+  }
+  .desktop-shell .phone-tasks .task-row {
+    padding: 15px 12px;
+    min-height: 76px;
+  }
+  .desktop-shell .phone-tasks .task-title {
+    font-size: 15px;
+  }
+  .desktop-shell .phone-tasks .task-meta {
+    font-size: 11px;
+  }
+  .desktop-shell .phone-tasks .phone-task-track {
+    opacity: 0.65;
+  }
+  .desktop-shell .phone-tasks .task-row:hover .phone-task-track,
+  .desktop-shell .phone-tasks .task-row:focus-within .phone-task-track {
+    opacity: 1;
+  }
+  .desktop-shell .weekly-plan-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+    align-items: start;
+    gap: 18px;
+  }
+  .desktop-shell .weekly-plan-grid .phone-plan-day,
+  .desktop-shell .phone-quadrants > section {
+    margin: 0;
+    padding: 18px 14px 10px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: var(--bg);
+    min-width: 0;
+    min-height: 135px;
+  }
+  .desktop-shell .phone-plan-day h3,
+  .desktop-shell .phone-quadrants h2 {
+    padding-inline: 8px;
+    font-size: 13px;
+  }
+  .desktop-shell .weekly-plan-grid .task-row:last-child,
+  .desktop-shell .phone-quadrants .task-row:last-child {
+    border-bottom: 0;
+  }
+  .desktop-shell .phone-quadrants {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+  }
+  .desktop-shell .phone-empty {
+    padding: clamp(70px, 13vh, 150px) 20px;
+  }
+  .desktop-shell .phone-fab {
+    right: var(--desktop-gutter);
+    bottom: 28px;
+    width: 56px;
+    height: 56px;
+    border-radius: 20px;
+  }
+  .desktop-shell.has-timer-dock .phone-fab {
+    bottom: 100px;
+  }
+  .desktop-shell .phone-timer-dock {
+    position: fixed;
+    bottom: 20px;
+    left: calc(var(--desktop-sidebar-width) + var(--desktop-gutter));
+    right: calc(var(--desktop-gutter) + 78px);
+    width: min(
+      610px,
+      calc(100vw - var(--desktop-sidebar-width) - var(--desktop-gutter) * 2 - 78px)
+    );
+    margin: 0;
+    padding: 7px 10px;
+    z-index: 9;
+    box-shadow: 0 6px 28px #0003;
+  }
+  .desktop-shell .phone-toast {
+    left: calc(var(--desktop-sidebar-width) + 24px);
+    right: auto;
+    width: min(480px, calc(100vw - var(--desktop-sidebar-width) - 120px));
+    bottom: 25px;
+  }
+  .desktop-shell.has-timer-dock .phone-toast {
+    bottom: 98px;
+  }
+  .desktop-shell .arrangement-calendar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(240px, 0.36fr);
+    gap: 24px;
+    align-items: start;
+  }
+  .desktop-shell .arrangement-calendar > .phone-plan-day {
+    margin: 0;
+    padding: 20px 16px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: var(--bg);
+  }
+  .desktop-shell .arrangement-calendar .task-row {
+    padding-block: 14px;
+  }
+  .desktop-shell .calendar-view {
+    padding: 0;
+    min-width: 0;
+  }
+  .desktop-shell .calendar-day {
+    min-height: clamp(88px, 10vh, 125px);
+  }
+  .desktop-shell .timetable-grid-view .timetable-matrix {
+    grid-template-columns: 64px repeat(7, minmax(62px, 1fr));
+    min-width: 0;
+  }
+  .desktop-shell .timetable-grid-view .timetable-course {
+    padding: 12px 9px;
+    gap: 7px;
+  }
+  .desktop-shell .timetable-grid-view .timetable-course strong {
+    font-size: 14px;
+  }
+  .desktop-shell .timetable-grid-view .timetable-course span,
+  .desktop-shell .timetable-grid-view .timetable-course small,
+  .desktop-shell .timetable-grid-view .timetable-course time {
+    font-size: 11px;
+  }
+  .desktop-shell .timetable-grid-view .timetable-week-nav {
+    min-height: 56px;
+    margin-bottom: 20px;
+  }
+  .desktop-shell .phone-record-toolbar {
+    margin-top: 0;
+    padding-top: 0;
+  }
+  .desktop-shell .phone-record-toolbar .panel-toolbar {
+    margin: 0 0 10px;
+  }
+  .desktop-shell .phone-record-toolbar .phone-week {
+    padding: 10px 20px 14px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+  }
+  .desktop-shell .phone-record-toolbar .timeline-summary {
+    gap: 26px;
+    padding: 14px 4px;
+  }
+  .desktop-shell .phone-timeline-day > h2 {
+    font-size: 15px;
+    margin-block: 20px 16px;
+  }
+  .desktop-shell .timelog-module .timeline-entry {
+    grid-template-columns: 78px minmax(0, 1fr);
+    gap: 20px;
+  }
+  .desktop-shell .timelog-module .record-card {
+    padding: 18px 20px;
+  }
+  .desktop-shell .timelog-module .card-content h3 {
+    font-size: 15px;
+  }
+  .desktop-shell .timelog-module .record-note {
+    font-size: 13px;
+  }
+  .desktop-shell .timelog-module .activity-grid {
+    grid-template-columns: repeat(auto-fit, minmax(125px, 1fr));
+    gap: 14px;
+  }
+  .desktop-shell .timelog-module .activity-tile {
+    min-height: 124px;
+    padding: 16px 10px;
+    border: 1px solid var(--line);
+    background: var(--bg);
+  }
+  .desktop-shell .timelog-module .activity-clock-ring {
+    width: 240px;
+  }
+  .desktop-shell .activity-clock-ring .timer-clock {
+    font-size: 34px;
+    letter-spacing: 0;
+  }
+  .desktop-shell .timelog-module .timer-detail {
+    min-height: 0;
+    padding: 18px 26px 24px;
+    margin-top: 0;
+  }
+  .desktop-shell .timelog-module .timer-detail h2 {
+    margin: 18px 0 6px;
+  }
+  .desktop-shell .goal-groups {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+    align-items: start;
+  }
+  .desktop-shell .timelog-module .goal-group {
+    margin: 0;
+  }
+  .desktop-shell .goal-groups > .section-note,
+  .desktop-shell .goal-groups > .empty-state {
+    grid-column: 1 / -1;
+  }
+  .desktop-shell .phone-daily-statistics {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+  }
+  .desktop-shell .phone-daily-statistics > .phone-week {
+    grid-column: 1 / -1;
+    max-width: 100%;
+    margin: 0;
+  }
+  .desktop-shell .phone-daily-statistics .phone-analysis-card {
+    margin: 0;
+    padding: 24px;
+  }
+  .desktop-shell .phone-summary-grid {
+    gap: 18px;
+    margin-block: 30px 20px;
+  }
+  .desktop-shell .phone-summary-grid strong {
+    font-size: 27px;
+  }
+  .desktop-shell .phone-summary-grid span {
+    font-size: 13px;
+  }
+  .desktop-shell .record-summary {
+    grid-template-columns: minmax(0, 1.6fr) repeat(2, minmax(0, 1fr));
+  }
+  .desktop-shell .record-summary > div:first-child strong {
+    font-size: clamp(18px, 1.5vw, 24px);
+    white-space: nowrap;
+  }
+  .desktop-shell .phone-analysis {
+    display: grid;
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    gap: 24px;
+    align-items: start;
+  }
+  .desktop-shell .phone-analysis > .phone-analysis-card {
+    margin: 0;
+    padding: 24px;
+  }
+  .desktop-shell .stat-cards {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .desktop-shell .chart-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .desktop-shell .phone-task-form {
+    padding: 0 26px 22px;
+  }
+  .desktop-shell dialog:has(.phone-task-form) {
+    width: min(660px, calc(100vw - 64px));
+    max-height: calc(100dvh - 64px);
+    padding: 0;
+  }
+  .desktop-shell dialog:has(.phone-task-form) > .dialog-header {
+    padding: 18px 24px 10px;
+  }
+  .desktop-shell .phone-sheet-actions {
+    bottom: -22px;
+    padding-bottom: 22px;
+  }
+  .desktop-shell .phone-sheet-actions .button {
+    width: auto;
+    min-width: 140px;
+    margin-left: auto;
+    display: flex;
+    justify-content: center;
+    min-height: 44px;
+    font-size: 14px;
+    border-radius: 12px;
+  }
+  .desktop-shell .phone-sidebar-empty {
+    font-size: 12px;
+  }
+  .desktop-shell .phone-sidebar-link:hover,
+  .desktop-shell .phone-sidebar-row > .icon-button:hover,
+  .desktop-shell .app-nav > button:not(.active):hover {
+    background: var(--hover);
+  }
+}
+
+@media (min-width: 1101px) {
+  .desktop-shell .activity-timer-panel:has(.timer-detail) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    max-width: 1040px;
+    gap: 0 24px;
+    align-items: start;
+  }
+  .desktop-shell .activity-timer-panel:has(.timer-detail) > .timer-presets {
+    grid-column: 1 / -1;
+    margin-top: 0;
+  }
+  .desktop-shell .activity-timer-panel:has(.timer-detail) > .timer-related {
+    margin: 0;
+    padding: 22px;
+    min-height: 100%;
+  }
+  .desktop-shell .activity-timer-panel:has(.timer-detail) > .timer-footer-actions {
+    grid-column: 2;
+  }
+}
+
+@media (min-width: 701px) and (max-width: 1100px) {
+  .desktop-shell {
+    --desktop-sidebar-width: 208px;
+    --desktop-gutter: 22px;
+  }
+  .desktop-shell .app-nav {
+    padding-inline: 12px;
+  }
+  .desktop-shell .phone-sidebar-body {
+    padding-inline: 8px;
+  }
+  .desktop-shell .phone-sidebar-row {
+    flex-wrap: wrap;
+  }
+  .desktop-shell .phone-sidebar-link {
+    gap: 6px;
+  }
+  .desktop-shell .phone-sidebar-row > .icon-button {
+    min-width: 24px;
+    width: 24px;
+  }
+  .desktop-shell .arrangement-calendar,
+  .desktop-shell .goal-groups,
+  .desktop-shell .phone-analysis,
+  .desktop-shell .phone-daily-statistics {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .desktop-shell .phone-daily-statistics > .phone-week {
+    grid-column: auto;
+  }
+  .desktop-shell .phone-quadrants {
+    gap: 12px;
+  }
+  .desktop-shell .stat-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .desktop-shell .chart-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (min-width: 701px) and (max-width: 850px) {
+  .desktop-shell {
+    --desktop-sidebar-width: 192px;
+    --desktop-gutter: 16px;
+  }
+  .desktop-shell .phone-quadrants {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .desktop-shell .timetable-grid-view .timetable-matrix {
+    grid-template-columns: 48px repeat(7, minmax(0, 1fr));
+  }
+  .desktop-shell .timetable-grid-view .timetable-course {
+    padding: 7px 4px;
+  }
+  .desktop-shell .timetable-grid-view .timetable-course strong {
+    font-size: 11px;
+  }
+}

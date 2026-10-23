@@ -44,10 +44,14 @@ export function diffState(before: AppState, after: AppState): StateDelta {
   if (!equal(before.settings, after.settings))
     delta.settings = { before: before.settings, after: after.settings };
   if (!equal(before.timer, after.timer)) delta.timer = { before: before.timer, after: after.timer };
-  if (!equal(before.timelog, after.timelog) || !equal(before.schedule, after.schedule))
+  if (
+    !equal(before.timelog, after.timelog) ||
+    !equal(before.schedule, after.schedule) ||
+    !equal(before.tagColors, after.tagColors)
+  )
     delta.modules = {
-      before: { timelog: before.timelog, schedule: before.schedule },
-      after: { timelog: after.timelog, schedule: after.schedule },
+      before: { timelog: before.timelog, schedule: before.schedule, tagColors: before.tagColors },
+      after: { timelog: after.timelog, schedule: after.schedule, tagColors: after.tagColors },
     };
   return delta;
 }
@@ -100,9 +104,9 @@ export function applyDelta(state: AppState, value: StateDelta, strict = true): A
     next.timer = delta.timer.after as AppState['timer'];
   }
   if (delta.modules) {
-    const b = delta.modules.before as Pick<AppState, 'timelog' | 'schedule'>,
-      a = delta.modules.after as Pick<AppState, 'timelog' | 'schedule'>;
-    for (const k of ['timelog', 'schedule'] as const)
+    const b = delta.modules.before as Pick<AppState, 'timelog' | 'schedule' | 'tagColors'>,
+      a = delta.modules.after as Pick<AppState, 'timelog' | 'schedule' | 'tagColors'>;
+    for (const k of ['timelog', 'schedule', 'tagColors'] as const)
       if (!equal(b[k], a[k])) {
         if (strict && !equal(next[k], b[k]) && !equal(next[k], a[k])) throw new StateConflict();
         (next as unknown as Record<string, unknown>)[k] = structuredClone(a[k]);

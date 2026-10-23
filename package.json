@@ -1,7 +1,7 @@
 {
   "name": "dayweave",
   "productName": "Dayweave",
-  "version": "0.3.3",
+  "version": "0.4.0",
   "private": true,
   "description": "时织 — 待办、时间记录与跨时区课程表",
   "license": "MIT",
@@ -22,7 +22,7 @@
   "scripts": {
     "dev": "npm run build:electron && node scripts/dev.mjs",
     "dev:web": "vite --host 127.0.0.1 --port 5178 --strictPort",
-    "build:electron": "tsc -p tsconfig.electron.json && node scripts/copy-preload.mjs",
+    "build:electron": "tsc -p tsconfig.electron.json && node scripts/copy-preload.mjs && node scripts/build-fudan-capture.mjs",
     "build": "npm run check && vite build && npm run build:electron",
     "check": "tsc --noEmit && tsc -p tsconfig.electron.json --noEmit",
     "test": "tsx --test tests/*.test.ts",

@@ -151,97 +151,6 @@
 .timelog-module .danger {
   color: var(--negative);
 }
-.timelog-module .workspace-shell {
-  min-height: 100dvh;
-}
-.timelog-module .navigation {
-  position: fixed;
-  inset: 0 auto 0 0;
-  width: 174px;
-  display: flex;
-  flex-direction: column;
-  background: var(--surface);
-  border-right: 1px solid var(--line);
-  padding: 28px 15px 18px;
-  z-index: 20;
-}
-.timelog-module .brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0 14px 31px;
-  font-size: 19px;
-  letter-spacing: 2px;
-}
-.timelog-module .brand img {
-  width: 30px;
-  height: 30px;
-}
-.timelog-module .navigation nav {
-  display: grid;
-  gap: 7px;
-}
-.timelog-module .navigation nav button,
-.timelog-module .nav-footer > button {
-  position: relative;
-  justify-content: flex-start;
-  gap: 13px;
-  width: 100%;
-  padding: 12px 16px;
-  min-height: 46px;
-  color: var(--text);
-}
-.timelog-module .navigation nav button.active {
-  background: var(--active);
-  color: var(--accent);
-  font-weight: 650;
-}
-.timelog-module .navigation nav .running-dot {
-  margin-left: auto;
-  width: 6px;
-  height: 6px;
-}
-.timelog-module .nav-footer {
-  margin-top: auto;
-}
-.timelog-module .nav-footer small {
-  display: block;
-  margin: 14px 16px 0;
-  font-size: 11px;
-  color: var(--muted);
-}
-.timelog-module .main {
-  margin-left: 174px;
-}
-.timelog-module .page-header {
-  height: 84px;
-  max-width: 1148px;
-  margin: auto;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 40px;
-}
-.timelog-module .header-actions {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
-.timelog-module .saved-indicator {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  color: var(--muted);
-  font-size: 12px;
-}
-.timelog-module .mobile-settings {
-  display: none;
-}
-.timelog-module .panel-content {
-  max-width: 1068px;
-  padding: 9px 0 60px;
-  margin: 0 auto;
-}
 .timelog-module .panel-toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -249,18 +158,6 @@
   justify-content: space-between;
   gap: 15px;
   margin-bottom: 20px;
-}
-.timelog-module .date-picker {
-  display: flex;
-  gap: 5px;
-  align-items: center;
-}
-.timelog-module .date-picker input {
-  width: 151px;
-  font-weight: 550;
-  background: transparent;
-  border: none;
-  padding: 7px 8px;
 }
 .timelog-module .timeline-summary {
   display: flex;
@@ -281,18 +178,6 @@
 .timelog-module .timeline-summary .weekday {
   margin-left: auto;
 }
-.timelog-module .active-timer-strip {
-  width: 100%;
-  border: 1px solid var(--line);
-  background: var(--active);
-  padding: 12px 16px;
-  margin-bottom: 18px;
-  color: var(--accent);
-}
-.timelog-module .active-timer-strip time {
-  margin-left: auto;
-  font-variant-numeric: tabular-nums;
-}
 .timelog-module .running-dot {
   display: inline-block;
   width: 7px;
@@ -300,28 +185,6 @@
   background: var(--positive);
   border-radius: 50%;
   flex-shrink: 0;
-}
-.timelog-module .timeline-options {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 18px;
-  margin-bottom: 24px;
-}
-.timelog-module .search-field {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 7px;
-  flex: 1;
-  max-width: 350px;
-  border-bottom: 1px solid var(--line);
-}
-.timelog-module .search-field input {
-  background: transparent;
-  border: 0;
-  padding: 7px 0;
-  font-size: 12px;
 }
 .timelog-module .check-label {
   display: flex;
@@ -337,9 +200,6 @@
   margin: 0;
   accent-color: var(--accent);
   flex-shrink: 0;
-}
-.timelog-module .timeline-options > .check-label {
-  margin-left: auto;
 }
 .timelog-module .timeline-list {
   padding-bottom: 15px;
@@ -544,9 +404,6 @@
   color: var(--muted);
   text-align: center;
 }
-.timelog-module .timer-previous {
-  margin: 0 0 22px;
-}
 .timelog-module .activity-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -601,8 +458,7 @@
   color: var(--muted);
   font-size: 12px;
 }
-.timelog-module .timer-detail h2,
-.timelog-module .focus-content h2 {
+.timelog-module .timer-detail h2 {
   font-size: 21px;
   font-weight: 600;
 }
@@ -640,14 +496,6 @@
   justify-content: center;
   gap: 25px;
   margin: 18px 0;
-}
-.timelog-module .focus-content {
-  text-align: center;
-  padding: 35px 20px 50px;
-}
-.timelog-module .focus-content > p {
-  color: var(--muted);
-  margin-bottom: 30px;
 }
 .timelog-module .section-note {
   font-size: 12px;
@@ -1079,7 +927,7 @@
 .timelog-module .toast {
   position: fixed;
   bottom: 28px;
-  left: calc(50% + 87px);
+  left: 50%;
   transform: translateX(-50%);
   display: flex;
   align-items: center;
@@ -1106,26 +954,7 @@
   gap: 15px;
   padding: 35px;
 }
-@media (max-width: 1330px) {
-  .timelog-module .panel-content {
-    margin: 0 40px;
-  }
-}
 @media (max-width: 1060px) {
-  .timelog-module .navigation {
-    width: 145px;
-    padding-left: 10px;
-    padding-right: 10px;
-  }
-  .timelog-module .main {
-    margin-left: 145px;
-  }
-  .timelog-module .page-header {
-    padding: 0 28px;
-  }
-  .timelog-module .panel-content {
-    margin: 0 28px;
-  }
   .timelog-module .activity-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1136,70 +965,15 @@
     font-size: 20px;
   }
   .timelog-module .toast {
-    left: calc(50% + 72px);
+    left: 50%;
   }
 }
 @media (max-width: 720px) {
   .timelog-module {
     font-size: 13px;
   }
-  .timelog-module .navigation {
-    inset: auto 0 0;
-    width: 100%;
-    height: calc(66px + env(safe-area-inset-bottom));
-    padding: 4px 10px env(safe-area-inset-bottom);
-    border: 0;
-    border-top: 1px solid var(--line);
-  }
-  .timelog-module .brand,
-  .timelog-module .nav-footer {
-    display: none;
-  }
-  .timelog-module .navigation nav {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 3px;
-    height: 61px;
-  }
-  .timelog-module .navigation nav button {
-    flex-direction: column;
-    justify-content: center;
-    gap: 3px;
-    padding: 6px 3px;
-    font-size: 10px;
-    border-radius: 7px;
-  }
-  .timelog-module .navigation nav .running-dot {
-    position: absolute;
-    margin: 0;
-    top: 7px;
-    right: calc(50% - 19px);
-  }
-  .timelog-module .main {
-    margin-left: 0;
-    padding-bottom: calc(72px + env(safe-area-inset-bottom));
-  }
-  .timelog-module .page-header {
-    height: 68px;
-    padding: 0 19px;
-  }
   .timelog-module h1 {
     font-size: 21px;
-  }
-  .timelog-module .header-actions {
-    gap: 5px;
-  }
-  .timelog-module .saved-indicator {
-    margin-left: 5px;
-    font-size: 10px;
-  }
-  .timelog-module .mobile-settings {
-    display: inline-flex;
-  }
-  .timelog-module .panel-content {
-    margin: 0 17px;
-    padding-top: 5px;
-    padding-bottom: 25px;
   }
   .timelog-module .panel-toolbar {
     gap: 11px;
@@ -1209,21 +983,6 @@
   .timelog-module .panel-toolbar > .secondary {
     font-size: 12px;
     padding: 8px 10px;
-  }
-  .timelog-module .date-picker {
-    gap: 0;
-  }
-  .timelog-module .date-picker input {
-    width: 133px;
-    padding: 6px;
-    font-size: 12px;
-  }
-  .timelog-module .date-picker .icon-button {
-    width: 27px;
-  }
-  .timelog-module .date-picker .text-button {
-    font-size: 11px;
-    padding: 5px;
   }
   .timelog-module .timeline-summary {
     gap: 11px;
@@ -1237,18 +996,6 @@
   }
   .timelog-module .timeline-summary .weekday {
     display: none;
-  }
-  .timelog-module .timeline-options {
-    gap: 11px;
-    margin-bottom: 17px;
-  }
-  .timelog-module .timeline-options > .check-label {
-    width: 100%;
-    margin: 0;
-    font-size: 10px;
-  }
-  .timelog-module .search-field {
-    max-width: none;
   }
   .timelog-module .timeline-entry {
     grid-template-columns: 34px minmax(0, 1fr);
@@ -1304,11 +1051,6 @@
   .timelog-module .gap-card .gap-hint {
     font-size: 10px;
   }
-  .timelog-module .active-timer-strip {
-    padding: 11px;
-    font-size: 11px;
-    gap: 8px;
-  }
   .timelog-module .timer-card {
     font-size: 11px;
     padding: 12px;
@@ -1348,10 +1090,6 @@
   .timelog-module .timer-controls > button {
     min-width: 0;
     flex: 1;
-  }
-  .timelog-module .timer-previous {
-    flex-wrap: wrap;
-    font-size: 11px;
   }
   .timelog-module .analysis-summary {
     grid-template-columns: 1fr 1fr;
@@ -1426,9 +1164,6 @@
   .timelog-module .confirm-body {
     padding: 22px 18px;
   }
-  .timelog-module .focus-content {
-    padding: 30px 12px;
-  }
 }
 @media (prefers-reduced-motion: reduce) {
   .timelog-module * {
@@ -1437,84 +1172,37 @@
     transition: none !important;
   }
 }
-
-.timelog-module .workspace-shell {
-  display: block;
-  min-height: 0;
-  height: auto;
-  background: transparent;
-}
-.timelog-module .navigation {
-  position: static;
-  display: flex;
-  flex-direction: row;
-  width: auto;
-  height: auto;
-  border: 0;
-  border-bottom: 1px solid var(--line);
-  padding: 0 0 12px;
-  gap: 8px;
-  background: transparent;
-}
-.timelog-module .navigation .brand {
-  display: none;
-}
-.timelog-module .navigation nav {
-  display: flex;
-  gap: 4px;
-  flex: 1;
-}
-.timelog-module .navigation nav button {
-  padding: 10px 16px;
-  min-height: 44px;
-}
-.timelog-module .nav-footer {
-  margin: 0;
-  padding: 0;
-  border: 0;
-}
-.timelog-module .nav-footer small {
-  display: none;
-}
-.timelog-module .main {
-  padding: 18px 0 0;
-  margin: 0;
-  width: 100%;
-  max-width: none;
-  min-width: 0;
-}
-.timelog-module .page-header {
-  padding: 0 0 16px;
-}
-.timelog-module .page-header h1 {
-  font-size: 20px;
-}
-.timelog-module .panel-content {
-  padding: 0;
-  max-width: none;
-}
 .timelog-module {
   min-width: 0;
   border-radius: 12px;
 }
-@media (max-width: 700px) {
-  .timelog-module .navigation nav button {
-    padding: 10px;
-    flex: 1;
-  }
-  .timelog-module .navigation nav button span {
-    font-size: 12px;
-  }
-  .timelog-module .nav-footer {
-    display: none;
-  }
-  .timelog-module .mobile-settings {
-    display: inline-flex;
-  }
-  .timelog-module .main {
-    padding-bottom: 12px;
-  }
-  .timelog-module .workspace-shell {
-    display: block;
-  }
+.timelog-module .workspace-shell {
+  display: block;
+  min-height: 0;
+  background: transparent;
+}
+.timelog-module .main {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+}
+.timelog-module .panel-content {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+.timelog-module .timeline-options {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.timelog-module .timeline-options > summary {
+  width: fit-content;
+  min-height: 28px;
+  cursor: pointer;
+}
+.timelog-module .timeline-options > .check-label {
+  padding: 8px 0;
 }

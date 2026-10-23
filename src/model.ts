@@ -1,7 +1,16 @@
 import { z } from 'zod';
-import { initialState, validateState, mergeBackup, parseBackup } from './timelog/domain.js';
+import {
+  initialState,
+  validateState,
+  mergeBackup,
+  parseBackup,
+  activeActivity,
+  startTimer,
+  newId,
+  duration,
+} from './timelog/domain.js';
 import { scheduleSchema, emptySchedule, mergeSchedule, zoneSchema } from './schedule.js';
-import { zoneDateKey, shiftDay as shiftCalendarDay } from './timezone.js';
+import { zoneDateKey, weekday, shiftDay as shiftCalendarDay } from './timezone.js';
 
 export const idSchema = z.string().min(1).max(100);
 export const dateSchema = z
@@ -25,6 +34,7 @@ export const listSchema = z
     id: idSchema,
     name: z.string().trim().min(1).max(60),
     color: colorSchema,
+    activityId: idSchema.nullable().optional(),
     order: z.number().finite(),
   })
   .strict();
@@ -33,6 +43,8 @@ export const taskSchema = z
     id: idSchema,
     title: z.string().trim().min(1).max(500),
     notes: z.string().max(50000),
+    estimatedMinutes: z.number().finite().nonnegative().nullable().optional(),
+    actualMinutes: z.number().finite().nonnegative().nullable().optional(),
     listId: idSchema,
     due: dateSchema.nullable(),
     priority: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
@@ -85,6 +97,13 @@ export const stateSchema = z
       .transform((v) => validateState(v)),
     schedule: scheduleSchema.default(emptySchedule),
     lists: z.array(listSchema).min(1).max(200),
+    tagColors: z
+      .object({
+        tasks: z.record(z.string().min(1).max(40), colorSchema),
+        records: z.record(z.string().min(1).max(40), colorSchema),
+      })
+      .strict()
+      .default(() => ({ tasks: {}, records: {} })),
     tasks: z.array(taskSchema).max(50000),
     sessions: z.array(focusSessionSchema).max(100000),
     timer: timerSchema.nullable(),
@@ -100,12 +119,6 @@ export const stateSchema = z
   })
   .strict()
   .superRefine((state, ctx) => {
-    if (state.timer && (state.timelog.timer || state.timelog.conflictedTimers?.length))
-      ctx.addIssue({
-        code: 'custom',
-        path: ['timer'],
-        message: '请先结束当前计时再开始另一个计时',
-      });
     const unique = (values: string[], path: string) => {
       if (new Set(values).size !== values.length)
         ctx.addIssue({ code: 'custom', path: [path], message: '存在重复 ID' });
@@ -124,7 +137,7 @@ export const stateSchema = z
     );
     const lists = new Set(state.lists.map((x) => x.id));
     if (!lists.has('inbox'))
-      ctx.addIssue({ code: 'custom', path: ['lists'], message: '缺少收集箱' });
+      ctx.addIssue({ code: 'custom', path: ['lists'], message: '缺少默认分组' });
     for (const task of state.tasks) {
       if (!lists.has(task.listId))
         ctx.addIssue({ code: 'custom', path: ['tasks'], message: '任务引用了不存在的清单' });
@@ -185,7 +198,8 @@ export function emptyState(): AppState {
     version: 1,
     timelog: initialState(),
     schedule: emptySchedule(),
-    lists: [{ id: 'inbox', name: '收集箱', color: '#7e8b8b', order: 0 }],
+    lists: [{ id: 'inbox', name: '未分组', color: '#7e8b8b', order: 0 }],
+    tagColors: { tasks: {}, records: {} },
     tasks: [],
     sessions: [],
     timer: null,
@@ -196,6 +210,81 @@ export function emptyState(): AppState {
       breakMinutes: 5,
       showCompleted: false,
     },
+  };
+}
+/** Default list mapping is shared by UI and AI; activity identity is always persisted. */
+export const defaultTaskActivity = (name: string) =>
+  (({ 学习: '学习', 工作: '实操', 生活: '日常' }) as Record<string, string>)[name];
+export function reorderTasks(
+  state: AppState,
+  visibleIds: string[],
+  source: string,
+  target: string,
+): AppState {
+  const ids = visibleIds.filter((id) =>
+    state.tasks.some((task) => task.id === id && !task.deletedAt && !task.completedAt),
+  );
+  const from = ids.indexOf(source),
+    to = ids.indexOf(target);
+  if (from < 0 || to < 0 || from === to) return state;
+  // A drop across the pinned boundary moves into the target group. Keeping the
+  // old flag would make selectTasks immediately put the source back again.
+  const targetPinned = state.tasks.find((task) => task.id === target)!.pinned;
+  ids.splice(from, 1);
+  ids.splice(to, 0, source);
+  const selected = new Set(ids),
+    rows = [...state.tasks].sort((a, b) => a.order - b.order);
+  let position = 0;
+  const order = new Map(
+    rows.map((task, index) => [selected.has(task.id) ? ids[position++] : task.id, index + 1]),
+  );
+  return {
+    ...state,
+    tasks: state.tasks.map((task) => {
+      const pinned = task.id === source ? targetPinned : task.pinned;
+      return task.order === order.get(task.id) && task.pinned === pinned
+        ? task
+        : { ...task, order: order.get(task.id)!, pinned, updatedAt: now() };
+    }),
+  };
+}
+export function startTaskTimer(
+  state: AppState,
+  taskId: string,
+  at = Date.now(),
+  activityId?: string,
+): AppState {
+  const task = state.tasks.find(
+    (task) => task.id === taskId && !task.deletedAt && !task.completedAt,
+  );
+  if (!task) throw new Error('未找到进行中的任务。');
+  const list = state.lists.find((list) => list.id === task.listId);
+  const mapped = activityId ?? list?.activityId;
+  const expected = defaultTaskActivity(list?.name ?? '');
+  let timelog = state.timelog;
+  let activity = mapped
+    ? timelog.activities.find((activity) => activity.id === mapped && activeActivity(activity))
+    : timelog.activities.find(
+        (activity) => activeActivity(activity) && activity.name === (expected ?? '学习'),
+      );
+  if (mapped && !activity) throw new Error('清单绑定的活动已删除，请在清单设置中重新选择。');
+  if (!activity && expected) {
+    activity = {
+      id: newId(),
+      name: expected,
+      color: list?.color ?? '#76b9ed',
+      nature: expected === '日常' ? 'neutral' : 'positive',
+      pointsPerHour: expected === '日常' ? 0 : 20,
+      archived: false,
+      updatedAt: at,
+    };
+    timelog = { ...timelog, activities: [...timelog.activities, activity] };
+  }
+  activity ??= timelog.activities.find(activeActivity);
+  if (!activity) throw new Error('请先添加一个计时活动。');
+  return {
+    ...state,
+    timelog: startTimer(timelog, activity.id, task.title, at, { taskId: task.id, tags: task.tags }),
   };
 }
 export function newTask(title: string, partial: Partial<Task> = {}): Task {
@@ -221,6 +310,19 @@ export function newTask(title: string, partial: Partial<Task> = {}): Task {
     ...partial,
   });
 }
+
+/** Saved task-linked records are a reference value, never a replacement for an explicit actual time. */
+export function recordedTaskMinutes(state: Pick<AppState, 'timelog'>, taskId: string): number {
+  return state.timelog.records.reduce(
+    (minutes, record) =>
+      record.taskId === taskId && !record.deletedAt
+        ? minutes + duration(record.spans) / 60000
+        : minutes,
+    0,
+  );
+}
+
+export const formatTaskMinutes = (minutes: number) => `${Number(minutes.toFixed(1))} 分钟`;
 export function nextRepeatDate(task: Pick<Task, 'due' | 'repeat' | 'repeatDay'>): string {
   const due = task.due ?? dateKey();
   if (task.repeat === 'daily') return shiftDate(due, 1);
@@ -244,6 +346,7 @@ export function toggleTask(state: AppState, id: string): AppState {
   ) {
     spawned = newTask(task.title, {
       notes: task.notes,
+      ...(task.estimatedMinutes === undefined ? {} : { estimatedMinutes: task.estimatedMinutes }),
       listId: task.listId,
       due: nextRepeatDate(task),
       priority: task.priority,
@@ -293,10 +396,13 @@ export function selectTasks(
       if (view === 'trash') return !!t.deletedAt;
       if (t.deletedAt) return false;
       if (view === 'completed') return !!t.completedAt;
-      if (t.completedAt && !state.settings.showCompleted) return false;
+      if (t.completedAt && view !== 'today' && view !== 'upcoming') return false;
       if (search) return true;
-      if (view === 'today') return !!t.due && t.due <= today;
-      if (view === 'upcoming') return !!t.due && t.due >= today && t.due <= shiftDate(today, 6);
+      if (view === 'today') return !!t.due && t.due <= today && (!t.completedAt || t.due === today);
+      if (view === 'upcoming') {
+        const monday = shiftDate(today, 1 - weekday(today));
+        return !!t.due && t.due >= monday && t.due <= shiftDate(monday, 6);
+      }
       if (view === 'inbox') return !t.due;
       if (view.startsWith('list:')) return t.listId === view.slice(5);
       if (view.startsWith('tag:')) return t.tags.includes(view.slice(4));
@@ -346,33 +452,13 @@ export function mergeImport(local: AppState, incoming: unknown): AppState {
         ? mergeSchedule(local.schedule, imported.schedule)
         : local.schedule,
     lists: [...lists.values()],
+    tagColors: {
+      tasks: { ...imported.tagColors.tasks, ...local.tagColors.tasks },
+      records: { ...imported.tagColors.records, ...local.tagColors.records },
+    },
     tasks: [...tasks.values()],
     sessions: [...sessions.values()],
   });
-}
-export function remainingSeconds(timer: Timer, clock = Date.now()): number {
-  return timer.endAt === null
-    ? timer.remaining
-    : Math.max(0, Math.ceil((timer.endAt - clock) / 1000));
-}
-export function finishTimer(state: AppState, clock = Date.now()): AppState {
-  const timer = state.timer;
-  if (!timer || timer.endAt === null || remainingSeconds(timer, clock) > 0) return state;
-  const session = {
-    id: timer.id,
-    taskId: timer.taskId,
-    title: timer.title,
-    minutes: Math.round(timer.duration / 60),
-    completedAt: new Date(timer.endAt).toISOString(),
-  };
-  return {
-    ...state,
-    timer: null,
-    sessions:
-      timer.kind === 'focus' && !state.sessions.some((s) => s.id === timer.id)
-        ? [...state.sessions, session]
-        : state.sessions,
-  };
 }
 export function statistics(state: AppState, today = dateKey()) {
   const live = state.tasks.filter((t) => !t.deletedAt);

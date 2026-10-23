@@ -19,7 +19,7 @@ try {
     cwd: process.cwd(),
   });
   const page = await instance.firstWindow();
-  await expect(page.getByLabel('新任务标题')).toBeAttached();
+  await expect(page.getByRole('button', { name: '新建任务', exact: true })).toBeAttached();
   const visible = () =>
     instance.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].isVisible());
   assert.equal(await visible(), false, 'Tray startup must never show a main window');
@@ -36,6 +36,7 @@ try {
     app.emit('second-instance', {}, ['Dayweave'], process.cwd()),
   );
   await expect.poll(visible).toBe(true);
+  await page.getByRole('button', { name: '新建任务', exact: true }).click();
   await page.getByLabel('新任务标题').fill('Tray persistence');
   await page.getByRole('button', { name: '添加任务', exact: true }).click();
   await instance.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].close());

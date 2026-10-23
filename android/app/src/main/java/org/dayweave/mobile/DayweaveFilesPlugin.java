@@ -180,6 +180,20 @@ public class DayweaveFilesPlugin extends Plugin {
         startActivityForResult(call, intent, "backupPicked");
     }
 
+    @PluginMethod
+    public void importFudan(PluginCall call) {
+        startActivityForResult(call, new Intent(getContext(), FudanImportActivity.class), "fudanImported");
+    }
+
+    @ActivityCallback
+    private void fudanImported(PluginCall call, ActivityResult result) {
+        if (call == null) return;
+        Intent intent = result.getData();
+        String content = result.getResultCode() == Activity.RESULT_OK && intent != null ? intent.getStringExtra("content") : null;
+        if (content != null && content.length() > 262144) { call.reject("Course table exceeds the import limit"); return; }
+        call.resolve(new JSObject().put("content", content == null ? JSONObject.NULL : content));
+    }
+
     @ActivityCallback
     private void backupPicked(PluginCall call, ActivityResult activityResult) {
         if (call == null) return;
