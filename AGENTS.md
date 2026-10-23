@@ -20,9 +20,10 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
   - Mac (arm64) built and updated at /Applications/Dayweave.app, running --tray, API /health storage ready.
   - Pad 6 Pro updated via ADB to versionCode 8 (0.4.1), preserving existing profile and 4x2/2x2 widgets.
   - Phone (Redmi K70) updated via ADB 192.168.31.33:38637 to versionCode 8 (0.4.1), preserving profile, no UI operations performed.
+- Local OMEN (win) and Mac (arm64) are paired to ROG hub and fully synchronized (1176 tasks, 991 timelog records, /sync/status connected: true).
 - Desktop installation paths remain Windows Local Programs/Dayweave and Mac /Applications/Dayweave.app; ROG uses the existing DayweaveHub tray task.
 - Real phone-start/tablet-stop synchronization preserved one record ID. Tablet 4x2 widget added through the standard Android picker, reads synced courses and opens the timetable.
-- Continuation completes the pending activity interactions, Fudan capture/refresh, and cross-device 0.4.1 deployment. Release assets for Windows (Setup/portable), Android APK, and macOS arm64 (DMG/ZIP) match the latest build.
+- Continuation completes the pending activity interactions, Fudan capture/refresh, cross-device 0.4.1 deployment, and OMEN/Mac hub pairing. Release assets for Windows (Setup/portable), Android APK, and macOS arm64 (DMG/ZIP) match the latest build.
 - Final continuation validation: 102 Node tests, all 56 browser workflows (10 Fudan refresh cases), 13 Android JVM checks, isolated Electron Fudan capture, desktop persistence/recovery and UI/API smoke pass. Web/Electron production builds pass with the existing chunk-size warning. No true-account or physical-device acceptance was performed.
 
 # Active Work
