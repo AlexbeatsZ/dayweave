@@ -15,17 +15,17 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 - 0.4.2 Fudan fix is grounded in the user's logged-in Chrome page: select#allSemesters (legacy #semester fallback), activities[].teachers and the explicit Sunday semester anchor. Official API returned 22 teaching rows / 9 course names; minimal replay reproduces the old error and passes the shared capture/parser after the fix. Installed-app import acceptance remains separate. Windows/Android 0.4.2 packages are separate from deployed 0.4.1; no installation is implied.
 - Public v0.3.0 tag is 59c254ae63c0e32259dfcb7eb121e3c601a7754d; 13 uploaded assets match local names/sizes. Final four-platform CI 39471586657 succeeded. Release has Windows EXE, stable-signed APK, both Mac architectures DMG/ZIP, AI tools/guide, OpenAPI, CSV, licenses and source ZIP.
 - ROG hub encrypted LAN sync, mDNS discovery and first-use invitations; offline three-way merges preserve conflicts. Canonical time records are open while endAt=null.
-- Version 0.4.1 deployed and verified per user request across all devices:
-  - Local OMEN (win) updated at C:\Users\Meta\AppData\Local\Programs\Dayweave\Dayweave.exe.
-  - ROG updated at C:\Users\Meta\AppData\Local\Programs\Dayweave\Dayweave.exe, DayweaveHub tray task running, API /health storage ready.
-  - Mac (arm64) built and updated at /Applications/Dayweave.app, running --tray, API /health storage ready.
-  - Pad 6 Pro updated via ADB to versionCode 8 (0.4.1), preserving existing profile and 4x2/2x2 widgets.
-  - Phone (Redmi K70) updated via ADB 192.168.31.33:38637 to versionCode 8 (0.4.1), preserving profile, no UI operations performed.
+- Version 0.4.2 deployed and verified per user request across all devices:
+  - Local OMEN (win) updated at C:\Users\Meta\AppData\Local\Programs\Dayweave\Dayweave.exe (0.4.2.0), running in tray, connected to ROG hub.
+  - ROG updated at C:\Users\Meta\AppData\Local\Programs\Dayweave\Dayweave.exe, DayweaveHub tray task running, API ready, managing 5 peers.
+  - Mac (arm64) built and updated at /Applications/Dayweave.app (0.4.2), running in tray, connected to ROG hub.
+  - Pad 6 Pro updated via ADB to versionCode 9 (0.4.2), preserving existing profile and 4x2/2x2 widgets.
+  - Phone (Redmi K70) updated via ADB to versionCode 9 (0.4.2), preserving profile, no UI operations performed.
 - Local OMEN (win) and Mac (arm64) are paired to ROG hub and fully synchronized (1176 tasks, 991 timelog records, /sync/status connected: true).
 - Desktop installation paths remain Windows Local Programs/Dayweave and Mac /Applications/Dayweave.app; ROG uses the existing DayweaveHub tray task.
 - Real phone-start/tablet-stop synchronization preserved one record ID. Tablet 4x2 widget added through the standard Android picker, reads synced courses and opens the timetable.
-- Previous continuation completed activity interactions, Fudan capture/refresh, cross-device 0.4.1 deployment, and OMEN/Mac hub pairing. Existing macOS arm64 packages remain 0.4.1; do not describe them as including the 0.4.2 selector fix.
-- Final continuation validation: 102 Node tests, all 56 browser workflows (10 Fudan refresh cases), 13 Android JVM checks, isolated Electron Fudan capture, desktop persistence/recovery and UI/API smoke pass. Web/Electron production builds pass with the existing chunk-size warning. No true-account or physical-device acceptance was performed.
+- All 0.4.2 release packages generated: Windows NSIS/portable, Android signed APK, and macOS arm64 DMG/ZIP.
+- Validation: 102 Node tests, all 56 browser workflows (10 Fudan refresh cases), 13 Android JVM checks, isolated Electron Fudan capture, desktop persistence/recovery and UI/API smoke pass. Web/Electron production builds pass with the existing chunk-size warning. No true-account or physical-device acceptance was performed.
 
 # Active Work
 
