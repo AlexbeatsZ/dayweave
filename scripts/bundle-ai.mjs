@@ -1,5 +1,6 @@
 import { build } from 'rolldown';
-import { mkdir, copyFile, writeFile } from 'node:fs/promises';
+import { mkdir, copyFile, readFile, writeFile } from 'node:fs/promises';
+const { version } = JSON.parse(await readFile('package.json', 'utf8'));
 await mkdir('release/Dayweave-AI-tools', { recursive: true });
 await build({
   input: 'electron/headless.ts',
@@ -18,7 +19,7 @@ await writeFile(
   JSON.stringify(
     {
       name: 'dayweave-ai-tools',
-      version: '0.3.0',
+      version,
       private: true,
       type: 'module',
       license: 'MIT',
