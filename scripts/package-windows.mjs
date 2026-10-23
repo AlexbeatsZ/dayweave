@@ -9,12 +9,13 @@ if (process.platform !== 'win32' || process.arch !== 'x64') {
 
 // Reuse the project runtime, avoiding a second download/extract/rename path.
 const require = createRequire(import.meta.url);
+const targets = process.argv.slice(2);
 const child = spawn(
   process.execPath,
   [
     require.resolve('electron-builder/cli.js'),
     '--win',
-    'portable',
+    ...targets,
     '--x64',
     '--publish',
     'never',

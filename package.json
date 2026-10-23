@@ -60,9 +60,21 @@
       "THIRD_PARTY_LICENSES.txt"
     ],
     "win": {
-      "target": "portable",
+      "target": [
+        "nsis",
+        "portable"
+      ],
       "signExecutable": false,
       "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Dayweave",
+      "artifactName": "Dayweave-${version}-Windows-Setup.exe"
     },
     "mac": {
       "target": [

@@ -14,7 +14,9 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 - ROG hub encrypted LAN sync, mDNS discovery and first-use invitations; offline three-way merges preserve conflicts. Canonical time records are open while endAt=null.
 - Phone Redmi K70 and Pad 6 Pro have independent APK installed; installation and updates authorized. Never clear either profile. Device endpoints belong in the private task log.
 - Last confirmed physical device version is signed 0.3.0; latest phone update was install-only, no UI operations. Signed 0.4.0 APK is under release/. Wireless ADB discovers no device; phone/tablet updates await current endpoints. Keep all peers and ROG on compatible versions: old strict schemas reject effort, periods, tag colors and timer preferences. Preserve data and pairing during authorized updates.
-- ROG runs the packaged desktop with --tray in current-user DayweaveHub logon task. Hidden startup, close-to-tray and active background API verified; no reboot/logoff performed.
+- ROG runs the packaged desktop 0.4.0 with --tray in current-user DayweaveHub logon task, installed at C:\Users\Meta\AppData\Local\Programs\Dayweave\Dayweave.exe. Hidden startup, close-to-tray and active background API verified (/health storage ready).
+- Local OMEN (win) desktop 0.4.0 installed at C:\Users\Meta\AppData\Local\Programs\Dayweave\Dayweave.exe with Desktop/Start Menu shortcuts.
+- Mac (arm64) desktop 0.4.0 installed at /Applications/Dayweave.app.
 - Real phone-start/tablet-stop synchronization preserved one record ID. Tablet 4x2 widget added through the standard Android picker, reads synced courses and opens the timetable. Phone widget checks paused at user's request; do not operate the phone while they are using it.
 
 # Active Work
