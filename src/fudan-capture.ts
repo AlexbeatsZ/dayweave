@@ -61,7 +61,11 @@ const captureFunction = String.raw`(async function captureFudanCourses(requested
   )
     fail('PAGE');
   const initialUrl = location.href;
-  const semesterId = requestedSemester ?? document.querySelector('#semester')?.value;
+  // The live course-table page uses a Selectize-backed native #allSemesters.
+  // #semester is retained for older pages, never the Selectize search input.
+  const selectedSemester = () => document.querySelector('#allSemesters')?.value
+    ?? document.querySelector('#semester')?.value;
+  const semesterId = requestedSemester ?? selectedSemester();
   // Top-level let/const bindings are not properties of window.
   const list = typeof semesters !== 'undefined' ? semesters : window.semesters;
   if (!semesterId || !/^\d{1,12}$/.test(semesterId)) fail('SEMESTER');
@@ -70,6 +74,12 @@ const captureFunction = String.raw`(async function captureFudanCourses(requested
   if (!semester || typeof semester.startDate !== 'string' || typeof semester.endDate !== 'string'
     || !/^\d{4}-\d{2}-\d{2}/.test(semester.startDate)
     || !/^\d{4}-\d{2}-\d{2}/.test(semester.endDate)) fail('SEMESTER_DATA');
+  const current = typeof currentSemester !== 'undefined' ? currentSemester : window.currentSemester;
+  const weekStartOnSunday = typeof semester.weekStartOnSunday === 'boolean'
+    ? semester.weekStartOnSunday
+    : current && String(current.id) === semesterId && typeof current.weekStartOnSunday === 'boolean'
+      ? current.weekStartOnSunday
+      : new Date(semester.startDate.slice(0, 10) + 'T00:00:00Z').getUTCDay() === 0;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
   let data;
@@ -89,7 +99,7 @@ const captureFunction = String.raw`(async function captureFudanCourses(requested
   } finally {
     clearTimeout(timeout);
   }
-  if (location.href !== initialUrl || (!requestedSemester && document.querySelector('#semester')?.value !== semesterId))
+  if (location.href !== initialUrl || (!requestedSemester && selectedSemester() !== semesterId))
     fail('PAGE');
   // An ambiguous/missing table must never become an empty refresh that deletes courses.
   if (!Array.isArray(data?.studentTableVms) || data.studentTableVms.length !== 1) fail('FORMAT');
@@ -123,8 +133,7 @@ const captureFunction = String.raw`(async function captureFudanCourses(requested
       id: primitive(semester.id),
       startDate: text(semester.startDate, 40),
       endDate: text(semester.endDate, 40),
-      weekStartOnSunday:
-        typeof semester.weekStartOnSunday === 'boolean' ? semester.weekStartOnSunday : null,
+      weekStartOnSunday,
     },
     activities: activities.map((row) => ({
       id: primitive(row?.id),
@@ -141,7 +150,7 @@ const captureFunction = String.raw`(async function captureFudanCourses(requested
         : primitive(row?.weekIndexes),
       teacherName: text(row?.teacherName, 300),
       teacher: teachers(row?.teacher),
-      teacherNames: teachers(row?.teacherNames),
+      teacherNames: teachers(row?.teacherNames?.length ? row.teacherNames : row?.teachers),
     })),
   });
   if (content.length > 262144) fail('SIZE');

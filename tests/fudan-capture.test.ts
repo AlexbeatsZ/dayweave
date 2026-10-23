@@ -59,14 +59,16 @@ function fixture(
     timeout?: boolean;
     onJson?: () => void;
     semesters?: unknown;
+    control?: 'semester' | 'allSemesters';
+    currentSemester?: unknown;
   } = {},
 ) {
   const requests: Array<{ url: string; options: RequestInit }> = [];
   let selected = options.semesterId ?? '215';
   const document = {
     querySelector(selector: string) {
-      assert.equal(selector, '#semester');
-      return { value: selected };
+      assert.ok(['#semester', '#allSemesters'].includes(selector));
+      return selector === '#' + (options.control ?? 'semester') ? { value: selected } : null;
     },
     get cookie(): never {
       throw new Error('Capture must never read cookies');
@@ -83,6 +85,7 @@ function fixture(
     location: { href: options.url ?? tableUrl },
     document,
     window: {
+      currentSemester: options.currentSemester,
       semesters: options.semesters ?? [
         {
           id: 215,
@@ -187,7 +190,7 @@ test('the shared capture requests the selected semester and returns only minimal
     id: 215,
     startDate: '2026-09-07',
     endDate: '2027-01-17',
-    weekStartOnSunday: null,
+    weekStartOnSunday: false,
   });
   assert.equal(result.activities[0].id, null);
   assert.equal(result.activities[0].room, 'H4306');
@@ -233,6 +236,64 @@ test('capture reads let and const semester bindings which are not window propert
     assert.equal(result.error, undefined);
     const preview = parseFudanCourses(result.content!, emptySchedule());
     assert.equal(preview.schedule.courses[0].name, '物理化学');
+  }
+});
+
+test('live Selectize semester control and plural teachers import with the school Sunday week anchor', async () => {
+  const response = {
+    studentTableVms: [
+      {
+        activities: [
+          {
+            lessonId: 10,
+            courseName: '示例课程',
+            weekday: 1,
+            startTime: '8:00',
+            endTime: '9:40',
+            weekIndexes: [1, 2],
+            room: '示例教室',
+            teachers: ['教师甲', '教师乙'],
+          },
+        ],
+      },
+    ],
+  };
+  const browser = fixture({
+    control: 'allSemesters',
+    semesterId: '527',
+    response,
+    semesters: [{ id: 527, startDate: '2026-09-06', endDate: '2027-01-09' }],
+    currentSemester: { id: 527, weekStartOnSunday: true },
+  });
+  const result = await browser.result();
+  assert.equal(result.error, undefined);
+  assert.equal(JSON.parse(result.content!).semester.weekStartOnSunday, true);
+  assert.deepEqual(JSON.parse(result.content!).activities[0].teacherNames, ['教师甲', '教师乙']);
+  const preview = parseFudanCourses(result.content!, emptySchedule());
+  assert.equal(preview.schedule.semesterStart, '2026-09-07');
+  assert.equal(preview.schedule.courses[0].teacher, '教师甲、教师乙');
+  assert.equal(preview.schedule.courses[0].start, '08:00');
+  assert.ok(browser.requests[0].url.includes('/semester/527/print-data'));
+  browser.select('505');
+  assert.equal((await browser.requested('527')).error, undefined);
+});
+
+test('semester date anchors remain host-timezone independent when the list omits the week-start flag', async () => {
+  for (const [startDate, flag] of [
+    ['2026-09-06', true],
+    ['2026-09-07', false],
+  ] as const) {
+    const result = await fixture({
+      control: 'allSemesters',
+      semesters: [{ id: 215, startDate, endDate: '2027-01-09' }],
+      currentSemester: { id: 999, weekStartOnSunday: !flag },
+    }).requested('215');
+    assert.equal(result.error, undefined);
+    assert.equal(JSON.parse(result.content!).semester.weekStartOnSunday, flag);
+    assert.equal(
+      parseFudanCourses(result.content!, emptySchedule()).schedule.semesterStart,
+      '2026-09-07',
+    );
   }
 });
 
@@ -336,8 +397,9 @@ test('empty refresh requires an explicit valid semester and one unambiguous tabl
 });
 
 test('capture rejects a changed page or selected semester instead of delivering stale course rows', async () => {
-  for (const change of ['url', 'semester']) {
+  for (const change of ['url', 'semester', 'allSemesters']) {
     const browser = fixture({
+      control: change === 'allSemesters' ? 'allSemesters' : 'semester',
       onJson: () =>
         change === 'url' ? browser.navigate(tableUrl + '/other') : browser.select('999'),
     });

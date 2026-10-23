@@ -47,7 +47,7 @@ try {
                       endTime: 845,
                       room: 'H4306',
                       weekIndexes: [1, 3],
-                      teacherName: '示例教师',
+                      teachers: ['示例教师甲', '示例教师乙'],
                     },
                   ],
                 },
@@ -58,7 +58,7 @@ try {
         }
         return new Response(
           url.pathname === '/student/for-std/course-table'
-            ? '<!doctype html><meta charset="utf-8"><script>const semesters=[{id:215,startDate:"2026-09-07",endDate:"2027-01-17"}]</script><select id="semester"><option value="215">学期</option></select><h1>测试课表</h1>'
+            ? '<!doctype html><meta charset="utf-8"><script>const semesters=[{id:215,startDate:"2026-09-06",endDate:"2027-01-09"}];const currentSemester={id:215,weekStartOnSunday:true}</script><select id="allSemesters" style="display:none"><option value="215">学期</option></select><input id="allSemesters-selectized" value=""><h1>测试课表</h1>'
             : '<!doctype html><script>location.href="https://fdjwgl.fudan.edu.cn/student/for-std/course-table"</script>',
           { headers: { 'Content-Type': 'text/html; charset=utf-8' } },
         );
@@ -115,6 +115,8 @@ try {
   await popup.getByRole('button', { name: '读取课表', exact: true }).click();
   const content = await page.evaluate(() => window.testFudanResult);
   assert.equal(JSON.parse(content).activities[0].courseName, '隔离窗口课程');
+  assert.deepEqual(JSON.parse(content).activities[0].teacherNames, ['示例教师甲', '示例教师乙']);
+  assert.equal(JSON.parse(content).semester.weekStartOnSunday, true);
   const second = await openToolbar();
   await expect
     .poll(() =>
@@ -197,6 +199,9 @@ try {
       minimalCapture: true,
       actionableFailureAndRetry: true,
       lexicalSemesterBinding: true,
+      actualSemesterControl: true,
+      pluralTeachers: true,
+      sundayWeekAnchor: true,
       cancel: true,
       navigationInvalidatesCapture: true,
       cancelDuringCapture: true,
