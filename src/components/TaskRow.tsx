@@ -1,4 +1,13 @@
-import { Check, RotateCcw, Pin, Trash2, Repeat2, ListChecks, GripVertical } from 'lucide-react';
+import {
+  Check,
+  RotateCcw,
+  Pin,
+  Trash2,
+  Repeat2,
+  ListChecks,
+  GripVertical,
+  Timer,
+} from 'lucide-react';
 import { dateKey, formatDate, now, priorityLabels, toggleTask, type Task } from '../model';
 import { store, useStore } from '../store';
 
@@ -8,8 +17,9 @@ type Props = {
   onSelect: (id: string) => void;
   onDelete: (task: Task) => void;
   onMove?: (source: string, target: string) => void;
+  onTrack?: (id: string) => void;
 };
-export function TaskRow({ task, selected, onSelect, onDelete, onMove }: Props) {
+export function TaskRow({ task, selected, onSelect, onDelete, onMove, onTrack }: Props) {
   const { data } = useStore();
   const list = data.lists.find((l) => l.id === task.listId);
   const completed = task.subtasks.filter((s) => s.done).length;
@@ -17,7 +27,7 @@ export function TaskRow({ task, selected, onSelect, onDelete, onMove }: Props) {
     <article
       className={`task-row ${selected ? 'selected' : ''} ${task.completedAt ? 'done' : ''}`}
       data-testid="task-row"
-      draggable={!task.deletedAt}
+      draggable={!task.deletedAt && !onTrack}
       onDragStart={(event) => {
         event.dataTransfer.setData('application/clearlist-task', task.id);
         event.dataTransfer.effectAllowed = 'move';
@@ -62,6 +72,7 @@ export function TaskRow({ task, selected, onSelect, onDelete, onMove }: Props) {
           {task.pinned && <Pin size={12} className="inline-pin" />}
           {task.title}
         </span>
+        {onTrack && task.notes && <span className="phone-task-preview">{task.notes}</span>}
         <span className="task-meta">
           <span className="list-meta">
             <i style={{ background: list?.color }} />
@@ -95,6 +106,15 @@ export function TaskRow({ task, selected, onSelect, onDelete, onMove }: Props) {
           ))}
         </span>
       </button>
+      {onTrack && !task.deletedAt && !task.completedAt && (
+        <button
+          className="icon-button phone-task-track"
+          aria-label={`计时 ${task.title}`}
+          onClick={() => onTrack(task.id)}
+        >
+          <Timer size={19} />
+        </button>
+      )}
       <span
         className={`priority-dot priority-${task.priority}`}
         title={priorityLabels[task.priority]}

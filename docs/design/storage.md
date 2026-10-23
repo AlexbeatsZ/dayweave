@@ -11,3 +11,5 @@
 ## Dayweave 0.3 扩展
 
 同一文件增加 timelog 与 schedule，旧 Clearlist 文件读取时补齐字段。默认日程时区 Asia/Shanghai，日期规则不再使用设备日界线。时区入口 src/timezone.ts；课程和导入规则见 integration.md。时间记录模块通过适配器进入相同 StateService，模块整体乐观比较，任务保留字段级合并。
+
+渲染器 `store.transact` 在发布修改前执行转换和格式校验。可恢复的业务拒绝（如过短计时或过期编辑）只向调用方抛错，不写入全局磁盘故障状态；真正的持久化失败仍保留待保存队列、显示错误并等待恢复。

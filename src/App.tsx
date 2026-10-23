@@ -58,6 +58,8 @@ import { Statistics } from './components/Statistics';
 import { ListModal, Settings } from './components/Settings';
 import { applyTheme } from './theme';
 import { pendingPairingKey } from './sync/invitation';
+import { MobileApp } from './phone/MobileApp';
+import { usePhone } from './phone/usePhone';
 
 const navigation = [
   { view: 'timetable', label: '课程表', Icon: CalendarDays },
@@ -92,6 +94,10 @@ const descriptions: Record<string, string> = {
 type Toast = { message: string; undo?: () => void };
 
 export function App() {
+  return usePhone() ? <MobileApp /> : <DesktopApp />;
+}
+
+function DesktopApp() {
   useEffect(() => {
     const open = () => {
       if (location.hash === '#timetable') setView('timetable');

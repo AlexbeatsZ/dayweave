@@ -78,6 +78,13 @@ function pump() {
   return pending;
 }
 
+function enqueue(data: AppState) {
+  const delta = diffState(snapshot.data, data);
+  jobs.push({ delta, data });
+  emit({ data, saving: !failed });
+  void pump();
+}
+
 export const store = {
   async initialize() {
     if (window.clearlist && !closeListenerAttached) {
@@ -139,7 +146,9 @@ export const store = {
   },
   async transact(transform: (state: AppState) => AppState) {
     if (!snapshot.loaded || snapshot.error) throw new Error(snapshot.error || '数据尚未载入');
-    store.update(transform);
+    // A rejected user operation is recoverable, unlike a failed disk write.
+    // Validate before publishing so a short timer or stale edit cannot poison later saves.
+    enqueue(stateSchema.parse(transform(snapshot.data)));
     await store.flush();
     if (snapshot.error) throw new Error(snapshot.error);
     return snapshot.data;
@@ -153,10 +162,7 @@ export const store = {
       emit({ error: `修改未应用：${message(error)}` });
       return;
     }
-    const delta = diffState(snapshot.data, data);
-    jobs.push({ delta, data });
-    emit({ data, saving: !failed });
-    void pump();
+    enqueue(data);
   },
   retry() {
     failed = false;

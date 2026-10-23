@@ -1,9 +1,15 @@
-import Workspace from '../timelog/Workspace';
+import Workspace, { type TimePage } from '../timelog/Workspace';
 import '../timelog/scoped.css';
 import { store, useStore } from '../store';
 import { finishTimer, duration, liveSpans, formatDuration } from '../timelog/domain';
 import { useState } from 'react';
-export function TimeLog() {
+export function TimeLog({
+  page,
+  onPageChange,
+}: {
+  page?: TimePage;
+  onPageChange?: (page: TimePage) => void;
+}) {
   const { data } = useStore();
   const [error, setError] = useState('');
   return (
@@ -52,7 +58,7 @@ export function TimeLog() {
           {error && <p role="alert">{error}</p>}
         </section>
       )}
-      <Workspace />
+      <Workspace page={page} onPageChange={onPageChange} />
     </div>
   );
 }

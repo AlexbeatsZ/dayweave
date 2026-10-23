@@ -134,12 +134,14 @@ test('all views render without errors; dark theme persists; compact viewport has
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole('button', { name: '新建任务', exact: true }).click();
   await expect(page.getByLabel('新任务标题')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
   );
   expect(errors).toEqual([]);
-  await page.getByRole('button', { name: '手机更多', exact: true }).click();
-  await page.getByLabel('搜索任务').fill('#阅读');
+  await page.getByRole('button', { name: '关闭新建任务', exact: true }).click();
+  await page.getByRole('button', { name: '搜索任务', exact: true }).click();
+  await page.getByLabel('任务搜索内容').fill('#阅读');
   await expect(page.getByTestId('task-row')).toHaveCount(1);
 });

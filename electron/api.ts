@@ -142,7 +142,7 @@ export async function startApi(
       )
         return;
       if (route === '/health' && method === 'GET')
-        return send({ app: 'Dayweave', version: '0.3.0', storage: 'ready' }, snapshot);
+        return send({ app: 'Dayweave', version: '0.3.1', storage: 'ready' }, snapshot);
       if (route === '/openapi.json' && method === 'GET') {
         response.end(JSON.stringify(openapi));
         return;

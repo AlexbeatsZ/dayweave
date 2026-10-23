@@ -2,6 +2,8 @@ import { dateTimeInput, parseDateTimeInput } from '../../timezone';
 import { useState, type FormEvent } from 'react';
 import {
   colors,
+  duration,
+  formatDuration,
   newId,
   timestamp,
   type Activity,
@@ -13,12 +15,13 @@ import {
 } from '../domain';
 import { lastRecordEnd } from '../timeline';
 import { Dialog } from './Dialog';
+import { usePhone } from '../../phone/usePhone';
 export type EditTarget =
   | { kind: 'record'; record?: TimeRecord; range?: Span; activityId?: string }
   | { kind: 'activity'; activity?: Activity }
   | { kind: 'goal'; goal?: Goal };
 export type Commit = (transform: (state: State) => State, notice?: string) => Promise<boolean>;
-const localInput = (at: number) => dateTimeInput(at);
+const localInput = (at: number) => (Number.isFinite(at) ? dateTimeInput(at) : '');
 export function Editor({
   target,
   state,
@@ -30,6 +33,7 @@ export function Editor({
   commit: Commit;
   close: () => void;
 }) {
+  const phone = usePhone();
   const record = target.kind === 'record' ? target.record : undefined;
   const fallback = { start: Date.now() - 30 * 60000, end: Date.now() };
   const [spans, setSpans] = useState<Span[]>(
@@ -38,6 +42,14 @@ export function Editor({
     ],
   );
   const [error, setError] = useState('');
+  const [activityId, setActivityId] = useState(
+    record?.activityId ||
+      (target.kind === 'record' ? target.activityId : undefined) ||
+      state.activities.find((row) => !row.archived)?.id ||
+      '',
+  );
+  const [tags, setTags] = useState(record?.tags || []);
+  const tagOptions = [...new Set(state.records.flatMap((row) => row.tags))].sort();
   const [saving, setSaving] = useState(false);
   const title =
     target.kind === 'record'
@@ -174,27 +186,53 @@ export function Editor({
       ));
   return (
     <Dialog title={title} close={close}>
-      <form className="editor" onSubmit={save}>
+      <form className={`editor ${target.kind === 'record' ? 'record-editor' : ''}`} onSubmit={save}>
         {target.kind === 'record' && (
           <>
+            {phone && (
+              <div className="phone-editor-duration">
+                <span>记录时长</span>
+                <strong>{formatDuration(duration(spans))}</strong>
+              </div>
+            )}
             <label>
               活动
               <select
                 name="activityId"
-                defaultValue={
-                  record?.activityId ||
-                  target.activityId ||
-                  state.activities.find((row) => !row.archived)?.id
-                }
+                value={activityId}
+                onChange={(event) => setActivityId(event.target.value)}
                 required
               >
                 {activityOptions(record?.activityId)}
               </select>
             </label>
+            {phone && (
+              <div className="phone-activity-chips" aria-label="选择记录活动">
+                {state.activities
+                  .filter((row) => !row.archived || row.id === record?.activityId)
+                  .map((activity) => (
+                    <button
+                      type="button"
+                      key={activity.id}
+                      aria-pressed={activityId === activity.id}
+                      onClick={() => setActivityId(activity.id)}
+                    >
+                      <i style={{ background: activity.color }} />
+                      {activity.name}
+                    </button>
+                  ))}
+              </div>
+            )}
             {spans.map((span, index) => (
               <div key={index} className="form-columns">
-                <label>
+                <label className={phone ? 'phone-date-time' : undefined}>
                   {index ? `第 ${index + 1} 段开始` : '开始时间'}
+                  {phone && (
+                    <span aria-hidden="true">
+                      <small>{localInput(span.start).slice(0, 10).replaceAll('-', '/')}</small>
+                      <strong>{localInput(span.start).slice(11, 16)}</strong>
+                    </span>
+                  )}
                   <input
                     aria-label={index ? `第 ${index + 1} 段开始` : '开始时间'}
                     type="datetime-local"
@@ -204,7 +242,12 @@ export function Editor({
                       setSpans((rows) =>
                         rows.map((row, at) =>
                           at === index
-                            ? { ...row, start: parseDateTimeInput(event.target.value) }
+                            ? {
+                                ...row,
+                                start: event.target.value
+                                  ? parseDateTimeInput(event.target.value)
+                                  : NaN,
+                              }
                             : row,
                         ),
                       )
@@ -212,8 +255,14 @@ export function Editor({
                     required
                   />
                 </label>
-                <label>
+                <label className={phone ? 'phone-date-time' : undefined}>
                   {index ? `第 ${index + 1} 段结束` : '结束时间'}
+                  {phone && (
+                    <span aria-hidden="true">
+                      <small>{localInput(span.end).slice(0, 10).replaceAll('-', '/')}</small>
+                      <strong>{localInput(span.end).slice(11, 16)}</strong>
+                    </span>
+                  )}
                   <input
                     aria-label={index ? `第 ${index + 1} 段结束` : '结束时间'}
                     type="datetime-local"
@@ -223,7 +272,12 @@ export function Editor({
                       setSpans((rows) =>
                         rows.map((row, at) =>
                           at === index
-                            ? { ...row, end: parseDateTimeInput(event.target.value) }
+                            ? {
+                                ...row,
+                                end: event.target.value
+                                  ? parseDateTimeInput(event.target.value)
+                                  : NaN,
+                              }
                             : row,
                         ),
                       )
@@ -288,11 +342,36 @@ export function Editor({
               标签
               <input
                 name="tags"
-                defaultValue={record?.tags.join(', ') || ''}
+                value={tags.join(', ')}
+                onChange={(event) =>
+                  setTags(
+                    event.target.value.split(/[,，]/).map((tag) => tag.trim().replace(/^#/, '')),
+                  )
+                }
                 maxLength={600}
                 placeholder="用逗号分隔"
               />
             </label>
+            {phone && tagOptions.length > 0 && (
+              <div className="phone-tag-chips" aria-label="选择记录标签">
+                {tagOptions.map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    aria-pressed={tags.includes(tag)}
+                    onClick={() =>
+                      setTags(
+                        tags.includes(tag)
+                          ? tags.filter((value) => value !== tag)
+                          : [...tags.filter(Boolean), tag],
+                      )
+                    }
+                  >
+                    #{tag}
+                  </button>
+                ))}
+              </div>
+            )}
           </>
         )}
         {target.kind === 'activity' && (

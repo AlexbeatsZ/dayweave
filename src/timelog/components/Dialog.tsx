@@ -12,10 +12,24 @@ export function Dialog({
   wide?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const closeRef = useRef(close);
+  closeRef.current = close;
   useEffect(() => {
     const dialog = ref.current!;
+    const previous = document.activeElement as HTMLElement;
     dialog.showModal();
-    return () => dialog.close();
+    const back = (event: Event) => {
+      if ([...document.querySelectorAll('dialog[open]')].at(-1) !== dialog) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      closeRef.current();
+    };
+    document.addEventListener('clearlist:back', back, true);
+    return () => {
+      dialog.close();
+      document.removeEventListener('clearlist:back', back, true);
+      if (previous?.isConnected) previous.focus();
+    };
   }, []);
   return (
     <dialog
