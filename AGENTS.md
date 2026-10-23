@@ -14,12 +14,12 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 - Fudan website import uses official user-operated SSO in a dedicated Android/Electron window and one minimal capture script; selected semester converts to a normal preview before merge. No credentials enter business data. Real-account import has not been accepted on a device; read docs/design/fudan-import.md before modifying this boundary.
 - Public v0.3.0 tag is 59c254ae63c0e32259dfcb7eb121e3c601a7754d; 13 uploaded assets match local names/sizes. Final four-platform CI 39471586657 succeeded. Release has Windows EXE, stable-signed APK, both Mac architectures DMG/ZIP, AI tools/guide, OpenAPI, CSV, licenses and source ZIP.
 - ROG hub encrypted LAN sync, mDNS discovery and first-use invitations; offline three-way merges preserve conflicts. Canonical time records are open while endAt=null.
-- Version 0.4.1 deployed and verified per user request:
+- Version 0.4.1 deployed and verified per user request across all devices:
   - Local OMEN (win) updated at C:\Users\Meta\AppData\Local\Programs\Dayweave\Dayweave.exe.
   - ROG updated at C:\Users\Meta\AppData\Local\Programs\Dayweave\Dayweave.exe, DayweaveHub tray task running, API /health storage ready.
   - Mac (arm64) built and updated at /Applications/Dayweave.app, running --tray, API /health storage ready.
   - Pad 6 Pro updated via ADB to versionCode 8 (0.4.1), preserving existing profile and 4x2/2x2 widgets.
-  - Phone (Redmi K70) wireless ADB port currently not reachable; pending user connection.
+  - Phone (Redmi K70) updated via ADB 192.168.31.33:38637 to versionCode 8 (0.4.1), preserving profile, no UI operations performed.
 - Desktop installation paths remain Windows Local Programs/Dayweave and Mac /Applications/Dayweave.app; ROG uses the existing DayweaveHub tray task.
 - Real phone-start/tablet-stop synchronization preserved one record ID. Tablet 4x2 widget added through the standard Android picker, reads synced courses and opens the timetable.
 - Continuation completes the pending activity interactions, Fudan capture/refresh, and cross-device 0.4.1 deployment. Release assets for Windows (Setup/portable), Android APK, and macOS arm64 (DMG/ZIP) match the latest build.
