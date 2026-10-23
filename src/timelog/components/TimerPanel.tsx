@@ -1,6 +1,6 @@
 import './TimerPanel.css';
-import { useState } from 'react';
-import { ArrowRight, Clock3, List, Pause, Play, Plus, Settings2, Square, X } from 'lucide-react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
+import { ArrowRight, ChevronRight, Clock3, Pause, Play, Plus, X } from 'lucide-react';
 import { dateKey, type Task } from '../../model';
 import { dateTimeInput, parseDateTimeInput, zoneClock } from '../../timezone';
 import {
@@ -16,6 +16,8 @@ import {
   startTimer,
   timestamp,
   toggleTimer,
+  natureLabels,
+  type Activity,
   type State,
 } from '../domain';
 import { lastRecordEnd } from '../timeline';
@@ -28,7 +30,7 @@ export function TimerPanel({
   tasks,
   now,
   commit,
-  manage,
+  editActivity,
   onFinished,
   tagColors,
 }: {
@@ -36,20 +38,21 @@ export function TimerPanel({
   tasks: Task[];
   now: number;
   commit: Commit;
-  manage: () => void;
+  editActivity: (activity?: Activity) => void;
   onFinished: () => void;
   tagColors: Record<string, string>;
 }) {
   const timer = state.timer,
     activities = state.activities.filter(activeActivity);
+  const panel = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    panel.current?.closest('.phone-content')?.scrollTo(0, 0);
+  }, [timer?.id]);
   const [editing, setEditing] = useState<'times' | 'presets' | 'tags' | 'next' | null>(null);
   const [start, setStart] = useState(''),
     [end, setEnd] = useState('');
   const [exactStart, setExactStart] = useState<number | null>(null);
-  const [pendingStart, setPendingStart] = useState<number | null>(null),
-    [pendingEnd, setPendingEnd] = useState<number | null>(null);
-  const [minutes, setMinutes] = useState<number | null>(null),
-    [customMinutes, setCustomMinutes] = useState('');
+  const [customMinutes, setCustomMinutes] = useState('');
   const [tags, setTags] = useState(''),
     [error, setError] = useState('');
   const presets = state.settings.timerPresets ?? [5, 30, 45, 60];
@@ -65,24 +68,18 @@ export function TimerPanel({
   ];
   const elapsed = timer ? duration(liveSpans(timer, now)) : 0;
   const countdown = timer?.plannedEndAt != null;
-  const clock = timer
-    ? countdown
-      ? countdownRemaining(timer, now)
-      : elapsed
-    : (minutes ?? 0) * 60000;
+  const clock = timer ? (countdown ? countdownRemaining(timer, now) : elapsed) : 0;
   const progress =
     timer && countdown
       ? Math.min(1, elapsed / Math.max(1, elapsed + countdownRemaining(timer, now)))
-      : 0;
+      : (elapsed / 3600000) % 1;
+  const currentActivity = timer
+    ? state.activities.find((activity) => activity.id === timer.activityId)
+    : undefined;
   const openTimes = () => {
-    chooseStart(timer?.startedAt ?? pendingStart ?? Date.now());
-    setEnd(
-      timer?.plannedEndAt != null
-        ? dateTimeInput(timer.plannedEndAt)
-        : pendingEnd
-          ? dateTimeInput(pendingEnd)
-          : '',
-    );
+    if (!timer) return;
+    chooseStart(timer.startedAt);
+    setEnd(timer.plannedEndAt != null ? dateTimeInput(timer.plannedEndAt) : '');
     setError('');
     setEditing('times');
   };
@@ -95,19 +92,7 @@ export function TimerPanel({
     setError('');
   };
   async function begin(activityId: string) {
-    const at = Date.now(),
-      startAt = pendingStart ?? at,
-      endAt = pendingEnd ?? (minutes ? at + minutes * 60000 : null);
-    const saved = await commit((current) => {
-      const next = startTimer(current, activityId, '', startAt, {
-        plannedEndAt: endAt != null && endAt > at ? endAt : null,
-      });
-      return endAt != null && endAt <= at ? finishTimer(next, endAt) : next;
-    }, '活动已开始');
-    if (saved) {
-      setPendingStart(null);
-      setPendingEnd(null);
-    }
+    await commit((current) => startTimer(current, activityId, '', Date.now()), '活动已开始');
   }
   async function saveTimes() {
     try {
@@ -123,13 +108,7 @@ export function TimerPanel({
         at = Date.now();
       if (startAt > at || (endAt != null && endAt <= startAt))
         throw new Error('请检查起止时间：开始不能晚于现在，结束需晚于开始。');
-      if (!timer) {
-        setPendingStart(startAt);
-        setPendingEnd(endAt);
-        setMinutes(null);
-        close();
-        return;
-      }
+      if (!timer) throw new Error('请先选择活动开始计时。');
       const id = timer.id;
       const saved = await commit((current) => {
         if (current.timer?.id !== id) throw new Error('活动已变化，请重新调整。');
@@ -150,11 +129,7 @@ export function TimerPanel({
     }
   }
   async function choosePreset(value: number | null) {
-    if (!timer) {
-      setMinutes(value);
-      setPendingEnd(null);
-      return;
-    }
+    if (!timer) return;
     const id = timer.id;
     await commit(
       (current) => {
@@ -171,113 +146,100 @@ export function TimerPanel({
       value ? '已切换倒计时' : '已切换正计时',
     );
   }
-  const activityGrid = (select: (id: string) => void) => (
+  const activityGrid = (select: (id: string) => void, editable = false) => (
     <div className="activity-grid">
       {activities.map((activity) => (
-        <button
+        <ActivityTile
           key={activity.id}
-          className="activity-tile"
-          style={{ '--activity-color': activity.color } as React.CSSProperties}
-          onClick={() => select(activity.id)}
-        >
-          <span className="activity-mark">
-            <ActivityIcon name={activity.name} />
-          </span>
-          <span className="activity-text">
-            <strong>{activity.name}</strong>
-          </span>
-        </button>
+          activity={activity}
+          select={() => select(activity.id)}
+          edit={editable ? () => editActivity(activity) : undefined}
+        />
       ))}
     </div>
   );
   return (
-    <div className="activity-timer-panel">
-      <div className="timer-presets" aria-label="倒计时预设">
-        <button
-          aria-pressed={!countdown && !minutes && !pendingEnd}
-          onClick={() => void choosePreset(null)}
-        >
-          正计时
-        </button>
-        {presets.map((value) => (
-          <button
-            key={value}
-            aria-pressed={!timer && minutes === value}
-            onClick={() => void choosePreset(value)}
-          >
-            {value} min
-          </button>
-        ))}
-        <button
-          className="icon-button"
-          aria-label="管理倒计时预设"
-          onClick={() => setEditing('presets')}
-        >
-          <Plus size={18} />
-        </button>
-      </div>
+    <div ref={panel} className={`activity-timer-panel ${timer ? 'timer-session' : 'timer-picker'}`}>
       {timer ? (
         <>
-          <section className="timer-detail">
-            <div className="timer-detail-header">
-              <span>
-                {countdown ? '倒计时' : '正计时'} ·{' '}
-                {timer.runningSince === null ? '已暂停' : '进行中'}
+          <section className="timer-focus-card">
+            <header className="timer-detail-header">
+              <span
+                className="timer-current-activity"
+                style={{ '--activity-color': currentActivity?.color } as CSSProperties}
+              >
+                <ActivityIcon name={currentActivity?.name ?? ''} size={22} />
+                <h2>{currentActivity?.name}</h2>
               </span>
-              <button className="icon-button" aria-label="调整起止时间" onClick={openTimes}>
-                <Settings2 size={19} />
-              </button>
-            </div>
-            <h2>{state.activities.find((activity) => activity.id === timer.activityId)?.name}</h2>
-            <div
-              className="activity-clock-ring"
-              style={{ '--progress': `${progress * 360}deg` } as React.CSSProperties}
-            >
-              <div>
-                <strong className="timer-clock" aria-label="计时时长">
-                  {formatClock(clock)}
-                </strong>
-                <span>{formatPoints((elapsed / 3600000) * timer.pointsPerHour)} 积分</span>
+              <span className="timer-status" data-paused={timer.runningSince === null}>
+                <i />
+                {timer.runningSince === null ? '已暂停' : countdown ? '倒计时' : '正计时'}
+              </span>
+            </header>
+            <div className="timer-clock-area">
+              <div
+                className="activity-clock-ring"
+                style={{ '--progress': `${progress * 360}deg` } as CSSProperties}
+              >
+                <div>
+                  <span className="timer-clock-caption">{countdown ? '剩余时间' : '已计时'}</span>
+                  <strong className="timer-clock" aria-label="计时时长">
+                    {formatClock(clock)}
+                  </strong>
+                  <span className="timer-points">
+                    {formatPoints((elapsed / 3600000) * timer.pointsPerHour)}
+                    <small> 积分</small>
+                  </span>
+                  <button
+                    className="timer-pause"
+                    aria-label={timer.runningSince === null ? '继续' : '暂停'}
+                    onClick={() =>
+                      void commit(
+                        (current) =>
+                          current.timer?.id === timer.id
+                            ? toggleTimer(current, Date.now())
+                            : current,
+                        timer.runningSince === null ? '已继续计时' : '已暂停',
+                      )
+                    }
+                  >
+                    {timer.runningSince === null ? <Play size={18} /> : <Pause size={18} />}
+                  </button>
+                </div>
               </div>
             </div>
-            <button className="timer-time-summary" onClick={openTimes}>
-              <span>开始 {zoneClock(timer.startedAt)}</span>
-              <span>
-                {timer.plannedEndAt ? `结束 ${zoneClock(timer.plannedEndAt)}` : '设置结束时间'}
-                <Clock3 size={14} />
-              </span>
-            </button>
-            <div className="timer-controls">
-              <button
-                className="secondary"
-                onClick={() =>
-                  void commit(
-                    (current) =>
-                      current.timer?.id === timer.id ? toggleTimer(current, Date.now()) : current,
-                    timer.runningSince === null ? '已继续计时' : '已暂停',
-                  )
-                }
-              >
-                {timer.runningSince === null ? <Play size={18} /> : <Pause size={18} />}
-                {timer.runningSince === null ? '继续' : '暂停'}
+            <div className="timer-presets" aria-label="倒计时预设">
+              <button aria-pressed={!countdown} onClick={() => void choosePreset(null)}>
+                正计时
               </button>
+              {presets.map((value) => (
+                <button
+                  key={value}
+                  aria-pressed={countdown && Math.abs(clock - value * 60000) < 1000}
+                  onClick={() => void choosePreset(value)}
+                >
+                  {value} min
+                </button>
+              ))}
               <button
-                className="primary"
-                disabled={elapsed < 1000}
-                onClick={() =>
-                  void commit(
-                    (current) =>
-                      current.timer?.id === timer.id ? finishTimer(current, Date.now()) : current,
-                    '活动已记录',
-                  ).then((saved) => {
-                    if (saved) onFinished();
-                  })
-                }
+                className="icon-button"
+                aria-label="管理倒计时预设"
+                onClick={() => setEditing('presets')}
               >
-                <Square size={17} />
-                完成
+                <Plus size={17} />
               </button>
             </div>
+            <button className="timer-time-summary" aria-label="调整起止时间" onClick={openTimes}>
+              <span>
+                <small>开始</small>
+                <strong>{zoneClock(timer.startedAt)}</strong>
+              </span>
+              <span>
+                <small>结束</small>
+                <strong>{timer.plannedEndAt ? zoneClock(timer.plannedEndAt) : '未设置'}</strong>
+              </span>
+              <ChevronRight size={16} />
+            </button>
           </section>
           <section className="timer-related">
             <div className="timer-section-title">
@@ -293,15 +255,17 @@ export function TimerPanel({
                 <Plus size={18} />
               </button>
             </div>
-            <div className="phone-tag-chips">
-              {timer.tags.map((tag) => (
-                <span key={tag} style={{ color: tagColors[tag] }}>
-                  #{tag}
-                </span>
-              ))}
-            </div>
+            {!!timer.tags.length && (
+              <div className="phone-tag-chips">
+                {timer.tags.map((tag) => (
+                  <span key={tag} style={{ color: tagColors[tag] }}>
+                    #{tag}
+                  </span>
+                ))}
+              </div>
+            )}
             <label className="timer-plan">
-              相关计划
+              <span>相关计划</span>
               <select
                 aria-label="相关计划"
                 value={timer.taskId ?? ''}
@@ -329,13 +293,20 @@ export function TimerPanel({
                 )}
               </select>
             </label>
-            <label>
-              活动内容
+            <div className="timer-content-label">活动内容</div>
+            <div className="timer-content-field">
+              <span
+                className="timer-content-activity"
+                style={{ '--activity-color': currentActivity?.color } as CSSProperties}
+              >
+                <ActivityIcon name={currentActivity?.name ?? ''} size={25} />
+                <small>{currentActivity?.name}</small>
+              </span>
               <textarea
                 aria-label="计时描述"
                 key={`${timer.id}:${timer.note}`}
                 defaultValue={timer.note}
-                placeholder="描述"
+                placeholder="描述这段时间做了什么"
                 rows={3}
                 maxLength={4000}
                 onBlur={(event) => {
@@ -350,55 +321,87 @@ export function TimerPanel({
                     );
                 }}
               />
-            </label>
+            </div>
           </section>
-          <div className="timer-footer-actions">
+          <footer className="timer-footer-actions">
             <button
-              className="secondary"
+              className="timer-next"
               disabled={elapsed < 1000}
               onClick={() => setEditing('next')}
             >
               下一个活动
-              <ArrowRight size={16} />
+              <ArrowRight size={15} />
             </button>
             <button
-              className="text-button"
-              onClick={() => {
+              className="primary timer-finish"
+              disabled={elapsed < 1000}
+              onClick={() =>
+                void commit(
+                  (current) =>
+                    current.timer?.id === timer.id ? finishTimer(current, Date.now()) : current,
+                  '活动已记录',
+                ).then((saved) => {
+                  if (saved) onFinished();
+                })
+              }
+            >
+              完成
+            </button>
+            <button
+              className="timer-cancel"
+              onClick={() =>
                 void commit(
                   (current) =>
                     current.timer?.id === timer.id ? { ...current, timer: null } : current,
                   '本次计时已取消',
-                );
-              }}
+                )
+              }
             >
               取消
             </button>
-          </div>
+          </footer>
         </>
       ) : (
-        <>
-          <div className="panel-toolbar">
-            <button className="secondary" onClick={openTimes}>
-              <Clock3 size={17} />
-              调整起止时间
+        <div className="activity-library">
+          <header className="activity-library-heading">
+            <div>
+              <h2>选择活动</h2>
+              <p>点按开始计时，长按编辑活动</p>
+            </div>
+            <button
+              className="activity-create"
+              aria-label="新建活动"
+              onClick={() => editActivity()}
+            >
+              <Plus size={28} strokeWidth={1.5} />
+              <span>新建活动</span>
             </button>
-            <button className="secondary" onClick={manage}>
-              <List size={17} />
-              管理活动
-            </button>
+          </header>
+          <div className="activity-groups">
+            {(['positive', 'neutral', 'negative'] as const).map((nature) => {
+              const group = activities.filter((activity) => activity.nature === nature);
+              if (!group.length) return null;
+              return (
+                <section className="activity-group" key={nature}>
+                  <h3>
+                    {natureLabels[nature]}
+                    <small>{group.length}</small>
+                  </h3>
+                  <div className="activity-grid">
+                    {group.map((activity) => (
+                      <ActivityTile
+                        key={activity.id}
+                        activity={activity}
+                        select={() => void begin(activity.id)}
+                        edit={() => editActivity(activity)}
+                      />
+                    ))}
+                  </div>
+                </section>
+              );
+            })}
           </div>
-          <p className="section-note">
-            {pendingStart
-              ? `开始 ${dateTimeInput(pendingStart).replace('T', ' ')}`
-              : '选择活动开始'}
-            {pendingEnd
-              ? ` · 结束 ${dateTimeInput(pendingEnd).replace('T', ' ')}`
-              : minutes
-                ? ` · 倒计时 ${minutes} 分钟`
-                : ''}
-          </p>
-          {activityGrid((id) => void begin(id))}
-        </>
+        </div>
       )}
       {editing && (
         <Dialog
@@ -617,5 +620,94 @@ export function TimerPanel({
         </Dialog>
       )}
     </div>
+  );
+}
+
+/** Press-and-hold edits; movement cancels the hold so the gallery stays scrollable. */
+function ActivityTile({
+  activity,
+  select,
+  edit,
+}: {
+  activity: Activity;
+  select: () => void;
+  edit?: () => void;
+}) {
+  const hold = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pointer = useRef<{ x: number; y: number } | null>(null);
+  const consumed = useRef(false);
+  const clear = () => {
+    if (hold.current) clearTimeout(hold.current);
+    hold.current = null;
+    pointer.current = null;
+  };
+  useEffect(() => clear, []);
+  return (
+    <button
+      className="activity-tile"
+      style={{ '--activity-color': activity.color } as CSSProperties}
+      aria-label={`开始 ${activity.name}`}
+      aria-description={edit ? '长按、右键或按 F2 编辑活动' : undefined}
+      onPointerDown={(event) => {
+        if (!edit || event.button !== 0) return;
+        clear();
+        consumed.current = false;
+        pointer.current = { x: event.clientX, y: event.clientY };
+        hold.current = setTimeout(() => {
+          consumed.current = true;
+          hold.current = null;
+        }, 450);
+      }}
+      onPointerMove={(event) => {
+        if (
+          pointer.current &&
+          Math.hypot(event.clientX - pointer.current.x, event.clientY - pointer.current.y) > 9
+        ) {
+          consumed.current = true;
+          clear();
+        }
+      }}
+      onPointerUp={() => {
+        const held = consumed.current && pointer.current !== null;
+        clear();
+        // Open after release/click dispatch, so lifting a held finger cannot
+        // become a backdrop click and immediately close the new editor.
+        if (held && edit) requestAnimationFrame(edit);
+      }}
+      onPointerCancel={() => {
+        consumed.current = true;
+        clear();
+      }}
+      onPointerLeave={clear}
+      onContextMenu={(event) => {
+        if (edit) {
+          event.preventDefault();
+          consumed.current = true;
+          if (pointer.current) return;
+          clear();
+          edit();
+        }
+      }}
+      onKeyDown={(event) => {
+        if (edit && (event.key === 'F2' || (event.shiftKey && event.key === 'F10'))) {
+          event.preventDefault();
+          edit();
+        }
+      }}
+      onClick={() => {
+        if (consumed.current) {
+          consumed.current = false;
+          return;
+        }
+        select();
+      }}
+    >
+      <span className="activity-mark">
+        <ActivityIcon name={activity.name} size={26} />
+      </span>
+      <span className="activity-text">
+        <strong>{activity.name}</strong>
+      </span>
+    </button>
   );
 }

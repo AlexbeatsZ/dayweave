@@ -24,6 +24,7 @@ import { store, useStore } from '../store';
 import {
   courseOccurrences,
   semesterWeek,
+  timetableDayCount,
   courseSchema,
   occurrenceSchema,
   scheduleSchema,
@@ -469,6 +470,7 @@ function SemesterEditor({ close }: { close: () => void }) {
     semesterStart: data.schedule.semesterStart,
     totalWeeks: data.schedule.totalWeeks,
     timeZone: data.schedule.timeZone,
+    displayDays: data.schedule.displayDays,
     holidays: data.schedule.holidays,
   }));
   const [error, setError] = useState(''),
@@ -489,6 +491,7 @@ function SemesterEditor({ close }: { close: () => void }) {
                 semesterStart: state.schedule.semesterStart,
                 totalWeeks: state.schedule.totalWeeks,
                 timeZone: state.schedule.timeZone,
+                displayDays: state.schedule.displayDays,
                 holidays: state.schedule.holidays,
               };
               if (JSON.stringify(initial) !== JSON.stringify(current))
@@ -500,6 +503,8 @@ function SemesterEditor({ close }: { close: () => void }) {
                   semesterStart: String(form.get('start')),
                   totalWeeks: Number(form.get('weeks')),
                   timeZone: String(form.get('zone')),
+                  displayDays:
+                    form.get('displayDays') === 'auto' ? 'auto' : Number(form.get('displayDays')),
                   holidays: String(form.get('holidays'))
                     .split(/[\s,，]+/)
                     .filter(Boolean),
@@ -554,6 +559,17 @@ function SemesterEditor({ close }: { close: () => void }) {
         </label>
         <p className="field-hint">
           周课程按这个时区上课。设备时区不改变上课时刻，已导入日历课程保留真实时刻。
+        </p>
+        <label>
+          课表显示天数
+          <select name="displayDays" aria-label="课表显示天数" defaultValue={initial.displayDays}>
+            <option value="auto">自动：无周末课程时显示 5 天</option>
+            <option value="5">固定 5 天（周一至周五）</option>
+            <option value="7">固定 7 天（周一至周日）</option>
+          </select>
+        </label>
+        <p className="field-hint">
+          自动检查整个学期的周末安排。固定天数只改变课表显示，不删除课程。
         </p>
         <label>
           全校停课日期
@@ -773,7 +789,8 @@ export function Timetable({ clock }: { clock: number }) {
     setSelected(null);
   }, [schedule.semesterStart, schedule.totalWeeks, schedule.timeZone]);
   const start = shiftDay(schedule.semesterStart, (week - 1) * 7),
-    days = Array.from({ length: 7 }, (_, index) => shiftDay(start, index));
+    dayCount = useMemo(() => timetableDayCount(schedule), [schedule]),
+    days = Array.from({ length: dayCount }, (_, index) => shiftDay(start, index));
   const items = useMemo(
     () =>
       courseOccurrences(
@@ -801,10 +818,13 @@ export function Timetable({ clock }: { clock: number }) {
       }
     }
     return { from, until };
-  }, [schedule.periods, items, start, schedule.timeZone]);
+  }, [schedule.periods, items, start, schedule.timeZone, dayCount]);
   const height = (bounds.until - bounds.from) * 1.35,
     position = (minute: number) => (minute - bounds.from) * 1.35;
-  const css = { '--timetable-height': `${height}px` } as CSSProperties;
+  const css = {
+    '--timetable-height': `${height}px`,
+    '--timetable-days': dayCount,
+  } as CSSProperties;
   function choose(slot: Slot) {
     if (
       selected?.weekday === slot.weekday &&
@@ -878,7 +898,7 @@ export function Timetable({ clock }: { clock: number }) {
     }
   }
   return (
-    <div className="timetable-view timetable-grid-view">
+    <div className="timetable-view timetable-grid-view" data-days={dayCount}>
       <div className="timetable-week-nav">
         <button
           className="icon-button"
@@ -901,7 +921,7 @@ export function Timetable({ clock }: { clock: number }) {
         >
           <strong>第 {week} 周</strong>
           <small>
-            {start.slice(5).replace('-', '/')} — {days[6].slice(5).replace('-', '/')}
+            {start.slice(5).replace('-', '/')} — {days.at(-1)!.slice(5).replace('-', '/')}
           </small>
         </button>
         <button
@@ -1029,6 +1049,7 @@ export function Timetable({ clock }: { clock: number }) {
                       key={item.id}
                       className={`timetable-course ${item.start <= clock && item.end > clock ? 'class-now' : ''}`}
                       aria-label={`编辑课程 ${item.name}`}
+                      title={`${item.name}\n${item.location}\n${zoneClock(item.start, schedule.timeZone)}–${zoneClock(item.end, schedule.timeZone)}${item.teacher ? `\n${item.teacher}` : ''}`}
                       style={
                         {
                           '--course-color': item.color,

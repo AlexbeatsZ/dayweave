@@ -270,7 +270,7 @@ export function Settings({
             </span>
             <div>
               <strong>
-                时织 <span>Dayweave 0.4.0</span>
+                时织 <span>Dayweave 0.4.1</span>
               </strong>
               <p>
                 <ShieldCheck size={12} />

@@ -897,101 +897,11 @@
 .phone-shell .timelog-module .gap-card strong {
   font-size: 12px;
 }
-.phone-shell .timelog-module .activity-group {
-  border: 1px solid var(--line);
-  background: var(--bg);
-  padding: 17px 10px 12px;
-  border-radius: 20px;
-  margin: 14px 0;
-}
-.phone-shell .timelog-module .activity-group h2 {
-  font-size: 12px;
-  color: var(--muted);
-  padding: 0 6px;
-  margin-bottom: 8px;
-}
-.phone-shell .timelog-module .activity-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 4px;
-  margin: 0;
-}
-.phone-shell .timelog-module .activity-tile {
-  display: flex;
-  flex-direction: column;
-  flex-wrap: nowrap;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  gap: 9px;
-  border: 0;
-  border-radius: 14px;
-  min-height: 100px;
-  padding: 12px 5px;
-}
-.phone-shell .timelog-module .activity-text {
-  flex: none;
-}
 .phone-shell .timelog-module .activity-mark {
   width: 48px;
   height: 48px;
   border-radius: 18px;
   font-size: 22px;
-}
-.phone-shell .timelog-module .activity-text strong {
-  font-size: 13px;
-  white-space: normal;
-}
-.phone-shell .timelog-module .activity-text small,
-.phone-shell .timelog-module .activity-tile > svg {
-  display: none;
-}
-.phone-shell .timelog-module .timer-detail {
-  min-height: 460px;
-  margin: 20px 0 0;
-  padding: 24px 16px 20px;
-  border: 1px solid var(--line);
-  background: var(--bg);
-  border-radius: 24px;
-}
-.phone-shell .timelog-module .timer-detail-header {
-  width: 100%;
-}
-.phone-shell .timelog-module .timer-detail h2 {
-  margin: 36px 0 16px;
-  font-size: 24px;
-}
-.phone-shell .timelog-module .timer-clock {
-  font:
-    clamp(45px, 14vw, 68px)/1.2 Bahnschrift,
-    Consolas,
-    monospace;
-  letter-spacing: -0.03em;
-  margin: 8px 0 12px;
-  font-variant-numeric: tabular-nums;
-}
-.phone-shell .timelog-module .timer-start {
-  font-size: 12px;
-}
-.phone-shell .timelog-module .timer-detail textarea {
-  margin: 28px 0 18px;
-  font-size: 16px;
-  text-align: left;
-  min-height: 80px;
-}
-.phone-shell .timelog-module .timer-controls {
-  display: flex;
-  width: 100%;
-  gap: 12px;
-}
-.phone-shell .timelog-module .timer-controls button {
-  flex: 1;
-  min-height: 50px;
-  border-radius: 16px;
-}
-.phone-shell .timelog-module .timer-secondary {
-  margin-top: 16px;
-  flex-wrap: wrap;
 }
 /* Analysis has a calm overview, then detail on demand. */
 .phone-analysis-date {
@@ -1623,19 +1533,6 @@
 .phone-shell .phone-section-heading {
   flex-wrap: wrap;
 }
-.phone-shell .timer-related {
-  margin: 14px 0;
-  padding: 16px;
-  background: var(--card);
-  border-radius: 18px;
-}
-.phone-shell .timer-related label {
-  font-size: 13px;
-}
-.phone-shell .activity-clock-ring {
-  width: 210px;
-}
-
 .task-effort-fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

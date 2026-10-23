@@ -1,35 +1,169 @@
-.activity-timer-panel {
-  max-width: 760px;
+/* Timer pages own their layout here, across phone and desktop. */
+.timelog-module .activity-timer-panel {
+  width: 100%;
+  max-width: 1000px;
   margin: 0 auto;
 }
-.timer-presets {
+.timelog-module .activity-library-heading {
   display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  margin: 12px 0 16px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 2px 20px;
 }
-.timer-presets > button {
-  min-height: 40px;
-  padding: 6px 12px;
-  border-radius: 20px;
-  background: var(--card);
+.timelog-module .activity-library-heading h2 {
+  font-size: 22px;
+  font-weight: 600;
+  margin: 0 0 8px;
+}
+.timelog-module .activity-library-heading p {
   color: var(--muted);
-  border: 1px solid var(--line);
+  font-size: 12px;
 }
-.timer-presets > [aria-pressed='true'] {
+.timelog-module .activity-groups {
+  display: grid;
+  gap: 18px;
+}
+.timelog-module .activity-group {
+  padding: 20px 16px 14px;
+  border-radius: 22px;
+  background: var(--bg);
+}
+.timelog-module .activity-group h3 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 4px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.timelog-module .activity-group h3 small {
+  font-size: 11px;
+  opacity: 0.7;
+}
+.timelog-module .activity-timer-panel .activity-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.timelog-module .activity-timer-panel .activity-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  min-width: 0;
+  min-height: 106px;
+  padding: 10px 4px;
+  border-radius: 16px;
+  background: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: pan-y;
+  transition:
+    background 0.16s,
+    transform 0.16s;
+}
+.timelog-module .activity-timer-panel .activity-tile:hover {
+  background: var(--hover);
+}
+.timelog-module .activity-tile:active {
+  transform: scale(0.96);
+}
+.timelog-module .activity-timer-panel .activity-tile .activity-mark {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  color: var(--activity-color, var(--accent));
+  background: color-mix(in srgb, var(--activity-color, var(--accent)) 11%, var(--input));
+}
+.timelog-module .activity-text strong {
+  display: block;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+.timelog-module .activity-timer-panel .activity-create {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-shrink: 0;
+  width: 74px;
+  min-height: 74px;
+  border-radius: 18px;
+  border: 1px dashed var(--line);
+  color: var(--muted);
+  background: transparent;
+  font-size: 12px;
+}
+.timelog-module .activity-create:hover {
   color: var(--accent);
   border-color: var(--accent);
 }
-.activity-clock-ring {
-  --progress: 0deg;
-  width: 230px;
-  aspect-ratio: 1;
-  margin: 22px auto;
-  padding: 12px;
-  border-radius: 50%;
-  background: conic-gradient(var(--accent) var(--progress), var(--line) var(--progress));
+.timelog-module .timer-session {
+  max-width: 880px;
+  display: grid;
+  gap: 16px;
 }
-.activity-clock-ring > div {
+.timelog-module .timer-focus-card {
+  min-width: 0;
+  background: var(--bg);
+  border-radius: 24px;
+  padding: 20px;
+}
+.timelog-module .timer-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.timelog-module .timer-current-activity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.timelog-module .timer-current-activity > svg {
+  color: var(--activity-color, var(--accent));
+}
+.timelog-module .timer-current-activity h2 {
+  font-size: 19px;
+  font-weight: 600;
+}
+.timelog-module .timer-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.timelog-module .timer-status i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.timelog-module .timer-status[data-paused='true'] i {
+  background: var(--muted);
+}
+.timelog-module .activity-clock-ring {
+  --progress: 0deg;
+  width: 224px;
+  aspect-ratio: 1;
+  margin: 24px auto;
+  padding: 7px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, var(--accent) var(--progress), var(--line) var(--progress));
+}
+.timelog-module .activity-clock-ring > div {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -37,80 +171,194 @@
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  background: var(--card);
-  gap: 6px;
+  background: var(--bg);
 }
-.activity-clock-ring .timer-clock {
-  font-size: clamp(24px, 6vw, 36px);
+.timelog-module .timer-clock-caption {
+  color: var(--muted);
+  font-size: 11px;
+  margin-bottom: 8px;
+}
+.timelog-module .timer-clock {
+  font-family: Bahnschrift, 'SFMono-Regular', Consolas, monospace;
+  font-size: 34px;
+  font-weight: 450;
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0;
-  margin: 0;
+  line-height: 1.2;
+  color: var(--text);
 }
-.activity-clock-ring span {
+.timelog-module .timer-points {
+  margin-top: 8px;
+  color: var(--accent);
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+.timelog-module .timer-points small {
+  font-size: 10px;
   color: var(--muted);
-  font-size: 13px;
 }
-.timer-time-summary {
+.timelog-module .timer-pause {
+  width: 38px;
+  height: 30px;
+  margin-top: 10px;
+  color: var(--secondary);
+}
+.timelog-module .timer-presets {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0 0 18px;
+}
+.timelog-module .timer-presets > button {
+  min-height: 34px;
+  padding: 6px 8px;
+  border-radius: 11px;
+  font-size: 11px;
+  color: var(--muted);
+  background: var(--input);
+  border: 1px solid transparent;
+}
+.timelog-module .timer-presets > .icon-button {
+  min-width: 34px;
+  width: 34px;
+  height: 34px;
+}
+.timelog-module .timer-presets > [aria-pressed='true'] {
+  background: var(--accent-tint);
+  color: var(--accent);
+}
+.timelog-module .timer-time-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
   width: 100%;
-  min-height: 48px;
-  color: var(--muted);
-  font-size: 13px;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 15px;
+  background: var(--input);
+  text-align: left;
 }
-.timer-time-summary > span {
+.timelog-module .timer-time-summary > span {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 6px;
+  align-items: flex-start;
 }
-.timer-related {
-  margin: 18px 0;
+.timelog-module .timer-time-summary small {
+  color: var(--muted);
+  font-size: 10px;
+}
+.timelog-module .timer-time-summary strong {
+  font-weight: 500;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.timelog-module .timer-time-summary > svg {
+  color: var(--muted);
+}
+.timelog-module .timer-related {
+  min-width: 0;
   padding: 20px;
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  background: var(--card);
+  border-radius: 24px;
+  background: var(--bg);
 }
-.timer-section-title {
+.timelog-module .timer-section-title {
   display: flex;
   align-items: center;
   gap: 8px;
 }
-.timer-section-title h3 {
-  margin: 0;
-  font-size: 13px;
+.timelog-module .timer-section-title h3,
+.timelog-module .timer-content-label,
+.timelog-module .timer-plan > span {
   color: var(--muted);
+  font-size: 12px;
   font-weight: 500;
 }
-.timer-related label {
+.timelog-module .timer-section-title .icon-button {
+  background: var(--input);
+  border-radius: 50%;
+  min-width: 30px;
+  width: 30px;
+  height: 30px;
+}
+.timelog-module .timer-plan {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  margin: 20px 0;
+  padding-block: 16px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.timelog-module .timer-plan select {
+  min-width: 0;
+  width: 100%;
+  min-height: 32px;
+  border: 0;
+  color: var(--text);
+  background: var(--bg);
+  font-size: 14px;
+}
+.timelog-module .timer-content-field {
+  display: grid;
+  grid-template-columns: 62px minmax(0, 1fr);
+  gap: 12px;
+  margin-top: 12px;
+}
+.timelog-module .timer-content-activity {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-top: 16px;
-  color: var(--muted);
-}
-.timer-related select,
-.timer-related textarea {
-  padding: 12px;
-  width: 100%;
-  min-height: 46px;
-  color: var(--text);
-  border: 1px solid var(--line);
-  border-radius: 12px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 4px;
+  border-radius: 15px;
+  color: var(--activity-color, var(--accent));
   background: var(--input);
-  font: inherit;
-  font-size: 16px;
 }
-.timer-related textarea {
+.timelog-module .timer-content-activity small {
+  color: var(--secondary);
+  font-size: 10px;
+}
+.timelog-module .timer-content-field textarea {
+  display: block;
+  min-width: 0;
+  width: 100%;
+  min-height: 94px;
+  padding: 14px;
+  background: var(--input);
+  border: 0;
+  border-radius: 15px;
+  color: var(--text);
+  font-size: 16px;
+  line-height: 1.6;
   resize: vertical;
 }
-.timer-footer-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.timelog-module .timer-footer-actions {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr 0.7fr;
   gap: 12px;
-  margin: 20px 0;
+  align-items: center;
+  padding: 12px 0;
+  position: static;
+  background: var(--canvas);
+  z-index: 3;
+}
+.timelog-module .timer-footer-actions > button {
+  min-height: 46px;
+  border-radius: 24px;
+  font-size: 13px;
+}
+.timelog-module .timer-footer-actions .timer-next {
+  color: var(--accent);
+  background: var(--accent-tint);
+}
+.timelog-module .timer-footer-actions .timer-finish {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.timelog-module .timer-footer-actions .timer-cancel {
+  color: var(--muted);
 }
 .timer-start-shortcuts {
   display: flex;
@@ -127,6 +375,95 @@
   align-items: center;
   justify-content: space-between;
   padding: 4px 8px 4px 14px;
-  background: var(--card);
+  background: var(--bg);
   border-radius: 12px;
+}
+@media (max-width: 700px) {
+  .timelog-module .timer-session {
+    gap: 12px;
+    padding-top: 12px;
+  }
+  .timelog-module .timer-focus-card,
+  .timelog-module .timer-related {
+    padding: 16px;
+  }
+  .timelog-module .activity-clock-ring {
+    width: 184px;
+    margin: 16px auto;
+    padding: 6px;
+  }
+  .timelog-module .timer-clock {
+    font-size: 31px;
+  }
+  .timelog-module .timer-presets {
+    margin-bottom: 12px;
+  }
+  .timelog-module .timer-time-summary {
+    padding: 10px 12px;
+  }
+  .timelog-module .timer-plan {
+    margin: 12px 0;
+    padding-block: 10px;
+  }
+  .timelog-module .timer-content-field textarea {
+    min-height: 78px;
+  }
+}
+@media (min-width: 701px) {
+  .timelog-module .activity-groups {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+  .timelog-module .activity-group {
+    padding: 24px 20px 18px;
+  }
+  .timelog-module .activity-group h3 {
+    margin-bottom: 20px;
+  }
+  .timelog-module .activity-timer-panel .activity-tile .activity-mark {
+    width: 62px;
+    height: 62px;
+  }
+  .timelog-module .activity-timer-panel .activity-tile {
+    min-height: 122px;
+    padding-block: 12px;
+  }
+  .timelog-module .timer-footer-actions {
+    bottom: 0;
+  }
+}
+@media (min-width: 1101px) {
+  .timelog-module .timer-session {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+    gap: 22px;
+    padding-top: 12px;
+  }
+  .timelog-module .timer-focus-card {
+    grid-row: 1 / 3;
+    padding: 24px;
+  }
+  .timelog-module .activity-clock-ring {
+    width: 260px;
+    margin-block: 32px;
+  }
+  .timelog-module .timer-clock {
+    font-size: 39px;
+  }
+  .timelog-module .timer-related {
+    padding: 26px;
+  }
+  .timelog-module .timer-content-field textarea {
+    min-height: 170px;
+  }
+  .timelog-module .timer-footer-actions {
+    grid-column: 2;
+    position: static;
+    align-self: end;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .timelog-module .activity-tile {
+    transition: none;
+  }
 }

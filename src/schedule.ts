@@ -108,6 +108,7 @@ export const scheduleSchema = z
     semesterStart: calendarDateSchema.refine((d) => weekday(d) === 1, '开学日期必须为周一'),
     totalWeeks: z.number().int().min(1).max(60),
     timeZone: zoneSchema,
+    displayDays: z.union([z.literal('auto'), z.literal(5), z.literal(7)]).default('auto'),
     periods: coursePeriodsSchema.default(() =>
       defaultCoursePeriods.map((period) => ({ ...period })),
     ),
@@ -132,6 +133,7 @@ export function emptySchedule(): Schedule {
     semesterStart: shiftDay(day, 1 - weekday(day)),
     totalWeeks: 20,
     timeZone: DEFAULT_ZONE,
+    displayDays: 'auto',
     periods: defaultCoursePeriods.map((period) => ({ ...period })),
     courses: [],
     events: [],
@@ -144,6 +146,35 @@ export function semesterWeek(schedule: Schedule, date: string) {
       Temporal.PlainDate.from(schedule.semesterStart).until(Temporal.PlainDate.from(date)).days / 7,
     ) + 1
   );
+}
+/** Automatic width considers actual weekend teaching across the whole semester. */
+export function timetableDayCount(schedule: Schedule): 5 | 7 {
+  if (schedule.displayDays !== 'auto') return schedule.displayDays;
+  const holidays = new Set(schedule.holidays);
+  if (
+    schedule.courses.some(
+      (course) =>
+        course.weekday > 5 &&
+        course.weeks.some((week) => {
+          const date = shiftDay(schedule.semesterStart, (week - 1) * 7 + course.weekday - 1);
+          return !holidays.has(date) && !course.excludedDates.includes(date);
+        }),
+    )
+  )
+    return 7;
+  const lastDay = shiftDay(schedule.semesterStart, schedule.totalWeeks * 7 - 1);
+  for (const event of schedule.events) {
+    const first = zoneDateKey(event.start, schedule.timeZone),
+      last = zoneDateKey(event.end - 1, schedule.timeZone);
+    const until = last < lastDay ? last : lastDay;
+    for (
+      let date = first > schedule.semesterStart ? first : schedule.semesterStart;
+      date <= until;
+      date = shiftDay(date, 1)
+    )
+      if (weekday(date) > 5) return 7;
+  }
+  return 5;
 }
 export function courseOccurrences(schedule: Schedule, from = 0, until = Infinity): Occurrence[] {
   const results = schedule.events.filter((e) => e.end > from && e.start < until);

@@ -404,99 +404,6 @@
   color: var(--muted);
   text-align: center;
 }
-.timelog-module .activity-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 15px;
-}
-.timelog-module .activity-tile {
-  min-height: 99px;
-  text-align: left;
-  padding: 19px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--surface);
-  justify-content: flex-start;
-  gap: 13px;
-}
-.timelog-module .activity-tile:hover {
-  border-color: var(--activity-color);
-}
-.timelog-module .activity-text {
-  display: grid;
-  flex: 1;
-  min-width: 0;
-  gap: 4px;
-}
-.timelog-module .activity-text strong {
-  font-size: 16px;
-  font-weight: 600;
-}
-.timelog-module .activity-text small {
-  font-size: 11px;
-  color: var(--muted);
-}
-.timelog-module .activity-tile > svg {
-  color: var(--activity-color);
-}
-.timelog-module .timer-detail {
-  width: min(100%, 610px);
-  margin: 30px auto;
-  text-align: center;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 13px;
-  padding: 30px 48px;
-}
-.timelog-module .timer-detail-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 27px;
-}
-.timelog-module .timer-state {
-  color: var(--muted);
-  font-size: 12px;
-}
-.timelog-module .timer-detail h2 {
-  font-size: 21px;
-  font-weight: 600;
-}
-.timelog-module .timer-clock {
-  display: block;
-  font-family: 'Bahnschrift', 'SFMono-Regular', 'Consolas', monospace;
-  font-weight: 400;
-  font-variant-numeric: tabular-nums;
-  font-size: clamp(45px, 6vw, 70px);
-  letter-spacing: 1px;
-  line-height: 1.35;
-  margin: 18px 0 8px;
-}
-.timelog-module .timer-start {
-  font-size: 12px;
-  color: var(--muted);
-  margin-bottom: 25px;
-}
-.timelog-module .timer-detail textarea {
-  background: var(--canvas);
-  text-align: left;
-  margin-bottom: 24px;
-}
-.timelog-module .timer-controls {
-  display: flex;
-  justify-content: center;
-  gap: 12px;
-}
-.timelog-module .timer-controls > button {
-  min-width: 124px;
-  min-height: 43px;
-}
-.timelog-module .timer-secondary {
-  display: flex;
-  justify-content: center;
-  gap: 25px;
-  margin: 18px 0;
-}
 .timelog-module .section-note {
   font-size: 12px;
   margin-bottom: 22px;
@@ -955,9 +862,6 @@
   padding: 35px;
 }
 @media (max-width: 1060px) {
-  .timelog-module .activity-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
   .timelog-module .analysis-summary > div {
     padding: 0 15px;
   }
@@ -1054,42 +958,6 @@
   .timelog-module .timer-card {
     font-size: 11px;
     padding: 12px;
-  }
-  .timelog-module .activity-grid {
-    gap: 11px;
-  }
-  .timelog-module .activity-tile {
-    min-height: 112px;
-    align-items: flex-start;
-    flex-wrap: wrap;
-    padding: 14px;
-    gap: 9px;
-  }
-  .timelog-module .activity-tile > svg {
-    display: none;
-  }
-  .timelog-module .activity-text {
-    flex-basis: 100%;
-  }
-  .timelog-module .activity-text strong {
-    font-size: 14px;
-  }
-  .timelog-module .activity-text small {
-    font-size: 10px;
-  }
-  .timelog-module .timer-detail {
-    padding: 23px 20px;
-    margin: 12px auto;
-  }
-  .timelog-module .timer-detail-header {
-    margin-bottom: 26px;
-  }
-  .timelog-module .timer-clock {
-    font-size: clamp(37px, 11vw, 57px);
-  }
-  .timelog-module .timer-controls > button {
-    min-width: 0;
-    flex: 1;
   }
   .timelog-module .analysis-summary {
     grid-template-columns: 1fr 1fr;

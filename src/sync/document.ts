@@ -76,6 +76,7 @@ export function toDocument(state: AppState): SyncDocument {
     semesterStart: state.schedule.semesterStart,
     totalWeeks: state.schedule.totalWeeks,
     timeZone: state.schedule.timeZone,
+    displayDays: state.schedule.displayDays,
     periods: state.schedule.periods,
     holidays: state.schedule.holidays,
   };

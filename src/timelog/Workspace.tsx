@@ -1,7 +1,8 @@
 import { getTimeZone } from '../timezone';
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import { ArrowDown, ArrowUp, Clock3, MoreHorizontal, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, Clock3, MoreHorizontal, Pencil, Trash2, X } from 'lucide-react';
 import {
+  activeActivity,
   dayKey,
   dayRange,
   dayStart,
@@ -27,7 +28,6 @@ import { TimelineEntries } from './components/TimelineEntries';
 import { Goals } from './components/Goals';
 import { useTimelineDays } from '../phone/useTimelineDays';
 import { TimerPanel } from './components/TimerPanel';
-import { activeActivity, deleteActivity } from './domain';
 import { DateNavigator } from '../phone/DateNavigator';
 export type TimePage = 'timeline' | 'timer' | 'goals';
 type Confirm = { title: string; body: string; action: () => Promise<boolean> };
@@ -53,7 +53,6 @@ export default function Workspace({
   const timeline = useTimelineDays(page === 'timeline', date, setVisibleDate);
   const setDate = timeline.jump;
   const [editor, setEditor] = useState<EditTarget | null>(null),
-    [manage, setManage] = useState(false),
     [confirmation, setConfirmation] = useState<Confirm | null>(null);
   const [notice, setNotice] = useState<{ text: string; error: boolean } | null>(null),
     [shortGaps, setShortGaps] = useState(() => {
@@ -69,14 +68,13 @@ export default function Workspace({
     const back = (event: Event) => {
       if (editor) setEditor(null);
       else if (confirmation) setConfirmation(null);
-      else if (manage) setManage(false);
       else return;
       event.preventDefault();
       event.stopImmediatePropagation();
     };
     document.addEventListener('clearlist:back', back, true);
     return () => document.removeEventListener('clearlist:back', back, true);
-  }, [editor, confirmation, manage]);
+  }, [editor, confirmation]);
   useEffect(() => {
     if (!notice) return;
     const timer = setTimeout(() => setNotice(null), notice.error ? 10000 : 3500);
@@ -382,7 +380,7 @@ export default function Workspace({
               tasks={data.tasks}
               now={now}
               commit={commit}
-              manage={() => setManage(true)}
+              editActivity={(activity) => setEditor({ kind: 'activity', activity })}
               onFinished={() => {
                 setDate(dayKey(Date.now()));
                 onPageChange('timeline');
@@ -429,45 +427,6 @@ export default function Workspace({
           commit={commit}
           close={() => setEditor(null)}
         />
-      )}
-      {manage && (
-        <Dialog title="管理活动" close={() => setManage(false)}>
-          <div className="activity-management">
-            <button className="primary" onClick={() => setEditor({ kind: 'activity' })}>
-              <Plus size={16} />
-              添加活动
-            </button>
-            {state.activities.filter(activeActivity).map((activity) => (
-              <div className="setting-row" key={activity.id}>
-                <span>
-                  <i style={{ background: activity.color }} />
-                  {activity.name}
-                  <small>
-                    {natureLabels[activity.nature]} · {points(activity.pointsPerHour)} 分/小时
-                  </small>
-                </span>
-                <div className="inline-actions">
-                  <button
-                    className="icon-button"
-                    aria-label={`编辑活动 ${activity.name}`}
-                    onClick={() => setEditor({ kind: 'activity', activity })}
-                  >
-                    <Pencil size={15} />
-                  </button>
-                  <button
-                    className="text-button muted"
-                    disabled={timer?.activityId === activity.id}
-                    onClick={() =>
-                      commit((current) => deleteActivity(current, activity.id), '活动已删除')
-                    }
-                  >
-                    删除
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Dialog>
       )}
       {confirmation && (
         <Dialog title={confirmation.title} close={() => setConfirmation(null)}>

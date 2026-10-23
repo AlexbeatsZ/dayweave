@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Dayweave AI API",
-    "version": "0.4.0",
+    "version": "0.4.1",
     "description": "时织 Windows/macOS 本机接口。应用运行时可用；实际地址与令牌见设置或用户数据目录 api.json。默认不对局域网开放。所有写入先持久化再通知界面；DELETE 任务为软删除。"
   },
   "servers": [
@@ -134,6 +134,7 @@
               "semesterStart": "2026-10-19",
               "totalWeeks": 20,
               "timeZone": "Asia/Shanghai",
+              "displayDays": "auto",
               "periods": [
                 { "start": "08:00", "end": "08:45", "section": "morning" },
                 { "start": "08:55", "end": "09:40", "section": "morning" },
@@ -158,6 +159,14 @@
               "semesterStart": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
               "totalWeeks": { "type": "integer", "minimum": 1, "maximum": 60 },
               "timeZone": { "type": "string", "maxLength": 100 },
+              "displayDays": {
+                "default": "auto",
+                "anyOf": [
+                  { "type": "string", "enum": ["auto"] },
+                  { "type": "number", "enum": [5] },
+                  { "type": "number", "enum": [7] }
+                ]
+              },
               "periods": {
                 "default": [
                   { "start": "08:00", "end": "08:45", "section": "morning" },
@@ -282,6 +291,7 @@
               "semesterStart",
               "totalWeeks",
               "timeZone",
+              "displayDays",
               "periods",
               "courses",
               "events",
@@ -684,6 +694,11 @@
                   "semesterStart": { "type": "string", "format": "date" },
                   "totalWeeks": { "type": "integer", "minimum": 1, "maximum": 60 },
                   "timeZone": { "type": "string", "example": "Asia/Shanghai" },
+                  "displayDays": {
+                    "type": ["string", "integer"],
+                    "enum": ["auto", 5, 7],
+                    "description": "auto 按整学期周末课程决定 5/7 天；5/7 固定列数"
+                  },
                   "holidays": { "type": "array", "items": { "type": "string", "format": "date" } },
                   "periods": {
                     "type": "array",
@@ -2123,6 +2138,7 @@
                       "semesterStart": "2026-10-19",
                       "totalWeeks": 20,
                       "timeZone": "Asia/Shanghai",
+                      "displayDays": "auto",
                       "periods": [
                         { "start": "08:00", "end": "08:45", "section": "morning" },
                         { "start": "08:55", "end": "09:40", "section": "morning" },
@@ -2147,6 +2163,14 @@
                       "semesterStart": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
                       "totalWeeks": { "type": "integer", "minimum": 1, "maximum": 60 },
                       "timeZone": { "type": "string", "maxLength": 100 },
+                      "displayDays": {
+                        "default": "auto",
+                        "anyOf": [
+                          { "type": "string", "enum": ["auto"] },
+                          { "type": "number", "enum": [5] },
+                          { "type": "number", "enum": [7] }
+                        ]
+                      },
                       "periods": {
                         "default": [
                           { "start": "08:00", "end": "08:45", "section": "morning" },
@@ -2274,6 +2298,7 @@
                       "semesterStart",
                       "totalWeeks",
                       "timeZone",
+                      "displayDays",
                       "periods",
                       "courses",
                       "events",

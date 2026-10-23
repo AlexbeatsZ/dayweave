@@ -1,4 +1,4 @@
-/* The schedule is a time map: seven day columns share the same minute axis. */
+/* Every displayed day fits the viewport and shares the same actual-minute axis. */
 .timetable-view.timetable-grid-view {
   --period-line: color-mix(in srgb, var(--line) 65%, transparent);
   min-width: 0;
@@ -36,18 +36,18 @@
 }
 .timetable-grid-view .timetable-scroll {
   width: 100%;
-  overflow: auto;
+  min-width: 0;
+  overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--bg);
-  overscroll-behavior-x: contain;
-  scrollbar-width: thin;
 }
 .timetable-grid-view .timetable-matrix {
   display: grid;
-  grid-template-columns: 54px repeat(7, minmax(76px, 1fr));
+  grid-template-columns: 54px repeat(var(--timetable-days), minmax(0, 1fr));
   grid-template-rows: 54px var(--timetable-height);
-  min-width: 610px;
+  min-width: 0;
+  width: 100%;
   isolation: isolate;
 }
 .timetable-grid-view .timetable-corner,
@@ -158,6 +158,7 @@
   flex-direction: column;
   gap: 5px;
   text-align: left;
+  white-space: normal;
   border: 1px solid color-mix(in srgb, var(--course-color) 35%, var(--line));
   border-left: 3px solid var(--course-color);
   border-radius: 7px;
@@ -343,7 +344,7 @@
 }
 @media (max-width: 700px) {
   .phone-shell .phone-content:has(.timetable-scroll) {
-    touch-action: pan-x pan-y;
+    touch-action: pan-y;
   }
   .phone-shell .timetable-view.timetable-grid-view {
     padding: 0 0 88px;
@@ -359,12 +360,40 @@
     max-width: 100%;
   }
   .phone-shell .timetable-grid-view .timetable-matrix {
-    grid-template-columns: 48px repeat(7, minmax(72px, 1fr));
-    min-width: 552px;
+    grid-template-columns: 36px repeat(var(--timetable-days), minmax(0, 1fr));
+    min-width: 0;
+  }
+  .phone-shell .timetable-grid-view .timetable-day-heading {
+    font-size: 10px;
+  }
+  .phone-shell .timetable-grid-view .timetable-day-heading strong {
+    font-size: 11px;
+  }
+  .phone-shell .timetable-grid-view .timetable-period strong {
+    font-size: 13px;
+  }
+  .phone-shell .timetable-grid-view .timetable-period span {
+    font-size: 9px;
   }
   .phone-shell .timetable-grid-view .timetable-course {
-    padding: 7px 5px;
-    gap: 4px;
+    padding: 5px 3px;
+    gap: 3px;
+    border-left-width: 2px;
+    border-radius: 5px;
+  }
+  .phone-shell .timetable-grid-view .timetable-course strong {
+    font-size: 11px;
+    line-height: 1.3;
+  }
+  .phone-shell .timetable-grid-view .timetable-course span {
+    font-size: 9px;
+  }
+  .phone-shell .timetable-grid-view .timetable-course time,
+  .phone-shell .timetable-grid-view .timetable-course small {
+    display: none;
+  }
+  .phone-shell .timetable-grid-view[data-days='7'] .timetable-course {
+    padding: 5px 2px;
   }
   .phone-sheet .timetable-form.course-form {
     padding: 6px 18px max(14px, env(safe-area-inset-bottom));

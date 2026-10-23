@@ -223,11 +223,15 @@ export async function handleExtendedRoute(c: Context): Promise<boolean> {
         semesterStart: true,
         totalWeeks: true,
         timeZone: true,
+        displayDays: true,
         holidays: true,
         periods: true,
       })
       .partial()
-      .extend({ periods: coursePeriodsSchema.optional() })
+      .extend({
+        periods: coursePeriodsSchema.optional(),
+        displayDays: scheduleSchema.shape.displayDays.removeDefault().optional(),
+      })
       .strict()
       .parse(await c.readBody(c.request));
     snapshot = await mutate((s) => ({

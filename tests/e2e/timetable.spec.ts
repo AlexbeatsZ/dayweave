@@ -9,7 +9,7 @@ test.use({
   timezoneId: 'America/New_York',
 });
 
-async function seed(page: Page, withEvent = false) {
+async function seed(page: Page, withEvent = false, futureWeekend = false) {
   setTimeZone('Asia/Shanghai');
   const state = emptyState(),
     today = zoneDateKey(Date.now());
@@ -31,6 +31,14 @@ async function seed(page: Page, withEvent = false) {
       updatedAt: Date.now(),
     },
   ];
+  if (futureWeekend)
+    state.schedule.courses.push({
+      ...state.schedule.courses[0],
+      id: 'future-weekend-course',
+      name: '周末实验',
+      weekday: 7,
+      weeks: [2],
+    });
   if (withEvent) {
     const date = shiftDay(state.schedule.semesterStart, 2);
     state.schedule.events = [
@@ -69,7 +77,7 @@ test('phone timetable keeps a real week grid; empty slot selection creates throu
   const timetable = page.locator('.timetable-grid-view');
   await expect(timetable.locator('.next-class')).toHaveCount(0);
   await expect(timetable.getByRole('button', { name: '导出课程表', exact: true })).toHaveCount(0);
-  await expect(timetable.locator('.timetable-day-heading')).toHaveCount(7);
+  await expect(timetable.locator('.timetable-day-heading')).toHaveCount(5);
   await expect(page.locator('.phone-fab')).toHaveCount(1);
   const slot = timetable.locator('.timetable-empty-slot[data-weekday="2"][data-period="3"]');
   await slot.click();
@@ -168,31 +176,90 @@ test('period ruler opens one section editor; changing periods preserves real cou
     await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
   ).toBeTruthy();
   const grid = page.getByRole('region', { name: '每周课程表' });
-  const region = (await grid.boundingBox())!;
-  const session = await page.context().newCDPSession(page);
-  await session.send('Input.dispatchTouchEvent', {
-    type: 'touchStart',
-    touchPoints: [{ x: 320, y: region.y + 180 }],
-  });
-  for (let step = 1; step <= 6; step++)
-    await session.send('Input.dispatchTouchEvent', {
-      type: 'touchMove',
-      touchPoints: [{ x: 320 - step * 35, y: region.y + 182 }],
-    });
-  await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-  await session.detach();
-  await expect.poll(() => grid.evaluate((element) => element.scrollLeft)).toBeGreaterThan(20);
+  expect(await grid.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBeTruthy();
   await expect(page.getByRole('tab', { name: '课程表', exact: true })).toHaveAttribute(
     'aria-selected',
     'true',
   );
-  await grid.evaluate((element) => {
-    element.scrollLeft = element.scrollWidth;
-  });
   const last = page.locator('.timetable-day-heading').last();
   const bounds = (await grid.boundingBox())!,
     day = (await last.boundingBox())!;
   expect(day.x + day.width).toBeLessThanOrEqual(bounds.x + bounds.width + 1);
+});
+
+test('five and seven day preferences fit all phone widths without horizontal scrolling and survive reload', async ({
+  page,
+}) => {
+  await seed(page);
+  for (const displayDays of ['auto', '7', '5']) {
+    const menu = await courseMenu(page);
+    await menu.locator('summary').click();
+    await menu.getByRole('button', { name: '学期与时区', exact: true }).click();
+    const settings = page.getByRole('dialog', { name: '学期与时区', exact: true });
+    await settings.getByLabel('课表显示天数').selectOption(displayDays);
+    await settings.getByRole('button', { name: '保存学期', exact: true }).click();
+    for (const width of [360, 390, 430]) {
+      await page.setViewportSize({ width, height: 844 });
+      const grid = page.getByRole('region', { name: '每周课程表' });
+      await expect(page.locator('.timetable-day-heading')).toHaveCount(displayDays === '7' ? 7 : 5);
+      expect(
+        await grid.evaluate((element) => element.scrollWidth <= element.clientWidth),
+      ).toBeTruthy();
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+      ).toBeTruthy();
+      const bounds = (await grid.boundingBox())!,
+        finalDay = (await page.locator('.timetable-day-heading').last().boundingBox())!;
+      expect(finalDay.x + finalDay.width).toBeLessThanOrEqual(bounds.x + bounds.width + 1);
+      expect(finalDay.width).toBeGreaterThan(35);
+      if (width === 390 && displayDays !== 'auto')
+        await page.screenshot({
+          path: `release/phone-preview-0.4.1/timetable-${displayDays}-days.png`,
+        });
+    }
+  }
+  await page.reload();
+  await expect(page.locator('.timetable-day-heading')).toHaveCount(5);
+  const menu = await courseMenu(page);
+  await menu.locator('summary').click();
+  await menu.getByRole('button', { name: '学期与时区', exact: true }).click();
+  await expect(page.getByLabel('课表显示天数')).toHaveValue('5');
+});
+
+test('automatic mode includes future weekend teaching, while a fixed five-day view preserves those courses', async ({
+  page,
+}) => {
+  await seed(page, false, true);
+  await expect(page.locator('.timetable-day-heading')).toHaveCount(7);
+  await expect(page.getByRole('button', { name: '编辑课程 周末实验', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: '下一周', exact: true }).click();
+  const weekend = page.getByRole('button', { name: '编辑课程 周末实验', exact: true });
+  await expect(weekend).toBeVisible();
+  const grid = page.getByRole('region', { name: '每周课程表' });
+  const bounds = (await grid.boundingBox())!,
+    course = (await weekend.boundingBox())!;
+  expect(course.x + course.width).toBeLessThanOrEqual(bounds.x + bounds.width);
+  let menu = await courseMenu(page);
+  await menu.locator('summary').click();
+  await menu.getByRole('button', { name: '学期与时区', exact: true }).click();
+  await page.getByLabel('课表显示天数').selectOption('5');
+  await page.getByRole('button', { name: '保存学期', exact: true }).click();
+  await expect(page.locator('.timetable-day-heading')).toHaveCount(5);
+  expect(
+    await page.evaluate(
+      () => JSON.parse(localStorage.getItem('dayweave.v1')!).schedule.courses.length,
+    ),
+  ).toBe(2);
+  menu = await courseMenu(page);
+  await menu.locator('summary').click();
+  await menu.getByRole('button', { name: '学期与时区', exact: true }).click();
+  await page.getByLabel('课表显示天数').selectOption('auto');
+  await page.getByRole('button', { name: '保存学期', exact: true }).click();
+  await expect(page.locator('.timetable-day-heading')).toHaveCount(7);
+  await expect(weekend).toBeVisible();
+  await weekend.click();
+  await page.getByRole('button', { name: '删除课程', exact: true }).click();
+  await expect(page.locator('.timetable-day-heading')).toHaveCount(5);
 });
 
 test('imported single occurrences use the same editor and retain untouched epoch precision', async ({

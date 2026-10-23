@@ -74,7 +74,7 @@ export const openapi = {
   openapi: '3.0.3',
   info: {
     title: 'Dayweave AI API',
-    version: '0.4.0',
+    version: '0.4.1',
     description:
       '时织 Windows/macOS 本机接口。应用运行时可用；实际地址与令牌见设置或用户数据目录 api.json。默认不对局域网开放。所有写入先持久化再通知界面；DELETE 任务为软删除。',
   },

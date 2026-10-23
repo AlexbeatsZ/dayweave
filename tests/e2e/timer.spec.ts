@@ -1,3 +1,4 @@
+import { mkdir } from 'node:fs/promises';
 import { test, expect, type Page } from '@playwright/test';
 import { emptyState, newTask, type AppState } from '../../src/model';
 import { duration } from '../../src/timelog/domain';
@@ -76,13 +77,16 @@ test('countdown presets can be customized and persist; pause preserves remaining
 }) => {
   test.setTimeout(60000);
   await seed(page);
+  await expect(page.getByRole('button', { name: '正计时', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '调整起止时间', exact: true })).toHaveCount(0);
+  await page.locator('.activity-tile').filter({ hasText: '学习' }).tap();
   const presets = page.locator('.timer-presets');
   for (const minute of [5, 30, 45, 60]) {
     const preset = presets.getByRole('button', { name: `${minute} min`, exact: true });
     await preset.tap();
     await expect(preset).toHaveAttribute('aria-pressed', 'true');
-    await expect(page.locator('.activity-timer-panel .section-note')).toContainText(
-      `倒计时 ${minute} 分钟`,
+    await expect(page.getByLabel('计时时长')).toHaveText(
+      `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}:00`,
     );
   }
   await page.getByRole('button', { name: '管理倒计时预设', exact: true }).tap();
@@ -102,7 +106,6 @@ test('countdown presets can be customized and persist; pause preserves remaining
   ]);
   expect((await stored(page)).timelog.settings.timerPresets).toEqual([5, 15, 45, 60]);
   await presets.getByRole('button', { name: '15 min', exact: true }).tap();
-  await page.locator('.activity-tile').filter({ hasText: '学习' }).tap();
   const initial = (await stored(page)).timelog.timer!;
   expect(initial).toMatchObject({ startedAt: NOW, runningSince: NOW, plannedEndAt: NOW + 900000 });
   await expect(page.locator('.timer-detail-header')).toContainText('倒计时');
@@ -144,12 +147,12 @@ test('start / future end, daily plan, labels and description survive seamless ne
   test.setTimeout(60000);
   await seed(page);
   await expect(page.getByRole('button', { name: '上一条记录末尾', exact: true })).toHaveCount(0);
+  await page.locator('.activity-tile').filter({ hasText: '学习' }).tap();
   await page.getByRole('button', { name: '调整起止时间', exact: true }).tap();
   const times = page.getByRole('dialog', { name: '调整起止时间', exact: true });
   await times.getByLabel('活动开始时间').fill(dateTimeInput(NOW - 480000));
   await times.getByLabel('活动结束时间').fill(dateTimeInput(NOW + 1800000));
   await times.getByRole('button', { name: '保存起止时间', exact: true }).tap();
-  await page.locator('.activity-tile').filter({ hasText: '学习' }).tap();
   const firstId = (await stored(page)).timelog.timer!.id;
   expect((await stored(page)).timelog.timer).toMatchObject({
     startedAt: NOW - 480000,
@@ -239,13 +242,13 @@ test('previous-record shortcut preserves seconds and milliseconds and untouched 
   page,
 }) => {
   await seed(page);
+  await page.locator('.activity-tile').filter({ hasText: '学习' }).tap();
   await page.getByRole('button', { name: '调整起止时间', exact: true }).tap();
   const times = page.getByRole('dialog', { name: '调整起止时间', exact: true });
   await times.getByRole('button', { name: '上一条记录末尾', exact: true }).tap();
   await expect(times.getByLabel('活动开始时间')).toHaveValue(dateTimeInput(PREVIOUS_END));
   await times.getByLabel('活动结束时间').fill(dateTimeInput(NOW + 300000));
   await times.getByRole('button', { name: '保存起止时间', exact: true }).tap();
-  await page.locator('.activity-tile').filter({ hasText: '学习' }).tap();
   const timer = (await stored(page)).timelog.timer!;
   expect(timer.startedAt).toBe(PREVIOUS_END);
   expect(timer.runningSince).toBe(PREVIOUS_END);
@@ -261,4 +264,46 @@ test('previous-record shortcut preserves seconds and milliseconds and untouched 
   const saved = (await stored(page)).timelog.records.find((record) => record.id === timer.id)!;
   expect(saved.spans[0].start).toBe(PREVIOUS_END);
   expect(saved.spans.at(-1)!.end).toBe(NOW);
+});
+
+test('idle gallery has only activities and create tile; touch hold edits without starting and normal tap opens timer controls', async ({
+  page,
+}) => {
+  await seed(page);
+  await expect(page.getByRole('button', { name: '管理活动', exact: true })).toHaveCount(0);
+  await expect(page.locator('.timer-presets')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '调整起止时间', exact: true })).toHaveCount(0);
+  await mkdir('release/timer-preview-0.4.1', { recursive: true });
+  await page.screenshot({ path: 'release/timer-preview-0.4.1/phone-activities.png' });
+  const activity = page.getByRole('button', { name: '开始 学习', exact: true });
+  const box = (await activity.boundingBox())!;
+  const touch = await page.context().newCDPSession(page);
+  await touch.send('Input.dispatchTouchEvent', {
+    type: 'touchStart',
+    touchPoints: [{ x: box.x + box.width / 2, y: box.y + box.height / 2 }],
+  });
+  await page.waitForTimeout(550);
+  await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  const edit = page.getByRole('dialog', { name: '编辑活动', exact: true });
+  await expect(edit).toBeVisible();
+  await page.screenshot({ path: 'release/timer-preview-0.4.1/phone-edit-activity.png' });
+  expect((await stored(page)).timelog.timer).toBeNull();
+  await edit.getByLabel('活动名称', { exact: true }).fill('学习与复习');
+  await edit.getByRole('button', { name: '保存', exact: true }).click();
+  await expect(page.getByRole('button', { name: '开始 学习与复习', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '新建活动', exact: true }).tap();
+  const create = page.getByRole('dialog', { name: '添加活动', exact: true });
+  await create.getByLabel('活动名称', { exact: true }).fill('整理讲义');
+  await create.getByRole('button', { name: '保存', exact: true }).click();
+  await page.getByRole('button', { name: '开始 整理讲义', exact: true }).tap();
+  await expect(page.getByLabel('计时时长')).toBeVisible();
+  await expect(page.getByRole('button', { name: '调整起止时间', exact: true })).toBeVisible();
+  await expect(page.locator('.timer-presets')).toBeVisible();
+  await page.clock.setFixedTime(NOW + 780000);
+  await expect(page.getByLabel('计时时长')).toHaveText('00:13:00');
+  await page.screenshot({ path: 'release/timer-preview-0.4.1/phone-running.png' });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.screenshot({ path: 'release/timer-preview-0.4.1/desktop-running.png' });
+  await page.getByRole('button', { name: '取消', exact: true }).click();
+  await page.screenshot({ path: 'release/timer-preview-0.4.1/desktop-activities.png' });
 });

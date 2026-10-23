@@ -60,6 +60,11 @@ export const extraPaths: Record<string, unknown> = {
         semesterStart: { type: 'string', format: 'date' },
         totalWeeks: { type: 'integer', minimum: 1, maximum: 60 },
         timeZone: { type: 'string', example: 'Asia/Shanghai' },
+        displayDays: {
+          type: ['string', 'integer'],
+          enum: ['auto', 5, 7],
+          description: 'auto 按整学期周末课程决定 5/7 天；5/7 固定列数',
+        },
         holidays: { type: 'array', items: { type: 'string', format: 'date' } },
         periods: {
           type: 'array',

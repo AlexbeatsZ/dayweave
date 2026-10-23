@@ -331,7 +331,7 @@
     min-height: clamp(88px, 10vh, 125px);
   }
   .desktop-shell .timetable-grid-view .timetable-matrix {
-    grid-template-columns: 64px repeat(7, minmax(62px, 1fr));
+    grid-template-columns: 64px repeat(var(--timetable-days), minmax(0, 1fr));
     min-width: 0;
   }
   .desktop-shell .timetable-grid-view .timetable-course {
@@ -382,31 +382,6 @@
   }
   .desktop-shell .timelog-module .record-note {
     font-size: 13px;
-  }
-  .desktop-shell .timelog-module .activity-grid {
-    grid-template-columns: repeat(auto-fit, minmax(125px, 1fr));
-    gap: 14px;
-  }
-  .desktop-shell .timelog-module .activity-tile {
-    min-height: 124px;
-    padding: 16px 10px;
-    border: 1px solid var(--line);
-    background: var(--bg);
-  }
-  .desktop-shell .timelog-module .activity-clock-ring {
-    width: 240px;
-  }
-  .desktop-shell .activity-clock-ring .timer-clock {
-    font-size: 34px;
-    letter-spacing: 0;
-  }
-  .desktop-shell .timelog-module .timer-detail {
-    min-height: 0;
-    padding: 18px 26px 24px;
-    margin-top: 0;
-  }
-  .desktop-shell .timelog-module .timer-detail h2 {
-    margin: 18px 0 6px;
   }
   .desktop-shell .goal-groups {
     display: grid;
@@ -503,28 +478,6 @@
   }
 }
 
-@media (min-width: 1101px) {
-  .desktop-shell .activity-timer-panel:has(.timer-detail) {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    max-width: 1040px;
-    gap: 0 24px;
-    align-items: start;
-  }
-  .desktop-shell .activity-timer-panel:has(.timer-detail) > .timer-presets {
-    grid-column: 1 / -1;
-    margin-top: 0;
-  }
-  .desktop-shell .activity-timer-panel:has(.timer-detail) > .timer-related {
-    margin: 0;
-    padding: 22px;
-    min-height: 100%;
-  }
-  .desktop-shell .activity-timer-panel:has(.timer-detail) > .timer-footer-actions {
-    grid-column: 2;
-  }
-}
-
 @media (min-width: 701px) and (max-width: 1100px) {
   .desktop-shell {
     --desktop-sidebar-width: 208px;
@@ -575,7 +528,7 @@
     grid-template-columns: minmax(0, 1fr);
   }
   .desktop-shell .timetable-grid-view .timetable-matrix {
-    grid-template-columns: 48px repeat(7, minmax(0, 1fr));
+    grid-template-columns: 48px repeat(var(--timetable-days), minmax(0, 1fr));
   }
   .desktop-shell .timetable-grid-view .timetable-course {
     padding: 7px 4px;
