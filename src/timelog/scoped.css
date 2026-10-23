@@ -8,17 +8,15 @@
   --soft: var(--input);
   --active: var(--accent-tint);
   --ink: var(--text);
-  --on-accent: #ffffff;
   --positive: #287965;
   --negative: #b15959;
-  --shadow: #25364b15;
-  --backdrop: #132a405c;
+  --shadow: #00000015;
+  --backdrop: #0000005c;
   --focus: var(--accent);
   background: var(--canvas);
   color: var(--ink);
 }
 :root[data-theme='dark'] .timelog-module {
-  --on-accent: #182230;
   --positive: #95d2b5;
   --negative: #f1a09e;
   --shadow: #00000026;

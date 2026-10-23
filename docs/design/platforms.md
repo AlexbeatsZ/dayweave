@@ -27,10 +27,11 @@ React / TypeScript 继续负责任务、日期、重复、专注、统计和 v1 
 
 - 单一主题偏好仍为 light / dark / system；把解析与应用集中到独立模块，启动时先应用上次主题，数据加载后使用真实设置。系统跟随模式持续响应变化。
 - CSS 原生颜色方案、输入控件、浏览器主题色、Electron nativeTheme 与 Android 系统栏统一更新。暗色使用低亮度背景和独立的表面层次，避免浅色闪屏。
+- 普通容器使用中性灰阶，暗色正文白/浅灰，冰蓝色只突出操作与选中状态。预加载/桌面/WebView/启动屏的底色保持一致；原生组件共用中性灰与冰蓝资源。具体色值与分工见 mobile-interface.md。
 - 手机界面遵守 safe-area 和动态视口；输入至少 16 px，主要点击区域至少 44 px。桌面侧栏仍保留完整导航；手机通过更多底部面板访问全部清单和标签。
 
 ## Dayweave 课程组件
 
 CourseWidgetProvider / CompactCourseWidgetProvider 放在 :widgetProvider。主进程每次持久化后生成只含 schedule 的小快照，组件只读快照并用 CourseSchedule/java.time 计算实例，不加载 React/Capacitor。组件刷新遵循 Android 与小米官方规范（https://dev.mi.com/xiaomihyperos/documentation/detail?pId=1584）。不申请精确闹钟权限；后台省电可能延迟边界刷新，曝光、写入与打开应用会刷新。
 
-侧载 APK 使用标准 Android provider 注册，不设置小米商店的 miuiWidget/miuiWidgetVersion 标记。Pad 6 Pro 实测可在「小组件 → 安卓小部件 → 时织」找到并添加；之前带商店标记时在已检查的选择器中不可见。保留独立进程与曝光事件兼容。requestPinAppWidget 返回成功但未显示确认，因此界面始终提供手动路径。组件用 values/values-night 共用蓝灰色资源，内容垂直居中，较高的平板单元格放大标题和倒计时。
+侧载 APK 使用标准 Android provider 注册，不设置小米商店的 miuiWidget/miuiWidgetVersion 标记。Pad 6 Pro 实测可在「小组件 → 安卓小部件 → 时织」找到并添加；之前带商店标记时在已检查的选择器中不可见。保留独立进程与曝光事件兼容。requestPinAppWidget 返回成功但未显示确认，因此界面始终提供手动路径。组件用 values/values-night 共用灰阶与冰蓝资源，内容垂直居中，较高的平板单元格放大标题和倒计时。

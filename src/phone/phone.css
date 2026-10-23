@@ -137,7 +137,7 @@
 .phone-segments > button[aria-pressed='true'] {
   background: var(--bg);
   color: var(--accent);
-  box-shadow: 0 2px 5px #25364b0a;
+  box-shadow: 0 2px 5px #0000000a;
   font-weight: 650;
 }
 .phone-task-tabs small {
@@ -212,7 +212,7 @@
 }
 .phone-week-days [aria-pressed='true'] strong {
   background: var(--accent);
-  color: var(--bg);
+  color: var(--on-accent);
 }
 .phone-week-days i {
   display: block;
@@ -301,7 +301,7 @@
   width: 40px;
   min-width: 40px;
   color: var(--accent);
-  background: var(--accent-tint);
+  background: var(--input);
   align-self: center;
 }
 .phone-tasks .deleted-label {
@@ -336,8 +336,8 @@
   width: 56px;
   border-radius: 20px;
   background: var(--accent);
-  color: var(--bg);
-  box-shadow: 0 5px 18px #25364b30;
+  color: var(--on-accent);
+  box-shadow: 0 5px 18px #00000030;
   z-index: 8;
   display: grid;
   place-items: center;
@@ -350,7 +350,7 @@
   align-items: center;
   gap: 4px;
   margin: 0 10px 7px;
-  background: var(--accent-tint);
+  background: var(--bg);
   border: 1px solid var(--line);
   border-radius: 16px;
   padding: 5px 8px;
@@ -417,7 +417,7 @@
   overscroll-behavior: contain;
 }
 .phone-sheet::backdrop {
-  background: #101e3299;
+  background: #00000099;
   backdrop-filter: blur(2px);
 }
 .sheet-handle {
@@ -715,7 +715,7 @@
   justify-content: center;
   min-height: 44px;
   font-size: 14px;
-  color: var(--accent);
+  color: var(--text);
 }
 .phone-shell .timelog-module .phone-date-current input {
   position: absolute;
@@ -738,8 +738,8 @@
   height: 56px;
   font-size: 0;
   background: var(--accent);
-  color: var(--bg);
-  box-shadow: 0 5px 18px #25364b30;
+  color: var(--on-accent);
+  box-shadow: 0 5px 18px #00000030;
 }
 .phone-shell .timelog-module .phone-record-add svg {
   width: 27px;
@@ -826,7 +826,7 @@
   padding: 12px;
   margin: 16px 0;
   font-size: 12px;
-  color: var(--accent);
+  color: var(--secondary);
   min-height: 44px;
   background: var(--bg);
   border-radius: 14px;
@@ -1081,7 +1081,7 @@
   background: var(--bg);
   border-radius: 14px;
   font-size: 14px;
-  color: var(--accent);
+  color: var(--text);
 }
 .phone-analysis-card {
   padding: 18px 16px;
@@ -1129,7 +1129,7 @@
     43px Bahnschrift,
     Consolas,
     monospace;
-  color: var(--accent);
+  color: var(--text);
 }
 .phone-donut small {
   font-size: 16px;
@@ -1536,7 +1536,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background: var(--accent-tint);
+    background: var(--input);
     padding: 14px;
     border-radius: 14px;
   }

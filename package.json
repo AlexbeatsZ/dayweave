@@ -1,7 +1,7 @@
 {
   "name": "dayweave",
   "productName": "Dayweave",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "private": true,
   "description": "时织 — 待办、时间记录与跨时区课程表",
   "license": "MIT",

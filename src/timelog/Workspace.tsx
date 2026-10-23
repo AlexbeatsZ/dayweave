@@ -532,7 +532,7 @@ export default function Workspace({
               <Settings2 size={18} />
               <span>设置</span>
             </button>
-            <small>v{'0.3.1'}</small>
+            <small>v{'0.3.2'}</small>
           </div>
         </aside>
       )}

@@ -9,5 +9,5 @@
     (preference === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
   document.documentElement.dataset.theme = dark ? 'dark' : 'light';
   document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
-  document.documentElement.style.backgroundColor = dark ? '#182230' : '#f9fbfe';
+  document.documentElement.style.backgroundColor = dark ? '#181818' : '#f2f2f2';
 })();

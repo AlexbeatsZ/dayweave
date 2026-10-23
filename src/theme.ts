@@ -7,10 +7,10 @@ export function applyTheme(theme: ThemePreference) {
   const resolved = resolveTheme(theme, matchMedia('(prefers-color-scheme: dark)').matches);
   document.documentElement.dataset.theme = resolved;
   document.documentElement.style.colorScheme = resolved;
-  document.documentElement.style.backgroundColor = resolved === 'dark' ? '#182230' : '#f9fbfe';
+  document.documentElement.style.backgroundColor = resolved === 'dark' ? '#181818' : '#f2f2f2';
   document
     .querySelector('meta[name="theme-color"]')
-    ?.setAttribute('content', resolved === 'dark' ? '#182230' : '#f9fbfe');
+    ?.setAttribute('content', resolved === 'dark' ? '#181818' : '#f2f2f2');
   try {
     localStorage.setItem(key, theme);
   } catch {
