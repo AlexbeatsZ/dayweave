@@ -1,13 +1,4 @@
-import {
-  Check,
-  RotateCcw,
-  Pin,
-  Trash2,
-  Repeat2,
-  ListChecks,
-  GripVertical,
-  Timer,
-} from 'lucide-react';
+import { RotateCcw, Pin, Trash2, Repeat2, ListChecks, GripVertical, Timer } from 'lucide-react';
 import {
   dateKey,
   formatDate,
@@ -19,6 +10,7 @@ import {
 } from '../model';
 import { store, useStore } from '../store';
 import { useTaskDrag } from '../phone/useTaskDrag';
+import { TaskCheck } from './TaskCheck';
 import '../phone/drag.css';
 
 type Props = {
@@ -71,67 +63,97 @@ export function TaskRow({ task, index, selected, onSelect, onDelete, onMove, onT
           <RotateCcw size={17} />
         </button>
       ) : (
-        <button
-          className={`task-check priority-${task.priority} ${task.completedAt ? 'checked' : ''}`}
-          role="checkbox"
-          aria-checked={!!task.completedAt}
-          aria-label={`完成 ${task.title}`}
-          onClick={() => store.update((s) => toggleTask(s, task.id))}
-        >
-          {task.completedAt ? <Check size={13} strokeWidth={3} /> : (index ?? 1)}
-        </button>
+        <TaskCheck
+          checked={!!task.completedAt}
+          label={`完成 ${task.title}`}
+          ordinal={index ?? 1}
+          onChange={() => store.update((s) => toggleTask(s, task.id))}
+        />
       )}
-      <button
-        className="task-body"
-        aria-label={`编辑 ${task.title}`}
-        onClick={() => onSelect(task.id)}
-      >
-        <span className="task-title">
-          {task.pinned && <Pin size={12} className="inline-pin" />}
-          {task.title}
-        </span>
-        {onTrack && task.notes && <span className="phone-task-preview">{task.notes}</span>}
-        <span className="task-meta">
-          <span className="list-meta">
-            <i style={{ background: list?.color }} />
-            {list?.id === 'inbox' ? '未分组' : list?.name}
+      <div className="task-content">
+        <button
+          className="task-body"
+          aria-label={`编辑 ${task.title}`}
+          onClick={() => onSelect(task.id)}
+        >
+          <span className="task-title">
+            {task.pinned && <Pin size={12} className="inline-pin" />}
+            {task.title}
           </span>
-          {task.due && (
-            <span
-              className={
-                !task.completedAt && task.due < dateKey()
-                  ? 'overdue'
-                  : task.due === dateKey()
-                    ? 'due-today'
-                    : ''
-              }
-            >
-              {formatDate(task.due)}
-              {!task.completedAt && task.due < dateKey() && ' · 逾期'}
+          {onTrack && task.notes && <span className="phone-task-preview">{task.notes}</span>}
+          <span className="task-meta">
+            <span className="list-meta">
+              <i style={{ background: list?.color }} />
+              {list?.id === 'inbox' ? '未分组' : list?.name}
             </span>
-          )}
-          {task.repeat !== 'none' && <Repeat2 size={12} aria-label="重复任务" />}
-          {task.estimatedMinutes != null && (
-            <span className="task-effort-meta">
-              预计 {formatTaskMinutes(task.estimatedMinutes)}
-            </span>
-          )}
-          {task.actualMinutes != null && (
-            <span className="task-effort-meta">实际 {formatTaskMinutes(task.actualMinutes)}</span>
-          )}
-          {!!task.subtasks.length && (
-            <span>
-              <ListChecks size={12} />
-              {completed}/{task.subtasks.length}
-            </span>
-          )}
-          {task.tags.slice(0, 2).map((tag) => (
-            <span className="tag-label" key={tag} style={{ color: data.tagColors.tasks[tag] }}>
-              #{tag}
-            </span>
-          ))}
-        </span>
-      </button>
+            {task.due && (
+              <span
+                className={
+                  !task.completedAt && task.due < dateKey()
+                    ? 'overdue'
+                    : task.due === dateKey()
+                      ? 'due-today'
+                      : ''
+                }
+              >
+                {formatDate(task.due)}
+                {!task.completedAt && task.due < dateKey() && ' · 逾期'}
+              </span>
+            )}
+            {task.repeat !== 'none' && <Repeat2 size={12} aria-label="重复任务" />}
+            {task.estimatedMinutes != null && (
+              <span className="task-effort-meta">
+                预计 {formatTaskMinutes(task.estimatedMinutes)}
+              </span>
+            )}
+            {task.actualMinutes != null && (
+              <span className="task-effort-meta">实际 {formatTaskMinutes(task.actualMinutes)}</span>
+            )}
+            {!!task.subtasks.length && (
+              <span>
+                <ListChecks size={12} />
+                {completed}/{task.subtasks.length}
+              </span>
+            )}
+            {task.tags.slice(0, 2).map((tag) => (
+              <span className="tag-label" key={tag} style={{ color: data.tagColors.tasks[tag] }}>
+                #{tag}
+              </span>
+            ))}
+          </span>
+        </button>
+        {!!task.subtasks.length && (
+          <ul className="task-subtasks" aria-label={`${task.title}的子任务`}>
+            {task.subtasks.map((item) => (
+              <li className={`task-subtask ${item.done ? 'subtask-done' : ''}`} key={item.id}>
+                <TaskCheck
+                  checked={item.done}
+                  label={`子任务 ${item.title}`}
+                  onChange={() =>
+                    store.update((state) => ({
+                      ...state,
+                      tasks: state.tasks.map((latest) =>
+                        latest.id === task.id && !latest.deletedAt
+                          ? {
+                              ...latest,
+                              updatedAt: now(),
+                              subtasks: latest.subtasks.map((subtask) =>
+                                subtask.id === item.id
+                                  ? { ...subtask, done: !subtask.done }
+                                  : subtask,
+                              ),
+                            }
+                          : latest,
+                      ),
+                    }))
+                  }
+                />
+                <span>{item.title}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
       {onTrack && !task.deletedAt && !task.completedAt && (
         <button
           className="icon-button phone-task-track"

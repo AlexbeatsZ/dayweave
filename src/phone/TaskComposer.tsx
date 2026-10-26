@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type CSSProperties, type FormEvent } from 'react';
 import { CalendarDays, Flag, ListChecks, Plus, Repeat2, X } from 'lucide-react';
 import {
   formatTaskMinutes,
@@ -11,6 +11,7 @@ import {
 } from '../model';
 import { store, useStore } from '../store';
 import { Modal } from '../components/Modal';
+import { TaskCheck } from '../components/TaskCheck';
 import { usePhone } from './usePhone';
 
 export function TaskComposer({
@@ -190,18 +191,20 @@ export function TaskComposer({
             />
           </label>
         </div>
-        <div className="phone-subtasks">
+        <div
+          className="phone-subtasks"
+          style={
+            { '--task-color': data.lists.find((item) => item.id === list)?.color } as CSSProperties
+          }
+        >
           {subtasks.map((item, index) => (
-            <div key={item.id}>
-              <input
-                type="checkbox"
-                aria-label={`子任务 ${item.title}`}
+            <div key={item.id} className={`task-subtask ${item.done ? 'subtask-done' : ''}`}>
+              <TaskCheck
+                label={`子任务 ${item.title}`}
                 checked={item.done}
-                onChange={(event) =>
+                onChange={() =>
                   setSubtasks(
-                    subtasks.map((row) =>
-                      row.id === item.id ? { ...row, done: event.target.checked } : row,
-                    ),
+                    subtasks.map((row) => (row.id === item.id ? { ...row, done: !row.done } : row)),
                   )
                 }
               />
@@ -219,6 +222,7 @@ export function TaskComposer({
           <div>
             <ListChecks size={18} />
             <input
+              className="subtask-entry-input"
               aria-label={task ? '添加子任务' : '新任务子任务'}
               placeholder="添加子任务"
               maxLength={500}
