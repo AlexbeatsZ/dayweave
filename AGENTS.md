@@ -4,6 +4,9 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Current State
 
+- 2026-10-27 current release/build: 0.4.3 / Android versionCode 10, containing the subtask, sync scheduler, HTTPS, granular delta and recovery fixes below. Installed in-place on local OMEN, ROG, Mac arm64, Pad 6 Pro and Redmi K70; older 0.4.2/unreleased statements below describe historical checkpoints. Desktop profile/pairing backups retained in each host's temporary .agents/dayweave-upgrade-0.4.3-*; identities preserved. Mobile updates used adb install -r with unchanged firstInstallTime, no data clear or UI operations.
+- ROG 0.4.3 DayweaveHub task resumed: storage ready, hub connected. Mac 0.4.3: storage ready, connected/synced. OMEN 0.4.3: persisted lastSync advances, 1186 tasks/1004 records match hub/Mac at check; two pre-existing conflicts retained. Its loopback AI API cannot bind 49731 (EACCES; Windows excludes 49692-49791), independently of working sync; no system port configuration changed. /health still reports a hard-coded old version, so inspect installed binary/bundle version instead. Android installation confirmed, actual foreground/device flows not exercised. Public HTTPS ingress still unconfigured.
+
 - Derived from clean Clearlist v0.2.0 history and complete MIT Open Timelog v0.2.0 module. Independent IDs org.dayweave.desktop/mobile and profile Dayweave preserve the original apps.
 - Unified version-1 JSON state adds timelog, schedule and an explicit schedule timezone (default Asia/Shanghai). Instants remain UTC epoch; calendar rules use the selected zone, never host timezone.
 - Repository: https://github.com/AlexbeatsZ/dayweave, own main.
