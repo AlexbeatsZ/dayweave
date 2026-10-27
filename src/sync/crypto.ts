@@ -77,3 +77,21 @@ export function localEndpoint(input: string): string {
   if (!['', '/'].includes(url.pathname)) throw new Error('同步地址不应包含路径');
   return url.origin;
 }
+export function syncEndpoint(input: string): string {
+  const url = new URL(input);
+  if (url.protocol === 'http:') return localEndpoint(input);
+  if (!/^https:\/\/[A-Za-z0-9.:\[\]-]+(?:\/[A-Za-z0-9_-]+)*\/?$/i.test(input))
+    throw new Error('同步 HTTPS 地址不能包含凭据、查询参数或转义路径');
+  if (
+    url.protocol !== 'https:' ||
+    url.username ||
+    url.password ||
+    url.search ||
+    url.hash ||
+    !url.hostname
+  )
+    throw new Error('同步地址必须是 HTTPS，或局域网 HTTP 地址');
+  if (!/^\/(?:[A-Za-z0-9_-]+\/)*[A-Za-z0-9_-]*$/.test(url.pathname))
+    throw new Error('同步路径只能包含字母、数字、短横线和下划线');
+  return url.origin + url.pathname.replace(/\/$/, '');
+}

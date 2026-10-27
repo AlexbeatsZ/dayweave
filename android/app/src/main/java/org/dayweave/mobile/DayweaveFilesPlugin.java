@@ -85,12 +85,7 @@ public class DayweaveFilesPlugin extends Plugin {
     }
 
     private String endpoint(String value) throws Exception {
-        java.net.URI uri = new java.net.URI(value);
-        String host=uri.getHost();
-        if(!"http".equals(uri.getScheme()) || uri.getUserInfo()!=null || uri.getQuery()!=null || uri.getFragment()!=null || host==null || !host.matches("[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+") || !(uri.getPath().isEmpty() || "/".equals(uri.getPath()))) throw new IllegalArgumentException("Use a local IP address");
-        String[] parts=host.split("\\."); int[] n=new int[4];for(int i=0;i<4;i++){ n[i]=Integer.parseInt(parts[i]);if(n[i]>255)throw new IllegalArgumentException("Invalid IP"); }
-        if(!(n[0]==10 || n[0]==127 || n[0]==192&&n[1]==168 || n[0]==172&&n[1]>=16&&n[1]<=31 || n[0]==100&&n[1]>=64&&n[1]<=127 || n[0]==169&&n[1]==254)) throw new IllegalArgumentException("Use a local IP address");
-        return "http://"+host+":"+(uri.getPort()<0?80:uri.getPort());
+        return SyncEndpoint.parse(value);
     }
 
     @PluginMethod

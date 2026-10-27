@@ -80,7 +80,7 @@ export async function initializeMobile() {
     }
     const client = syncClient;
     window.clearlist.sync = {
-      status: async () => client.status(),
+      status: () => client.readStatus(),
       discover: async () => (await files.discoverSync()).peers,
       pair: async (invitation, endpoint) => {
         await client.pair(invitation, endpoint);
@@ -88,6 +88,10 @@ export async function initializeMobile() {
       },
       now: () => client.now(),
       disconnect: () => client.disconnect(),
+      setEndpoint: async (endpoint) => {
+        await client.setEndpoint(endpoint);
+        return client.now();
+      },
       resolve: (index, keepLocal) => client.resolve(index, keepLocal),
     };
   } catch (error) {
@@ -147,4 +151,5 @@ export function startMobileSync() {
     syncScheduler.request();
   });
   if (appActive) syncScheduler.start();
+  window.addEventListener('online', () => syncScheduler.request());
 }

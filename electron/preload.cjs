@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('clearlist', {
       'pair',
       'now',
       'disconnect',
+      'setEndpoint',
       'enableHub',
       'invite',
       'revoke',

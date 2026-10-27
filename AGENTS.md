@@ -31,10 +31,11 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 # Active Work
 
 - 2026-10-26 sync review: shared change-triggered scheduler (100ms batching, 2s polling fallback), coalesced now requests, one outgoing snapshot, Android failed-save upload guard, and authenticated-processing errors no longer mislabeled as pairing failure. Import success now waits for persistence. Source-only; installed packages unchanged.
-- Review follow-ups: whole-module optimistic conflicts can stall the renderer save queue; retry/reload/restore lack UI recovery routes, and StateService caches a failed initial load. These remain unfixed; do not discard queued edits to hide conflicts. Android still has no native background sync. Read-only live check: ROG ports 49731/49732 listening; local OMEN app/API not running/reachable at check time, superseding historical running-state claims above.
+- 2026-10-27 follow-ups fixed in source: entity/field module deltas preserve independent edits; real conflicts freeze pending edits with export/retry/confirmed reload controls, failed initial reads are retryable, and validated backup restore shares the transaction queue. HTTPS endpoints (optional route prefix) and address switching preserve pairing. Incoming reply journals recover interrupted state/config commits; delivery status derives from persisted state/base. Installed packages unchanged.
+- Public ingress remains unconfigured: read-only check found ROG SakuraFrpService running and port 49732 listening. Existing subscription HTTPS tunnel is unrelated and was not changed. Agree a dedicated hostname/path/routing before deployment; preserve profiles and existing keys. True public-network and device acceptance remain pending.
 
 - Real installed-app Fudan capture, physical gestures and new-field cross-device acceptance remain pending. Chrome DOM/API and minimal conversion replay are verified separately; current pairing state belongs to the deployment/sync log and is not changed by this capture fix.
-- LAN direct pairing works. Automatic mDNS discovery on the actual LAN remains unconfirmed. Android sync is foreground/resume only; background instantaneous propagation is not implemented.
+- LAN direct pairing works. Automatic mDNS discovery on the actual LAN remains unconfirmed. Android target is open/resume plus continuous foreground synchronization; background/closed may pause and retry on resume. Background realtime is not a goal; mobile clients must not require a companion tunnel app for HTTPS.
 - Preserve keys only under ignored .local. Keep original repos/profiles untouched.
 
 # Build / Run / Test

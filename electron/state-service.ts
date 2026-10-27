@@ -20,14 +20,20 @@ export class StateService {
     return `${this.session}:${++this.counter}`;
   }
   private async load() {
-    this.loaded ??= this.storage.load().then(async (data) => {
-      const timelog = finishDueTimer(data.state.timelog);
-      const state = timelog === data.state.timelog ? data.state : { ...data.state, timelog };
-      if (state !== data.state) await this.storage.save(state);
-      this.current = { ...data, state, revision: this.revision() };
-      this.scheduleDeadline();
-      return this.current;
-    });
+    this.loaded ??= this.storage
+      .load()
+      .then(async (data) => {
+        const timelog = finishDueTimer(data.state.timelog);
+        const state = timelog === data.state.timelog ? data.state : { ...data.state, timelog };
+        if (state !== data.state) await this.storage.save(state);
+        this.current = { ...data, state, revision: this.revision() };
+        this.scheduleDeadline();
+        return this.current;
+      })
+      .catch((error) => {
+        this.loaded = undefined;
+        throw error;
+      });
     await this.loaded;
     setTimeZone(this.current!.state.settings.timeZone);
   }
@@ -86,12 +92,24 @@ export class StateService {
   patch(delta: StateDelta) {
     return this.mutate((state) => applyDelta(state, delta));
   }
-  async restore(value: unknown) {
-    const restored = await this.storage.restore(value);
-    this.current = { ...restored, revision: this.revision() };
-    this.loaded = Promise.resolve(this.current);
-    this.scheduleDeadline();
-    return this.snapshot();
+  restore(value: unknown) {
+    const state = stateSchema.parse(value);
+    const operation = this.queue.then(async () => {
+      await this.loaded?.catch(() => {});
+      const restored = await this.storage.restore({
+        ...state,
+        timelog: finishDueTimer(state.timelog),
+      });
+      this.current = { ...restored, revision: this.revision() };
+      this.loaded = Promise.resolve(this.current);
+      setTimeZone(this.current.state.settings.timeZone);
+      this.scheduleDeadline();
+      const result = structuredClone(this.current);
+      for (const listener of this.listeners) listener(structuredClone(result));
+      return result;
+    });
+    this.queue = operation.catch(() => {});
+    return operation;
   }
   async flush() {
     await this.queue;

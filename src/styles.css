@@ -885,6 +885,13 @@ input[type='date'] {
   display: flex;
   gap: 10px;
 }
+.storage-recovery-actions {
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+.error-banner:has(.storage-recovery-actions) {
+  flex-wrap: wrap;
+}
 .storage-location {
   display: flex;
   gap: 8px;

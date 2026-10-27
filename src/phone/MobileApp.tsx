@@ -27,6 +27,7 @@ import { useClock } from '../runtime';
 import { duration, formatClock, liveSpans, toggleTimer } from '../timelog/domain';
 import { TaskRow } from '../components/TaskRow';
 import { Settings } from '../components/Settings';
+import { StorageRecovery } from '../components/StorageRecovery';
 import { Timetable, NextClass } from '../components/Timetable';
 import { Calendar } from '../components/Calendar';
 import { TimeLog } from '../components/TimeLog';
@@ -296,11 +297,7 @@ export function MobileApp() {
       <main className="loading-screen">
         <h1>时织</h1>
         <p>{snapshot.error || '正在打开你的安排…'}</p>
-        {snapshot.error && (
-          <button className="button" onClick={() => void store.initialize()}>
-            重新读取
-          </button>
-        )}
+        {snapshot.error && <StorageRecovery loaded={false} />}
       </main>
     );
   const timer = data.timelog.timer;
@@ -385,8 +382,8 @@ export function MobileApp() {
         )}
         {snapshot.error && (
           <div className="error-banner" role="alert">
-            {snapshot.error}
-            <button onClick={() => setSettings(true)}>备份与恢复</button>
+            <span>{snapshot.error}</span>
+            <StorageRecovery loaded conflict={snapshot.errorKind === 'conflict'} />
           </div>
         )}
         {timeView && (recordFilter.activityId || recordFilter.tag) && (

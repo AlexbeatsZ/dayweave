@@ -187,6 +187,7 @@ test('real encrypted hub with two clients: pairing, offline merge, cross-device 
     let raw: string | null = null;
     let state = emptyState();
     let last: Envelope;
+    let loseReply = false;
     const client = new SyncClient(
       {
         read: async () => raw,
@@ -202,7 +203,12 @@ test('real encrypted hub with two clients: pairing, offline merge, cross-device 
       },
       async (address, route, body) => {
         last = body;
-        return fetchEnvelope(address, route, body);
+        const response = await fetchEnvelope(address, route, body);
+        if (loseReply) {
+          loseReply = false;
+          throw new Error('response lost after hub commit');
+        }
+        return response;
       },
       name,
     );
@@ -213,6 +219,9 @@ test('real encrypted hub with two clients: pairing, offline merge, cross-device 
         state = s;
       },
       last: () => last,
+      loseReply: () => {
+        loseReply = true;
+      },
     };
   };
   const a = memory('电脑'),
@@ -259,11 +268,27 @@ test('real encrypted hub with two clients: pairing, offline merge, cross-device 
     const timerId = a.get().timelog.timer!.id;
     assert.equal(b.get().timelog.timer!.id, timerId);
     b.get().timelog = finishTimer(b.get().timelog, Date.now() - 1000);
+    b.loseReply();
     await b.client.now();
+    assert.equal(b.client.connected, false);
+    assert.equal((await service.snapshot()).state.timelog.records.length, 1);
+    await b.client.now();
+    assert.equal(b.client.connected, true, b.client.error);
+    assert.equal((await service.snapshot()).state.timelog.records.length, 1);
     a.get().timelog = toggleTimer(a.get().timelog, Date.now() - 2000);
     await a.client.now();
     assert.equal(a.get().timelog.timer, null);
     assert.equal(a.get().timelog.records[0].id, timerId);
+    const deletedId = a.get().tasks[0].id;
+    a.get().tasks = a.get().tasks.filter((task) => task.id !== deletedId);
+    a.loseReply();
+    await a.client.now();
+    await a.client.now();
+    await b.client.now();
+    assert.equal(
+      b.get().tasks.some((task) => task.id === deletedId),
+      false,
+    );
     const replay = await fetch(endpoint + '/sync', {
       method: 'POST',
       body: JSON.stringify(a.last()),

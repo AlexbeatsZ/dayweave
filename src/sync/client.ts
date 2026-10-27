@@ -1,4 +1,4 @@
-import { localEndpoint, openEnvelope, seal, type Envelope } from './crypto.js';
+import { syncEndpoint, openEnvelope, seal, type Envelope } from './crypto.js';
 import { fromDocument, overlayNewEdits, stable, toDocument } from './document.js';
 import { invitationText } from './invitation.js';
 import type { Peer, SyncConfig, SyncReply, SyncState, SyncStatus, SyncStorage } from './types.js';
@@ -29,8 +29,9 @@ export class SyncClient {
         !Array.isArray(value.conflicts)
       )
         throw new Error('同步配置无法读取，请保留 sync.json 后恢复配对。');
-      if (value.endpoint) localEndpoint(value.endpoint);
+      if (value.endpoint) syncEndpoint(value.endpoint);
       this.config = value;
+      this.lastSync = value.lastSync;
     } else {
       this.config = {
         version: 1,
@@ -63,6 +64,64 @@ export class SyncClient {
       conflicts: this.config?.conflicts ?? [],
     };
   }
+  async readStatus(): Promise<SyncStatus> {
+    const status = this.status();
+    if (status.mode === 'off') return { ...status, delivery: 'off' };
+    if (status.mode === 'hub') return { ...status, delivery: 'saved' };
+    try {
+      const document = toDocument((await this.state.snapshot()).state);
+      const pendingChanges =
+        !!this.config.incoming ||
+        !this.config.base ||
+        stable(document) !== stable(this.config.base);
+      return {
+        ...status,
+        pendingChanges,
+        delivery: status.conflicts.length
+          ? 'conflict'
+          : this.inFlight
+            ? 'syncing'
+            : !status.connected
+              ? 'offline'
+              : pendingChanges
+                ? 'pending'
+                : 'synced',
+      };
+    } catch (error) {
+      return {
+        ...status,
+        delivery: 'local-error',
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+  private async applyIncoming() {
+    const config = this.config;
+    const incoming = config.incoming;
+    if (!incoming) return;
+    const { sent, reply } = incoming;
+    if (!reply.state || !reply.base || reply.hubId !== config.hubId)
+      throw new Error('同步恢复日志无效');
+    await this.save();
+    const conflicts = structuredClone(config.conflicts);
+    const received = toDocument(reply.state);
+    await this.state.mutate((current) =>
+      fromDocument(overlayNewEdits(sent, toDocument(current), received, conflicts), current),
+    );
+    for (const conflict of reply.conflicts ?? [])
+      if (!conflicts.some((item) => stable(item) === stable(conflict))) conflicts.push(conflict);
+    const previous = { base: config.base, revision: config.revision, conflicts: config.conflicts };
+    config.base = reply.base;
+    config.revision = reply.revision;
+    config.conflicts = conflicts;
+    config.incoming = undefined;
+    try {
+      await this.save();
+    } catch (error) {
+      Object.assign(config, previous, { incoming });
+      throw error;
+    }
+  }
   pair(invitation: string, endpoint?: string) {
     return this.exclusive(async () => {
       if (this.config.hub) throw new Error('请先关闭本机同步中心。');
@@ -93,7 +152,7 @@ export class SyncClient {
       );
       for (const candidate of candidates) {
         try {
-          address = localEndpoint(candidate);
+          address = syncEndpoint(candidate);
           response = await this.post(address, '/pair', envelope);
           break;
         } catch (error) {
@@ -117,6 +176,8 @@ export class SyncClient {
         seq: 0,
         base: undefined,
         revision: undefined,
+        incoming: undefined,
+        lastSync: undefined,
       };
       await this.save();
       this.error = '';
@@ -135,6 +196,7 @@ export class SyncClient {
       const c = this.config;
       if (!c.enabled || c.hub || !c.endpoint || !c.key) return this.status();
       try {
+        await this.applyIncoming();
         const snapshot = (await this.state.snapshot()).state;
         const sent = toDocument(snapshot);
         const dirty = !c.base || stable(sent) !== stable(c.base);
@@ -157,32 +219,28 @@ export class SyncClient {
         if (reply.hubId !== c.hubId || reply.seq !== c.seq)
           throw new Error('同步响应身份或序号不符');
         if (reply.state && reply.base) {
-          const received = toDocument(reply.state);
-          await this.state.mutate((current) =>
-            fromDocument(
-              overlayNewEdits(document, toDocument(current), received, c.conflicts),
-              current,
-            ),
-          );
-          c.base = reply.base;
-          for (const conflict of reply.conflicts ?? [])
-            if (!c.conflicts.some((x) => stable(x) === stable(conflict)))
-              c.conflicts.push(conflict);
+          c.incoming = { sent: document, reply };
+          await this.applyIncoming();
         }
         c.revision = reply.revision;
+        c.lastSync = Date.now();
         await this.save();
         this.error = '';
         this.connected = true;
-        this.lastSync = Date.now();
+        this.lastSync = c.lastSync;
       } catch (error) {
         this.connected = false;
         this.error = error instanceof Error ? error.message : String(error);
-        if (this.discover && Date.now() - this.lastDiscovery > 30000) {
+        if (
+          this.discover &&
+          c.endpoint.startsWith('http:') &&
+          Date.now() - this.lastDiscovery > 30000
+        ) {
           this.lastDiscovery = Date.now();
           try {
             const peer = (await this.discover()).find((peer) => peer.hubId === c.hubId);
             if (peer && peer.endpoint !== c.endpoint) {
-              c.endpoint = localEndpoint(peer.endpoint);
+              c.endpoint = syncEndpoint(peer.endpoint);
               await this.save();
             }
           } catch {
@@ -199,6 +257,23 @@ export class SyncClient {
       this.config.hub = undefined;
       this.connected = false;
       await this.save();
+      return this.status();
+    });
+  }
+  setEndpoint(endpoint: string) {
+    return this.exclusive(async () => {
+      if (!this.config.enabled || this.config.hub || !this.config.key)
+        throw new Error('请先配对同步中心');
+      const previous = this.config.endpoint;
+      this.config.endpoint = syncEndpoint(endpoint);
+      try {
+        await this.save();
+      } catch (error) {
+        this.config.endpoint = previous;
+        throw error;
+      }
+      this.connected = false;
+      this.error = '';
       return this.status();
     });
   }
@@ -226,7 +301,7 @@ export class SyncClient {
 }
 
 export async function fetchEnvelope(endpoint: string, path: string, body: Envelope) {
-  const response = await fetch(localEndpoint(endpoint) + path, {
+  const response = await fetch(syncEndpoint(endpoint) + path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),

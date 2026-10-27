@@ -217,6 +217,7 @@ else {
       'pair',
       'now',
       'disconnect',
+      'setEndpoint',
       'enableHub',
       'invite',
       'revoke',

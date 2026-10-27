@@ -8,6 +8,7 @@ type Snapshot = {
   data: AppState;
   loaded: boolean;
   error: string;
+  errorKind?: 'conflict' | 'storage' | 'operation';
   saving: boolean;
   recovered: boolean;
   path: string;
@@ -37,6 +38,7 @@ let pumping = false,
   failed = false,
   closeListenerAttached = false,
   stateListenerAttached = false;
+let recovering = false;
 function emit(patch: Partial<Snapshot>) {
   snapshot = { ...snapshot, ...patch };
   setTimeZone(snapshot.data.settings.timeZone);
@@ -66,10 +68,17 @@ function pump() {
           authoritative = job.data;
         }
         jobs.shift();
-        emit({ data: rebased(), saving: jobs.length > 0, error: '' });
+        emit({ data: rebased(), saving: jobs.length > 0, error: '', errorKind: undefined });
       } catch (error) {
         failed = true;
-        emit({ saving: false, error: `保存失败，请先导出备份：${message(error)}` });
+        const conflict = message(error).includes('STATE_CONFLICT:');
+        emit({
+          saving: false,
+          errorKind: conflict ? 'conflict' : 'storage',
+          error: conflict
+            ? `保存遇到并发冲突，未保存修改仍保留在本机：${message(error)}`
+            : `保存失败，请先导出备份：${message(error)}`,
+        });
         break;
       }
     }
@@ -87,6 +96,7 @@ function enqueue(data: AppState) {
 
 export const store = {
   async initialize() {
+    if (jobs.length || recovering) return;
     if (window.clearlist && !closeListenerAttached) {
       closeListenerAttached = true;
       window.clearlist.onBeforeClose(async () => {
@@ -101,7 +111,8 @@ export const store = {
           acceptRemote(result);
           emit({ data: rebased() });
         } catch (error) {
-          emit({ error: `其他修改与未保存内容发生冲突：${message(error)}` });
+          failed = true;
+          emit({ errorKind: 'conflict', error: `其他修改与未保存内容发生冲突：${message(error)}` });
         }
       });
     }
@@ -115,6 +126,7 @@ export const store = {
           recovered: result.recovered,
           path: result.path,
           error: '',
+          errorKind: undefined,
         });
       } else {
         const raw = localStorage.getItem(key);
@@ -145,6 +157,7 @@ export const store = {
     };
   },
   async transact(transform: (state: AppState) => AppState) {
+    if (recovering) throw new Error('正在恢复数据，请稍后重试');
     if (!snapshot.loaded || snapshot.error) throw new Error(snapshot.error || '数据尚未载入');
     // A rejected user operation is recoverable, unlike a failed disk write.
     // Validate before publishing so a short timer or stale edit cannot poison later saves.
@@ -154,29 +167,55 @@ export const store = {
     return snapshot.data;
   },
   update(transform: (state: AppState) => AppState) {
-    if (!snapshot.loaded) return;
+    if (!snapshot.loaded || failed || recovering) return;
     let data: AppState;
     try {
       data = stateSchema.parse(transform(snapshot.data));
     } catch (error) {
-      emit({ error: `修改未应用：${message(error)}` });
+      emit({ errorKind: 'operation', error: `修改未应用：${message(error)}` });
       return;
     }
     enqueue(data);
   },
-  retry() {
+  async retry() {
+    if (recovering) return;
     failed = false;
     if (jobs.length) {
       emit({ saving: true });
-      void pump();
-    } else emit({ error: '' });
+      await pump();
+    } else emit({ error: '', errorKind: undefined });
   },
   async reload() {
-    await pending;
-    jobs.splice(0);
-    failed = false;
-    emit({ saving: false });
-    await store.initialize();
+    if (recovering) return false;
+    recovering = true;
+    try {
+      await pending;
+      const result = window.clearlist
+        ? await window.clearlist.load()
+        : {
+            state: stateSchema.parse(JSON.parse(localStorage.getItem(key) ?? 'null')),
+            recovered: false,
+            path: '当前浏览器 · 本地存储',
+          };
+      acceptRemote(result);
+      jobs.splice(0);
+      failed = false;
+      emit({
+        data: authoritative,
+        loaded: true,
+        recovered: result.recovered,
+        path: result.path,
+        saving: false,
+        error: '',
+        errorKind: undefined,
+      });
+      return true;
+    } catch (error) {
+      emit({ error: `重新读取失败，未保存内容仍保留：${message(error)}` });
+      return false;
+    } finally {
+      recovering = false;
+    }
   },
   patchTask(id: string, patch: Partial<Task>) {
     store.update((s) => ({
@@ -210,22 +249,38 @@ export const store = {
     await pending;
     return snapshot;
   },
-  async restore() {
-    if (!window.clearlist) return;
+  async restore(value?: unknown) {
+    if (snapshot.loaded || recovering) return;
+    recovering = true;
     try {
-      const result = await window.clearlist.restoreData();
+      let result: { state: AppState; recovered: boolean; path: string; revision?: string } | null;
+      if (window.clearlist) result = await window.clearlist.restoreData();
+      else {
+        const state = stateSchema.parse(value);
+        for (const name of [key, `${key}.backup`]) {
+          const raw = localStorage.getItem(name);
+          if (raw !== null) localStorage.setItem(`${name}.before-restore.${Date.now()}`, raw);
+        }
+        localStorage.setItem(key, JSON.stringify(state));
+        result = { state, recovered: true, path: '当前浏览器 · 本地存储' };
+      }
       if (result) {
-        authoritative = stateSchema.parse(result.state);
+        acceptRemote(result);
+        jobs.splice(0);
+        failed = false;
         emit({
           data: authoritative,
           recovered: result.recovered,
           path: result.path,
           loaded: true,
           error: '',
+          errorKind: undefined,
         });
       }
     } catch {
       emit({ error: '恢复失败：请选择有效的时织 JSON 备份。原文件仍保留。' });
+    } finally {
+      recovering = false;
     }
   },
 };

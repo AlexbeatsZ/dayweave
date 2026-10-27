@@ -68,7 +68,11 @@ export function SyncSettings() {
         <p>设备同步在 Windows、macOS 和 Android 应用中可用。</p>
       ) : (
         <>
-          <p>ROG 作为同步中心。设备配对后，打开时织即可自动同步；离线修改会在重连后合并。</p>
+          <p>
+            ROG
+            作为同步中心。配对后打开或回到前台自动同步，前台持续交换；后台可暂停，离线修改重连后合并。公网连接使用
+            HTTPS 地址。
+          </p>
           {status && (
             <div className="sync-status">
               <i className={status.connected ? 'online' : ''} />
@@ -77,12 +81,32 @@ export function SyncSettings() {
                   ? '尚未连接'
                   : status.mode === 'hub'
                     ? '本机是同步中心'
-                    : status.connected
-                      ? '已连接同步中心'
-                      : '离线 · 修改保存在本机'}
+                    : status.delivery === 'local-error'
+                      ? '本地保存失败 · 暂停同步'
+                      : status.connected
+                        ? '已连接同步中心'
+                        : '离线 · 修改保存在本机'}
               </strong>
               {status.lastSync && (
                 <small>最近同步 {new Date(status.lastSync).toLocaleTimeString()}</small>
+              )}
+              {status.delivery && (
+                <small>
+                  {
+                    {
+                      off: '未启用同步',
+                      saved: '本地已保存 · 同步中心',
+                      pending: '本地已保存 · 待上传',
+                      syncing: '正在同步',
+                      synced: '已同步',
+                      offline: status.pendingChanges
+                        ? '离线 · 本地已保存，待上传'
+                        : '离线 · 下次打开或联网后重试',
+                      conflict: '存在冲突 · 请处理保留的候选',
+                      'local-error': '本地尚未保存 · 暂停上传',
+                    }[status.delivery]
+                  }
+                </small>
               )}
             </div>
           )}
@@ -141,6 +165,35 @@ export function SyncSettings() {
           ) : status?.mode === 'client' ? (
             <>
               <p className="field-hint">{status.endpoint}</p>
+              {bridge.setEndpoint && (
+                <details>
+                  <summary>更换同步地址（保留配对）</summary>
+                  <label>
+                    同步中心 HTTPS 或局域网地址
+                    <input
+                      aria-label="新的同步中心地址"
+                      placeholder="https://sync.example.com/dayweave"
+                      value={endpoint}
+                      onChange={(event) => setEndpoint(event.target.value)}
+                    />
+                  </label>
+                  <button
+                    className="button"
+                    disabled={busy || !endpoint.trim()}
+                    onClick={() =>
+                      void run(async () => {
+                        await bridge.setEndpoint!(endpoint);
+                        setEndpoint('');
+                      })
+                    }
+                  >
+                    保存地址并同步
+                  </button>
+                  <p className="field-hint">
+                    仅更换同一中心的网络入口，不改变设备身份、密钥或待同步数据。不要填入订阅链接。
+                  </p>
+                </details>
+              )}
               <button
                 className="button"
                 disabled={busy}

@@ -13,6 +13,8 @@ export type SyncConfig = {
   seq: number;
   base?: SyncDocument;
   revision?: string;
+  lastSync?: number;
+  incoming?: { sent: SyncDocument; reply: SyncReply };
   conflicts: SyncConflict[];
   hub?: {
     port: number;
@@ -21,6 +23,9 @@ export type SyncConfig = {
   };
 };
 export type SyncStatus = {
+  delivery?:
+    'off' | 'saved' | 'pending' | 'syncing' | 'synced' | 'offline' | 'conflict' | 'local-error';
+  pendingChanges?: boolean;
   mode: 'off' | 'hub' | 'client';
   name: string;
   endpoint?: string;
@@ -61,6 +66,7 @@ export type SyncBridge = {
   pair(invitation: string, endpoint?: string): Promise<SyncStatus>;
   now(): Promise<SyncStatus>;
   disconnect(): Promise<SyncStatus>;
+  setEndpoint?(endpoint: string): Promise<SyncStatus>;
   enableHub?(): Promise<SyncStatus>;
   invite?(): Promise<string>;
   revoke?(id: string): Promise<SyncStatus>;

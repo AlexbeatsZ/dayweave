@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { stateSchema, type AppState } from './model.js';
+import { stable } from './sync/document.js';
 
 const jsonObject = z.record(z.string().max(100), z.unknown());
 export const deltaSchema = z
@@ -27,19 +28,27 @@ export class StateConflict extends Error {
     super('STATE_CONFLICT: 同一项数据已被其他操作修改，请导出未保存内容或重新读取。');
   }
 }
-const equal = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+const equal = (a: unknown, b: unknown) => stable(a) === stable(b);
+type Row = Record<string, unknown> & { id: string };
+function diffRows(before: Row[], after: Row[]) {
+  const left = new Map(before.map((item) => [item.id, item]));
+  const right = new Map(after.map((item) => [item.id, item]));
+  return [...new Set([...left.keys(), ...right.keys()])].flatMap((id) => {
+    const previous = left.get(id) ?? null;
+    const next = right.get(id) ?? null;
+    return equal(previous, next) ? [] : [{ id, before: previous, after: next }];
+  });
+}
 
 export function diffState(before: AppState, after: AppState): StateDelta {
   const delta: StateDelta = { entities: [] };
   for (const collection of ['tasks', 'lists', 'sessions'] as const) {
-    const left = new Map(before[collection].map((item) => [item.id, item]));
-    const right = new Map(after[collection].map((item) => [item.id, item]));
-    for (const id of new Set([...left.keys(), ...right.keys()])) {
-      const previous = left.get(id) ?? null,
-        next = right.get(id) ?? null;
-      if (!equal(previous, next))
-        delta.entities.push({ collection, id, before: previous, after: next });
-    }
+    delta.entities.push(
+      ...diffRows(before[collection], after[collection]).map((change) => ({
+        collection,
+        ...change,
+      })),
+    );
   }
   if (!equal(before.settings, after.settings))
     delta.settings = { before: before.settings, after: after.settings };
@@ -63,12 +72,17 @@ export function applyDelta(state: AppState, value: StateDelta, strict = true): A
     current: Record<string, unknown>,
     before: Record<string, unknown>,
     after: Record<string, unknown>,
+    timestamps = true,
   ) => {
-    for (const key of Object.keys(after)) {
+    for (const key of new Set([...Object.keys(before), ...Object.keys(after)])) {
       if (key === '__proto__' || key === 'constructor' || key === 'prototype')
         throw new Error('Invalid field');
       if (equal(before[key], after[key])) continue;
-      if (key === 'updatedAt') {
+      if (timestamps && key === 'updatedAt' && typeof after[key] === 'number') {
+        current[key] = Math.max(typeof current[key] === 'number' ? current[key] : 0, after[key]);
+        continue;
+      }
+      if (timestamps && key === 'updatedAt' && typeof after[key] === 'string') {
         current[key] = [current[key], after[key]]
           .filter((x): x is string => typeof x === 'string')
           .sort()
@@ -77,11 +91,18 @@ export function applyDelta(state: AppState, value: StateDelta, strict = true): A
       }
       if (strict && !equal(current[key], before[key]) && !equal(current[key], after[key]))
         throw new StateConflict();
-      current[key] = after[key];
+      if (Object.hasOwn(after, key)) current[key] = structuredClone(after[key]);
+      else delete current[key];
     }
   };
-  for (const change of delta.entities) {
-    const rows = next[change.collection] as unknown as Array<Record<string, unknown>>;
+  const applyChange = (
+    rows: Array<Record<string, unknown>>,
+    change: {
+      id: string;
+      before: Record<string, unknown> | null;
+      after: Record<string, unknown> | null;
+    },
+  ) => {
     const index = rows.findIndex((item) => item.id === change.id);
     const current = rows[index];
     if (change.after === null) {
@@ -96,7 +117,8 @@ export function applyDelta(state: AppState, value: StateDelta, strict = true): A
         rows.push(structuredClone(change.after));
       } else patch(current, change.before, change.after);
     }
-  }
+  };
+  for (const change of delta.entities) applyChange(next[change.collection], change);
   if (delta.settings) patch(next.settings, delta.settings.before, delta.settings.after);
   if (delta.timer) {
     if (strict && !equal(next.timer, delta.timer.before) && !equal(next.timer, delta.timer.after))
@@ -104,13 +126,63 @@ export function applyDelta(state: AppState, value: StateDelta, strict = true): A
     next.timer = delta.timer.after as AppState['timer'];
   }
   if (delta.modules) {
-    const b = delta.modules.before as Pick<AppState, 'timelog' | 'schedule' | 'tagColors'>,
-      a = delta.modules.after as Pick<AppState, 'timelog' | 'schedule' | 'tagColors'>;
-    for (const k of ['timelog', 'schedule', 'tagColors'] as const)
-      if (!equal(b[k], a[k])) {
-        if (strict && !equal(next[k], b[k]) && !equal(next[k], a[k])) throw new StateConflict();
-        (next as unknown as Record<string, unknown>)[k] = structuredClone(a[k]);
+    const schema = z.object({
+      timelog: stateSchema.shape.timelog,
+      schedule: stateSchema.shape.schedule,
+      tagColors: stateSchema.shape.tagColors,
+    });
+    const before = schema.parse(delta.modules.before);
+    const after = schema.parse(delta.modules.after);
+    for (const module of ['timelog', 'schedule', 'tagColors'] as const) {
+      const current = next[module] as unknown as Record<string, unknown>;
+      const previous = before[module] as unknown as Record<string, unknown>;
+      const changed = after[module] as unknown as Record<string, unknown>;
+      const collections =
+        module === 'timelog'
+          ? ['activities', 'records', 'goals', 'rewards', 'redemptions']
+          : module === 'schedule'
+            ? ['courses', 'events']
+            : [];
+      for (const field of new Set([...Object.keys(previous), ...Object.keys(changed)])) {
+        if (equal(previous[field], changed[field])) continue;
+        if (collections.includes(field)) {
+          const oldRows = previous[field] as Row[];
+          const newRows = changed[field] as Row[];
+          const rows = current[field] as Row[];
+          if (equal(rows, oldRows) || equal(rows, newRows)) {
+            current[field] = structuredClone(newRows);
+            continue;
+          }
+          const oldIds = new Set(oldRows.map((row) => row.id));
+          const newIds = new Set(newRows.map((row) => row.id));
+          const reordered = !equal(
+            oldRows.filter((row) => newIds.has(row.id)).map((row) => row.id),
+            newRows.filter((row) => oldIds.has(row.id)).map((row) => row.id),
+          );
+          if (strict && reordered) throw new StateConflict();
+          for (const change of diffRows(oldRows, newRows)) applyChange(rows, change);
+          if (reordered) {
+            const order = new Map(newRows.map((row, index) => [row.id, index]));
+            rows.sort(
+              (left, right) => (order.get(left.id) ?? Infinity) - (order.get(right.id) ?? Infinity),
+            );
+          }
+        } else if (module === 'tagColors' || (module === 'timelog' && field === 'settings')) {
+          patch(
+            current[field] as Record<string, unknown>,
+            previous[field] as Record<string, unknown>,
+            changed[field] as Record<string, unknown>,
+            module !== 'tagColors',
+          );
+        } else {
+          patch(
+            current,
+            { [field]: previous[field] },
+            Object.hasOwn(changed, field) ? { [field]: changed[field] } : {},
+          );
+        }
       }
+    }
   }
   return stateSchema.parse(next);
 }

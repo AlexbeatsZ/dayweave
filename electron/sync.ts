@@ -84,7 +84,7 @@ export class DesktopSync implements SyncBridge {
   async status(): Promise<SyncStatus> {
     const c = this.client.config;
     return {
-      ...this.client.status(),
+      ...(await this.client.readStatus()),
       ...(c.hub
         ? {
             connected: !!this.server,
@@ -135,6 +135,10 @@ export class DesktopSync implements SyncBridge {
   async now() {
     await this.client.now();
     return this.status();
+  }
+  async setEndpoint(endpoint: string) {
+    await this.client.setEndpoint(endpoint);
+    return this.now();
   }
   async resolve(index: number, keepLocal: boolean) {
     await this.client.resolve(index, keepLocal);
