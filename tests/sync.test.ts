@@ -19,6 +19,76 @@ import { DesktopSync } from '../electron/sync.js';
 import { StateService } from '../electron/state-service.js';
 import { FileStore } from '../electron/storage.js';
 
+test('coalesced in-flight exchange preserves later edits and uses one outgoing snapshot', async () => {
+  let state = emptyState();
+  let reads = 0;
+  let release!: () => void;
+  let notify!: () => void;
+  const entered = new Promise<void>((resolve) => {
+    notify = resolve;
+  });
+  const waiting = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const key = randomKey();
+  let posts = 0;
+  const client = new SyncClient(
+    { read: async () => null, write: async () => {} },
+    {
+      snapshot: async () => {
+        reads++;
+        return { state: structuredClone(state) };
+      },
+      mutate: async (transform) => {
+        state = transform(state);
+      },
+    },
+    async (_endpoint, _route, body) => {
+      posts++;
+      const request = await openEnvelope<{ seq: number; state: AppState }>(body, key, '/sync');
+      if (posts === 1) {
+        notify();
+        await waiting;
+      }
+      return seal(
+        {
+          seq: request.seq,
+          hubId: 'hub',
+          revision: String(posts),
+          state: request.state,
+          base: toDocument(request.state),
+        },
+        key,
+        '/sync:reply',
+        client.config.deviceId,
+      );
+    },
+    'test',
+  );
+  await client.load();
+  Object.assign(client.config, {
+    enabled: true,
+    endpoint: 'http://127.0.0.1:49732',
+    hubId: 'hub',
+    key,
+  });
+  const first = client.now();
+  await entered;
+  const later = newTask('created while sending');
+  state.tasks.push(later);
+  assert.equal(client.now(), first);
+  release();
+  await first;
+  assert.equal(reads, 1);
+  assert.equal(posts, 1);
+  assert.equal(state.tasks[0].id, later.id);
+  assert.equal(client.config.base?.['tasks/' + later.id], undefined);
+  await client.now();
+  assert.equal(reads, 2);
+  assert.equal(posts, 2);
+  assert.ok(client.config.base?.['tasks/' + later.id]);
+});
+
 test('open records round-trip without ticks; closed timing wins over stale pause and note edits', () => {
   const a = emptyState();
   a.timelog = startTimer(a.timelog, 'study', '跨设备', Date.now() - 20000);
@@ -156,6 +226,20 @@ test('real encrypted hub with two clients: pairing, offline merge, cross-device 
     await b.client.pair(await hub.invite(), endpoint);
     await b.client.now();
     assert.equal(b.client.connected, true, b.client.error);
+    const sequence = a.client.config.seq;
+    await Promise.all(Array.from({ length: 20 }, () => a.client.now()));
+    assert.equal(a.client.config.seq, sequence + 1);
+    const originalSnapshot = service.snapshot.bind(service);
+    service.snapshot = async () => {
+      throw new Error('simulated disk failure');
+    };
+    await a.client.now();
+    assert.equal(a.client.connected, false);
+    assert.match(a.client.error, /500/);
+    assert.doesNotMatch(a.client.error, /配对/);
+    service.snapshot = originalSnapshot;
+    await a.client.now();
+    assert.equal(a.client.connected, true, a.client.error);
     a.get().tasks.push(newTask('电脑离线'));
     b.get().tasks.push(newTask('手机离线'));
     await a.client.now();

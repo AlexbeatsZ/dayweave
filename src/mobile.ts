@@ -3,11 +3,15 @@ import { App as NativeApp } from '@capacitor/app';
 import { JsonRepository } from './persistence';
 import { stateSchema } from './model';
 import { SyncClient } from './sync/client';
+import { SyncScheduler } from './sync/scheduler';
 import { store } from './store';
 import { invitationText, pendingPairingKey } from './sync/invitation';
 let syncClient: SyncClient | undefined;
 let appActive = true;
-let syncBusy = false;
+const syncScheduler = new SyncScheduler(async () => {
+  await syncClient?.now();
+});
+let syncStarted = false;
 
 import { nativeFiles as files } from './native-files';
 export const isMobileApp = Capacitor.isNativePlatform();
@@ -58,8 +62,9 @@ export async function initializeMobile() {
     },
     {
       snapshot: async () => {
-        await store.flush();
-        return { state: store.get() };
+        const snapshot = await store.flush();
+        if (!snapshot.loaded || snapshot.error) throw new Error(snapshot.error || '数据尚未载入');
+        return { state: snapshot.data };
       },
       mutate: (transform) => store.transact(transform),
     },
@@ -108,7 +113,8 @@ export async function initializeMobile() {
   }
   await NativeApp.addListener('appStateChange', ({ isActive }) => {
     appActive = isActive;
-    if (isActive) void syncMobileNow();
+    if (syncStarted && isActive) syncScheduler.start();
+    else syncScheduler.stop();
   });
   const openUrl = (url: string) => {
     if (url === 'dayweave://timetable') location.hash = 'timetable';
@@ -130,17 +136,15 @@ export async function initializeMobile() {
     if (document.dispatchEvent(event)) void NativeApp.minimizeApp();
   });
 }
-async function syncMobileNow() {
-  if (!appActive || syncBusy || !syncClient) return;
-  syncBusy = true;
-  try {
-    await syncClient.now();
-  } finally {
-    syncBusy = false;
-  }
-}
 export function startMobileSync() {
-  if (!isMobileApp) return;
-  void syncMobileNow();
-  setInterval(() => void syncMobileNow(), 2000);
+  if (!isMobileApp || syncStarted) return;
+  syncStarted = true;
+  let previous = store.get();
+  store.subscribe(() => {
+    const current = store.get();
+    if (previous === current) return;
+    previous = current;
+    syncScheduler.request();
+  });
+  if (appActive) syncScheduler.start();
 }

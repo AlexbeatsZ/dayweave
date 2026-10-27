@@ -10,6 +10,7 @@ export class SyncClient {
   connected = false;
   private lastDiscovery = 0;
   private tail: Promise<unknown> = Promise.resolve();
+  private inFlight?: Promise<SyncStatus>;
   constructor(
     readonly storage: SyncStorage,
     readonly state: SyncState,
@@ -123,12 +124,19 @@ export class SyncClient {
       return this.status();
     });
   }
-  async now() {
+  now() {
+    this.inFlight ??= this.exchange().finally(() => {
+      this.inFlight = undefined;
+    });
+    return this.inFlight;
+  }
+  private exchange() {
     return this.exclusive(async () => {
       const c = this.config;
       if (!c.enabled || c.hub || !c.endpoint || !c.key) return this.status();
       try {
-        const sent = toDocument((await this.state.snapshot()).state);
+        const snapshot = (await this.state.snapshot()).state;
+        const sent = toDocument(snapshot);
         const dirty = !c.base || stable(sent) !== stable(c.base);
         c.seq++;
         await this.save();
@@ -136,7 +144,7 @@ export class SyncClient {
           seq: c.seq,
           name: c.name,
           revision: c.revision,
-          ...(dirty ? { state: (await this.state.snapshot()).state, base: c.base ?? {} } : {}),
+          ...(dirty ? { state: snapshot, base: c.base ?? {} } : {}),
         };
         // Capture exactly the state sent, so edits during the request remain pending.
         const document = request.state ? toDocument(request.state) : sent;

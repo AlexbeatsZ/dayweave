@@ -4,6 +4,7 @@ import path from 'node:path';
 import os from 'node:os';
 import Bonjour from 'bonjour-service';
 import { SyncClient, fetchEnvelope } from '../src/sync/client.js';
+import { SyncScheduler } from '../src/sync/scheduler.js';
 import { localEndpoint, openEnvelope, randomKey, seal, type Envelope } from '../src/sync/crypto.js';
 import { fromDocument, mergeDocuments, toDocument } from '../src/sync/document.js';
 import { stateSchema } from '../src/model.js';
@@ -61,8 +62,8 @@ export class DesktopSync implements SyncBridge {
   readonly client: SyncClient;
   private server?: Server;
   private publisher?: Bonjour;
-  private timer?: ReturnType<typeof setInterval>;
-  private syncing = false;
+  private readonly scheduler: SyncScheduler;
+  private unsubscribe?: () => void;
   constructor(
     readonly service: StateService,
     readonly directory: string,
@@ -71,19 +72,13 @@ export class DesktopSync implements SyncBridge {
     this.client = new SyncClient(syncFiles(directory), service, fetchEnvelope, os.hostname(), () =>
       this.discover(),
     );
+    this.scheduler = new SyncScheduler(() => this.client.now());
   }
   async initialize() {
     await this.client.load();
     if (this.client.config.enabled && this.client.config.hub) await this.listen();
-    this.timer = setInterval(() => {
-      if (!this.syncing) {
-        this.syncing = true;
-        void this.client.now().finally(() => {
-          this.syncing = false;
-        });
-      }
-    }, 2000);
-    this.timer.unref();
+    this.unsubscribe = this.service.subscribe(() => this.scheduler.request());
+    this.scheduler.start();
     return this;
   }
   async status(): Promise<SyncStatus> {
@@ -196,6 +191,7 @@ export class DesktopSync implements SyncBridge {
       });
       request.on('end', () => {
         void this.client.exclusive(async () => {
+          let failureStatus = 401;
           try {
             const envelope = JSON.parse(Buffer.concat(chunks).toString('utf8')) as Envelope;
             if (!/^[\w-]{1,100}$/.test(envelope.clientId)) throw new Error('身份无效');
@@ -208,6 +204,7 @@ export class DesktopSync implements SyncBridge {
               const value = await openEnvelope<{ name: string }>(envelope, invitation.key, route);
               if (typeof value.name !== 'string' || value.name.length > 100)
                 throw new Error('设备名称无效');
+              failureStatus = 500;
               const key = randomKey();
               hub.clients[envelope.clientId] = { name: value.name, key, seq: 0 };
               hub.invite = undefined;
@@ -224,6 +221,7 @@ export class DesktopSync implements SyncBridge {
               const value = await openEnvelope<SyncRequest>(envelope, peer.key, route);
               if (!Number.isSafeInteger(value.seq) || value.seq <= peer.seq)
                 throw new Error('拒绝重放消息');
+              failureStatus = 500;
               peer.seq = value.seq;
               if (typeof value.name === 'string' && value.name.length <= 100)
                 peer.name = value.name;
@@ -266,7 +264,7 @@ export class DesktopSync implements SyncBridge {
               .writeHead(200, { 'Content-Type': 'application/json' })
               .end(JSON.stringify(result));
           } catch {
-            response.writeHead(401).end();
+            response.writeHead(failureStatus).end();
           }
         });
       });
@@ -310,7 +308,8 @@ export class DesktopSync implements SyncBridge {
     if (server) await new Promise<void>((resolve) => server.close(() => resolve()));
   }
   async close() {
-    if (this.timer) clearInterval(this.timer);
+    this.scheduler.stop();
+    this.unsubscribe?.();
     await this.stopServer();
   }
 }

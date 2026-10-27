@@ -30,6 +30,9 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Active Work
 
+- 2026-10-26 sync review: shared change-triggered scheduler (100ms batching, 2s polling fallback), coalesced now requests, one outgoing snapshot, Android failed-save upload guard, and authenticated-processing errors no longer mislabeled as pairing failure. Import success now waits for persistence. Source-only; installed packages unchanged.
+- Review follow-ups: whole-module optimistic conflicts can stall the renderer save queue; retry/reload/restore lack UI recovery routes, and StateService caches a failed initial load. These remain unfixed; do not discard queued edits to hide conflicts. Android still has no native background sync. Read-only live check: ROG ports 49731/49732 listening; local OMEN app/API not running/reachable at check time, superseding historical running-state claims above.
+
 - Real installed-app Fudan capture, physical gestures and new-field cross-device acceptance remain pending. Chrome DOM/API and minimal conversion replay are verified separately; current pairing state belongs to the deployment/sync log and is not changed by this capture fix.
 - LAN direct pairing works. Automatic mDNS discovery on the actual LAN remains unconfirmed. Android sync is foreground/resume only; background instantaneous propagation is not implemented.
 - Preserve keys only under ignored .local. Keep original repos/profiles untouched.

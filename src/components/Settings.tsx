@@ -41,12 +41,14 @@ export function Settings({
   }, []);
   const update = (patch: Partial<AppState['settings']>) =>
     store.update((s) => ({ ...s, settings: { ...s.settings, ...patch } }));
-  const receive = (value: unknown) => {
+  const receive = async (value: unknown) => {
     const before = store.get().tasks.length;
-    store.importData(value);
-    onMessage(
-      `导入完成，新增 ${store.get().tasks.length - before} 件任务，同 ID 任务按更新时间合并`,
-    );
+    try {
+      const saved = await store.importData(value);
+      onMessage(`导入完成，新增 ${saved.tasks.length - before} 件任务，同 ID 任务按更新时间合并`);
+    } catch (error) {
+      setError(`导入失败：${error instanceof Error ? error.message : String(error)}`);
+    }
   };
   return (
     <div
@@ -163,9 +165,9 @@ export function Settings({
                   setBusy(true);
                   try {
                     const value = await window.clearlist.importData();
-                    if (value) receive(value);
+                    if (value) await receive(value);
                   } catch {
-                    setError('导入失败：请使用有效的时织 JSON 备份，版本需为 1。原有数据未改变。');
+                    setError('导入失败：无法读取备份，请使用有效的 JSON 文件。原有数据未改变。');
                   } finally {
                     setBusy(false);
                   }
@@ -185,11 +187,12 @@ export function Settings({
                 const file = e.target.files?.[0];
                 if (!file) return;
                 setBusy(true);
+                setError('');
                 try {
                   if (file.size > 50 * 1024 * 1024) throw new Error('文件过大');
-                  receive(JSON.parse(await file.text()));
+                  await receive(JSON.parse(await file.text()));
                 } catch {
-                  setError('导入失败：请使用有效的时织 JSON 备份，版本需为 1。原有数据未改变。');
+                  setError('导入失败：无法读取备份，请使用有效的 JSON 文件。原有数据未改变。');
                 } finally {
                   setBusy(false);
                   e.target.value = '';

@@ -197,9 +197,14 @@ export const store = {
     setTimeout(() => URL.revokeObjectURL(url), 2000);
     return true;
   },
-  importData(data: unknown) {
-    const merged = mergeImport(snapshot.data, data);
-    store.update(() => merged);
+  async importData(data: unknown) {
+    return await store.transact((state) => {
+      try {
+        return stateSchema.parse(mergeImport(state, data));
+      } catch (cause) {
+        throw new Error('请使用有效的时织 JSON 备份，版本需为 1。原有数据未改变。', { cause });
+      }
+    });
   },
   async flush() {
     await pending;
