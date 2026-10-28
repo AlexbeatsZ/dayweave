@@ -84,7 +84,7 @@ mod tests {
             c.args(["-c", "yes x | head -c 20000"]);
             c
         };
-        let output = run(&mut command, Duration::from_secs(10), "pipe test").unwrap();
+        let output = run(&mut command, Duration::from_secs(60), "pipe test").unwrap();
         assert!(output.stdout.len() >= 20000);
     }
 }

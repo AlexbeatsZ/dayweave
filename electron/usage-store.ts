@@ -53,8 +53,9 @@ export class UsageStore implements UsageReplica {
       .get(event.id);
     if (existing) {
       const old = JSON.parse(String(existing.payload)) as UsageEvent;
-      const same =
-        JSON.stringify({ ...old, revision: 0 }) === JSON.stringify({ ...event, revision: 0 });
+      const same = (Object.keys(old) as (keyof UsageEvent)[]).every(
+        (key) => ['revision', 'deviceName', 'platform'].includes(key) || old[key] === event[key],
+      );
       if (same) return false;
       if (existing.owner !== owner && owner !== '@hub')
         throw new Error('此来源的记录由其他设备管理，不能覆盖');

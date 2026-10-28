@@ -110,6 +110,46 @@ test('hub increments delivery cursor for revisions and protects source ownership
     store.close();
   }
 });
+test('duplicate historical imports tolerate device display aliases but cannot change observations', async () => {
+  const store = new UsageStore(':memory:');
+  try {
+    store.import([event({ source: 'work-review', deviceName: 'OMEN', platform: 'windows' })]);
+    const duplicate = event({
+      source: 'work-review',
+      deviceName: 'Meta-OMEN',
+      platform: 'win32',
+      revision: 2,
+    });
+    const reply = await store.exchange('peer-a', {
+      requestId: crypto.randomUUID(),
+      events: [duplicate],
+      cursor: 0,
+      limit: 10,
+    });
+    assert.deepEqual(reply.accepted, [{ id: duplicate.id, revision: 2 }]);
+    assert.equal(store.status().count, 1);
+    assert.equal(reply.events[0].deviceName, 'OMEN');
+    await assert.rejects(
+      store.exchange('peer-a', {
+        requestId: crypto.randomUUID(),
+        events: [{ ...duplicate, end: duplicate.end + 1 }],
+        cursor: 0,
+        limit: 10,
+      }),
+    );
+    await assert.rejects(
+      store.exchange('peer-a', {
+        requestId: crypto.randomUUID(),
+        events: [{ ...duplicate, title: 'different observation' }],
+        cursor: 0,
+        limit: 10,
+      }),
+    );
+    assert.equal(store.status().count, 1);
+  } finally {
+    store.close();
+  }
+});
 test('stale acknowledgement never marks a newer local correction delivered', async () => {
   const store = new UsageStore(':memory:');
   try {
