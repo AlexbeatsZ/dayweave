@@ -10,6 +10,8 @@ playwright-report/
 .DS_Store
 *.log
 .local/
+native/collector/target/
+native-bin/
 android/.gradle/
 android/local.properties
 android/**/build/

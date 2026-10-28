@@ -18,6 +18,10 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test --locked --manifest-path native/collector/Cargo.toml --workspace
+      - run: npm run build:collector
+      - run: node scripts/smoke-collector.mjs
       - run: npm run format:check
       - run: npm test
       - run: npm run build
@@ -73,6 +77,10 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test --locked --manifest-path native/collector/Cargo.toml --workspace
+      - run: npm run build:collector
+      - run: node scripts/smoke-collector.mjs
       - run: npm test
       - run: npm run build
       - run: node scripts/smoke-desktop.mjs

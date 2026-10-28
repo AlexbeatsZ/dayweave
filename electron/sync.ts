@@ -10,6 +10,7 @@ import { fromDocument, mergeDocuments, toDocument } from '../src/sync/document.j
 import { stateSchema } from '../src/model.js';
 import type { Peer, SyncBridge, SyncRequest, SyncStatus } from '../src/sync/types.js';
 import type { StateService } from './state-service.js';
+import type { UsageReplica, UsageExchange } from '../src/usage/sync.js';
 
 export function syncFiles(directory: string) {
   const file = path.join(directory, 'sync.json');
@@ -59,6 +60,7 @@ export function lanAddresses(port: number) {
 }
 
 export class DesktopSync implements SyncBridge {
+  usage?: UsageReplica;
   readonly client: SyncClient;
   private server?: Server;
   private publisher?: Bonjour;
@@ -178,7 +180,7 @@ export class DesktopSync implements SyncBridge {
       response.setHeader('X-Content-Type-Options', 'nosniff');
       if (
         request.method !== 'POST' ||
-        !['/pair', '/sync'].includes(request.url ?? '') ||
+        !['/pair', '/sync', '/usage'].includes(request.url ?? '') ||
         request.headers.origin
       ) {
         response.writeHead(403).end();
@@ -222,6 +224,17 @@ export class DesktopSync implements SyncBridge {
             } else {
               const peer = hub.clients[envelope.clientId];
               if (!peer) throw new Error('设备未配对');
+              if (route === '/usage') {
+                if (!this.usage) throw new Error('自动记录存储尚未就绪');
+                const request = await openEnvelope<UsageExchange>(envelope, peer.key, route);
+                failureStatus = 500;
+                const reply = await this.usage.exchange(envelope.clientId, request);
+                result = await seal(reply, peer.key, route + ':reply', envelope.clientId);
+                response
+                  .writeHead(200, { 'Content-Type': 'application/json' })
+                  .end(JSON.stringify(result));
+                return;
+              }
               const value = await openEnvelope<SyncRequest>(envelope, peer.key, route);
               if (!Number.isSafeInteger(value.seq) || value.seq <= peer.seq)
                 throw new Error('拒绝重放消息');

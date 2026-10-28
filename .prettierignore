@@ -6,6 +6,8 @@ test-results/
 playwright-report/
 package-lock.json
 .local/
+native/collector/target/
+native-bin/
 android/.gradle/
 android/**/build/
 android/app/src/main/assets/

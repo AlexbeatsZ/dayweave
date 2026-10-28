@@ -2,6 +2,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 const seen = new Set();
 let text = fs.readFileSync('THIRD_PARTY_NOTICES.md', 'utf8');
+text +=
+  '\n\n## ActivityWatch Android adaptations - MPL-2.0\n\n' +
+  fs.readFileSync('licenses/MPL-2.0.txt', 'utf8');
 function include(name) {
   if (seen.has(name)) return;
   seen.add(name);

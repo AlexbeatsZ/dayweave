@@ -26,7 +26,37 @@ public class DayweaveFilesPlugin extends Plugin {
     private static final int MAX_BYTES = 50 * 1024 * 1024;
     private String exporting;
     private final java.util.concurrent.ExecutorService network = java.util.concurrent.Executors.newSingleThreadExecutor();
+    private final java.util.concurrent.ExecutorService usageData = java.util.concurrent.Executors.newSingleThreadExecutor();
+    private final java.util.concurrent.ExecutorService usageNetwork = java.util.concurrent.Executors.newSingleThreadExecutor();
     private boolean discovering = false;
+    @PluginMethod
+    public void usage(PluginCall call) {
+        String action=call.getString("action");
+        ("sync".equals(action)?usageNetwork:usageData).execute(() -> {
+            try (UsageDatabase database = new UsageDatabase(getContext())) {
+                JSObject value=call.getObject("value",new JSObject());
+                if("query".equals(action)){call.resolve(new JSObject(database.query(value).toString()));return;}
+                if("configure".equals(action)){database.configure(value);UsageWorker.schedule(getContext());}
+                else if("import".equals(action)){int count=database.insert(value.getJSONArray("events"));call.resolve(new JSObject().put("count",count));return;}
+                else if("sync".equals(action)){UsageCapture.collect(getContext());UsageSync.run(getContext());call.resolve();return;}
+                else if(!"status".equals(action))throw new IllegalArgumentException("Invalid usage action");
+                boolean enabled=database.settings().getBoolean("enabled");
+                String capture=!enabled?"未启用":UsageCapture.allowed(getContext())?"应用采集已授权，后台周期约 15 分钟":"请授予使用情况访问权限";
+                call.resolve(new JSObject(database.status(capture,database.meta("error","")).toString()));
+            } catch(Exception error){call.reject(error.getMessage(),error);}
+        });
+    }
+    @PluginMethod
+    public void usagePermission(PluginCall call) {
+        getActivity().runOnUiThread(() -> {
+            try {
+                String kind=call.getString("kind");
+                String action="usage".equals(kind)?android.provider.Settings.ACTION_USAGE_ACCESS_SETTINGS:"browser".equals(kind)?android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS:"battery".equals(kind)?android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS:null;
+                if(action==null)throw new IllegalArgumentException("Invalid permission");
+                getActivity().startActivity(new Intent(action));call.resolve();
+            } catch(Exception error){call.reject(error.getMessage(),error);}
+        });
+    }
     private static final class FudanRefresh {
         final PluginCall call;
         FudanBrowser browser;
@@ -94,7 +124,7 @@ public class DayweaveFilesPlugin extends Plugin {
             java.net.HttpURLConnection connection=null;
             try {
                 String route=call.getString("path");
-                if(!"/pair".equals(route)&&!"/sync".equals(route))throw new IllegalArgumentException("Invalid sync route");
+                if(!"/pair".equals(route)&&!"/sync".equals(route)&&!"/usage".equals(route))throw new IllegalArgumentException("Invalid sync route");
                 JSObject body=call.getObject("body");
                 if(body==null || body.length()!=3 || !body.has("clientId") || !body.has("iv") || !body.has("data"))throw new IllegalArgumentException("Encrypted sync envelope required");
                 byte[] bytes=body.toString().getBytes(StandardCharsets.UTF_8);
@@ -172,7 +202,7 @@ public class DayweaveFilesPlugin extends Plugin {
     @Override
     protected void handleOnDestroy() {
         cancelFudanRefresh(fudanSessions.close());
-        network.shutdownNow();super.handleOnDestroy();
+        network.shutdownNow();usageData.shutdownNow();usageNetwork.shutdownNow();super.handleOnDestroy();
     }
 
     private File file(String name) {

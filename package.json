@@ -20,6 +20,7 @@
     "node": ">=24"
   },
   "scripts": {
+    "build:collector": "node scripts/build-collector.mjs",
     "dev": "npm run build:electron && node scripts/dev.mjs",
     "dev:web": "vite --host 127.0.0.1 --port 5178 --strictPort",
     "build:electron": "tsc -p tsconfig.electron.json && node scripts/copy-preload.mjs && node scripts/build-fudan-capture.mjs",
@@ -46,6 +47,17 @@
     "test:tray": "npm run build && node scripts/smoke-tray.mjs"
   },
   "build": {
+    "extraResources": [
+      {
+        "from": "native-bin",
+        "to": "native-bin",
+        "filter": [
+          "work-review-agent",
+          "work-review-agent.exe",
+          "COLLECTOR_LICENSES.txt"
+        ]
+      }
+    ],
     "appId": "org.dayweave.desktop",
     "productName": "Dayweave",
     "directories": {

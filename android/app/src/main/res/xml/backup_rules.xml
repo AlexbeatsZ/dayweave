@@ -1,2 +1,2 @@
 <?xml version="1.0" encoding="utf-8"?>
-<full-backup-content><exclude domain="file" path="sync.json" /></full-backup-content>
+<full-backup-content><exclude domain="file" path="sync.json" /><exclude domain="database" path="usage.db" /><exclude domain="database" path="usage.db-wal" /><exclude domain="database" path="usage.db-shm" /></full-backup-content>

@@ -2,6 +2,9 @@ import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import electron from 'electron';
+import { existsSync } from 'node:fs';
+if (!existsSync('native-bin/work-review-agent'))
+  throw new Error('Run npm run build:collector for the selected architecture before packaging.');
 if (process.platform !== 'darwin') throw new Error('Build macOS packages on a Mac.');
 const arch = process.argv[2] ?? process.arch;
 if (!['arm64', 'x64'].includes(arch)) throw new Error('Choose arm64 or x64.');

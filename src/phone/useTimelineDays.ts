@@ -49,10 +49,19 @@ export function useTimelineDays(
     const scroll = () => {
       if (!frame) frame = requestAnimationFrame(inspect);
     };
+    const previousPadding = container.style.scrollPaddingTop;
+    const toolbar = container.querySelector('.phone-record-toolbar');
+    const resize = new ResizeObserver(() => {
+      container.style.scrollPaddingTop = `${(toolbar?.getBoundingClientRect().height || 0) + 12}px`;
+      scroll();
+    });
+    if (toolbar) resize.observe(toolbar);
     container.addEventListener('scroll', scroll, { passive: true });
     scroll();
     return () => {
       container.removeEventListener('scroll', scroll);
+      resize.disconnect();
+      container.style.scrollPaddingTop = previousPadding;
       cancelAnimationFrame(frame);
     };
   }, [enabled, window.anchor, window.count, window.revision]);

@@ -3,7 +3,7 @@ import { useStore } from '../store';
 import { Statistics } from '../components/Statistics';
 import { dayRange, formatDuration, formatPoints, stats } from '../timelog/domain';
 import { DateNavigator } from './DateNavigator';
-import { PhoneAnalysis } from './Analysis';
+import { RecordStatistics } from '../usage/Statistics';
 
 export type StatisticsPage = 'daily' | 'tasks' | 'records';
 export function PhoneStatistics({
@@ -21,12 +21,11 @@ export function PhoneStatistics({
   if (page === 'tasks') return <Statistics />;
   if (page === 'records')
     return (
-      <PhoneAnalysis
+      <RecordStatistics
         state={data.timelog}
-        date={dateKey()}
+        date={date}
         setDate={setDate}
         onTimeline={onTimeline}
-        allTime
       />
     );
   const tasks = data.tasks.filter((task) => !task.deletedAt),

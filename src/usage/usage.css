@@ -1,0 +1,215 @@
+.usage-toolbar {
+  display: grid;
+  gap: 6px;
+  padding: 6px 0;
+}
+.usage-toolbar .phone-segments,
+.usage-statistics > .phone-segments {
+  display: flex;
+  width: 100%;
+  margin: 0;
+}
+.usage-toolbar > .usage-actions {
+  flex-wrap: nowrap;
+}
+.usage-toolbar > .usage-actions > select {
+  flex: 1;
+  width: auto;
+}
+.usage-toolbar > .usage-actions > details {
+  flex: none;
+}
+.usage-toolbar .phone-segments button,
+.usage-statistics > .phone-segments button {
+  flex: 1;
+  min-width: 0;
+}
+.usage-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.usage-actions button,
+.usage-actions select,
+.usage-day-heading select {
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface, transparent);
+  color: inherit;
+  max-width: 100%;
+}
+.usage-actions details {
+  position: relative;
+  margin-left: auto;
+}
+.usage-menu {
+  position: absolute;
+  right: 0;
+  z-index: 10;
+  min-width: 230px;
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  background: var(--panel, var(--bg, #eee));
+  border: 1px solid var(--line);
+  box-shadow: 0 8px 24px #0002;
+  border-radius: 10px;
+}
+.usage-menu button {
+  text-align: left;
+}
+.usage-day-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  padding: 8px 0 14px;
+}
+.usage-day-heading label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.usage-aligned {
+  position: relative;
+  min-width: 0;
+  margin: 10px 0 25px;
+}
+.usage-ruler {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-left: 1px solid var(--line);
+}
+.usage-ruler time {
+  position: absolute;
+  left: -27px;
+  width: 54px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  color: var(--muted);
+  transform: translateY(-50%);
+  background: var(--bg);
+}
+.usage-lane {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+.usage-lane.manual {
+  left: 0;
+  width: calc(50% - 34px);
+}
+.usage-lane.automatic {
+  right: 0;
+  width: calc(50% - 34px);
+}
+.usage-aligned.automatic .usage-ruler {
+  left: 27px;
+}
+.usage-aligned.automatic .usage-lane.automatic {
+  width: calc(100% - 64px);
+}
+.usage-aligned .usage-block {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+  justify-content: start;
+  gap: 2px;
+  min-height: 0;
+  padding: 0 5px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--usage-color) 55%, transparent);
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--usage-color) 12%, var(--bg, white));
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 16px;
+}
+.usage-block strong,
+.usage-block span,
+.usage-block small {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.usage-aligned .usage-block.web {
+  border-left: 3px solid #a687bb;
+}
+.usage-aligned .usage-block.unlock {
+  background: #c59b5960;
+}
+.usage-detail {
+  padding: 0 20px 20px;
+  overflow-wrap: anywhere;
+}
+.usage-settings {
+  display: grid;
+  gap: 12px;
+}
+.usage-settings > label:not(.check-label) {
+  display: grid;
+  gap: 6px;
+}
+.usage-setting-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.usage-setting-grid label {
+  display: grid;
+  gap: 5px;
+}
+.usage-settings textarea,
+.usage-setting-grid input {
+  width: 100%;
+  box-sizing: border-box;
+  background: transparent;
+  color: inherit;
+  border: 1px solid var(--line);
+  padding: 8px;
+  border-radius: 7px;
+}
+.usage-statistics {
+  display: grid;
+  gap: 14px;
+}
+.usage-breakdown {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line);
+}
+.usage-breakdown span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.usage-breakdown strong {
+  white-space: nowrap;
+}
+.usage-empty {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+@media (max-width: 700px) {
+  .usage-block {
+    font-size: 10px;
+    padding-inline: 2px;
+  }
+  .usage-day-heading {
+    flex-wrap: wrap;
+  }
+}

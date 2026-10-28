@@ -9,8 +9,26 @@ import { invitationText, pendingPairingKey } from './sync/invitation';
 let syncClient: SyncClient | undefined;
 let appActive = true;
 const syncScheduler = new SyncScheduler(async () => {
+  const now = Date.now();
+  if (now - lastUsageSync > 15000) {
+    lastUsageSync = now;
+    void nativeUsageSync();
+  }
   await syncClient?.now();
 });
+let lastUsageSync = 0;
+let usageSyncRunning = false;
+async function nativeUsageSync() {
+  if (usageSyncRunning) return;
+  usageSyncRunning = true;
+  try {
+    await files.usage({ action: 'sync' });
+  } catch {
+  } finally {
+    usageSyncRunning = false;
+    window.dispatchEvent(new Event('dayweave:usage'));
+  }
+}
 let syncStarted = false;
 
 import { nativeFiles as files } from './native-files';
@@ -24,6 +42,14 @@ export async function initializeMobile() {
     write: (name, content) => files.write({ name, content }),
   });
   window.clearlist = {
+    usage: {
+      query: (query) => files.usage({ action: 'query', value: query }),
+      status: () => files.usage({ action: 'status' }),
+      configure: (settings) => files.usage({ action: 'configure', value: settings }),
+      import: async (events) => (await files.usage({ action: 'import', value: { events } })).count,
+      sync: () => files.usage({ action: 'sync' }),
+      permission: (kind) => files.usagePermission({ kind }),
+    },
     platform: 'android',
     load: async () => ({ ...(await repository.load()), path: '此设备 · 应用私有存储' }),
     save: (state) => repository.save(state),

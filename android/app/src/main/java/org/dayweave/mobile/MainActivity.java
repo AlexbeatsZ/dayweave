@@ -8,5 +8,6 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(DayweaveFilesPlugin.class);
         super.onCreate(savedInstanceState);
+        UsageWorker.schedule(this);
     }
 }

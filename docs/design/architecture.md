@@ -1,5 +1,7 @@
 # 结构与状态归属
 
+自动设备观察是独立领域，不属于手动 timelog 状态副本：`src/usage` 定义导入/校验/统计和原生桥，`electron/usage-store.ts`、Android `UsageDatabase` 各自拥有本机 SQLite 和交付队列。只读投影进入同一时间线和记录统计，不创建第二套导航或手动积分。设备本机采集设置与权限不参与共享业务 JSON。详细契约见 `automatic-records.md`。
+
 ## 原则
 
 保存冲突恢复统一由 StorageRecovery 和 store 管理；界面不直接清理保存队列或覆盖文件。模块 delta 复用同一实体/字段合并规则，计时器等整体不变量保持原子比较。同步仍使用已有 StateService、加密文档和调度器；HTTPS 只是传输入口，已保存状态与确认基线派生待同步状态，incoming 日志只承担跨文件提交恢复，不成为第二份业务真相。

@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources><string name="usage_browser_description">可选：读取浏览器地址栏以记录网址和访问时长。不会点击、输入、截图或上传页面内容；需先在时织设置中开启浏览器采集。</string></resources>

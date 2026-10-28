@@ -20,6 +20,8 @@ import { startApi } from './api.js';
 import { diffState } from '../src/state-delta.js';
 import { DesktopSync } from './sync.js';
 import { importFudan } from './fudan-import.js';
+import { UsageStore } from './usage-store.js';
+import { DesktopUsage } from './usage.js';
 
 app.setName('Dayweave');
 app.setPath(
@@ -37,9 +39,12 @@ let allowClose = false,
 let api: Awaited<ReturnType<typeof startApi>> | undefined;
 let apiError = '';
 let sync: DesktopSync | undefined;
+let usage: DesktopUsage | undefined;
 let syncError = '';
 const trayMode = process.argv.includes('--tray');
 let tray: Tray | undefined;
+let shutdown: Promise<void> | undefined;
+let shutdownComplete = false;
 const locked = app.requestSingleInstanceLock();
 if (!locked) app.quit();
 else {
@@ -115,8 +120,18 @@ else {
     if (argv.includes('--tray')) return;
     showWindow();
   });
-  app.on('before-quit', () => {
+  app.on('before-quit', (event) => {
     quitting = true;
+    if ((!window || allowClose) && !shutdownComplete) {
+      event.preventDefault();
+      shutdown ??= (async () => {
+        await sync?.close();
+        await usage?.close();
+        await api?.close();
+        shutdownComplete = true;
+        app.quit();
+      })();
+    }
   });
   app.whenReady().then(async () => {
     const unlock = await lockProfile(app.getPath('userData'));
@@ -159,6 +174,28 @@ else {
     ipcMain.handle('fudan:import', (event) => {
       trusted(event);
       return importFudan(window!);
+    });
+    for (const method of ['query', 'status', 'configure', 'import', 'sync'] as const) {
+      ipcMain.handle(`usage:${method}`, (event, ...args) => {
+        trusted(event);
+        if (!usage) throw new Error('自动记录存储尚未启动');
+        return (usage[method] as (...args: unknown[]) => unknown).apply(usage, args);
+      });
+    }
+    ipcMain.handle('usage:source', async (event, kind: unknown) => {
+      trusted(event);
+      if (!usage || !['work-review', 'activitywatch'].includes(String(kind)))
+        throw new Error('无效来源');
+      const result = await dialog.showOpenDialog(window!, {
+        title:
+          kind === 'work-review'
+            ? '连接 Work Review SQLite 数据库（只读）'
+            : '连接 AW 接收数据目录（只读）',
+        properties: [kind === 'work-review' ? 'openFile' : 'openDirectory'],
+      });
+      if (result.canceled) return false;
+      await usage.connectSource(kind as 'work-review' | 'activitywatch', result.filePaths[0]);
+      return true;
     });
     ipcMain.handle('text:pick', async (event) => {
       trusted(event);
@@ -287,7 +324,7 @@ else {
           return;
         }
       }
-      if (trayMode && !quitting) {
+      if ((trayMode || usage?.store.settings().enabled) && !quitting) {
         closing = false;
         window?.hide();
       } else {
@@ -299,14 +336,24 @@ else {
       nativeTheme.themeSource = snapshot.state.settings.theme;
       window?.webContents.send('store:changed', snapshot);
     });
-    createWindow(!trayMode);
     await initializeApi();
     try {
       sync = await new DesktopSync(service, app.getPath('userData')).initialize();
+      usage = await new DesktopUsage(
+        new UsageStore(path.join(app.getPath('userData'), 'usage.db')),
+        sync,
+        app.getPath('userData'),
+        path.join(
+          app.isPackaged ? process.resourcesPath : app.getAppPath(),
+          'native-bin',
+          process.platform === 'win32' ? 'work-review-agent.exe' : 'work-review-agent',
+        ),
+      ).initialize();
     } catch (error) {
       syncError = (error as Error).message;
     }
-    if (trayMode) {
+    createWindow(!trayMode);
+    {
       const icon = nativeImage
         .createFromPath(path.join(directory, '../../dist/tray.png'))
         .resize({ width: 20, height: 20 });
@@ -350,11 +397,13 @@ else {
     }
   }
   app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin' && (!trayMode || quitting)) app.quit();
+    if (
+      process.platform !== 'darwin' &&
+      ((!trayMode && !usage?.store.settings().enabled) || quitting)
+    )
+      app.quit();
   });
   app.on('will-quit', () => {
-    void api?.close();
-    void sync?.close();
     tray?.destroy();
   });
 }

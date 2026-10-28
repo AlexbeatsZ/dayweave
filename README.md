@@ -1,6 +1,6 @@
 # 时织 · Dayweave
 
-把待办、时间记录和课程表放在一个离线程序里。基于本人的开源项目 [Clearlist](https://github.com/AlexbeatsZ/clearlist) 和 [Open Timelog](https://github.com/AlexbeatsZ/open-timelog) 整合，MIT 许可。
+把待办、时间记录和课程表放在一个离线程序里。基于本人的开源项目 [Clearlist](https://github.com/AlexbeatsZ/clearlist) 和 [Open Timelog](https://github.com/AlexbeatsZ/open-timelog) 整合，主体采用 MIT 许可；自动采集来源与第三方代码的许可范围见 [来源声明](THIRD_PARTY_NOTICES.md)。
 
 ## 下载
 
@@ -24,6 +24,12 @@ Windows 直接运行 EXE；macOS 将应用拖入 Applications；Android 安装 A
 - **浅色 / 深色 / 跟随系统**；所有数据保存在本地，无需账号。
 
 手机三条杠菜单打开侧栏，PC 侧栏始终显示：待办侧栏管理清单与待办标签，记录侧栏管理活动与活动标签，均可新增、修改颜色和删除；设置与同步也从侧栏进入。窗口跨手机/桌面断点时，当前子页、运行计时和未保存草稿保留；PC 按 N 可新建任务。
+
+## 自动设备记录（开发中，尚未部署）
+
+本次源码合入本人的 Work Review 原生采集器与 ActivityWatch Android 的应用/浏览器观察能力。设置中的「自动记录」统一管理本机采集、网址开关和隐私过滤；时间线可切换手动、自动、左右对齐对照；「统计 → 记录」查看各设备、应用、来源分类、网站和解锁。自动观察不会增加手动积分。
+
+默认不采集，截图/OCR 固定关闭。安装版可经现有加密中心同步全部设备；浏览器版仅支持历史导入查看。时间线的「载入与同步」接入旧 AW/Work Review JSON；桌面还可选择旧数据库或 AW 接收目录，只读载入。中心和客户端均需升级才支持自动记录同步；现有已安装 0.4.3 未被本次源码改动替换。构建前先运行 `npm run build:collector`，需要 Rust 工具链。隐私、许可与尚未迁入的高级能力见 [自动记录设计](docs/design/automatic-records.md)。
 
 ## UTC−4 设备，UTC+8 课程
 

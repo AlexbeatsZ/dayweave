@@ -18,6 +18,7 @@ import { ColorPicker } from './ColorPicker';
 import { activeActivity } from '../timelog/domain';
 import { Modal } from './Modal';
 import { SyncSettings } from './SyncSettings';
+import { UsageSettingsPanel } from '../usage/Settings';
 
 export function Settings({
   onClose,
@@ -75,6 +76,7 @@ export function Settings({
         </header>
         <div className="modal-body">
           <SyncSettings />
+          <UsageSettingsPanel />
           <section className="settings-section">
             <h3>外观</h3>
             <div className="theme-choices">

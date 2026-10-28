@@ -2,6 +2,9 @@ import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import electron from 'electron';
+import { existsSync } from 'node:fs';
+if (!existsSync('native-bin/work-review-agent.exe'))
+  throw new Error('Run npm run build:collector before packaging.');
 
 if (process.platform !== 'win32' || process.arch !== 'x64') {
   throw new Error('Windows x64 packaging must run on Windows x64.');

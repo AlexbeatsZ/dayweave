@@ -29,6 +29,8 @@ import { Goals } from './components/Goals';
 import { useTimelineDays } from '../phone/useTimelineDays';
 import { TimerPanel } from './components/TimerPanel';
 import { DateNavigator } from '../phone/DateNavigator';
+import { AlignedUsageTimeline, UsageToolbar, type TimelineMode } from '../usage/Timeline';
+import { useUsage } from '../usage/client';
 export type TimePage = 'timeline' | 'timer' | 'goals';
 type Confirm = { title: string; body: string; action: () => Promise<boolean> };
 const activityStyle = (color: string) => ({ '--activity-color': color }) as CSSProperties;
@@ -50,6 +52,9 @@ export default function Workspace({
   const state = data.timelog;
   const [date, setVisibleDate] = useState(initialDate ?? dayKey(Date.now()));
   const now = useClock();
+  const [timelineMode, setTimelineMode] = useState<TimelineMode>('manual');
+  const [usageDevice, setUsageDevice] = useState('');
+  const usage = useUsage();
   const timeline = useTimelineDays(page === 'timeline', date, setVisibleDate);
   const setDate = timeline.jump;
   const [editor, setEditor] = useState<EditTarget | null>(null),
@@ -294,6 +299,14 @@ export default function Workspace({
                 <div className="panel-toolbar">
                   <DateNavigator date={date} onDate={setDate} />
                 </div>
+                <UsageToolbar
+                  mode={timelineMode}
+                  setMode={setTimelineMode}
+                  deviceId={usageDevice}
+                  setDeviceId={setUsageDevice}
+                  day={date}
+                  status={usage.status}
+                />
                 <FloatingAdd
                   label="添加记录"
                   disabled={date > dayKey(now)}
@@ -301,7 +314,7 @@ export default function Workspace({
                 />
                 <div className="timeline-summary">
                   <span>
-                    已记录 <strong>{formatDuration(daily.tracked)}</strong>
+                    手动记录 <strong>{formatDuration(daily.tracked)}</strong>
                   </span>
                   <span>
                     积极 <strong>{formatDuration(daily.positive)}</strong>
@@ -351,15 +364,30 @@ export default function Workspace({
                           weekday: 'short',
                         })}
                       </h2>
-                      <TimelineEntries
-                        entries={shown}
-                        day={day}
-                        renderRecord={(row) => renderRecord(row, day, group)}
-                        addRecord={addRecord}
-                        showTimer={() => onPageChange('timer')}
-                        timerName={timer ? getActivity(timer.activityId).name : ''}
-                      />
-                      {!shown.length && (
+                      {timelineMode !== 'manual' ? (
+                        <AlignedUsageTimeline
+                          day={day}
+                          state={state}
+                          now={now}
+                          mode={timelineMode}
+                          deviceId={usageDevice}
+                          filter={filter}
+                          onManual={(id) => {
+                            const record = state.records.find((row) => row.id === id);
+                            if (record) setEditor({ kind: 'record', record });
+                          }}
+                        />
+                      ) : (
+                        <TimelineEntries
+                          entries={shown}
+                          day={day}
+                          renderRecord={(row) => renderRecord(row, day, group)}
+                          addRecord={addRecord}
+                          showTimer={() => onPageChange('timer')}
+                          timerName={timer ? getActivity(timer.activityId).name : ''}
+                        />
+                      )}
+                      {timelineMode === 'manual' && !shown.length && (
                         <p className="phone-analysis-empty">
                           {filter?.activityId || filter?.tag
                             ? '没有匹配记录'

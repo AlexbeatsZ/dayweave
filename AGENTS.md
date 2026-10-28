@@ -4,6 +4,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Current State
 
+- Unreleased automatic-record integration: `src/usage`, `electron/usage*.ts`, Android Usage* and `native/collector` add local SQLite observations, opt-in native collection, three timeline modes, records statistics and encrypted `/usage` incremental sync. Read `docs/design/automatic-records.md` before changing this boundary. Installed five-device 0.4.3 profiles/services remain unchanged; their old hub does not support `/usage` yet. Screenshots/OCR and old advanced Work Review rules/report UI are not enabled or migrated.
+
 - 2026-10-27 current release/build: 0.4.3 / Android versionCode 10, containing the subtask, sync scheduler, HTTPS, granular delta and recovery fixes below. Installed in-place on local OMEN, ROG, Mac arm64, Pad 6 Pro and Redmi K70; older 0.4.2/unreleased statements below describe historical checkpoints. Desktop profile/pairing backups retained in each host's temporary .agents/dayweave-upgrade-0.4.3-*; identities preserved. Mobile updates used adb install -r with unchanged firstInstallTime, no data clear or UI operations.
 - ROG 0.4.3 DayweaveHub task resumed: storage ready, hub connected. Mac 0.4.3: storage ready, connected/synced. OMEN 0.4.3: persisted lastSync advances, 1186 tasks/1004 records match hub/Mac at check; two pre-existing conflicts retained. Its loopback AI API cannot bind 49731 (EACCES; Windows excludes 49692-49791), independently of working sync; no system port configuration changed. /health still reports a hard-coded old version, so inspect installed binary/bundle version instead. Android installation confirmed, actual foreground/device flows not exercised. Public HTTPS ingress still unconfigured.
 
@@ -43,6 +45,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Build / Run / Test
 
+- Automatic records: `npm run build:collector` before desktop packaging (Rust toolchain required); `cargo test --manifest-path native/collector/Cargo.toml --locked --workspace`; `npm run test:e2e -- tests/e2e/usage.spec.ts`. Do not test capture against live profiles. Browser build can only import/view historical usage, not perform native capture/sync.
+
 - npm ci; npm test; npm run build; npm run test:e2e; npm run test:api.
 - npm run dist:win; npm run dist:android; npm run dist:mac (macOS). Packaging does not authorize installation/publication.
 - Fudan changes: npm run test:e2e -- tests/e2e/fudan-refresh.spec.ts; npm run build; node scripts/smoke-fudan.mjs; Android testDebugUnitTest.
@@ -67,6 +71,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 - For sideloaded builds, omit Xiaomi-market miuiWidget/miuiWidgetVersion markers: the standard Android picker then exposes both variants on the tested Pad 6 Pro. A successful requestPinAppWidget result does not prove Xiaomi showed a confirmation; keep manual picker instructions.
 
 # Docs Index
+
+- docs/design/automatic-records.md: native collectors, AW/Work Review adapters, aligned timeline, separate SQLite ownership, usage sync, privacy and acceptance limits.
 
 - docs/design/integration.md: unified state, migration, timezone, widget and API contracts.
 - docs/design/storage.md: inherited durable task storage.

@@ -1,5 +1,10 @@
 import { registerPlugin } from '@capacitor/core';
 export interface NativeFiles {
+  usage(options: {
+    action: 'query' | 'status' | 'configure' | 'import' | 'sync';
+    value?: unknown;
+  }): Promise<any>;
+  usagePermission(options: { kind: 'usage' | 'browser' | 'battery' }): Promise<void>;
   deviceInfo(): Promise<{ name: string }>;
   read(options: { name: string }): Promise<{ content: string | null }>;
   write(options: { name: string; content: string }): Promise<void>;

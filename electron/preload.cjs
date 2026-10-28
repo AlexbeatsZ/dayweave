@@ -1,6 +1,13 @@
 const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('clearlist', {
   platform: process.platform,
+  usageSource: (kind) => ipcRenderer.invoke('usage:source', kind),
+  usage: Object.fromEntries(
+    ['query', 'status', 'configure', 'import', 'sync'].map((method) => [
+      method,
+      (...args) => ipcRenderer.invoke(`usage:${method}`, ...args),
+    ]),
+  ),
   sync: Object.fromEntries(
     [
       'status',

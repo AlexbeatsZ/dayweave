@@ -2,6 +2,8 @@
 
 ## Data and migration
 
+Automatic device observations are deliberately outside this JSON: local WAL SQLite stores events and upload/download cursors, and the existing encrypted hub gains a separate `/usage` exchange. AW/Work Review imports are explicit and read-only against the selected external source. The timeline and records-statistics pages project both domains without creating manual records, points or task completion. See `automatic-records.md` for source identity, native permission, backup and rollout boundaries.
+
 One validated JSON file owns tasks/lists/tag colors, timelog and schedule. Legacy Pomodoro fields are read only for old backup compatibility; the feature and API routes are removed. Original Clearlist v1 files are accepted by defaulting new fields. Open Timelog backup merges through its original conflict-aware domain implementation. All imports are explicit; original apps and profiles are not accessed. Module edits use whole-module optimistic compare-and-swap; task fields retain independent field merges.
 
 Task `estimatedMinutes` and `actualMinutes` are independently optional/nullable, finite nonnegative minute values; zero and fractional minutes are valid. Omission preserves legacy data and an unrelated PATCH must retain existing values; explicit `null` clears a value. The common new/edit form never fills actual time from records: saved, non-deleted records linked by `taskId` provide a separate read-only cumulative reference, excluding a running timer. Recurring tasks inherit the estimate but start each occurrence with no actual value. Task deltas and synchronization merge these properties as independent fields.
