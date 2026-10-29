@@ -6,6 +6,11 @@ import java.util.Arrays;
 import java.util.List;
 
 public class UsageSessionsTest {
+    @Test public void firstEnableReadsRecentLocalHistoryButResumeDoesNotBackfillDisabledTime() {
+        long now = 20L * 86400000;
+        assertEquals(13L * 86400000, UsageSessions.captureStart(now, false));
+        assertEquals(now, UsageSessions.captureStart(now, true));
+    }
     @Test public void duplicateResumeAndOtherPackagePauseDoNotTruncateSession() {
         List<UsageSessions.Session> result=UsageSessions.build(Arrays.asList(new UsageSessions.Event(10,1,"editor"),new UsageSessions.Event(12,1,"editor"),new UsageSessions.Event(15,2,"other"),new UsageSessions.Event(20,2,"editor")),30);
         assertEquals(1,result.size());assertEquals(10,result.get(0).start);assertEquals(20,result.get(0).end);

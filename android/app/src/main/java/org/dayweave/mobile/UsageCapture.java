@@ -38,6 +38,7 @@ final class UsageCapture {
             long now=System.currentTimeMillis(),first=Long.parseLong(database.meta("captureSince","0"));
             if(first==0){first=now;database.meta("captureSince",String.valueOf(first),database.getWritableDatabase());}
             long previous=Long.parseLong(database.meta("lastScan",String.valueOf(first)));
+            if(now-previous<1000)return;
             long since=Math.max(first,previous-7L*86400000);
             UsageStatsManager manager=(UsageStatsManager)context.getSystemService(Context.USAGE_STATS_SERVICE);
             UsageEvents usage=manager.queryEvents(since,now);if(usage==null)throw new IllegalStateException("使用情况数据暂不可用，请解锁后重试");

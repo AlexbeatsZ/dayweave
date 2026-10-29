@@ -68,11 +68,6 @@ export function SyncSettings() {
         <p>设备同步在 Windows、macOS 和 Android 应用中可用。</p>
       ) : (
         <>
-          <p>
-            ROG
-            作为同步中心。配对后打开或回到前台自动同步，前台持续交换；后台可暂停，离线修改重连后合并。公网连接使用
-            HTTPS 地址。
-          </p>
           {status && (
             <div className="sync-status">
               <i className={status.connected ? 'online' : ''} />

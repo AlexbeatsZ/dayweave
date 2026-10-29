@@ -61,6 +61,7 @@ export function lanAddresses(port: number) {
 
 export class DesktopSync implements SyncBridge {
   usage?: UsageReplica;
+  refreshUsage?: () => Promise<void>;
   readonly client: SyncClient;
   private server?: Server;
   private publisher?: Bonjour;
@@ -135,7 +136,7 @@ export class DesktopSync implements SyncBridge {
     return this.status();
   }
   async now() {
-    await this.client.now();
+    await Promise.all([this.client.now(), this.refreshUsage?.()]);
     return this.status();
   }
   async setEndpoint(endpoint: string) {

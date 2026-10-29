@@ -32,6 +32,7 @@ export type UsageQuery = {
 };
 export type UsagePage = { events: UsageEvent[]; next?: number; complete: boolean };
 export type UsageDevice = { id: string; name: string; platform: string; lastEvent: number };
+export type UsageApplication = { id: string; name: string; icon?: string };
 export const usageSettingsSchema = z.object({
   enabled: z.boolean(),
   sampleSeconds: z.number().int().min(2).max(300),
@@ -59,6 +60,7 @@ export type UsageStatus = {
   count: number;
   lastSync?: number;
   devices: UsageDevice[];
+  permissionRequired?: boolean;
 };
 export interface UsageBridge {
   query(query: UsageQuery): Promise<UsagePage>;
@@ -67,6 +69,7 @@ export interface UsageBridge {
   import(events: UsageEvent[]): Promise<number>;
   sync(): Promise<void>;
   permission?(kind: 'usage' | 'browser' | 'battery'): Promise<void>;
+  applications?(): Promise<UsageApplication[]>;
 }
 export const usageQuerySchema = z
   .object({

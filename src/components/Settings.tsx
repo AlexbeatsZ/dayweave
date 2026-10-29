@@ -1,16 +1,6 @@
 import { timeZones, deviceZone, zoneLabel } from '../timezone';
 import { useEffect, useRef, useState } from 'react';
-import {
-  X,
-  Download,
-  Upload,
-  Monitor,
-  Sun,
-  Moon,
-  Check,
-  FolderOpen,
-  ShieldCheck,
-} from 'lucide-react';
+import { X, Monitor, Sun, Moon, Check, ShieldCheck } from 'lucide-react';
 import { colors, uid, defaultTaskActivity, type AppState, type TaskList } from '../model';
 import { store, useStore } from '../store';
 import { useDialogFocus } from './useDialogFocus';
@@ -19,6 +9,7 @@ import { activeActivity } from '../timelog/domain';
 import { Modal } from './Modal';
 import { SyncSettings } from './SyncSettings';
 import { UsageSettingsPanel } from '../usage/Settings';
+import { version } from '../../package.json';
 
 export function Settings({
   onClose,
@@ -30,8 +21,6 @@ export function Settings({
   const snapshot = useStore();
   const dialogRef = useDialogFocus();
   const { settings } = snapshot.data;
-  const fileInput = useRef<HTMLInputElement>(null);
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [api, setApi] = useState<{ url: string; enabled: boolean } | null>(null);
   useEffect(() => {
@@ -42,15 +31,6 @@ export function Settings({
   }, []);
   const update = (patch: Partial<AppState['settings']>) =>
     store.update((s) => ({ ...s, settings: { ...s.settings, ...patch } }));
-  const receive = async (value: unknown) => {
-    const before = store.get().tasks.length;
-    try {
-      const saved = await store.importData(value);
-      onMessage(`导入完成，新增 ${saved.tasks.length - before} 件任务，同 ID 任务按更新时间合并`);
-    } catch (error) {
-      setError(`导入失败：${error instanceof Error ? error.message : String(error)}`);
-    }
-  };
   return (
     <div
       className="modal-backdrop"
@@ -102,7 +82,6 @@ export function Settings({
           </section>
           <section className="settings-section">
             <h3>日程时区</h3>
-            <p>任务的今天、日历和时间统计按此时区计算。课程表可在学期设置中独立指定课程时区。</p>
             <label className="timezone-setting">
               日程时区
               <input
@@ -130,101 +109,9 @@ export function Settings({
               设备：{zoneLabel(deviceZone())} · 日程：{zoneLabel(settings.timeZone)}
             </p>
           </section>
-          <section className="settings-section">
-            <h3>数据与备份</h3>
-            <p className="setting-description">
-              待办、时间记录、课程和时区设置共用一个备份。支持导入 Clearlist 和 Open Timelog 的 JSON
-              备份。
-            </p>
-            <div className="data-actions">
-              <button
-                className="button"
-                disabled={busy}
-                onClick={async () => {
-                  setBusy(true);
-                  setError('');
-                  try {
-                    if (await store.exportData()) onMessage('备份已导出');
-                  } catch (error) {
-                    setError(`导出失败：${String(error)}`);
-                  } finally {
-                    setBusy(false);
-                  }
-                }}
-              >
-                <Download size={16} />
-                导出 JSON
-              </button>
-              <button
-                className="button"
-                disabled={busy}
-                onClick={async () => {
-                  setError('');
-                  if (!window.clearlist) {
-                    fileInput.current?.click();
-                    return;
-                  }
-                  setBusy(true);
-                  try {
-                    const value = await window.clearlist.importData();
-                    if (value) await receive(value);
-                  } catch {
-                    setError('导入失败：无法读取备份，请使用有效的 JSON 文件。原有数据未改变。');
-                  } finally {
-                    setBusy(false);
-                  }
-                }}
-              >
-                <Upload size={16} />
-                合并导入
-              </button>
-            </div>
-            <input
-              className="visually-hidden"
-              ref={fileInput}
-              aria-label="选择备份文件"
-              type="file"
-              accept="application/json,.json"
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-                setBusy(true);
-                setError('');
-                try {
-                  if (file.size > 50 * 1024 * 1024) throw new Error('文件过大');
-                  await receive(JSON.parse(await file.text()));
-                } catch {
-                  setError('导入失败：无法读取备份，请使用有效的 JSON 文件。原有数据未改变。');
-                } finally {
-                  setBusy(false);
-                  e.target.value = '';
-                }
-              }}
-            />
-            {error && (
-              <p className="form-error" role="alert">
-                {error}
-              </p>
-            )}
-            <p className="field-hint">
-              导入会保留现有任务；同 ID 任务保留更新时间较新的版本。偏好和进行中的计时保持当前设置。
-            </p>
-            <div className="storage-location">
-              <FolderOpen size={16} />
-              <span>{snapshot.path}</span>
-            </div>
-            {!window.clearlist && (
-              <p className="browser-notice">
-                当前为浏览器版。数据仅保存在此浏览器，与桌面版分开；清理网站数据前请先导出。
-              </p>
-            )}
-          </section>
           {api && (
             <section className="settings-section api-settings">
               <h3>AI 接口</h3>
-              <p className="setting-description">
-                让本机的 AI 工具读取与整理任务。每次修改都会同步显示在清单里。
-              </p>
               {api.enabled ? (
                 <>
                   <code>{api.url}</code>
@@ -257,25 +144,20 @@ export function Settings({
                       复制访问令牌
                     </button>
                   </div>
-                  <p className="field-hint">
-                    使用 Bearer 令牌，只允许本机访问。接口文档位于项目
-                    docs/api/，支持任务、清单、时间记录与统计。
-                  </p>
                 </>
               ) : (
-                <p className="field-hint">
-                  接口未启用。若未主动关闭，请重新打开时织并检查数据目录。
-                </p>
+                <p className="field-hint">接口未启用</p>
               )}
             </section>
           )}
+          {error && <p role="alert">{error}</p>}
           <div className="about-block">
             <span className="brand-mark small-brand">
               <Check size={18} strokeWidth={3} />
             </span>
             <div>
               <strong>
-                时织 <span>Dayweave 0.4.1</span>
+                时织 <span>Dayweave {version}</span>
               </strong>
               <p>
                 <ShieldCheck size={12} />

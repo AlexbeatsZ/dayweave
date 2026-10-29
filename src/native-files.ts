@@ -1,7 +1,7 @@
 import { registerPlugin } from '@capacitor/core';
 export interface NativeFiles {
   usage(options: {
-    action: 'query' | 'status' | 'configure' | 'import' | 'sync';
+    action: 'query' | 'status' | 'configure' | 'import' | 'sync' | 'applications';
     value?: unknown;
   }): Promise<any>;
   usagePermission(options: { kind: 'usage' | 'browser' | 'battery' }): Promise<void>;

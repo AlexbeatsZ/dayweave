@@ -83,13 +83,11 @@ test('course and full backup imports preserve both original project formats', as
   delete old.schedule;
   delete old.settings.timeZone;
   old.tasks = [newTask('旧 Clearlist 任务')];
-  const picker = page.getByLabel('选择备份文件');
-  await picker.setInputFiles({
-    name: 'clearlist.json',
-    mimeType: 'application/json',
-    buffer: Buffer.from(JSON.stringify(old)),
-  });
-  await expect(page.getByRole('status')).toContainText('新增 1 件任务');
+  await page.evaluate(async (data) => {
+    const modulePath = '/src/store.ts';
+    const { store } = await import(modulePath);
+    await store.importData(data);
+  }, old);
   const timelog = initialState();
   timelog.records = [
     {
@@ -104,12 +102,11 @@ test('course and full backup imports preserve both original project formats', as
       deletedAt: null,
     },
   ];
-  await picker.setInputFiles({
-    name: 'timelog.json',
-    mimeType: 'application/json',
-    buffer: Buffer.from(JSON.stringify(makeBackup(timelog))),
-  });
-  await expect(page.getByRole('status')).toContainText('导入完成');
+  await page.evaluate(async (data) => {
+    const modulePath = '/src/store.ts';
+    const { store } = await import(modulePath);
+    await store.importData(data);
+  }, makeBackup(timelog));
   await page.getByRole('button', { name: '关闭设置', exact: true }).click();
   await page
     .getByRole('navigation', { name: '主导航' })

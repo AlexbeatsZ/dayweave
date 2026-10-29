@@ -5,7 +5,6 @@ declare global {
   interface Window {
     clearlist?: {
       usage?: import('./usage/domain').UsageBridge;
-      usageSource?(kind: 'work-review' | 'activitywatch'): Promise<boolean>;
       sync?: import('./sync/types').SyncBridge;
       pickText?(): Promise<string | null>;
       importFudan?(): Promise<string | null>;

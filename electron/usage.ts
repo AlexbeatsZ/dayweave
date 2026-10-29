@@ -29,6 +29,7 @@ export class DesktopUsage implements UsageBridge {
     readonly binary: string,
   ) {
     syncEngine.usage = store;
+    syncEngine.refreshUsage = () => this.sync();
   }
   async initialize() {
     await this.applyCollector();
@@ -40,6 +41,14 @@ export class DesktopUsage implements UsageBridge {
   }
   query(query: UsageQuery) {
     return Promise.resolve(this.store.query(query));
+  }
+  async applications() {
+    return this.store.database
+      .prepare(
+        "SELECT DISTINCT json_extract(payload,'$.app') AS app FROM usage_events WHERE json_extract(payload,'$.kind')='app' AND json_extract(payload,'$.app')<>'' ORDER BY app COLLATE NOCASE",
+      )
+      .all()
+      .map((row) => ({ id: String(row.app), name: String(row.app) }));
   }
   async status() {
     let capture = this.child ? '正在采集' : this.store.settings().enabled ? '采集不可用' : '未启用';
@@ -68,6 +77,7 @@ export class DesktopUsage implements UsageBridge {
       pending: this.syncEngine.client.config.hub ? 0 : status.pending,
       capture,
       error,
+      permissionRequired: process.platform === 'darwin' && capture === '请在系统设置中授权辅助功能',
     };
   }
   async configure(value: UsageSettings) {

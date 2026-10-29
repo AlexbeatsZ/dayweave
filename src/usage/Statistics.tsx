@@ -93,7 +93,6 @@ export function RecordStatistics({
                     <span>解锁次数</span>
                   </div>
                 </div>
-                <p>应用与网页分层展示，不重复相加。多设备同时使用只在覆盖时间中计一次。</p>
               </section>
               {mode === 'compare' && (
                 <section className="phone-analysis-card">
@@ -102,7 +101,6 @@ export function RecordStatistics({
                     手动记录 {formatDuration(stats(state, range).tracked)} / 设备观察覆盖{' '}
                     {formatDuration(summary.active)}
                   </p>
-                  <p>两种时间含义不同，不相加，不自动增加积分或完成目标。</p>
                   <button type="button" onClick={() => onTimeline(date)}>
                     查看当天时间线
                   </button>
@@ -116,7 +114,7 @@ export function RecordStatistics({
                         devices: '按设备',
                         apps: '应用使用',
                         categories: '来源分类',
-                        websites: '网站访问（独立口径）',
+                        websites: '网站访问',
                       }[key]
                     }
                   </h2>
@@ -133,7 +131,7 @@ export function RecordStatistics({
                       </div>
                     ))
                   ) : (
-                    <p>此范围没有已载入的记录，不代表未使用设备。</p>
+                    <p>暂无记录</p>
                   )}
                 </section>
               ))}

@@ -8,6 +8,7 @@ import {
   nativeTheme,
   Tray,
   nativeImage,
+  shell,
 } from 'electron';
 import { readFile, writeFile, stat } from 'node:fs/promises';
 import path from 'node:path';
@@ -175,27 +176,27 @@ else {
       trusted(event);
       return importFudan(window!);
     });
-    for (const method of ['query', 'status', 'configure', 'import', 'sync'] as const) {
+    for (const method of [
+      'query',
+      'status',
+      'configure',
+      'import',
+      'sync',
+      'applications',
+    ] as const) {
       ipcMain.handle(`usage:${method}`, (event, ...args) => {
         trusted(event);
         if (!usage) throw new Error('自动记录存储尚未启动');
         return (usage[method] as (...args: unknown[]) => unknown).apply(usage, args);
       });
     }
-    ipcMain.handle('usage:source', async (event, kind: unknown) => {
+    ipcMain.handle('usage:permission', (event, kind: unknown) => {
       trusted(event);
-      if (!usage || !['work-review', 'activitywatch'].includes(String(kind)))
-        throw new Error('无效来源');
-      const result = await dialog.showOpenDialog(window!, {
-        title:
-          kind === 'work-review'
-            ? '连接 Work Review SQLite 数据库（只读）'
-            : '连接 AW 接收数据目录（只读）',
-        properties: [kind === 'work-review' ? 'openFile' : 'openDirectory'],
-      });
-      if (result.canceled) return false;
-      await usage.connectSource(kind as 'work-review' | 'activitywatch', result.filePaths[0]);
-      return true;
+      if (process.platform !== 'darwin' || kind !== 'usage')
+        throw new Error('此权限不适用于当前设备');
+      return shell.openExternal(
+        'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility',
+      );
     });
     ipcMain.handle('text:pick', async (event) => {
       trusted(event);

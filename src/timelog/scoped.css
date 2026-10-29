@@ -159,25 +159,6 @@
   gap: 15px;
   margin-bottom: 20px;
 }
-.timelog-module .timeline-summary {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 24px;
-  padding: 2px 0 18px;
-  margin-bottom: 18px;
-  border-bottom: 1px solid var(--line);
-  color: var(--muted);
-  font-size: 12px;
-}
-.timelog-module .timeline-summary strong {
-  color: var(--ink);
-  font-size: 14px;
-  font-weight: 600;
-  margin-left: 5px;
-}
-.timelog-module .timeline-summary .weekday {
-  margin-left: auto;
-}
 .timelog-module .running-dot {
   display: inline-block;
   width: 7px;
@@ -888,19 +869,6 @@
     font-size: 12px;
     padding: 8px 10px;
   }
-  .timelog-module .timeline-summary {
-    gap: 11px;
-    font-size: 10px;
-    padding-bottom: 15px;
-    margin-bottom: 15px;
-  }
-  .timelog-module .timeline-summary strong {
-    font-size: 12px;
-    margin-left: 3px;
-  }
-  .timelog-module .timeline-summary .weekday {
-    display: none;
-  }
   .timelog-module .timeline-entry {
     grid-template-columns: 34px minmax(0, 1fr);
     gap: 9px;
@@ -1060,17 +1028,4 @@
   max-width: none;
   margin: 0;
   padding: 0;
-}
-.timelog-module .timeline-options {
-  margin: 0 0 12px;
-  color: var(--muted);
-  font-size: 12px;
-}
-.timelog-module .timeline-options > summary {
-  width: fit-content;
-  min-height: 28px;
-  cursor: pointer;
-}
-.timelog-module .timeline-options > .check-label {
-  padding: 8px 0;
 }

@@ -222,6 +222,49 @@ test('paired encrypted usage sync distributes all devices without modifying manu
   }
 });
 
+test('global desktop sync exchanges local observations and refreshes application choices', async () => {
+  await mkdir(path.join(os.tmpdir(), '.agents'), { recursive: true });
+  const directory = await mkdtemp(path.join(os.tmpdir(), '.agents/dayweave-global-usage-'));
+  const hubDirectory = path.join(directory, 'hub');
+  const hub = new DesktopSync(new StateService(new FileStore(hubDirectory)), hubDirectory, false);
+  const central = new UsageStore(':memory:');
+  const local = new UsageStore(':memory:');
+  try {
+    await hub.initialize();
+    hub.client.config.hub = { port: 0, clients: {} };
+    await hub.enableHub();
+    hub.usage = central;
+    const address = (
+      hub as unknown as { server: { address(): { port: number } } }
+    ).server.address();
+    const clientDirectory = path.join(directory, 'client');
+    const client = new DesktopSync(
+      new StateService(new FileStore(clientDirectory)),
+      clientDirectory,
+      false,
+    );
+    await client.client.load();
+    await client.client.pair(await hub.invite(), `http://127.0.0.1:${address.port}`);
+    const usage = new DesktopUsage(local, client, clientDirectory, 'missing');
+    local.import([event()]);
+    central.import([event({ id: 'remote-event', deviceId: 'other', app: 'Remote editor' })]);
+    await client.now();
+    assert.equal(central.status().count, 2);
+    assert.equal(local.status().count, 2);
+    assert.equal(local.status().pending, 0);
+    assert.deepEqual(await usage.applications(), [
+      { id: 'Editor', name: 'Editor' },
+      { id: 'Remote editor', name: 'Remote editor' },
+    ]);
+    assert.equal((await client.service.snapshot()).state.timelog.records.length, 0);
+  } finally {
+    await hub.close();
+    central.close();
+    local.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test('Work Review source is read-only, imports late historical rows and survives source vacuum', async () => {
   await mkdir(path.join(os.tmpdir(), '.agents'), { recursive: true });
   const directory = await mkdtemp(path.join(os.tmpdir(), '.agents/dayweave-source-'));

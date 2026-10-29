@@ -948,37 +948,10 @@
 }
 .phone-donut strong {
   font:
-    43px Bahnschrift,
+    24px Bahnschrift,
     Consolas,
     monospace;
   color: var(--text);
-}
-.phone-donut small {
-  font-size: 16px;
-}
-.phone-natures {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 7px;
-  margin-bottom: 20px;
-}
-.phone-natures > div {
-  background: var(--input);
-  border-radius: 14px;
-  padding: 12px 5px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  text-align: center;
-}
-.phone-natures span,
-.phone-natures small {
-  color: var(--muted);
-  font-size: 10px;
-}
-.phone-natures strong {
-  font-size: 12px;
-  font-weight: 550;
 }
 .phone-activity-stat {
   display: flex;
@@ -1403,9 +1376,6 @@
   .phone-sheet {
     padding-left: 14px;
     padding-right: 14px;
-  }
-  .phone-natures strong {
-    font-size: 10px;
   }
 }
 @media (prefers-reduced-motion: reduce) {

@@ -36,7 +36,7 @@ final class UsageDatabase extends SQLiteOpenHelper {
         SQLiteDatabase database = getWritableDatabase(); database.beginTransaction();
         try {
             if (settings.getBoolean("enabled") && !settings().getBoolean("enabled")) {
-                String now = String.valueOf(System.currentTimeMillis());
+                String now = String.valueOf(UsageSessions.captureStart(System.currentTimeMillis(), !meta("captureSince", "").isEmpty()));
                 meta("captureSince", now, database); meta("lastScan", now, database);
             }
             meta("settings", settings.toString(), database); database.setTransactionSuccessful();

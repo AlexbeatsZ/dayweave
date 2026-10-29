@@ -215,7 +215,7 @@ test('timeline auto-loads beyond seven days, visible-day points follow scrolling
     { start: dayStart(yesterday) + 3600000 },
   );
   await page.getByRole('button', { name: '手机记录', exact: true }).tap();
-  await expect(page.locator('.timeline-summary')).toContainText('+10');
+  await expect(page.locator('.timeline-summary')).toHaveCount(0);
   const scroller = page.locator('.phone-content');
   for (let index = 0; index < 12; index++) {
     if ((await page.locator('.phone-timeline-day').count()) >= 9) break;
@@ -233,15 +233,15 @@ test('timeline auto-loads beyond seven days, visible-day points follow scrolling
       toolbar.getBoundingClientRect().height;
   });
   await expect(page.getByLabel('查看日期')).toHaveValue(yesterday);
-  await expect(page.locator('.timeline-summary')).toContainText('+15');
-  await expect(page.locator('.timeline-summary')).toContainText('1 小时');
+  await expect(page.locator('.timeline-summary')).toHaveCount(0);
+  await expect(page.locator('.timeline-summary')).toHaveCount(0);
   await page.screenshot({ path: info.outputPath('phone-history-points.png') });
   await page.getByLabel('查看日期').fill(older);
   await expect(page.locator('.phone-timeline-day').first()).toHaveAttribute(
     'data-timeline-day',
     older,
   );
-  await expect(page.locator('.timeline-summary > span').nth(2)).toHaveText('积分 0');
+  await expect(page.locator('.timeline-summary')).toHaveCount(0);
   await expect(page.locator(`[data-timeline-day="${today}"]`)).toHaveCount(0);
   await expect.poll(() => scroller.evaluate((element) => element.scrollTop)).toBe(0);
 });
@@ -401,7 +401,7 @@ test('rejected operations allow subsequent saves and analytics retain historical
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole('button', { name: '手机统计', exact: true }).tap();
   await page.getByRole('tab', { name: '记录', exact: true }).tap();
-  await expect(page.getByRole('img', { name: '积极活动占比 100%' })).toBeVisible();
+  await expect(page.getByRole('img', { name: '活动时间分布' })).toBeVisible();
 });
 
 test('light, system theme, 360px goals and desktop breakpoint remain usable', async ({

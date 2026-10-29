@@ -12,22 +12,18 @@ const syncScheduler = new SyncScheduler(async () => {
   const now = Date.now();
   if (now - lastUsageSync > 15000) {
     lastUsageSync = now;
-    void nativeUsageSync();
+    void nativeUsageSync().catch(() => {});
   }
   await syncClient?.now();
 });
 let lastUsageSync = 0;
-let usageSyncRunning = false;
+let usageSyncRunning: Promise<void> | undefined;
 async function nativeUsageSync() {
-  if (usageSyncRunning) return;
-  usageSyncRunning = true;
-  try {
-    await files.usage({ action: 'sync' });
-  } catch {
-  } finally {
-    usageSyncRunning = false;
+  usageSyncRunning ??= files.usage({ action: 'sync' }).finally(() => {
+    usageSyncRunning = undefined;
     window.dispatchEvent(new Event('dayweave:usage'));
-  }
+  });
+  return usageSyncRunning;
 }
 let syncStarted = false;
 
@@ -49,6 +45,7 @@ export async function initializeMobile() {
       import: async (events) => (await files.usage({ action: 'import', value: { events } })).count,
       sync: () => files.usage({ action: 'sync' }),
       permission: (kind) => files.usagePermission({ kind }),
+      applications: async () => (await files.usage({ action: 'applications' })).applications,
     },
     platform: 'android',
     load: async () => ({ ...(await repository.load()), path: '此设备 · 应用私有存储' }),
@@ -112,7 +109,10 @@ export async function initializeMobile() {
         await client.pair(invitation, endpoint);
         return client.now();
       },
-      now: () => client.now(),
+      now: async () => {
+        const [status] = await Promise.all([client.now(), nativeUsageSync()]);
+        return status;
+      },
       disconnect: () => client.disconnect(),
       setEndpoint: async (endpoint) => {
         await client.setEndpoint(endpoint);
@@ -143,6 +143,10 @@ export async function initializeMobile() {
   }
   await NativeApp.addListener('appStateChange', ({ isActive }) => {
     appActive = isActive;
+    if (isActive) {
+      lastUsageSync = 0;
+      window.dispatchEvent(new Event('dayweave:usage'));
+    }
     if (syncStarted && isActive) syncScheduler.start();
     else syncScheduler.stop();
   });

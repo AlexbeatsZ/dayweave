@@ -8,7 +8,6 @@ import {
   formatDuration,
   formatPoints,
   formatTime,
-  natureLabels,
   recordPoints,
   recordsIn,
   shiftDay,
@@ -63,11 +62,6 @@ export function PhoneAnalysis({
       return `${item.color} ${start}% ${position}%`;
     })
     .join(', ');
-  const natureTotals = { positive: 0, neutral: 0, negative: 0 };
-  for (const record of records) {
-    natureTotals[record.nature] += duration(clipped(record.spans, range));
-  }
-  const positive = natureTotals.positive;
   const heat = useMemo(() => {
     const day = dayRange(date),
       rows = recordsIn(state, day);
@@ -140,28 +134,13 @@ export function PhoneAnalysis({
         <div
           className="phone-donut"
           role="img"
-          aria-label={`积极活动占比 ${sum ? Math.round((positive / sum) * 100) : 0}%`}
+          aria-label="活动时间分布"
           style={{ background: sum ? `conic-gradient(${gradient})` : 'var(--line)' }}
         >
           <div>
-            <span>积极占比</span>
-            <strong>
-              {sum ? Math.round((positive / sum) * 100) : 0}
-              <small>%</small>
-            </strong>
+            <span>记录时间</span>
+            <strong>{formatDuration(total.tracked)}</strong>
           </div>
-        </div>
-        <div className="phone-natures">
-          {(['positive', 'neutral', 'negative'] as const).map((nature) => {
-            const ms = natureTotals[nature];
-            return (
-              <div key={nature}>
-                <span>{natureLabels[nature]}</span>
-                <strong>{formatDuration(ms)}</strong>
-                <small>{sum ? Math.round((ms / sum) * 100) : 0}%</small>
-              </div>
-            );
-          })}
         </div>
         {breakdown.map((activity) => (
           <div className="phone-activity-stat" key={activity.id}>
@@ -256,7 +235,6 @@ export function PhoneAnalysis({
           </details>
         ))}
       </section>
-      <p className="footnote">总时长合并重叠区间；活动占比和积分按各条记录累计。</p>
     </div>
   );
 }

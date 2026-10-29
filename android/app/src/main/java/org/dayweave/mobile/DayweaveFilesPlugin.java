@@ -35,14 +35,17 @@ public class DayweaveFilesPlugin extends Plugin {
         ("sync".equals(action)?usageNetwork:usageData).execute(() -> {
             try (UsageDatabase database = new UsageDatabase(getContext())) {
                 JSObject value=call.getObject("value",new JSObject());
+                if("applications".equals(action)){call.resolve(new JSObject().put("applications",UsageApplications.list(getContext())));return;}
+                if("query".equals(action)||"status".equals(action))UsageCapture.collect(getContext());
                 if("query".equals(action)){call.resolve(new JSObject(database.query(value).toString()));return;}
-                if("configure".equals(action)){database.configure(value);UsageWorker.schedule(getContext());}
+                if("configure".equals(action)){database.configure(value);UsageWorker.schedule(getContext());UsageCapture.collect(getContext());}
                 else if("import".equals(action)){int count=database.insert(value.getJSONArray("events"));call.resolve(new JSObject().put("count",count));return;}
                 else if("sync".equals(action)){UsageCapture.collect(getContext());UsageSync.run(getContext());call.resolve();return;}
                 else if(!"status".equals(action))throw new IllegalArgumentException("Invalid usage action");
                 boolean enabled=database.settings().getBoolean("enabled");
-                String capture=!enabled?"未启用":UsageCapture.allowed(getContext())?"应用采集已授权，后台周期约 15 分钟":"请授予使用情况访问权限";
-                call.resolve(new JSObject(database.status(capture,database.meta("error","")).toString()));
+                String capture=!enabled?"未开启":UsageCapture.allowed(getContext())?"正在记录":"未授权";
+                JSObject status=new JSObject(database.status(capture,database.meta("error","")).toString());
+                status.put("permissionRequired",!UsageCapture.allowed(getContext()));call.resolve(status);
             } catch(Exception error){call.reject(error.getMessage(),error);}
         });
     }
@@ -53,7 +56,9 @@ public class DayweaveFilesPlugin extends Plugin {
                 String kind=call.getString("kind");
                 String action="usage".equals(kind)?android.provider.Settings.ACTION_USAGE_ACCESS_SETTINGS:"browser".equals(kind)?android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS:"battery".equals(kind)?android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS:null;
                 if(action==null)throw new IllegalArgumentException("Invalid permission");
-                getActivity().startActivity(new Intent(action));call.resolve();
+                Intent intent=new Intent(action);
+                if("usage".equals(kind))intent.setData(android.net.Uri.parse("package:"+getContext().getPackageName()));
+                getActivity().startActivity(intent);call.resolve();
             } catch(Exception error){call.reject(error.getMessage(),error);}
         });
     }

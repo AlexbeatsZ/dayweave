@@ -60,40 +60,25 @@ test('create a list, explicitly edit a recurring task, complete, undo deletion a
   await expect(page.getByRole('button', { name: '搜索任务', exact: true })).toHaveCount(0);
 });
 
-test('valid backup import merges idempotently; invalid import preserves data; export contains the task', async ({
+test('internal backup merge remains idempotent without normal import or export UI', async ({
   page,
 }) => {
   const incoming = { ...emptyState(), tasks: [newTask('导入的任务')] };
+  await page.evaluate(async (incoming) => {
+    const modulePath = '/src/store.ts';
+    const { store } = await import(modulePath);
+    await store.importData(incoming);
+    await store.importData(incoming);
+    try {
+      await store.importData({ version: 9 });
+    } catch {}
+  }, incoming);
+  expect(
+    await page.evaluate(() => JSON.parse(localStorage.getItem('dayweave.v1')!).tasks.length),
+  ).toBe(1);
   await page.getByRole('button', { name: '设置与同步', exact: true }).click();
-  const file = page.getByLabel('选择备份文件');
-  await file.setInputFiles({
-    name: 'backup.json',
-    mimeType: 'application/json',
-    buffer: Buffer.from(JSON.stringify(incoming)),
-  });
-  await expect(page.getByRole('status')).toContainText('新增 1 件任务');
-  await file.setInputFiles({
-    name: 'backup.json',
-    mimeType: 'application/json',
-    buffer: Buffer.from(JSON.stringify(incoming)),
-  });
-  await expect(page.getByRole('status')).toContainText('新增 0 件任务');
-  await file.setInputFiles({
-    name: 'bad.json',
-    mimeType: 'application/json',
-    buffer: Buffer.from('{"version":9}'),
-  });
-  await expect(page.getByRole('alert')).toContainText('原有数据未改变');
-  const downloadPromise = page.waitForEvent('download');
-  await page.getByRole('button', { name: '导出 JSON', exact: true }).click();
-  const download = await downloadPromise;
-  expect(download.suggestedFilename()).toMatch(/Dayweave-.*\.json/);
-  const stream = await download.createReadStream();
-  const chunks = [];
-  for await (const chunk of stream!) chunks.push(chunk);
-  const exported = JSON.parse(Buffer.concat(chunks).toString());
-  expect(exported.tasks).toHaveLength(1);
-  expect(exported.tasks[0].title).toBe('导入的任务');
+  await expect(page.getByRole('button', { name: '导出 JSON', exact: true })).toHaveCount(0);
+  await expect(page.getByLabel('选择备份文件')).toHaveCount(0);
   await page.getByRole('button', { name: '关闭设置', exact: true }).click();
   await page.getByRole('tab', { name: /^待办箱/ }).click();
   await expect(page.getByRole('button', { name: '编辑 导入的任务', exact: true })).toBeVisible();

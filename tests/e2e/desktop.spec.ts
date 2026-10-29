@@ -196,7 +196,7 @@ test('permanent desktop navigation and shared pages fit widescreen, 16:10 and co
     await navigate(page, '记录');
     await expect(page.getByRole('complementary', { name: '记录分类', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: '新增活动', exact: true })).toBeVisible();
-    await expect(page.locator('.timeline-summary')).toContainText('+22.5');
+    await expect(page.locator('.timeline-summary')).toHaveCount(0);
     await withinViewport(page);
     if (viewport.width === 1440 || viewport.width === 900)
       await page.screenshot({

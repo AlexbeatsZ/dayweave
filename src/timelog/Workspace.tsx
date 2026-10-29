@@ -13,7 +13,6 @@ import {
   formatTime,
   liveSpans,
   natureLabels,
-  stats,
   timestamp,
   type State,
 } from './domain';
@@ -30,6 +29,7 @@ import { useTimelineDays } from '../phone/useTimelineDays';
 import { TimerPanel } from './components/TimerPanel';
 import { DateNavigator } from '../phone/DateNavigator';
 import { AlignedUsageTimeline, UsageToolbar, type TimelineMode } from '../usage/Timeline';
+import { CaptureControl } from '../usage/Settings';
 import { useUsage } from '../usage/client';
 export type TimePage = 'timeline' | 'timer' | 'goals';
 type Confirm = { title: string; body: string; action: () => Promise<boolean> };
@@ -59,14 +59,7 @@ export default function Workspace({
   const setDate = timeline.jump;
   const [editor, setEditor] = useState<EditTarget | null>(null),
     [confirmation, setConfirmation] = useState<Confirm | null>(null);
-  const [notice, setNotice] = useState<{ text: string; error: boolean } | null>(null),
-    [shortGaps, setShortGaps] = useState(() => {
-      try {
-        return localStorage.getItem('timelog-short-gaps') === 'true';
-      } catch {
-        return false;
-      }
-    });
+  const [notice, setNotice] = useState<{ text: string; error: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
   const pendingWrites = useRef(0);
   useEffect(() => {
@@ -118,7 +111,6 @@ export default function Workspace({
     );
   const getActivity = (id: string) => state.activities.find((row) => row.id === id)!;
   const timer = state.timer;
-  const daily = stats(state, dayRange(date));
   const matches = (row: TimelineEntry) =>
     (!filter?.activityId && !filter?.tag) ||
     (row.kind === 'record' &&
@@ -304,51 +296,22 @@ export default function Workspace({
                   setMode={setTimelineMode}
                   deviceId={usageDevice}
                   setDeviceId={setUsageDevice}
-                  day={date}
                   status={usage.status}
                 />
+                {timelineMode !== 'manual' &&
+                  usage.status &&
+                  (!usage.status.settings.enabled || usage.status.permissionRequired) && (
+                    <CaptureControl status={usage.status} />
+                  )}
                 <FloatingAdd
                   label="添加记录"
                   disabled={date > dayKey(now)}
                   onClick={() => addRecord()}
                 />
-                <div className="timeline-summary">
-                  <span>
-                    手动记录 <strong>{formatDuration(daily.tracked)}</strong>
-                  </span>
-                  <span>
-                    积极 <strong>{formatDuration(daily.positive)}</strong>
-                  </span>
-                  <span>
-                    积分 <strong>{points(daily.points)}</strong>
-                  </span>
-                  <span className="weekday">
-                    {new Date(dayStart(date)).toLocaleDateString('zh-CN', {
-                      timeZone: getTimeZone(),
-                      weekday: 'long',
-                    })}
-                  </span>
-                </div>
-                <details className="timeline-options">
-                  <summary>显示选项</summary>
-                  <label className="check-label">
-                    <input
-                      type="checkbox"
-                      checked={shortGaps}
-                      onChange={(event) => {
-                        setShortGaps(event.target.checked);
-                        try {
-                          localStorage.setItem('timelog-short-gaps', String(event.target.checked));
-                        } catch {}
-                      }}
-                    />
-                    显示不足一分钟空闲
-                  </label>
-                </details>
               </div>
               <div ref={timeline.list} className="timeline-list phone-day-groups">
                 {timeline.dates.map((day) => {
-                  const group = buildTimeline(state, day, now, shortGaps);
+                  const group = buildTimeline(state, day, now, false);
                   const shown = group.filter(matches);
                   return (
                     <section

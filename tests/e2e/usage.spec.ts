@@ -67,19 +67,12 @@ async function seed(page: Page, phone = false) {
     },
     { ...base, id: 'unlock', kind: 'unlock', start: start + 1200000, end: start + 1200000 },
   ];
-  await page.getByText('载入与同步', { exact: true }).click();
-  const chooser = page.waitForEvent('filechooser');
-  await page.getByRole('button', { name: '载入 AW / Work Review JSON' }).click();
-  page.once('dialog', (dialog) => dialog.accept());
-  await (
-    await chooser
-  ).setFiles({
-    name: 'usage.json',
-    mimeType: 'application/json',
-    buffer: Buffer.from(JSON.stringify({ format: 'dayweave-usage', version: 1, events })),
-  });
-  await expect(page.getByText('已载入 4 条新增或修订记录')).toBeVisible();
-  await page.getByText('载入与同步', { exact: true }).click();
+  await page.evaluate(async (events) => {
+    const modulePath = '/src/usage/client.ts';
+    const { usageBridge, usageChanged } = await import(modulePath);
+    await usageBridge().import(events);
+    usageChanged();
+  }, events);
   return { start, state };
 }
 
@@ -106,7 +99,7 @@ test('automatic import persists, shares a central clock and never changes manual
   await automatic.scrollIntoViewIfNeeded();
   await page.screenshot({ path: test.info().outputPath('comparison-desktop.png') });
   await automatic.click();
-  await expect(page.getByText('这是一条设备观察，不会自动增加手动记录或积分。')).toBeVisible();
+  await expect(page.getByRole('heading', { name: '自动记录详情' })).toBeVisible();
   await page.getByRole('button', { name: '关闭', exact: true }).last().click();
   await page.getByLabel('自动记录设备').selectOption('k70');
   await expect(page.locator('.usage-block.app[data-device="omen"]')).toHaveCount(0);
@@ -138,14 +131,14 @@ test('record statistics distinguish simultaneous devices, website layers and man
     .filter({ has: page.getByRole('heading', { name: '设备使用', exact: true }) });
   await expect(card).toContainText('1 小时 30 分钟');
   await expect(card).toContainText('2 小时');
-  await expect(page.getByRole('heading', { name: '网站访问（独立口径）' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '网站访问' })).toBeVisible();
   await expect(page.getByText('example.com', { exact: true })).toBeVisible();
   await page.getByLabel('自动统计设备').selectOption('k70');
   await expect(card).toContainText('1 小时');
   await expect(page.getByText('example.com', { exact: true })).toHaveCount(0);
 });
 
-test('narrow comparison remains within the viewport and reports browser capture as unavailable', async ({
+test('narrow comparison remains within the viewport without import controls or explanatory copy', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -156,11 +149,9 @@ test('narrow comparison remains within the viewport and reports browser capture 
   await page.locator('.usage-block.app').first().scrollIntoViewIfNeeded();
   await page.screenshot({ path: test.info().outputPath('comparison-phone.png') });
   await page.locator('.usage-block.app').first().click();
-  await expect(page.getByText('这是一条设备观察，不会自动增加手动记录或积分。')).toBeVisible();
+  await expect(page.getByRole('heading', { name: '自动记录详情' })).toBeVisible();
   await page.getByRole('button', { name: '关闭', exact: true }).last().click();
-  await page.getByText('载入与同步', { exact: true }).click();
-  await page.getByRole('button', { name: '立即同步自动记录' }).click();
-  await expect(
-    page.getByText('浏览器版不运行本机同步中心；请使用安装版同步，或载入 JSON 历史'),
-  ).toBeVisible();
+  await expect(page.getByText('载入与同步', { exact: true })).toHaveCount(0);
+  await expect(page.getByText(/没有记录不代表|设备观察，不会自动/)).toHaveCount(0);
+  await expect(page.locator('.timeline-summary, .timeline-options')).toHaveCount(0);
 });

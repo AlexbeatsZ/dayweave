@@ -1,9 +1,7 @@
 import { useState, type CSSProperties } from 'react';
 import { dayRange, formatDuration, formatTime, liveSpans, type State } from '../timelog/domain';
 import { Modal } from '../components/Modal';
-import { pickText, exportText } from '../files';
-import { parseUsageImport } from './import';
-import { loadUsageRange, usageBridge, usageChanged, useUsage } from './client';
+import { useUsage } from './client';
 import type { UsageEvent, UsageStatus } from './domain';
 import './usage.css';
 
@@ -13,30 +11,14 @@ export function UsageToolbar({
   setMode,
   deviceId,
   setDeviceId,
-  day,
   status,
 }: {
   mode: TimelineMode;
   setMode: (mode: TimelineMode) => void;
   deviceId: string;
   setDeviceId: (id: string) => void;
-  day: string;
   status?: UsageStatus;
 }) {
-  const [busy, setBusy] = useState(false),
-    [message, setMessage] = useState('');
-  async function action(operation: () => Promise<string>) {
-    setBusy(true);
-    setMessage('');
-    try {
-      setMessage(await operation());
-      usageChanged();
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error));
-    } finally {
-      setBusy(false);
-    }
-  }
   return (
     <div className="usage-toolbar">
       <div className="phone-segments" aria-label="时间线视图">
@@ -45,17 +27,14 @@ export function UsageToolbar({
             type="button"
             key={value}
             aria-pressed={mode === value}
-            onClick={() => {
-              setMode(value);
-              setMessage('');
-            }}
+            onClick={() => setMode(value)}
           >
             {{ manual: '手动记录', automatic: '自动记录', compare: '对照时间线' }[value]}
           </button>
         ))}
       </div>
-      <div className="usage-actions">
-        {mode !== 'manual' && (
+      {mode !== 'manual' && (
+        <div className="usage-actions">
           <select
             aria-label="自动记录设备"
             value={deviceId}
@@ -68,103 +47,8 @@ export function UsageToolbar({
               </option>
             ))}
           </select>
-        )}
-        <details>
-          <summary>载入与同步</summary>
-          <div className="usage-menu">
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() =>
-                void action(async () => {
-                  await usageBridge().sync();
-                  return '已刷新本地记录；未配对中心时不会上传，投递情况以最近同步时间为准';
-                })
-              }
-            >
-              立即同步自动记录
-            </button>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() =>
-                void action(async () => {
-                  const text = await pickText('.json');
-                  if (!text) return '已取消载入';
-                  const events = parseUsageImport(JSON.parse(text));
-                  if (
-                    !window.confirm(
-                      `载入 ${events.length} 条自动记录？将按来源 ID 合并，不修改原文件或手动记录。`,
-                    )
-                  )
-                    return '已取消载入';
-                  return `已载入 ${await usageBridge().import(events)} 条新增或修订记录`;
-                })
-              }
-            >
-              载入 AW / Work Review JSON
-            </button>
-            {window.clearlist?.usageSource && (
-              <>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() =>
-                    void action(async () =>
-                      (await window.clearlist!.usageSource!('work-review'))
-                        ? '已连接 Work Review 数据库，只读载入'
-                        : '已取消连接',
-                    )
-                  }
-                >
-                  连接 Work Review 数据库
-                </button>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() =>
-                    void action(async () =>
-                      (await window.clearlist!.usageSource!('activitywatch'))
-                        ? '已连接 AW 接收目录，只读载入'
-                        : '已取消连接',
-                    )
-                  }
-                >
-                  连接 AW 接收目录
-                </button>
-              </>
-            )}
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() =>
-                void action(async () => {
-                  const events = await loadUsageRange({
-                    ...dayRange(day),
-                    deviceId: deviceId || undefined,
-                  });
-                  await exportText(
-                    `Dayweave-usage-${day}.json`,
-                    JSON.stringify({ format: 'dayweave-usage', version: 1, events }, null, 2),
-                  );
-                  return '当天自动记录已导出';
-                })
-              }
-            >
-              导出当天自动记录
-            </button>
-          </div>
-        </details>
-      </div>
-      {status && mode !== 'manual' && (
-        <p className="usage-empty">
-          {status.lastSync
-            ? `本地记录 · 最近同步 ${new Date(status.lastSync).toLocaleString()}`
-            : '本地记录 · 尚无中心同步回执'}
-          {status.error ? ` · ${status.error}` : ''}
-        </p>
+        </div>
       )}
-      {message && <p role="status">{message}</p>}
     </div>
   );
 }
@@ -291,7 +175,7 @@ export function AlignedUsageTimeline({
   return (
     <div className="usage-day">
       <div className="usage-day-heading">
-        <span>{mode === 'compare' ? '手动记录 / 自动记录' : '自动记录'} · 同一时间刻度</span>
+        <span>{mode === 'compare' ? '手动记录 / 自动记录' : '自动记录'}</span>
         <label>
           缩放
           <select
@@ -308,9 +192,7 @@ export function AlignedUsageTimeline({
       {result.loading && <p role="status">正在载入自动记录…</p>}
       {result.error && <p role="alert">{result.error}</p>}
       {!result.loading && !result.error && !automatic.length && (
-        <p className="usage-empty">
-          本地没有此日期的自动记录。可在“载入与同步”导入历史或同步中心；没有记录不代表没有使用设备。
-        </p>
+        <p className="usage-empty">暂无记录</p>
       )}
       <div className={`usage-aligned ${mode}`} style={{ height }} aria-label={`${day} 对齐时间线`}>
         <div className="usage-ruler">
@@ -373,9 +255,8 @@ export function AlignedUsageTimeline({
               {formatTime(selected.start)}–{formatTime(selected.end)} ·{' '}
               {formatDuration(selected.end - selected.start)}
             </p>
-            <p>{selected.detail || '此来源未提供标题'}</p>
+            {selected.detail && <p>{selected.detail}</p>}
             <p>{selected.event!.url}</p>
-            <p>这是一条设备观察，不会自动增加手动记录或积分。</p>
             <button type="button" onClick={() => setSelected(undefined)}>
               关闭
             </button>

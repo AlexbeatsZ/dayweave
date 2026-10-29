@@ -4,6 +4,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 final class UsageSessions {
+    static long captureStart(long now, boolean previouslyEnabled) {
+        return previouslyEnabled ? now : Math.max(0, now - 7L * 86400000);
+    }
     static final class Event {
         final long at; final int type; final String app;
         Event(long at,int type,String app){this.at=at;this.type=type;this.app=app;}

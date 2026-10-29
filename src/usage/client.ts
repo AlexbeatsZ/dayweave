@@ -59,7 +59,7 @@ async function browserStatus(): Promise<UsageStatus> {
     settings,
     count: events.filter((event) => !event.deleted).length,
     pending: 0,
-    capture: '浏览器仅支持历史查看与导入，不在后台采集',
+    capture: '历史记录',
     error: '',
     devices: [...devices.values()],
   };
@@ -119,7 +119,7 @@ const browserBridge: UsageBridge = {
     });
   },
   async sync() {
-    throw new Error('浏览器版不运行本机同步中心；请使用安装版同步，或载入 JSON 历史');
+    throw new Error('浏览器版不支持设备同步');
   },
 };
 export const usageBridge = (): UsageBridge => window.clearlist?.usage ?? browserBridge;
