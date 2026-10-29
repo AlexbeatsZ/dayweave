@@ -12,6 +12,8 @@
 
 ## 模块边界
 
+设置页复用原生 Modal，分类只控制可见性，不卸载带草稿的子面板。采集、同步和 AI 接口各自拥有操作状态；清单编辑器独立于设置页。设置样式归属与本轮解耦审查见 settings.md。嵌套 Modal 的 cancel 不得向父层传播。
+
 跨平台同步的触发、合并和运行中后续交换由 `sync/scheduler.ts` 集中维护；桌面与 Android 仅提供保存/前后台触发，`sync/client.ts` 负责交换与同轮请求去重。导入必须通过 `store.transact` 等待落盘，界面不能把乐观状态当作保存成功。同步协议与后台限制见 sync.md。
 
 同一中心的有序地址由私有 SyncConfig 保存，手动业务与桌面自动记录共用 SyncClient.request 的逐项尝试；Android 原生自动记录通过既有 SyncEndpoint 执行同一顺序。实际成功地址仅为连接状态，不成为排序依据；发现结果不自动覆盖用户配置。

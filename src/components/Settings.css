@@ -1,0 +1,249 @@
+dialog.settings-modal {
+  width: min(820px, calc(100% - 40px));
+  height: min(680px, calc(100dvh - 48px));
+  max-height: calc(100dvh - 48px);
+  margin: auto;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--bg);
+  color: var(--text);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+dialog.settings-modal[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+dialog.settings-modal::backdrop {
+  background: #10221955;
+  backdrop-filter: blur(3px);
+}
+
+.settings-modal > .dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: none;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--line);
+}
+
+.settings-modal > .dialog-header h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.settings-layout {
+  display: grid;
+  grid-template-columns: 172px minmax(0, 1fr);
+  flex: 1;
+  min-height: 0;
+}
+
+.settings-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 18px 12px;
+  background: var(--canvas);
+  border-right: 1px solid var(--line);
+}
+
+.settings-nav button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  text-align: left;
+  color: var(--secondary);
+}
+
+.settings-nav button:hover {
+  background: var(--hover);
+}
+
+.settings-nav button[aria-current='page'] {
+  color: var(--accent);
+  background: var(--accent-tint);
+  font-weight: 600;
+}
+
+.settings-modal .settings-content {
+  min-width: 0;
+  padding: 0 28px 24px;
+  overflow: auto;
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+}
+
+.settings-content > [hidden] {
+  display: none;
+}
+
+.settings-modal .settings-section {
+  padding: 24px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.settings-modal .settings-section:last-child {
+  border-bottom: 0;
+}
+
+.settings-modal .settings-section h3 {
+  margin: 0 0 18px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.settings-modal :is(input:not([type='checkbox']), textarea, select) {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--input);
+  color: var(--text);
+  font: inherit;
+}
+
+.settings-modal .usage-setting-row input[type='checkbox'] {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.settings-modal :is(.data-actions, .usage-actions) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.settings-modal .button {
+  min-height: 42px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.settings-modal .usage-settings-fields > .button {
+  justify-self: start;
+}
+
+.settings-modal :is(.field-hint, .sync-settings p) {
+  line-height: 1.7;
+}
+
+.settings-modal .field-hint {
+  font-size: 12px;
+}
+
+.settings-modal :is(.sync-peer, .sync-status, .api-settings, .about-block) {
+  overflow-wrap: anywhere;
+}
+
+.settings-modal .api-settings code {
+  display: block;
+  padding: 12px;
+  margin-bottom: 14px;
+  border-radius: 8px;
+  background: var(--input);
+}
+
+.settings-modal .theme-choices {
+  display: flex;
+  gap: 12px;
+}
+
+.settings-modal .theme-choice {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 19px 12px 15px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--secondary);
+  font-size: 13px;
+}
+
+.settings-modal .theme-choice:hover {
+  background: var(--hover);
+}
+
+.settings-modal .theme-choice.active {
+  border-color: var(--accent);
+  background: var(--accent-tint);
+  color: var(--accent);
+}
+
+.settings-modal .theme-check {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+}
+
+@media (max-width: 700px) {
+  dialog.settings-modal {
+    width: calc(100% - 24px);
+    height: calc(100dvh - var(--safe-top, 0px) - var(--safe-bottom, 0px) - 24px);
+    max-height: calc(100dvh - var(--safe-top, 0px) - var(--safe-bottom, 0px) - 24px);
+  }
+
+  .settings-modal > .dialog-header {
+    padding: 14px 18px;
+  }
+
+  .settings-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .settings-nav {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
+    padding: 8px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .settings-nav button {
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 2px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .settings-modal .settings-content {
+    padding: 0 18px 20px;
+  }
+
+  .settings-modal .theme-choices {
+    gap: 8px;
+  }
+
+  .settings-modal .theme-choice {
+    min-height: 85px;
+    padding: 14px 6px;
+    font-size: 12px;
+  }
+
+  .settings-modal :is(input:not([type='checkbox']), textarea, select) {
+    font-size: 16px;
+  }
+}

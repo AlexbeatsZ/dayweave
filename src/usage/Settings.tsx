@@ -56,7 +56,12 @@ function PrivacyRules({
             }
           }}
         />
-        <button type="button" disabled={!input.trim() || values.length >= 200} onClick={add}>
+        <button
+          className="button"
+          type="button"
+          disabled={!input.trim() || values.length >= 200}
+          onClick={add}
+        >
           添加
         </button>
       </div>
@@ -76,7 +81,7 @@ export function UsageSettingsPanel() {
     if (status) setDraft((previous) => previous ?? status.settings);
   }, [status]);
   async function save() {
-    if (!draft) return;
+    if (!draft || busy) return;
     setBusy(true);
     setError('');
     setNotice('');
@@ -95,7 +100,7 @@ export function UsageSettingsPanel() {
     <section className="settings-section usage-settings">
       <h3>自动记录</h3>
       {draft && (
-        <>
+        <fieldset className="usage-settings-fields" disabled={busy} aria-label="自动记录配置">
           <label className="usage-setting-row">
             <span>
               <strong>本机记录</strong>
@@ -179,6 +184,7 @@ export function UsageSettingsPanel() {
                 : (['usage'] as const)
               ).map((kind) => (
                 <button
+                  className="button"
                   type="button"
                   key={kind}
                   onClick={() =>
@@ -203,7 +209,7 @@ export function UsageSettingsPanel() {
           )}
           <button
             type="button"
-            className="primary-button"
+            className="button primary"
             disabled={busy}
             onClick={() => void save()}
           >
@@ -219,7 +225,7 @@ export function UsageSettingsPanel() {
               }}
             />
           )}
-        </>
+        </fieldset>
       )}
       {(error || result.error || status?.error) && (
         <p role="alert">{error || result.error || status?.error}</p>

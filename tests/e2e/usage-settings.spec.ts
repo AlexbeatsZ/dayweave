@@ -1,6 +1,90 @@
 import { test, expect } from '@playwright/test';
 import { emptyState } from '../../src/model';
 import { defaultUsageSettings } from '../../src/usage/domain';
+import { mkdir } from 'node:fs/promises';
+import path from 'node:path';
+
+test('settings categories preserve drafts, align controls and fit phone and desktop themes', async ({
+  page,
+}) => {
+  await page.getByRole('button', { name: '设置与同步', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: '设置', exact: true });
+  const navigation = dialog.getByRole('navigation', { name: '设置分类' });
+  await expect(dialog.getByLabel('日程时区', { exact: true })).toBeVisible();
+  await navigation.getByRole('button', { name: '自动记录', exact: true }).click();
+  await dialog.getByRole('switch', { name: '本机记录', exact: true }).check();
+  await dialog.getByLabel('添加敏感词').fill('private draft');
+  await navigation.getByRole('button', { name: '设备同步', exact: true }).click();
+  await expect(dialog.getByRole('switch', { name: '本机记录' })).toBeHidden();
+  await navigation.getByRole('button', { name: '自动记录', exact: true }).click();
+  await expect(dialog.getByRole('switch', { name: '本机记录', exact: true })).toBeChecked();
+  await expect(dialog.getByLabel('添加敏感词')).toHaveValue('private draft');
+  expect(await page.evaluate(() => localStorage.getItem('saved-usage'))).toBeNull();
+  const previews = path.resolve('.local/preview/settings');
+  await mkdir(previews, { recursive: true });
+  for (const width of [1440, 700, 390, 360]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.evaluate((width) => {
+      Object.assign(window.clearlist!, { platform: width > 700 ? 'win32' : 'android' });
+    }, width);
+    for (const theme of ['light', 'dark']) {
+      await navigation.getByRole('button', { name: '通用', exact: true }).click();
+      await dialog
+        .getByRole('button', { name: theme === 'light' ? '浅色' : '深色', exact: true })
+        .click();
+      await dialog.screenshot({ path: path.join(previews, `general-${width}-${theme}.png`) });
+      await navigation.getByRole('button', { name: '自动记录', exact: true }).click();
+      const row = dialog.locator('.usage-setting-row').first();
+      const bounds = (await row.boundingBox())!;
+      const control = (await row.getByRole('switch').boundingBox())!;
+      expect(Math.abs(control.y + control.height / 2 - bounds.y - bounds.height / 2)).toBeLessThan(
+        2,
+      );
+      expect(control.x).toBeGreaterThan(bounds.x + bounds.width / 2);
+      expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
+        true,
+      );
+      expect(
+        await dialog
+          .locator('.settings-content')
+          .evaluate((element) => element.scrollWidth <= element.clientWidth),
+      ).toBe(true);
+      await dialog.screenshot({ path: path.join(previews, `settings-${width}-${theme}.png`) });
+    }
+  }
+});
+
+test('settings shares native nested-dialog back, Escape and focus restoration', async ({
+  page,
+}) => {
+  const opener = page.getByRole('button', { name: '设置与同步', exact: true });
+  await opener.click();
+  const dialog = page.getByRole('dialog', { name: '设置', exact: true });
+  await dialog
+    .getByRole('navigation', { name: '设置分类' })
+    .getByRole('button', { name: '自动记录', exact: true })
+    .click();
+  await dialog.getByRole('button', { name: /忽略应用/ }).click();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog', { name: '忽略应用', exact: true })).toHaveCount(0);
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole('button', { name: /忽略应用/ })).toBeFocused();
+  await page.evaluate(() =>
+    document.dispatchEvent(new Event('clearlist:back', { cancelable: true })),
+  );
+  await expect(dialog).toHaveCount(0);
+  await expect(opener).toBeFocused();
+});
+
+test('incoming pairing switches an open settings dialog to device sync', async ({ page }) => {
+  await page.getByRole('button', { name: '设置与同步', exact: true }).click();
+  await page.evaluate(() => document.dispatchEvent(new Event('dayweave:pairing')));
+  await expect(
+    page
+      .getByRole('navigation', { name: '设置分类' })
+      .getByRole('button', { name: '设备同步', exact: true }),
+  ).toHaveAttribute('aria-current', 'page');
+});
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(
@@ -57,6 +141,10 @@ test('ignored applications use searchable native identities, preserve drafts and
   page,
 }) => {
   await page.getByRole('button', { name: '设置与同步', exact: true }).click();
+  await page
+    .getByRole('navigation', { name: '设置分类' })
+    .getByRole('button', { name: '自动记录', exact: true })
+    .click();
   await page.getByRole('button', { name: /忽略应用/ }).click();
   const picker = page.getByRole('dialog', { name: '忽略应用', exact: true });
   await picker.getByLabel('搜索应用').fill('微信');
@@ -88,6 +176,10 @@ test('local capture and permission actions belong only to settings, never the ti
   await expect(page.getByLabel('自动记录设备')).toHaveCount(0);
   await expect(page.locator('.usage-capture-control')).toHaveCount(0);
   await page.getByRole('button', { name: '设置与同步', exact: true }).click();
+  await page
+    .getByRole('navigation', { name: '设置分类' })
+    .getByRole('button', { name: '自动记录', exact: true })
+    .click();
   await page.getByRole('switch', { name: '本机记录', exact: true }).check();
   await page.locator('.usage-settings').getByRole('button', { name: '保存', exact: true }).click();
   await page.getByRole('button', { name: '授权使用情况', exact: true }).click();
@@ -105,6 +197,10 @@ test('application picker remains usable at phone width', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole('button', { name: '打开导航', exact: true }).click();
   await page.getByRole('button', { name: '设置与同步', exact: true }).click();
+  await page
+    .getByRole('navigation', { name: '设置分类' })
+    .getByRole('button', { name: '自动记录', exact: true })
+    .click();
   await page.getByRole('button', { name: /忽略应用/ }).click();
   await expect(page.getByRole('dialog', { name: '忽略应用', exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);

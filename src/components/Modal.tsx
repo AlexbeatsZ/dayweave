@@ -9,6 +9,8 @@ export function Modal({
   sheet = false,
   wide = false,
   drawer = false,
+  className = '',
+  closeLabel,
 }: {
   title: string;
   close: () => void;
@@ -16,6 +18,8 @@ export function Modal({
   sheet?: boolean;
   wide?: boolean;
   drawer?: boolean;
+  className?: string;
+  closeLabel?: string;
 }) {
   const ref = useRef<HTMLDialogElement>(null),
     closeRef = useRef(close);
@@ -40,10 +44,11 @@ export function Modal({
   return (
     <dialog
       ref={ref}
-      className={drawer ? 'phone-drawer' : sheet ? 'phone-sheet' : wide ? 'wide-dialog' : ''}
+      className={`${drawer ? 'phone-drawer' : sheet ? 'phone-sheet' : wide ? 'wide-dialog' : ''} ${className}`.trim()}
       aria-label={title}
       onCancel={(event) => {
         event.preventDefault();
+        event.stopPropagation();
         close();
       }}
       onClick={(event) => {
@@ -63,7 +68,7 @@ export function Modal({
         <h2>{title}</h2>
         <button
           className="icon-button"
-          aria-label={sheet ? `关闭${title}` : '关闭对话框'}
+          aria-label={closeLabel ?? (sheet ? `关闭${title}` : '关闭对话框')}
           onClick={close}
         >
           <X size={21} />

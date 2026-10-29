@@ -1125,17 +1125,6 @@
   .phone-shell .modal-body {
     padding: 0 20px 22px;
   }
-  .phone-shell .theme-choice {
-    min-height: 85px;
-    padding: 14px 6px;
-    font-size: 12px;
-  }
-  .phone-shell .theme-choices {
-    gap: 8px;
-  }
-  .phone-shell .settings-section h3 {
-    font-size: 14px;
-  }
   .phone-shell .setting-description,
   .phone-shell .field-hint {
     font-size: 12px;

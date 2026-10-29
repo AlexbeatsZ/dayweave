@@ -2,7 +2,7 @@ import { useState, type FormEvent, type ReactNode } from 'react';
 import { FolderOpen, Hash, Pencil, Plus, Settings, Trash2 } from 'lucide-react';
 import { ColorPicker } from '../components/ColorPicker';
 import { Modal } from '../components/Modal';
-import { ListModal } from '../components/Settings';
+import { ListModal } from '../components/ListModal';
 import { now, type TaskList, type View } from '../model';
 import { store, useStore } from '../store';
 import { activeActivity, deleteActivity, timestamp } from '../timelog/domain';

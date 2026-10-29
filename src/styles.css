@@ -812,69 +812,6 @@ input[type='date'] {
   padding: 0 28px 27px;
   overflow: auto;
 }
-.settings-section {
-  padding: 22px 0;
-  border-bottom: 1px solid var(--line);
-}
-.settings-section h3 {
-  font-size: 12px;
-  font-weight: 550;
-  margin-bottom: 17px;
-}
-.theme-choices {
-  display: flex;
-  gap: 13px;
-}
-.theme-choice {
-  position: relative;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 19px 12px 15px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  color: var(--secondary);
-  font-size: 10px;
-}
-.theme-choice:hover {
-  background: var(--hover);
-}
-.theme-choice.active {
-  border-color: var(--accent);
-  background: var(--accent-tint);
-  color: var(--accent);
-}
-.theme-check {
-  position: absolute;
-  right: 8px;
-  top: 8px;
-}
-.duration-settings {
-  display: flex;
-  gap: 30px;
-}
-.duration-settings label {
-  flex: 1;
-  font-size: 10px;
-  color: var(--muted);
-}
-.duration-settings label > div {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 9px;
-}
-.duration-settings input {
-  background: var(--input);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 8px;
-  width: 75px;
-  font-size: 13px;
-}
 .setting-description {
   color: var(--secondary);
   font-size: 11px;

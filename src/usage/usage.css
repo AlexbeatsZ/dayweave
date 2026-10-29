@@ -133,13 +133,16 @@
   padding: 0 20px 20px;
   overflow-wrap: anywhere;
 }
-.usage-settings {
+.usage-settings,
+.usage-settings-fields {
   display: grid;
   gap: 12px;
 }
-.usage-settings > label:not(.check-label) {
-  display: grid;
-  gap: 6px;
+.usage-settings-fields {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
 }
 .usage-setting-grid {
   display: grid;
@@ -285,8 +288,7 @@
   justify-content: flex-end;
   gap: 10px;
 }
-.usage-app-picker footer button,
-.usage-settings > .primary-button {
+.usage-app-picker footer button {
   padding: 9px 16px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -294,8 +296,7 @@
   color: inherit;
   cursor: pointer;
 }
-.usage-app-picker footer .primary-button,
-.usage-settings > .primary-button {
+.usage-app-picker footer .primary-button {
   background: var(--accent);
   color: white;
   border-color: transparent;

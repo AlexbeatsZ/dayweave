@@ -41,6 +41,10 @@ test('sync settings edits ordered address lines without disconnecting or droppin
   }, emptyState());
   await page.goto('/');
   await page.getByRole('button', { name: '设置与同步', exact: true }).click();
+  await page
+    .getByRole('navigation', { name: '设置分类' })
+    .getByRole('button', { name: '设备同步', exact: true })
+    .click();
   await expect(page.getByText('本地保存失败 · 暂停同步', { exact: true })).toBeVisible();
   await page.getByText('更换同步地址（保留配对）', { exact: true }).click();
   await expect(page.getByLabel('新的同步中心地址')).toHaveValue('http://192.168.31.32:49732');

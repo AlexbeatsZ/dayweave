@@ -42,6 +42,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Active Work
 
+- 2026-10-29 source-only settings review: four responsive categories, shared native Modal, isolated API panel and ListModal, scoped settings styles and aligned capture controls. Drafts survive category/breakpoint switches; nested Escape no longer closes the parent. UI review is pending; installed version remains 0.4.8. Do not build/publish/deploy/push until authorized. Preview: ignored .local/preview/settings/. Follow-up reuse candidates and boundaries: docs/design/settings.md.
+
 - 0.4.8 build/publication/five-device deployment is complete. Evidence/scripts are in ignored .local/deploy-0.4.8/ and shared helpers .local/deploy-0.4.6-final/. Physical multi-network/Android background/cold-boot and user's installed-layout acceptance remain separate. No new system permissions, shortcuts or unrelated service changes.
 - The requested Tailscale-first/public-second configuration is complete on all four clients, with the existing ROG hub unchanged. Pad public fallback and phone pairing/business/automatic exchange are observed; deliberate network disconnection, Android background/cold boot and the user's installed-layout review remain unverified. No system permissions or conflict resets are authorized. This configuration-only follow-up requires no new package or release.
 - Delivered layout: all devices share one automatic-record region; overlap clusters keep fixed equal-width rectangular lanes across the full card duration. A standalone card fills100%; 1-4 and2-5 share50% each, leaving blank ends instead of expanding segments. Phone timeline has no page-level or internal horizontal scrolling; click opens full details. The78-browser regression includes360/390/430px dense-card and staggered geometry cases. Keep the adaptive shared clock, no headers/device dropdown/settings shortcuts. Preview .local/preview/timeline-fit/phone-staggered.png.
@@ -83,6 +85,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 - For sideloaded builds, omit Xiaomi-market miuiWidget/miuiWidgetVersion markers: the standard Android picker then exposes both variants on the tested Pad 6 Pro. A successful requestPinAppWidget result does not prove Xiaomi showed a confirmation; keep manual picker instructions.
 
 # Docs Index
+
+- docs/design/settings.md: settings categories, draft ownership, shared modal/style boundaries and prioritized reuse/decoupling review.
 
 - docs/design/automatic-records.md: native collectors, AW/Work Review adapters, aligned timeline, separate SQLite ownership, usage sync, privacy and acceptance limits.
 
