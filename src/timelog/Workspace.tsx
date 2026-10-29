@@ -334,6 +334,7 @@ export default function Workspace({
                           now={now}
                           mode={timelineMode}
                           deviceId={usageDevice}
+                          devices={usage.status?.devices}
                           filter={filter}
                           onManual={(id) => {
                             const record = state.records.find((row) => row.id === id);

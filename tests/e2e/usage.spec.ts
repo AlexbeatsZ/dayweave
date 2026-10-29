@@ -81,6 +81,12 @@ test('automatic import persists, shares a central clock and never changes manual
 }) => {
   const { start, state } = await seed(page);
   await page.getByRole('button', { name: '对照时间线', exact: true }).click();
+  await expect(page.getByLabel('时间线缩放')).toHaveCount(0);
+  await expect(page.locator('.usage-column-heading[data-device="omen"]')).toContainText('OMEN');
+  await expect(page.locator('.usage-column-heading[data-device="k70"]')).toContainText('Redmi K70');
+  await expect(page.locator('.usage-lane.automatic')).toHaveCount(2);
+  await expect(page.locator('.usage-lane[data-device="omen"] .usage-block.app')).toHaveCount(1);
+  await expect(page.locator('.usage-lane[data-device="k70"] .usage-block.app')).toHaveCount(1);
   const manual = page.locator(`.usage-block.manual[data-start="${start}"]`).first();
   const automatic = page
     .locator(`.usage-block.app[data-device="omen"][data-start="${start}"]`)
@@ -96,6 +102,9 @@ test('automatic import persists, shares a central clock and never changes manual
     ),
   );
   expect(positions[0]).toEqual(positions[1]);
+  expect(
+    await automatic.evaluate((node) => node.getBoundingClientRect().height),
+  ).toBeGreaterThanOrEqual(70);
   await automatic.scrollIntoViewIfNeeded();
   await page.screenshot({ path: test.info().outputPath('comparison-desktop.png') });
   await automatic.click();
@@ -146,6 +155,12 @@ test('narrow comparison remains within the viewport without import controls or e
   await page.getByRole('button', { name: '对照时间线', exact: true }).click();
   await expect(page.locator('.usage-block.app')).toHaveCount(2);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  expect(
+    await page
+      .locator('.usage-scroll')
+      .first()
+      .evaluate((node) => node.scrollWidth > node.clientWidth),
+  ).toBe(true);
   await page.locator('.usage-block.app').first().scrollIntoViewIfNeeded();
   await page.screenshot({ path: test.info().outputPath('comparison-phone.png') });
   await page.locator('.usage-block.app').first().click();
@@ -154,4 +169,56 @@ test('narrow comparison remains within the viewport without import controls or e
   await expect(page.getByText('载入与同步', { exact: true })).toHaveCount(0);
   await expect(page.getByText(/没有记录不代表|设备观察，不会自动/)).toHaveCount(0);
   await expect(page.locator('.timeline-summary, .timeline-options')).toHaveCount(0);
+});
+
+test('short records auto-size and same-name devices keep independent columns', async ({ page }) => {
+  const { start } = await seed(page);
+  await page.evaluate(async (start) => {
+    const modulePath = '/src/usage/client.ts';
+    const { usageBridge, usageChanged } = await import(modulePath);
+    await usageBridge().import([
+      {
+        id: 'short-1',
+        deviceId: 'old-omen',
+        deviceName: 'OMEN',
+        platform: 'win32',
+        source: 'work-review',
+        kind: 'app',
+        app: 'Short Editor',
+        revision: 1,
+        start: start + 5 * 3600000,
+        end: start + 5 * 3600000 + 5000,
+      },
+      {
+        id: 'short-2',
+        deviceId: 'old-omen',
+        deviceName: 'OMEN',
+        platform: 'win32',
+        source: 'work-review',
+        kind: 'app',
+        app: 'Short Browser',
+        revision: 1,
+        start: start + 5 * 3600000 + 5000,
+        end: start + 5 * 3600000 + 10000,
+      },
+    ]);
+    usageChanged();
+  }, start);
+  await page.getByRole('button', { name: '对照时间线', exact: true }).click();
+  await expect(page.locator('.usage-lane.automatic')).toHaveCount(3);
+  await expect(page.locator('.usage-column-heading[data-device="old-omen"]')).toContainText('OMEN');
+  const lane = page.locator('.usage-lane[data-device="old-omen"]');
+  const cards = lane.locator('.usage-block');
+  await expect(cards).toHaveCount(2);
+  const boxes = await cards.evaluateAll((nodes) =>
+    nodes.map((node) => ({
+      top: (node as HTMLElement).offsetTop,
+      height: (node as HTMLElement).offsetHeight,
+    })),
+  );
+  expect(boxes.every((box) => box.height >= 70)).toBe(true);
+  expect(boxes[1].top + boxes[1].height).toBeLessThanOrEqual(boxes[0].top);
+  expect(await lane.evaluate((node) => node.clientHeight)).toBeLessThan(650);
+  await cards.first().click();
+  await expect(page.getByRole('heading', { name: '自动记录详情' })).toBeVisible();
 });

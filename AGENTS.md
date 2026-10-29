@@ -37,6 +37,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Active Work
 
+- 0.4.6 / Android code13 in progress: automatic/comparison timeline replaces manual zoom with record-boundary adaptive layout and labelled device columns. Shared non-linear clock keeps all columns aligned, compresses empty hours, expands short cards and keeps producer IDs separate. Focused/browser tests and release/deployment are being completed; installed baseline remains 0.4.5 until recorded otherwise.
+
 - All five devices are upgraded to 0.4.5 / code12; desktop storage, pairing, task/timelog parity and global usage exchange are verified. Mac installed automatic timeline renders real observations without summaries or load controls; temporary CDP flags/forwarding removed. Android usage permissions and foreground/background/mobile-public-network acceptance, Mac new native capture after Accessibility, and cold boot remain pending. Old generated-build cleanup was rejected by executor policy; previous release/.local build artifacts remain. Do not delete profile/bundle recovery backups as build cleanup.
 - Old Work Review and Dayweave collector device IDs are not automatically aliased to one physical device; do not claim physical-device cumulative deduplication across these two producer identities. Native ROG new-window capture was not exercised while locked. Advanced legacy rules/report UI, screenshots/OCR and new Android media production remain outside this integration.
 
