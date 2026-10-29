@@ -40,6 +40,7 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Active Work
 
+- 2026-10-28 user explicitly requested a new build and deployment to all five devices. Prepare0.4.8/code15 from the unchanged0.4.7 feature baseline, preserving profiles/pairing/widgets/address order; controlled Dayweave-only restarts are authorized. Desktop preflight is connected with1188 tasks/1004 records and OMEN's2 existing conflicts; both Android devices are reachable. No new system permissions, shortcuts or unrelated service changes.
 - 0.4.7 delivery is complete. Physical-device multi-network failover, Android foreground/background/cold-boot acceptance and the user's installed-layout review remain separate from automated tests. Existing devices still use one public HTTPS address; wait for the user's desired list before changing live address order. No system permissions or conflict resets are authorized.
 - Delivered layout: all devices share one automatic-record region; overlap clusters keep fixed equal-width rectangular lanes across the full card duration. A standalone card fills100%; 1-4 and2-5 share50% each, leaving blank ends instead of expanding segments. Phone timeline has no page-level or internal horizontal scrolling; click opens full details. The78-browser regression includes360/390/430px dense-card and staggered geometry cases. Keep the adaptive shared clock, no headers/device dropdown/settings shortcuts. Preview .local/preview/timeline-fit/phone-staggered.png.
 
