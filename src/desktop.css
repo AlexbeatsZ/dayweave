@@ -362,10 +362,6 @@
     border: 1px solid var(--line);
     border-radius: 16px;
   }
-  .desktop-shell .phone-record-toolbar .timeline-summary {
-    gap: 26px;
-    padding: 14px 4px;
-  }
   .desktop-shell .phone-timeline-day > h2 {
     font-size: 15px;
     margin-block: 20px 16px;

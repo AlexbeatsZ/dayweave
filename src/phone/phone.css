@@ -715,42 +715,6 @@
 .phone-shell .timelog-module .date-picker .text-button {
   font-size: 11px;
 }
-.phone-shell .timelog-module .timeline-summary {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0;
-  margin: 0 0 18px;
-  border: 0;
-  background: var(--bg);
-  padding: 15px 4px;
-  border-radius: 16px;
-}
-.phone-shell .timelog-module .timeline-summary > span {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  text-align: center;
-  font-size: 10px;
-  border-right: 1px solid var(--line);
-}
-.phone-shell .timelog-module .timeline-summary > span:last-child {
-  border: 0;
-}
-.phone-shell .timelog-module .timeline-summary strong {
-  font:
-    17px Bahnschrift,
-    Consolas,
-    monospace;
-  color: var(--text);
-}
-.phone-shell .timelog-module .timeline-summary .weekday {
-  display: none;
-}
-.phone-shell .timelog-module .timeline-options {
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 0 0 14px;
-}
 .phone-shell .timelog-module .search-field {
   width: 100%;
   max-width: none;
@@ -1398,10 +1362,6 @@
 }
 .phone-shell .phone-record-toolbar .panel-toolbar {
   margin-bottom: 10px;
-}
-.phone-shell .phone-record-toolbar .timeline-summary {
-  margin-bottom: 0;
-  padding: 10px 4px;
 }
 .phone-shell .phone-record-toolbar .date-picker {
   min-height: 42px;
