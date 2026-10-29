@@ -92,6 +92,17 @@ test('shared axis handles overlapping ranges, midnight clipping and unlock insta
   );
 });
 
+test('staggered intervals keep equal fixed lanes with blank ends and later records regain full width', () => {
+  const lanes = timelineLanes([
+    { id: 'second', start: 2, end: 5 },
+    { id: 'first', start: 1, end: 4 },
+    { id: 'later', start: 5, end: 6 },
+  ]);
+  assert.deepEqual(lanes.get('first'), { lane: 0, lanes: 2 });
+  assert.deepEqual(lanes.get('second'), { lane: 1, lanes: 2 });
+  assert.deepEqual(lanes.get('later'), { lane: 0, lanes: 1 });
+});
+
 test('overlap lanes belong to each local cluster, not the whole day', () => {
   const lanes = timelineLanes([
     { id: 'app', start: 0, end: 300 },

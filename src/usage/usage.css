@@ -9,13 +9,6 @@
   width: 100%;
   margin: 0;
 }
-.usage-toolbar > .usage-actions {
-  flex-wrap: nowrap;
-}
-.usage-toolbar > .usage-actions > select {
-  flex: 1;
-  width: auto;
-}
 .usage-toolbar .phone-segments button,
 .usage-statistics > .phone-segments button {
   flex: 1;
@@ -36,44 +29,22 @@
   color: inherit;
   max-width: 100%;
 }
-.usage-scroll {
+.usage-frame {
   width: 100%;
   max-width: 100%;
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
+  overflow: hidden;
   margin-bottom: 24px;
   border: 1px solid var(--line);
   border-radius: 13px;
   background: var(--canvas);
 }
-.usage-column-headings,
 .usage-aligned {
   display: grid;
-}
-.usage-column-headings {
-  border-bottom: 1px solid var(--line);
-  background: var(--bg);
-}
-.usage-column-heading {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 12px;
-  font-size: 13px;
-}
-.usage-column-heading strong,
-.usage-column-heading small {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.usage-column-heading small {
-  color: var(--muted);
-  font-size: 10px;
-}
-.usage-aligned {
+  grid-template-columns: 44px minmax(0, 1fr);
   position: relative;
+}
+.usage-aligned.compare {
+  grid-template-columns: minmax(0, 1fr) 44px minmax(0, 1fr);
 }
 .usage-ruler {
   position: relative;
@@ -87,11 +58,11 @@
 }
 .usage-ruler time {
   position: absolute;
-  left: 3px;
-  width: 54px;
+  left: 0;
+  width: 44px;
   text-align: center;
   font-variant-numeric: tabular-nums;
-  font-size: 11px;
+  font-size: 10px;
   color: var(--muted);
   transform: translateY(-50%);
   background: var(--canvas);
@@ -112,6 +83,7 @@
   justify-content: flex-start;
   gap: 3px;
   min-height: 0;
+  min-width: 0;
   padding: 8px;
   overflow: hidden;
   border: 1px solid var(--line);
@@ -123,6 +95,12 @@
   cursor: pointer;
   font-size: 12px;
   line-height: 16px;
+}
+.timelog-module .usage-aligned .usage-block.record-card.dense {
+  padding: 8px 0;
+  border: 0;
+  border-radius: 4px;
+  box-shadow: inset 1px 0 var(--activity-color);
 }
 .usage-block strong,
 .usage-block span,
@@ -246,13 +224,6 @@
   flex: 1;
   min-width: 0;
 }
-.usage-capture-control {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  align-items: center;
-  padding: 12px 0;
-}
 .usage-app-picker {
   display: flex;
   flex-direction: column;
@@ -315,7 +286,6 @@
   gap: 10px;
 }
 .usage-app-picker footer button,
-.usage-capture-control button,
 .usage-settings > .primary-button {
   padding: 9px 16px;
   border: 1px solid var(--line);
@@ -325,7 +295,6 @@
   cursor: pointer;
 }
 .usage-app-picker footer .primary-button,
-.usage-capture-control button,
 .usage-settings > .primary-button {
   background: var(--accent);
   color: white;

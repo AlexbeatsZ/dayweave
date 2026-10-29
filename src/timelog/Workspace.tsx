@@ -29,8 +29,6 @@ import { useTimelineDays } from '../phone/useTimelineDays';
 import { TimerPanel } from './components/TimerPanel';
 import { DateNavigator } from '../phone/DateNavigator';
 import { AlignedUsageTimeline, UsageToolbar, type TimelineMode } from '../usage/Timeline';
-import { CaptureControl } from '../usage/Settings';
-import { useUsage } from '../usage/client';
 export type TimePage = 'timeline' | 'timer' | 'goals';
 type Confirm = { title: string; body: string; action: () => Promise<boolean> };
 const activityStyle = (color: string) => ({ '--activity-color': color }) as CSSProperties;
@@ -53,8 +51,6 @@ export default function Workspace({
   const [date, setVisibleDate] = useState(initialDate ?? dayKey(Date.now()));
   const now = useClock();
   const [timelineMode, setTimelineMode] = useState<TimelineMode>('manual');
-  const [usageDevice, setUsageDevice] = useState('');
-  const usage = useUsage();
   const timeline = useTimelineDays(page === 'timeline', date, setVisibleDate);
   const setDate = timeline.jump;
   const [editor, setEditor] = useState<EditTarget | null>(null),
@@ -291,18 +287,7 @@ export default function Workspace({
                 <div className="panel-toolbar">
                   <DateNavigator date={date} onDate={setDate} />
                 </div>
-                <UsageToolbar
-                  mode={timelineMode}
-                  setMode={setTimelineMode}
-                  deviceId={usageDevice}
-                  setDeviceId={setUsageDevice}
-                  status={usage.status}
-                />
-                {timelineMode !== 'manual' &&
-                  usage.status &&
-                  (!usage.status.settings.enabled || usage.status.permissionRequired) && (
-                    <CaptureControl status={usage.status} />
-                  )}
+                <UsageToolbar mode={timelineMode} setMode={setTimelineMode} />
                 <FloatingAdd
                   label="添加记录"
                   disabled={date > dayKey(now)}
@@ -333,8 +318,6 @@ export default function Workspace({
                           state={state}
                           now={now}
                           mode={timelineMode}
-                          deviceId={usageDevice}
-                          devices={usage.status?.devices}
                           filter={filter}
                           onManual={(id) => {
                             const record = state.records.find((row) => row.id === id);

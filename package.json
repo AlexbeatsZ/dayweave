@@ -1,7 +1,7 @@
 {
   "name": "dayweave",
   "productName": "Dayweave",
-  "version": "0.4.6",
+  "version": "0.4.7",
   "private": true,
   "description": "时织 — 待办、时间记录与跨时区课程表",
   "license": "MIT",
@@ -83,7 +83,7 @@
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
+      "createDesktopShortcut": false,
       "createStartMenuShortcut": true,
       "shortcutName": "Dayweave",
       "artifactName": "Dayweave-${version}-Windows-Setup.exe"

@@ -93,7 +93,6 @@ export async function initializeMobile() {
     },
     async (endpoint, path, body) => (await files.postSync({ endpoint, path, body })).body,
     deviceName,
-    async () => (await files.discoverSync()).peers,
   );
   try {
     await syncClient.load();

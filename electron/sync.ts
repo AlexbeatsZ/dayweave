@@ -72,9 +72,7 @@ export class DesktopSync implements SyncBridge {
     readonly directory: string,
     readonly discovery = true,
   ) {
-    this.client = new SyncClient(syncFiles(directory), service, fetchEnvelope, os.hostname(), () =>
-      this.discover(),
-    );
+    this.client = new SyncClient(syncFiles(directory), service, fetchEnvelope, os.hostname());
     this.scheduler = new SyncScheduler(() => this.client.now());
   }
   async initialize() {

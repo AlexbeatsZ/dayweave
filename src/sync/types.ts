@@ -8,6 +8,7 @@ export type SyncConfig = {
   name: string;
   enabled: boolean;
   endpoint?: string;
+  endpoints?: string[];
   hubId?: string;
   key?: string;
   seq: number;
@@ -29,6 +30,8 @@ export type SyncStatus = {
   mode: 'off' | 'hub' | 'client';
   name: string;
   endpoint?: string;
+  endpoints?: string[];
+  activeEndpoint?: string;
   addresses?: string[];
   hubId?: string;
   connected: boolean;

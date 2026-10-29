@@ -2,8 +2,32 @@ package org.dayweave.mobile;
 
 import java.net.URI;
 import java.util.Locale;
+import java.util.ArrayList;
+import java.util.List;
 
 final class SyncEndpoint {
+    interface Attempt<T> {
+        T run(String endpoint) throws Exception;
+    }
+    static List<String> parseList(String legacy, List<String> configured) throws Exception {
+        List<String> values = configured == null ? java.util.Collections.singletonList(legacy) : configured;
+        if (values.isEmpty() || values.size() > 16) throw new IllegalArgumentException("Provide 1-16 sync addresses");
+        List<String> endpoints = new ArrayList<>();
+        for (String value : values) {
+            String endpoint = parse(value);
+            if (!endpoints.contains(endpoint)) endpoints.add(endpoint);
+        }
+        return endpoints;
+    }
+    static <T> T first(List<String> endpoints, Attempt<T> attempt) throws Exception {
+        Exception failure = null;
+        for (String endpoint : endpoints) {
+            try { return attempt.run(endpoint); }
+            catch (Exception error) { failure = error; }
+        }
+        if (failure != null) throw failure;
+        throw new IllegalArgumentException("No sync addresses");
+    }
     static String parse(String value) throws Exception {
         URI uri = new URI(value);
         String host = uri.getHost();

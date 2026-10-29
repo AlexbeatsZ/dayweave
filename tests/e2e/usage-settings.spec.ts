@@ -78,12 +78,19 @@ test('ignored applications use searchable native identities, preserve drafts and
   await expect(page.getByText(/不会自动增加|默认关闭|未授权、未上传/)).toHaveCount(0);
 });
 
-test('empty local timeline offers enable and the actual permission action instead of import advice', async ({
+test('local capture and permission actions belong only to settings, never the timeline', async ({
   page,
 }) => {
   await page.getByRole('button', { name: '记录', exact: true }).first().click();
   await page.getByRole('button', { name: '自动记录', exact: true }).click();
-  await page.getByRole('button', { name: '开启本机记录', exact: true }).click();
+  await expect(page.getByRole('button', { name: '开启本机记录', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '授权使用情况', exact: true })).toHaveCount(0);
+  await expect(page.getByLabel('自动记录设备')).toHaveCount(0);
+  await expect(page.locator('.usage-capture-control')).toHaveCount(0);
+  await page.getByRole('button', { name: '设置与同步', exact: true }).click();
+  await page.getByRole('switch', { name: '本机记录', exact: true }).check();
+  await page.locator('.usage-settings').getByRole('button', { name: '保存', exact: true }).click();
+  await page.getByRole('button', { name: '授权使用情况', exact: true }).click();
   await expect
     .poll(() => page.evaluate(() => localStorage.getItem('permission-opened')))
     .toBe('usage');

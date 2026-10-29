@@ -95,3 +95,15 @@ export function syncEndpoint(input: string): string {
     throw new Error('同步路径只能包含字母、数字、短横线和下划线');
   return url.origin + url.pathname.replace(/\/$/, '');
 }
+
+export function syncEndpoints(input: string | string[]): string[] {
+  const values = typeof input === 'string' ? input.trim().split(/[\s,，;；]+/) : input;
+  if (!values.length || values.length > 16) throw new Error('请填写 1–16 个同步地址');
+  const endpoints = values.map((value) => {
+    if (typeof value !== 'string' || !value.trim()) throw new Error('同步地址不能为空');
+    const address = value.trim();
+    const ip = /^(\d+\.\d+\.\d+\.\d+)(:\d+)?$/.exec(address);
+    return syncEndpoint(ip ? `http://${ip[1]}${ip[2] ?? ':49732'}` : address);
+  });
+  return [...new Set(endpoints)];
+}

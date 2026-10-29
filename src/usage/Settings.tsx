@@ -2,44 +2,8 @@ import { useEffect, useState } from 'react';
 import { ChevronRight, X } from 'lucide-react';
 import { usageBridge, usageChanged, useUsage } from './client';
 import { ApplicationPicker } from './ApplicationPicker';
-import type { UsageSettings, UsageStatus } from './domain';
+import type { UsageSettings } from './domain';
 import './usage.css';
-
-export function CaptureControl({ status }: { status: UsageStatus }) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const permission = status.settings.enabled && status.permissionRequired;
-  const mac = window.clearlist?.platform === 'darwin';
-  return (
-    <div className="usage-capture-control">
-      <span>
-        {permission ? (mac ? '辅助功能权限未开启' : '使用情况权限未开启') : '本机记录未开启'}
-      </span>
-      <button
-        type="button"
-        disabled={busy}
-        onClick={async () => {
-          setBusy(true);
-          setError('');
-          try {
-            const next = status.settings.enabled
-              ? status
-              : await usageBridge().configure({ ...status.settings, enabled: true });
-            usageChanged();
-            if (next.permissionRequired) await usageBridge().permission?.('usage');
-          } catch (error) {
-            setError(error instanceof Error ? error.message : String(error));
-          } finally {
-            setBusy(false);
-          }
-        }}
-      >
-        {busy ? '正在开启…' : permission ? (mac ? '授权辅助功能' : '授权使用情况') : '开启本机记录'}
-      </button>
-      {error && <p role="alert">{error}</p>}
-    </div>
-  );
-}
 
 function PrivacyRules({
   title,

@@ -37,19 +37,23 @@ export async function syncUsage(client: SyncClient, replica: UsageReplica) {
         cursor: await replica.cursor(config.hubId),
         limit: 500,
       };
-      const result = await client.post(
-        config.endpoint,
+      const reply = await client.request(
         '/usage',
-        await seal(request, config.key, '/usage', config.deviceId),
+        () => seal(request, config.key!, '/usage', config.deviceId),
+        async (result) => {
+          if (result.clientId !== config.deviceId) throw new Error('自动记录回执身份不符');
+          const value = usageReplySchema.parse(
+            await openEnvelope(result, config.key!, '/usage:reply'),
+          );
+          if (value.requestId !== request.requestId) throw new Error('自动记录回执不匹配');
+          if (value.cursor < request.cursor || (value.more && value.cursor === request.cursor))
+            throw new Error('自动记录同步游标无进展');
+          const sent = new Map(request.events.map((event) => [event.id, event.revision]));
+          if (value.accepted.some((item) => sent.get(item.id) !== item.revision))
+            throw new Error('自动记录回执包含未发送的记录');
+          return value;
+        },
       );
-      if (result.clientId !== config.deviceId) throw new Error('自动记录回执身份不符');
-      const reply = usageReplySchema.parse(await openEnvelope(result, config.key, '/usage:reply'));
-      if (reply.requestId !== request.requestId) throw new Error('自动记录回执不匹配');
-      if (reply.cursor < request.cursor || (reply.more && reply.cursor === request.cursor))
-        throw new Error('自动记录同步游标无进展');
-      const sent = new Map(request.events.map((event) => [event.id, event.revision]));
-      if (reply.accepted.some((item) => sent.get(item.id) !== item.revision))
-        throw new Error('自动记录回执包含未发送的记录');
       await replica.receive(config.hubId, reply);
       if (!reply.more && request.events.length < 300) break;
     }

@@ -81,7 +81,6 @@ test('journal replays after process death without losing local edits or conflict
   };
   let disk = JSON.stringify(config);
   let failCommit = true;
-  let discoveries = 0;
   const create = () =>
     new SyncClient(
       {
@@ -101,10 +100,6 @@ test('journal replays after process death without losing local edits or conflict
         throw new Error('offline');
       },
       'Test',
-      async () => {
-        discoveries++;
-        return [{ name: 'LAN', endpoint: 'http://192.168.1.1:49732', hubId: 'hub' }];
-      },
     );
   const first = create();
   await first.load();
@@ -120,7 +115,6 @@ test('journal replays after process death without losing local edits or conflict
   assert.equal(restarted.config.conflicts.length, 1);
   assert.equal(restarted.config.incoming, undefined);
   assert.equal(restarted.config.endpoint, config.endpoint);
-  assert.equal(discoveries, 0);
   assert.equal((await restarted.readStatus()).delivery, 'conflict');
   const oldIdentity = restarted.config.deviceId;
   const oldKey = restarted.config.key;

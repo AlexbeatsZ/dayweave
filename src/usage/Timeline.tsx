@@ -2,7 +2,7 @@ import { useState, type CSSProperties } from 'react';
 import { dayRange, formatDuration, formatTime, liveSpans, type State } from '../timelog/domain';
 import { Modal } from '../components/Modal';
 import { useUsage } from './client';
-import type { UsageDevice, UsageEvent, UsageStatus } from './domain';
+import type { UsageEvent } from './domain';
 import { createTimelineAxis, mergeUsageEvents, timelineLanes } from './timeline-layout';
 import './usage.css';
 
@@ -10,15 +10,9 @@ export type TimelineMode = 'manual' | 'automatic' | 'compare';
 export function UsageToolbar({
   mode,
   setMode,
-  deviceId,
-  setDeviceId,
-  status,
 }: {
   mode: TimelineMode;
   setMode: (mode: TimelineMode) => void;
-  deviceId: string;
-  setDeviceId: (id: string) => void;
-  status?: UsageStatus;
 }) {
   return (
     <div className="usage-toolbar">
@@ -34,22 +28,6 @@ export function UsageToolbar({
           </button>
         ))}
       </div>
-      {mode !== 'manual' && (
-        <div className="usage-actions">
-          <select
-            aria-label="自动记录设备"
-            value={deviceId}
-            onChange={(event) => setDeviceId(event.target.value)}
-          >
-            <option value="">全部设备</option>
-            {status?.devices.map((device) => (
-              <option key={device.id} value={device.id}>
-                {device.name}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
     </div>
   );
 }
@@ -68,8 +46,6 @@ export function AlignedUsageTimeline({
   state,
   now,
   mode,
-  deviceId,
-  devices = [],
   onManual,
   filter,
 }: {
@@ -77,14 +53,12 @@ export function AlignedUsageTimeline({
   state: State;
   now: number;
   mode: Exclude<TimelineMode, 'manual'>;
-  deviceId: string;
-  devices?: UsageDevice[];
   onManual: (id: string) => void;
   filter?: { activityId?: string; tag?: string };
 }) {
   const dayBounds = dayRange(day);
   const range = { start: dayBounds.start, end: Math.min(dayBounds.end, now) };
-  const result = useUsage({ ...dayBounds, deviceId: deviceId || undefined }, false);
+  const result = useUsage(dayBounds, false);
   const [selected, setSelected] = useState<Block>();
   const visible = (block: { start: number; end: number }) =>
     block.start < range.end &&
@@ -136,34 +110,7 @@ export function AlignedUsageTimeline({
           color: '#71a8c7',
         })),
     );
-  const byDevice = new Map<string, Block[]>();
-  const catalog = new Map(
-    devices
-      .filter((device) => !deviceId || device.id === deviceId)
-      .map((device) => [device.id, device]),
-  );
-  for (const block of automatic) {
-    const event = block.event!;
-    const rows = byDevice.get(event.deviceId) ?? [];
-    rows.push(block);
-    byDevice.set(event.deviceId, rows);
-    if (!catalog.has(event.deviceId))
-      catalog.set(event.deviceId, {
-        id: event.deviceId,
-        name: event.deviceName,
-        platform: event.platform,
-        lastEvent: event.end,
-      });
-  }
-  const columns = [...catalog.values()].sort(
-    (left, right) =>
-      left.name.localeCompare(right.name, 'zh-CN') || left.id.localeCompare(right.id),
-  );
   const axis = createTimelineAxis([...manual, ...automatic], range);
-  const gridStyle = {
-    gridTemplateColumns: `${mode === 'compare' ? 'minmax(180px, 1fr) ' : ''}60px${columns.length ? ` repeat(${columns.length}, minmax(180px, 1fr))` : ''}`,
-    minWidth: 60 + (columns.length + (mode === 'compare' ? 1 : 0)) * 180,
-  };
   function renderColumn(blocks: Block[], side: 'manual' | 'automatic') {
     const lanes = timelineLanes(blocks.filter((block) => block.end > block.start));
     return blocks.map((block) => {
@@ -173,16 +120,16 @@ export function AlignedUsageTimeline({
       const style = {
         top: instant ? Math.max(0, top - 11) : top,
         height: instant ? 22 : axis.top(Math.max(range.start, block.start)) - top - 6,
-        left: instant ? 'auto' : `calc(${(placement.lane / placement.lanes) * 100}% + 4px)`,
-        right: instant ? 4 : undefined,
-        width: instant ? 38 : `calc(${100 / placement.lanes}% - 8px)`,
+        left: instant ? 'auto' : `${(placement.lane / placement.lanes) * 100}%`,
+        right: instant ? 0 : undefined,
+        width: instant ? 'min(38px, 100%)' : `${100 / placement.lanes}%`,
         '--activity-color': block.color ?? '#638fa6',
       } as CSSProperties;
       return (
         <button
           type="button"
           key={block.id}
-          className={`usage-block record-card ${side === 'manual' ? 'manual' : block.event!.kind}${instant ? ' instant' : ''}`}
+          className={`usage-block record-card ${side === 'manual' ? 'manual' : block.event!.kind}${instant ? ' instant' : placement.lanes >= 3 ? ' dense' : ''}`}
           data-start={block.start}
           data-end={block.end}
           data-device={block.event?.deviceId}
@@ -218,31 +165,10 @@ export function AlignedUsageTimeline({
       {result.error && <p role="alert">{result.error}</p>}
       {!result.loading && !result.error && !axis.height && <p className="usage-empty">暂无记录</p>}
       {axis.height > 0 && (
-        <div className="usage-scroll" tabIndex={0} role="region" aria-label={`${day} 设备对照`}>
-          <div className="usage-column-headings" style={gridStyle}>
-            {mode === 'compare' && <div className="usage-column-heading">手动记录</div>}
-            <div aria-hidden="true" />
-            {columns.map((device) => (
-              <div className="usage-column-heading" key={device.id} data-device={device.id}>
-                <strong>{device.name}</strong>
-                <small>
-                  {{
-                    win32: 'Windows',
-                    windows: 'Windows',
-                    darwin: 'macOS',
-                    macos: 'macOS',
-                    android: 'Android',
-                  }[device.platform] ?? device.platform}
-                  {columns.some((other) => other.id !== device.id && other.name === device.name)
-                    ? ` · ${device.id.split(':').at(-1)!.slice(0, 8)}`
-                    : ''}
-                </small>
-              </div>
-            ))}
-          </div>
+        <div className="usage-frame" role="region" aria-label={`${day} 记录对照`}>
           <div
             className={`usage-aligned ${mode}`}
-            style={{ ...gridStyle, height: axis.height }}
+            style={{ height: axis.height }}
             aria-label={`${day} 对齐时间线`}
           >
             {mode === 'compare' && (
@@ -261,16 +187,9 @@ export function AlignedUsageTimeline({
                 </time>
               ))}
             </div>
-            {columns.map((device) => (
-              <div
-                className="usage-lane automatic"
-                key={device.id}
-                data-device={device.id}
-                aria-label={`${device.name} 自动记录列`}
-              >
-                {renderColumn(byDevice.get(device.id) ?? [], 'automatic')}
-              </div>
-            ))}
+            <div className="usage-lane automatic" aria-label="自动记录列">
+              {renderColumn(automatic, 'automatic')}
+            </div>
           </div>
         </div>
       )}

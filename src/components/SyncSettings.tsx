@@ -159,15 +159,21 @@ export function SyncSettings() {
             </>
           ) : status?.mode === 'client' ? (
             <>
-              <p className="field-hint">{status.endpoint}</p>
+              <p className="field-hint">{status.activeEndpoint ?? status.endpoint}</p>
               {bridge.setEndpoint && (
-                <details>
+                <details
+                  onToggle={(event) => {
+                    if (event.currentTarget.open)
+                      setEndpoint((status.endpoints ?? [status.endpoint!]).join('\n'));
+                  }}
+                >
                   <summary>更换同步地址（保留配对）</summary>
                   <label>
-                    同步中心 HTTPS 或局域网地址
-                    <input
+                    同步中心地址（每行一个，按顺序回退）
+                    <textarea
                       aria-label="新的同步中心地址"
-                      placeholder="https://sync.example.com/dayweave"
+                      rows={3}
+                      placeholder={'192.168.31.32:49732\nhttps://sync.example.com/dayweave'}
                       value={endpoint}
                       onChange={(event) => setEndpoint(event.target.value)}
                     />
@@ -185,7 +191,7 @@ export function SyncSettings() {
                     保存地址并同步
                   </button>
                   <p className="field-hint">
-                    仅更换同一中心的网络入口，不改变设备身份、密钥或待同步数据。不要填入订阅链接。
+                    每次从第一行开始尝试，失败后再试下一行。仅填写同一中心的地址，保留配对和待同步数据。
                   </p>
                 </details>
               )}
@@ -225,9 +231,10 @@ export function SyncSettings() {
                 </button>
               ))}
               <label>
-                同步中心地址（可选）
-                <input
+                同步中心地址（可选，每行一个）
+                <textarea
                   aria-label="同步中心地址"
+                  rows={3}
                   placeholder="自动使用邀请内地址"
                   value={endpoint}
                   onChange={(e) => setEndpoint(e.target.value)}
