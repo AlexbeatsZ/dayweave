@@ -15,6 +15,8 @@
 
 ## 唯一所有者与存储
 
+重叠卡片分道复用 `src/interval-lanes.ts`；自动记录保留同起点长区间优先、再按 ID 排序，课程采用自己的短区间优先规则。弹性时间轴、设备来源合并、瞬时解锁标记仍在 usage 模块，不进入共用分道函数。
+
 自动观察沿用私有配对配置中的有序 endpoints，与业务同步一样每轮从首项逐个回退；旧单 endpoint 兼容为一项。桌面复用 SyncClient 的网络尝试，Android 原生队列复用 SyncEndpoint 的顺序规则，不按网络类型排序、不提升已成功地址。事件修订、requestId 与回执校验不变。
 
 `src/usage/domain.ts` 是校验与统计口径；`import.ts` 是历史格式入口；`client.ts` 是 UI 到本机存储的桥。`UsageStore`（桌面）及 `UsageDatabase`（Android）各自拥有本机 `usage.db`（WAL）。自动观察量大且会持续修订，不加入统一业务 JSON，也不经手动记录的 StateService 写入队列。原来任务/手动记录/课程的事务路径完全不变。

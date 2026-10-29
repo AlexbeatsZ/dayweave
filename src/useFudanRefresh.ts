@@ -74,6 +74,7 @@ export function setFudanImportActive(active: boolean) {
   if (importActive === active) return;
   importActive = active;
   if (active) cancelRefresh();
+  else if (snapshot.busy) checkPending = true;
   else void refreshFudan();
 }
 /** Confirmed imports and automatic refreshes share the course transaction and ownership journal. */

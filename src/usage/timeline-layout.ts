@@ -98,28 +98,3 @@ export function createTimelineAxis(spans: readonly Span[], range: Span) {
   }
   return { height, top, ticks };
 }
-
-export function timelineLanes<Value extends Span & { id: string }>(blocks: readonly Value[]) {
-  const positions = new Map<string, { lane: number; lanes: number }>();
-  let cluster: { id: string; lane: number }[] = [];
-  let ends: number[] = [];
-  function finish() {
-    for (const block of cluster) positions.set(block.id, { lane: block.lane, lanes: ends.length });
-    cluster = [];
-    ends = [];
-  }
-  for (const block of blocks
-    .slice()
-    .sort(
-      (left, right) =>
-        left.start - right.start || right.end - left.end || left.id.localeCompare(right.id),
-    )) {
-    if (ends.length && ends.every((end) => end <= block.start)) finish();
-    const available = ends.findIndex((end) => end <= block.start);
-    const lane = available < 0 ? ends.length : available;
-    ends[lane] = block.end;
-    cluster.push({ id: block.id, lane });
-  }
-  finish();
-  return positions;
-}

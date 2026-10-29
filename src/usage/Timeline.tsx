@@ -3,7 +3,8 @@ import { dayRange, formatDuration, formatTime, liveSpans, type State } from '../
 import { Modal } from '../components/Modal';
 import { useUsage } from './client';
 import type { UsageEvent } from './domain';
-import { createTimelineAxis, mergeUsageEvents, timelineLanes } from './timeline-layout';
+import { createTimelineAxis, mergeUsageEvents } from './timeline-layout';
+import { intervalLanes } from '../interval-lanes';
 import './usage.css';
 
 export type TimelineMode = 'manual' | 'automatic' | 'compare';
@@ -112,10 +113,13 @@ export function AlignedUsageTimeline({
     );
   const axis = createTimelineAxis([...manual, ...automatic], range);
   function renderColumn(blocks: Block[], side: 'manual' | 'automatic') {
-    const lanes = timelineLanes(blocks.filter((block) => block.end > block.start));
+    const lanes = intervalLanes(
+      blocks.filter((block) => block.end > block.start),
+      (left, right) => right.end - left.end || left.id.localeCompare(right.id),
+    );
     return blocks.map((block) => {
       const instant = block.end === block.start;
-      const placement = lanes.get(block.id) ?? { lane: 0, lanes: 1 };
+      const placement = lanes.get(block) ?? { lane: 0, lanes: 1 };
       const top = axis.top(Math.min(range.end, block.end));
       const style = {
         top: instant ? Math.max(0, top - 11) : top,

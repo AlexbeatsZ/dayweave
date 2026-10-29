@@ -333,6 +333,33 @@ async function more(page: Page) {
   return menu;
 }
 
+for (const outcome of ['cancel', 'invalid'] as const) {
+  test(`immediate ${outcome} import resumes refresh after its canceled callback settles`, async ({
+    page,
+  }) => {
+    const initial = await boot(page);
+    await page.evaluate((outcome) => {
+      window.__fudanTest.cancelMode = 'late';
+      window.__fudanTest.importContent = outcome === 'cancel' ? null : 'invalid';
+    }, outcome);
+    await page.getByRole('button', { name: '课程操作', exact: true }).click();
+    await page
+      .getByRole('dialog', { name: '课程操作', exact: true })
+      .getByRole('button', { name: /网站导入/ })
+      .click();
+    await expect.poll(() => page.evaluate(() => window.__fudanTest.imports)).toBe(1);
+    await expect(page.getByRole('button', { name: '课程操作', exact: true })).toBeEnabled();
+    await expect(page.getByRole('dialog', { name: '预览导入课程', exact: true })).toHaveCount(0);
+    expect(await saved(page)).toEqual(initial);
+    expect(await primaryWrites(page)).toBe(0);
+    await respond(page, 0, changed);
+    await expect.poll(() => page.evaluate(() => window.__fudanTest.requests.length)).toBe(2);
+    expect(await saved(page)).toEqual(initial);
+    await respond(page, 1);
+    await expect.poll(() => checked(page)).toBe(now);
+  });
+}
+
 test('startup and resume refresh preserve manual edits made during capture', async ({ page }) => {
   await boot(page);
   await course(page, '合成·手动研讨').click();
@@ -614,6 +641,16 @@ test('explicit B confirmation ignores old refresh C while native persistence is 
   await preview.getByRole('button', { name: '合并导入', exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.__fudanTest.pendingWrites.length)).toBe(1);
   await expect(preview.getByRole('button', { name: '合并导入', exact: true })).toBeDisabled();
+  await page.keyboard.press('Escape');
+  await expect(preview).toBeVisible();
+  await preview.getByRole('button', { name: '关闭预览导入课程', exact: true }).click();
+  await expect(preview).toBeVisible();
+  await page.evaluate(() =>
+    document.dispatchEvent(new Event('clearlist:back', { cancelable: true })),
+  );
+  await expect(preview).toBeVisible();
+  await page.evaluate(() => window.__fudanTest.appState(true));
+  expect(await page.evaluate(() => window.__fudanTest.requests.length)).toBe(1);
   const pendingB = await optimistic(page);
   expect(pendingB.schedule.courses.filter((row) => row.id !== 'manual-course')).toEqual(bRows);
   expect(await saved(page)).toEqual(initial);

@@ -19,8 +19,8 @@
 
 本次检查设置、应用壳、课程表、时间记录 Workspace、前台 store 和自动记录 client；不是全仓安全审计。已落地设置范围内的复用、状态隔离、样式归属和嵌套弹窗修复，其余保持现有行为。
 
-1. **课程表导入流程**：Timetable 同时编排周网格、多个编辑器、文件读取、网站导入、预览、落盘和自动刷新暂停。后续可以把「导入→预览→确认持久化→恢复刷新」提为独立的课程导入控制器；只迁移这一完整生命周期，不另造持久化层。必须保留 fudan-import.md 的 ownership 恢复日志与失败重试边界。
-2. **重叠排布算法**：Timetable.layoutCourses 与 usage/timeline-layout.timelineLanes 都按重叠簇分配固定宽度的 lane。可以将区间分道提到领域无关的纯函数；课程发生实例先裁剪并生成唯一键，再映射结果。两者当前的同起点排序相反（课程短区间优先，自动记录长区间优先），不能直接替换导致卡片换位。应先补相同起点、跨日、多次 occurrence、相邻不重叠用例，再明确排序策略。不要复用自动记录的弹性时间轴或来源合并逻辑。
+1. **课程表导入流程（已整理）**：components/CourseImport.tsx 的 useCourseImport 与 CourseImportDialog 拥有「导入→预览→确认持久化→恢复刷新」完整生命周期，Timetable 仅启动流程并处理导入后的周导航。保留 fudan-import.md 的 ownership 恢复日志与失败重试边界，不另造持久化层。保存期间返回/关闭不得提前取消预览；卸载后的迟到读取结果不重开界面。
+2. **重叠排布算法（已复用）**：interval-lanes.ts 是课程和自动记录共用的纯函数，返回以原对象为键的分道结果，避免同源多次 occurrence 被 ID 映射覆盖。先按真实起止排序再由视图裁剪，保留课程同起点短区间优先、自动记录长区间优先及 ID 平局排序。相同起点、跨日、多实例、相邻不重叠已有测试；弹性时间轴和来源合并仍归自动记录模块。
 3. **异步动作的状态**：ListModal、SyncSettings、StorageRecovery 都有 busy/error/try-finally，但成功后的关闭、刷新和恢复语义不同；Workspace 还用 pendingWrites 计数处理并发。暂不抽一个泛用 save hook，以免把同步刷新失败、磁盘失败和业务校验混为一谈。真正统一的仍是 store.transact 和 StateService，而不是一套重复写入队列。
 4. **保持已有单一所有者**：MobileApp 已同时服务手机与桌面，useClock、DateNavigator、Modal 和 timelog/domain 已复用；不用按设备另拆壳，不给设置添加自己的计时器、路由或全局 store。自动记录 SQLite 与手动记录业务 JSON 的分离是设计边界，不应为了代码复用合并数据库。
 

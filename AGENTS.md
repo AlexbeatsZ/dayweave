@@ -42,6 +42,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Active Work
 
+- 2026-10-29 continuation, source only: course and usage views share interval-lanes.ts with caller-owned tie ordering; CourseImport.tsx owns explicit import/read/preview/save/cancel and refresh pause. Existing merge/ownership transaction stays unchanged. Saving previews cannot be closed early; late reads after unmount are ignored. Cancel/error resumes a canceled in-flight refresh through existing checkPending. No package/version/deployment changes; UI approval gate remains.
+
 - 2026-10-29 source-only settings review: four responsive categories, shared native Modal, isolated API panel and ListModal, scoped settings styles and aligned capture controls. Drafts survive category/breakpoint switches; nested Escape no longer closes the parent. UI review is pending; installed version remains 0.4.8. Do not build/publish/deploy/push until authorized. Preview: ignored .local/preview/settings/. Follow-up reuse candidates and boundaries: docs/design/settings.md.
 
 - 0.4.8 build/publication/five-device deployment is complete. Evidence/scripts are in ignored .local/deploy-0.4.8/ and shared helpers .local/deploy-0.4.6-final/. Physical multi-network/Android background/cold-boot and user's installed-layout acceptance remain separate. No new system permissions, shortcuts or unrelated service changes.

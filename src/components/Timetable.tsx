@@ -21,13 +21,8 @@ import {
   LayoutGrid,
 } from 'lucide-react';
 import { store, useStore } from '../store';
-import {
-  confirmCourseImport,
-  setFudanImportActive,
-  refreshFudan,
-  stopFudanRefresh,
-  useFudanSource,
-} from '../useFudanRefresh';
+import { intervalLanes } from '../interval-lanes';
+import { refreshFudan, stopFudanRefresh, useFudanSource } from '../useFudanRefresh';
 import {
   courseOccurrences,
   semesterWeek,
@@ -50,9 +45,9 @@ import {
   zoneLabel,
   timeZones,
 } from '../timezone';
-import { importCourses, csvTemplate, type ImportPreview } from '../course-import';
-import { importFudanCourses } from '../fudan-import';
-import { pickText, exportText, isMobileApp, requestWidget } from '../files';
+import { csvTemplate } from '../course-import';
+import { exportText, isMobileApp, requestWidget } from '../files';
+import { CourseImportDialog, useCourseImport } from './CourseImport';
 import { Modal } from './Modal';
 import { ColorPicker } from './ColorPicker';
 import { FloatingAdd } from '../phone/Navigation';
@@ -737,43 +732,6 @@ function PeriodEditor({ close }: { close: () => void }) {
   );
 }
 
-/** Place simultaneous courses beside each other while preserving their true time coordinates. */
-function layoutCourses(items: Occurrence[], start: number, end: number) {
-  const placed: Array<{
-    item: Occurrence;
-    start: number;
-    end: number;
-    lane: number;
-    lanes: number;
-  }> = [];
-  let cluster: typeof placed = [],
-    clusterEnd = -Infinity;
-  const finish = () => {
-    const lanes = Math.max(1, ...cluster.map((row) => row.lane + 1));
-    cluster.forEach((row) => (row.lanes = lanes));
-    cluster = [];
-  };
-  for (const item of items
-    .filter((item) => item.start < end && item.end > start)
-    .sort((a, b) => a.start - b.start || a.end - b.end)) {
-    if (item.start >= clusterEnd) finish();
-    let lane = 0;
-    while (cluster.some((row) => row.lane === lane && row.end > item.start)) lane++;
-    const row = {
-      item,
-      start: Math.max(item.start, start),
-      end: Math.min(item.end, end),
-      lane,
-      lanes: 1,
-    };
-    cluster.push(row);
-    placed.push(row);
-    clusterEnd = Math.max(cluster.length === 1 ? -Infinity : clusterEnd, item.end);
-  }
-  finish();
-  return placed;
-}
-
 export function Timetable({ clock }: { clock: number }) {
   const { data } = useStore(),
     phone = usePhone(),
@@ -785,16 +743,14 @@ export function Timetable({ clock }: { clock: number }) {
     [menu, setMenu] = useState(false),
     [semester, setSemester] = useState(false),
     [periodSettings, setPeriodSettings] = useState(false);
-  const [preview, setPreview] = useState<ImportPreview | null>(null),
-    [selected, setSelected] = useState<Slot | null>(null),
+  const [selected, setSelected] = useState<Slot | null>(null),
     [error, setError] = useState(''),
-    [notice, setNotice] = useState(''),
-    [busy, setBusy] = useState(false);
+    [notice, setNotice] = useState('');
+  const courseImport = useCourseImport(() => {
+    setNotice('课程已导入');
+    setWeek(1);
+  });
   const fudan = useFudanSource();
-  useEffect(() => {
-    setFudanImportActive(busy || !!preview);
-  }, [busy, preview]);
-  useEffect(() => () => setFudanImportActive(false), []);
   useEffect(() => {
     setWeek((value) => Math.min(schedule.totalWeeks, Math.max(1, value)));
     setSelected(null);
@@ -864,40 +820,6 @@ export function Timetable({ clock }: { clock: number }) {
       end: clockOf(Math.min(1439, minute + 45)),
     });
   }
-  async function receive(website = false) {
-    if (busy) return;
-    setMenu(false);
-    setError('');
-    setFudanImportActive(true);
-    setBusy(true);
-    try {
-      if (website) {
-        const result = await importFudanCourses(store.get().schedule);
-        if (result) setPreview(result);
-      } else {
-        const text = await pickText();
-        if (text === null) return;
-        setPreview(
-          importCourses(
-            text,
-            /BEGIN:VCALENDAR/i.test(text)
-              ? 'courses.ics'
-              : text
-                    .trim()
-                    .replace(/^\uFEFF/, '')
-                    .startsWith('{')
-                ? 'courses.json'
-                : 'courses.csv',
-            store.get().schedule,
-          ),
-        );
-      }
-    } catch (cause) {
-      setError(errorText(cause));
-    } finally {
-      setBusy(false);
-    }
-  }
   async function exportSchedule(template = false) {
     try {
       await exportText(
@@ -948,9 +870,9 @@ export function Timetable({ clock }: { clock: number }) {
           <ChevronRight size={20} />
         </button>
       </div>
-      {error && (
+      {(error || courseImport.error) && (
         <p role="alert" className="form-error">
-          {error}
+          {error || courseImport.error}
         </p>
       )}
       {isMobileApp && fudan.error && (
@@ -958,8 +880,11 @@ export function Timetable({ clock }: { clock: number }) {
           <p>复旦课表未更新，已有课程仍保留。{fudan.error}</p>
           <button
             className="button"
-            disabled={busy || fudan.busy}
-            onClick={() => void receive(true)}
+            disabled={courseImport.busy || fudan.busy}
+            onClick={() => {
+              setError('');
+              void courseImport.receive(true);
+            }}
           >
             重新登录并读取课表
           </button>
@@ -970,7 +895,7 @@ export function Timetable({ clock }: { clock: number }) {
           {notice}
         </p>
       )}
-      {busy && (
+      {courseImport.busy && (
         <p role="status" className="timetable-notice">
           正在读取课程…
         </p>
@@ -1016,7 +941,10 @@ export function Timetable({ clock }: { clock: number }) {
           {days.map((day, index) => {
             const begin = dayStart(day, schedule.timeZone),
               finish = dayStart(shiftDay(day, 1), schedule.timeZone);
-            const courses = layoutCourses(items, begin, finish);
+            const courses = intervalLanes(
+              items.filter((item) => item.start < finish && item.end > begin),
+              (left, right) => left.end - right.end,
+            );
             return (
               <div
                 key={day}
@@ -1063,7 +991,7 @@ export function Timetable({ clock }: { clock: number }) {
                       <Plus size={23} />
                     </button>
                   )}
-                {courses.map(({ item, lane, lanes }) => {
+                {[...courses].map(([item, { lane, lanes }]) => {
                   const from =
                       item.start < begin ? 0 : minuteOf(zoneClock(item.start, schedule.timeZone)),
                     until =
@@ -1111,22 +1039,35 @@ export function Timetable({ clock }: { clock: number }) {
       </div>
       <FloatingAdd
         label="课程操作"
-        disabled={busy}
+        disabled={courseImport.busy}
         onClick={() => {
           setError('');
+          courseImport.clearError();
           setMenu(true);
         }}
       />
       {menu && (
         <Modal title="课程操作" close={() => setMenu(false)} sheet={phone}>
           <div className="timetable-action-menu">
-            <button onClick={() => void receive(true)}>
+            <button
+              onClick={() => {
+                setMenu(false);
+                setError('');
+                void courseImport.receive(true);
+              }}
+            >
               <Globe size={21} />
               <span>
                 网站导入<small>登录复旦教务系统，确认后读取课表</small>
               </span>
             </button>
-            <button onClick={() => void receive()}>
+            <button
+              onClick={() => {
+                setMenu(false);
+                setError('');
+                void courseImport.receive();
+              }}
+            >
               <Upload size={21} />
               <span>
                 文件导入<small>CSV、JSON 或 ICS 日历</small>
@@ -1225,67 +1166,7 @@ export function Timetable({ clock }: { clock: number }) {
       )}
       {semester && <SemesterEditor close={() => setSemester(false)} />}
       {periodSettings && <PeriodEditor close={() => setPeriodSettings(false)} />}
-      {preview && (
-        <Modal title="预览导入课程" close={() => setPreview(null)} sheet={phone}>
-          <div className="course-form timetable-form">
-            <p>
-              <b>{preview.summary}</b>
-            </p>
-            <p>
-              {preview.schedule.semesterStart} 起 · {preview.schedule.totalWeeks} 周 ·{' '}
-              {preview.schedule.timeZone}
-            </p>
-            {preview.warnings.map((warning) => (
-              <p key={warning}>{warning}</p>
-            ))}
-            <ul>
-              {[...preview.schedule.courses, ...preview.schedule.events].slice(0, 8).map((item) => (
-                <li key={item.id}>
-                  {item.name} · {item.location}
-                </li>
-              ))}
-            </ul>
-            <p className="field-hint">合并课程，相同编号按更新时间更新。</p>
-            {isMobileApp && preview.source?.kind === 'fudan' && (
-              <p className="field-hint">
-                确认后在这台设备自动检查所选学期；网站课程随学校更新，手动添加的课程保留。可在课程操作
-                → 更多中关闭。
-              </p>
-            )}
-            {error && (
-              <p role="alert" className="form-error">
-                {error}
-              </p>
-            )}
-            <footer>
-              <button className="button" disabled={busy} onClick={() => setPreview(null)}>
-                取消
-              </button>
-              <button
-                className="button primary"
-                disabled={busy}
-                onClick={async () => {
-                  if (busy) return;
-                  setBusy(true);
-                  setError('');
-                  try {
-                    await confirmCourseImport(preview);
-                    setNotice('课程已导入');
-                    setPreview(null);
-                    setWeek(1);
-                  } catch (cause) {
-                    setError(errorText(cause));
-                  } finally {
-                    setBusy(false);
-                  }
-                }}
-              >
-                合并导入
-              </button>
-            </footer>
-          </div>
-        </Modal>
-      )}
+      <CourseImportDialog workflow={courseImport} />
     </div>
   );
 }

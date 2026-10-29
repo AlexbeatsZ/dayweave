@@ -70,6 +70,95 @@ async function courseMenu(page: Page) {
   return page.getByRole('dialog', { name: '课程操作', exact: true });
 }
 
+test('canceling a course preview leaves saved courses unchanged and permits another import', async ({
+  page,
+}) => {
+  await seed(page);
+  const before = await page.evaluate(() => localStorage.getItem('dayweave.v1'));
+  const content = '课程名称,星期,开始时间,结束时间,周次\n预览课程,3,13:30,15:10,1-12\n';
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const menu = await courseMenu(page);
+    const chooser = page.waitForEvent('filechooser');
+    await menu.getByRole('button', { name: /文件导入/ }).click();
+    await (
+      await chooser
+    ).setFiles({ name: 'courses.csv', mimeType: 'text/csv', buffer: Buffer.from(content) });
+    const preview = page.getByRole('dialog', { name: '预览导入课程', exact: true });
+    await expect(preview).toContainText('预览课程');
+    if (attempt === 0) await page.keyboard.press('Escape');
+    else await preview.getByRole('button', { name: '取消', exact: true }).click();
+    await expect(preview).toHaveCount(0);
+    expect(await page.evaluate(() => localStorage.getItem('dayweave.v1'))).toBe(before);
+    await expect(page.getByRole('button', { name: '课程操作', exact: true })).toBeEnabled();
+  }
+});
+
+test('a late file selection after leaving the timetable cannot reopen a preview or write data', async ({
+  page,
+}) => {
+  await seed(page);
+  const before = await page.evaluate(() => localStorage.getItem('dayweave.v1'));
+  const menu = await courseMenu(page);
+  const pendingChooser = page.waitForEvent('filechooser');
+  await menu.getByRole('button', { name: /文件导入/ }).click();
+  const chooser = await pendingChooser;
+  await page.getByRole('button', { name: '手机待办', exact: true }).click();
+  await chooser.setFiles({
+    name: 'courses.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from('课程名称,星期,开始时间,结束时间,周次\n迟到课程,3,13:30,15:10,1-12\n'),
+  });
+  await page.getByRole('button', { name: '手机安排', exact: true }).click();
+  await expect(page.getByRole('region', { name: '每周课程表' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: '预览导入课程', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '课程操作', exact: true })).toBeEnabled();
+  expect(await page.evaluate(() => localStorage.getItem('dayweave.v1'))).toBe(before);
+});
+
+test('shared lanes preserve short-first course ordering and restore full width for adjacent courses', async ({
+  page,
+}) => {
+  await seed(page);
+  await page.evaluate(async () => {
+    const modulePath = '/src/store.ts';
+    const { store } = await import(modulePath);
+    await store.transact((state: import('../../src/model').AppState) => ({
+      ...state,
+      schedule: {
+        ...state.schedule,
+        courses: [
+          { ...state.schedule.courses[0], id: 'long', name: '长课', start: '08:00', end: '10:00' },
+          { ...state.schedule.courses[0], id: 'short', name: '短课', start: '08:00', end: '09:00' },
+          {
+            ...state.schedule.courses[0],
+            id: 'later',
+            name: '后续课程',
+            start: '10:00',
+            end: '11:00',
+          },
+        ],
+      },
+    }));
+  });
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    const short = (await page
+      .getByRole('button', { name: '编辑课程 短课', exact: true })
+      .boundingBox())!;
+    const long = (await page
+      .getByRole('button', { name: '编辑课程 长课', exact: true })
+      .boundingBox())!;
+    const later = (await page
+      .getByRole('button', { name: '编辑课程 后续课程', exact: true })
+      .boundingBox())!;
+    expect(short.x).toBeLessThan(long.x);
+    expect(Math.abs(short.width - long.width)).toBeLessThan(1);
+    expect(later.width).toBeGreaterThan(short.width * 1.8);
+    expect(short.y).toBeCloseTo(long.y, 0);
+    expect(short.height).toBeLessThan(long.height);
+  }
+});
+
 test('phone timetable keeps a real week grid; empty slot selection creates through the shared course editor', async ({
   page,
 }) => {
