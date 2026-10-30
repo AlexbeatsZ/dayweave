@@ -32,6 +32,10 @@ app.setPath(
     : path.join(app.getPath('appData'), 'Dayweave'),
 );
 const directory = path.dirname(fileURLToPath(import.meta.url));
+const appIconPath = path.join(
+  directory,
+  process.platform === 'darwin' ? '../../dist/tray-macos.png' : '../../dist/tray.png',
+);
 const service = new StateService(new FileStore(app.getPath('userData')));
 let window: BrowserWindow | null = null;
 let allowClose = false,
@@ -77,6 +81,7 @@ else {
       minWidth: 900,
       minHeight: 640,
       title: '时织 · Dayweave',
+      icon: appIconPath,
       show: false,
       backgroundColor: nativeTheme.shouldUseDarkColors ? '#181818' : '#f2f2f2',
       autoHideMenuBar: true,
@@ -355,9 +360,7 @@ else {
     }
     createWindow(!trayMode);
     {
-      const icon = nativeImage
-        .createFromPath(path.join(directory, '../../dist/tray.png'))
-        .resize({ width: 20, height: 20 });
+      const icon = nativeImage.createFromPath(appIconPath).resize({ width: 20, height: 20 });
       tray = new Tray(icon);
       tray.setToolTip('时织 · Dayweave');
       tray.setContextMenu(

@@ -4,6 +4,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Current State
 
+- 2026-10-30 source icon replacement: only the user's eight Shizhi assets are preserved under assets/icons/. Windows/macOS packaging uses supplied ICO/ICNS, desktop window/tray chooses platform PNG, Web favicon uses supplied SVG, Android launcher/adaptive/splash shares converted original vector paths. npm run icons reproduces resources; unused Clearlist/Capacitor icon rasters removed. TypeScript, AAPT2 resource compilation, byte/path equality and generated-resource reproducibility passed. Preview .local/preview/shizhi-icons/preview.png. Source version remains0.4.9/code16; no application build, push, Release or installation for this change pending user preview approval and delivery authorization.
+
 - 2026-10-29 authorized 0.4.9/code16 installed on all five devices, phone first: Redmi K70 and Pad upgraded with stable signing and unchanged UIDs10812/10414/firstInstallTime; Pad widget253/provider/host retained. OMEN/ROG/Mac arm64 are running in tray and connected, each1188 tasks/1006 records; OMEN2 conflicts and all sync identities preserved. Local143 Node/86 browser/22 Android/36 Rust and packaging/smoke pass. Four-platform CI40840047136 succeeded for source5cb3312. Release v0.4.9 is published with14 assets; no phone UI actions or new system permissions. Recovery copies retained under each host's temporary .agents/dayweave-upgrade-0.4.9*; evidence .local/deploy-0.4.9/.
 
 - 2026-10-29 live sync configuration: OMEN, Mac, Pad 6 Pro and Redmi K70 now share exactly [http://100.106.169.46:49732, https://cdn.u3146344.nyat.app:63573/dayweave], Tailscale first and public HTTPS second on every request; no LAN entry. ROG remains the existing hub. OMEN/Mac/phone are connected through Tailscale; Pad successfully fell back to public HTTPS. Phone was actually unpaired before this configuration, then joined ROG through a fresh invitation without clearing data; afterward the three desktops converged to1188 tasks/1006 records. Preserve OMEN2, Pad1 and phone11 conflict candidates. Phone already has usage access and is recording; Pad remains disabled/default permission. No system permissions were changed. Android observations reached OMEN through encrypted usage sync. Evidence/helpers: ignored .local/sync-config-20261029/.
@@ -44,6 +46,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Active Work
 
+- Shizhi icon source integration is complete and locally committed; user preview approval and explicit build/push/Release authorization are pending. System icon-cache, real desktop/tray/launcher/splash and device acceptance remain unverified; do not restart apps to refresh icons.
+
 - 0.4.9 delivery/publication is complete. User's actual installed-layout, background/cold-boot and permission-dependent capture acceptance remain separate; future feature builds/deployments still require explicit authorization.
 
 - Delivered in0.4.9: course and usage views share interval-lanes.ts with caller-owned tie ordering; CourseImport owns explicit read/preview/save/cancel and refresh pause. Existing merge/ownership transaction stays unchanged. Saving previews cannot close early; late reads after unmount are ignored. Cancel/error resumes a canceled in-flight refresh through existing checkPending.
@@ -62,6 +66,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 - Preserve keys only under ignored .local. Keep original repos/profiles untouched.
 
 # Build / Run / Test
+
+- Icons: `npm run icons` copies supplied desktop/Web files unchanged and converts supplied SVG paths for Android; source/mapping notes in assets/icons/README.md and docs/design/platforms.md. Check with npm run check and targeted Android resource compilation; do not equate this with application packaging or installed-system acceptance.
 
 - Delivery gate (explicit user correction): do not build, package, publish, deploy or push changes that trigger build CI without the user's explicit authorization after UI review. Source edits and previews come first; tests passing do not mean the UI is accepted. Do not create desktop shortcuts during deployment; NSIS createDesktopShortcut is false. Do not roll back the partial 0.4.6 deployment without permission.
 - Automatic records: `npm run build:collector` before desktop packaging (Rust toolchain required); `cargo test --manifest-path native/collector/Cargo.toml --locked --workspace`; `npm run test:e2e -- tests/e2e/usage.spec.ts tests/e2e/usage-settings.spec.ts`. Automated capture tests use isolated profiles. Browser build only views historical usage; internal import adapters remain for migration/tests, not native capture/sync.

@@ -1,1 +1,23 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><rect width="256" height="256" rx="56" fill="#4264b2"/><g fill="none" stroke="white" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"><path d="M46 68l16 16 29-36M115 66h84M48 126h50M48 170h50"/><circle cx="163" cy="158" r="44"/><path d="M164 138v21l19 12"/></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<title>Shizhi — Windows flat app icon</title>
+<desc>Original, flat vector logo with a transparent background.</desc>
+
+<g transform="translate(512 512) scale(1.18) translate(-512 -512)">
+<g stroke="none" stroke-linejoin="round">
+  <!-- S-shaped fused top and bottom vessels -->
+  <path d="M310 224 L711 224 Q743 224 743 260 C743 361 684 420 585 470 C546 490 521 502 518 515 C516 526 539 541 587 564 C684 614 744 676 744 759 Q744 791 711 791 L312 791 Q279 791 279 759 C279 669 337 612 439 561 C480 539 500 528 500 513 C500 499 479 484 441 461 C336 409 279 345 279 257 Q279 224 310 224Z" fill="#74D8B6"/>
+  <!-- mint top concave bowl -->
+  <path d="M310 224 L711 224 C676 273 606 287 513 314 C439 336 385 370 391 415 C338 377 288 325 279 257 Q279 224 310 224Z" fill="#BCF9D9"/>
+  <!-- deeper top-right moving ribbon -->
+  <path d="M711 224 Q743 224 743 260 C741 359 680 423 585 470 C549 487 528 501 518 515 C500 489 459 465 437 439 C415 413 420 383 453 358 C512 309 640 308 711 224Z" fill="#56C69E"/>
+  <!-- dark inner top channel -->
+  <path d="M711 224 Q743 224 743 260 C741 355 672 415 585 470 C551 487 530 502 518 515 C513 492 500 481 483 460 C501 431 531 419 569 401 C652 361 699 294 711 224Z" fill="#3AAA8E"/>
+  <!-- lower-left turquoise vessel -->
+  <path d="M518 515 C483 540 459 550 431 569 C333 625 279 682 279 759 Q279 791 312 791 L711 791 C647 758 568 755 515 745 C420 728 362 740 312 791 C345 699 435 625 483 576 C501 556 514 538 518 515Z" fill="#67CEB0"/>
+  <!-- deeper lower chamber -->
+  <path d="M518 515 C548 544 579 556 614 579 C701 635 744 687 744 759 Q744 791 711 791 L312 791 C392 753 466 737 519 752 C598 774 681 771 680 706 C680 668 648 625 593 592 C555 565 534 547 518 515Z" fill="#218F8B"/>
+  <!-- folded ribbon at the crossing, clean hourglass centre -->
+  <path d="M279 257 C292 342 356 400 448 451 C485 472 506 488 518 515 C535 551 496 562 454 586 C389 625 331 690 312 791 L285 778 C289 684 357 618 439 561 C478 541 503 527 500 513 C497 493 473 481 441 461 C332 406 279 345 279 257Z" fill="#ACF3D2"/>
+  <path d="M711 224 Q742 222 743 260 C740 361 684 420 585 470 C547 489 521 501 518 515 C515 527 542 543 587 564 C683 612 741 677 744 759 L744 770 C712 682 640 631 552 578 C507 551 483 533 487 509 C489 485 534 469 573 446 C675 394 704 305 711 224Z" fill="#A4F0CA"/>
+</g></g>
+</svg>

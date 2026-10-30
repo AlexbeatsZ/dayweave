@@ -20,6 +20,7 @@
     "node": ">=24"
   },
   "scripts": {
+    "icons": "node scripts/make-icon.mjs",
     "build:collector": "node scripts/build-collector.mjs",
     "dev": "npm run build:electron && node scripts/dev.mjs",
     "dev:web": "vite --host 127.0.0.1 --port 5178 --strictPort",
