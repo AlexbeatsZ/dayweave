@@ -46,7 +46,7 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Active Work
 
-- Shizhi icon source integration is complete and locally committed; user preview approval and explicit build/push/Release authorization are pending. System icon-cache, real desktop/tray/launcher/splash and device acceptance remain unverified; do not restart apps to refresh icons.
+- 2026-10-30 user explicitly authorized deploying the Shizhi icon update to both Android devices and OMEN/ROG/Mac. Build/push/Release and in-place delivery of0.4.10/code17 are in progress; preserve profiles, signing, pairing and widget bindings. Use normal application shutdown only when required for installation, never force-stop a user app or refresh system icon caches. Real system icon display remains separate acceptance.
 
 - 0.4.9 delivery/publication is complete. User's actual installed-layout, background/cold-boot and permission-dependent capture acceptance remain separate; future feature builds/deployments still require explicit authorization.
 
