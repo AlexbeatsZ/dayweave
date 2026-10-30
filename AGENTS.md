@@ -4,7 +4,9 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Current State
 
-- 2026-10-30 source icon replacement: only the user's eight Shizhi assets are preserved under assets/icons/. Windows/macOS packaging uses supplied ICO/ICNS, desktop window/tray chooses platform PNG, Web favicon uses supplied SVG, Android launcher/adaptive/splash shares converted original vector paths. npm run icons reproduces resources; unused Clearlist/Capacitor icon rasters removed. TypeScript, AAPT2 resource compilation, byte/path equality and generated-resource reproducibility passed. Preview .local/preview/shizhi-icons/preview.png. Source version remains0.4.9/code16; no application build, push, Release or installation for this change pending user preview approval and delivery authorization.
+- 2026-10-30 authorized0.4.10/code17 icon update installed on all five devices. Android stable-signed overwrite preserved UIDs10812/10414 and firstInstallTime; Pad widget253/provider/host retained. OMEN was stopped before upgrade; Mac used normal quit; ROG used cooperative Restart Manager flags0 in interactive Session1, with original DayweaveHub task retained and no forced exit. After delivery all three desktops reported1190 tasks/1014 records and connected, preserving OMEN2 conflicts and all pairing/address settings. Phone later disconnected USB and Mac later became unreachable, so subsequent visible-icon/resource inspection on those devices is unverified. Release v0.4.10 is published with14 verified assets; four-platform CI41056158046 passed with143 Node/86 browser/22 Android/36 Rust tests. Evidence .local/deploy-0.4.10/; recovery copies under each host's temporary .agents/dayweave-upgrade-0.4.10*. Local release contains only0.4.10 generated versions; profile/bundle recovery backups retained.
+
+- Shizhi icon sources: only the user's eight original assets are preserved under assets/icons/. Windows/macOS packaging uses supplied ICO/ICNS, desktop window/tray chooses platform PNG, Web favicon uses supplied SVG, Android launcher/adaptive/splash shares converted original vector paths. npm run icons reproduces resources; unused Clearlist/Capacitor resources removed. Byte/path equality and reproducibility passed; installed OMEN/ROG asar brand assets match source and native Windows EXE icon renders the new artwork. Preview .local/preview/shizhi-icons/preview.png. Resource checks do not prove desktop/Dock/launcher icon-cache or startup-screen appearance.
 
 - 2026-10-29 authorized 0.4.9/code16 installed on all five devices, phone first: Redmi K70 and Pad upgraded with stable signing and unchanged UIDs10812/10414/firstInstallTime; Pad widget253/provider/host retained. OMEN/ROG/Mac arm64 are running in tray and connected, each1188 tasks/1006 records; OMEN2 conflicts and all sync identities preserved. Local143 Node/86 browser/22 Android/36 Rust and packaging/smoke pass. Four-platform CI40840047136 succeeded for source5cb3312. Release v0.4.9 is published with14 assets; no phone UI actions or new system permissions. Recovery copies retained under each host's temporary .agents/dayweave-upgrade-0.4.9*; evidence .local/deploy-0.4.9/.
 
@@ -46,7 +48,7 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Active Work
 
-- 2026-10-30 user explicitly authorized deploying the Shizhi icon update to both Android devices and OMEN/ROG/Mac. Build/push/Release and in-place delivery of0.4.10/code17 are in progress; preserve profiles, signing, pairing and widget bindings. Use normal application shutdown only when required for installation, never force-stop a user app or refresh system icon caches. Real system icon display remains separate acceptance.
+- 0.4.10 deployment/publication is complete. User's actual desktop/Dock/tray/Android launcher/splash visual acceptance remains pending; do not refresh system icon caches or infer visual acceptance from installed resources. Later phone/Mac disconnection does not invalidate the recorded successful installation, but their subsequent live state is unknown.
 
 - 0.4.9 delivery/publication is complete. User's actual installed-layout, background/cold-boot and permission-dependent capture acceptance remain separate; future feature builds/deployments still require explicit authorization.
 
@@ -88,6 +90,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 - Delete dead navigation/CSS/functions in the touched area; keep ownership and necessary design decisions in docs/design/architecture.md. Verify through real user flows, especially scroll dates/points and native back, rather than tests mirroring implementation details.
 
 # Durable Lessons
+
+- Windows OpenSSH helpers run in Session0; cooperative Restart Manager shutdown of the interactive Dayweave process returned350 there. Running the same flags0 request in the existing Session1 tool host succeeded without forced termination. Check process sessions and visible windows before concluding the app refuses graceful shutdown; retain the hub task action rather than replacing it.
 
 - School refresh ownership is a recovery journal, not just the IDs in the optimistic view: retain old/new IDs until the business save queue is healthy, even for no-op refreshes. Pause refresh throughout explicit import preview/confirmation.
 - Save timestamps/segments, never tick counts. Storage corruption must remain recoverable, never silently become empty state.
