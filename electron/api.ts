@@ -1,7 +1,7 @@
 import { handleExtendedRoute } from './extended-api.js';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { timingSafeEqual, randomBytes } from 'node:crypto';
-import { readFile, writeFile, chmod } from 'node:fs/promises';
+import { readFile, open, rename, chmod } from 'node:fs/promises';
 import path from 'node:path';
 import { z } from 'zod';
 import {
@@ -25,8 +25,19 @@ import {
 import { StateConflict } from '../src/state-delta.js';
 import { StateService, type StateSnapshot } from './state-service.js';
 import type { SyncBridge } from '../src/sync/types.js';
+import type { DesktopUsage } from './usage.js';
+import { appVersion } from './version.js';
 
 type ApiInfo = { enabled: boolean; url: string; token: string };
+export type ApiOptions = {
+  health?: Record<string, unknown>;
+  strictPort?: boolean;
+  management?: {
+    usage: DesktopUsage;
+    closing(): boolean;
+    shutdown(): void;
+  };
+};
 function fail(status: number, message: string): never {
   throw Object.assign(new Error(message), { status });
 }
@@ -62,6 +73,7 @@ export async function startApi(
   service: StateService,
   requestedPort = 49731,
   getSync?: () => SyncBridge | undefined,
+  options: ApiOptions = {},
 ) {
   await service.snapshot();
   const credentialFile = path.join(service.storage.directory, 'api.json');
@@ -104,6 +116,7 @@ export async function startApi(
       )
         fail(403, 'Only local non-browser API clients are allowed');
       if (!authenticated(request)) fail(401, 'A valid Bearer token is required');
+      if (options.management?.closing()) fail(503, 'Server is shutting down');
       const url = new URL(request.url ?? '/', 'http://127.0.0.1');
       if (!url.pathname.startsWith('/api/v1/')) fail(404, 'Route not found');
       const route = url.pathname.slice(7).replace(/\/$/, '');
@@ -111,6 +124,35 @@ export async function startApi(
       const expected = request.headers['if-match']?.toString().replace(/^"|"$/g, '');
       const mutate = (fn: (state: AppState) => AppState) => service.mutate(fn, expected);
       let snapshot = await service.snapshot();
+      const health = {
+        app: 'Dayweave',
+        version: appVersion(),
+        storage: 'ready',
+        ...options.health,
+      };
+      if (options.management) {
+        if (route === '/server/status' && method === 'GET')
+          return send(
+            {
+              ...health,
+              pid: process.pid,
+              uptimeSeconds: process.uptime(),
+              profile: service.storage.directory,
+              recovered: snapshot.recovered,
+              tasks: snapshot.state.tasks.length,
+              records: snapshot.state.timelog.records.length,
+              sync: await getSync?.()?.status(),
+              usage: await options.management.usage.health(),
+            },
+            snapshot,
+          );
+        if (route === '/usage/status' && method === 'GET')
+          return send(await options.management.usage.health(), snapshot);
+        if (route === '/server/shutdown' && method === 'POST') {
+          response.once('finish', () => setImmediate(() => options.management!.shutdown()));
+          return send({ accepted: true }, snapshot);
+        }
+      }
       if (route.startsWith('/sync/')) {
         const sync = getSync?.();
         if (!sync) fail(503, 'Sync unavailable');
@@ -122,6 +164,11 @@ export async function startApi(
           return send(await sync!.enableHub(), snapshot);
         if (route === '/sync/now' && method === 'POST')
           return send(await sync!.now(), await service.snapshot());
+        if (route.startsWith('/sync/peers/') && method === 'DELETE' && sync!.revoke) {
+          const id = decodeURIComponent(route.slice('/sync/peers/'.length));
+          if (!/^[\w-]{1,100}$/.test(id)) fail(400, 'Invalid device ID');
+          return send(await sync!.revoke(id), snapshot);
+        }
       }
       if (
         await handleExtendedRoute({
@@ -138,8 +185,7 @@ export async function startApi(
         })
       )
         return;
-      if (route === '/health' && method === 'GET')
-        return send({ app: 'Dayweave', version: '0.4.1', storage: 'ready' }, snapshot);
+      if (route === '/health' && method === 'GET') return send(health, snapshot);
       if (route === '/openapi.json' && method === 'GET') {
         response.end(JSON.stringify(openapi));
         return;
@@ -335,16 +381,27 @@ export async function startApi(
   try {
     await listen(requestedPort);
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'EADDRINUSE' || requestedPort === 0) throw error;
+    if (
+      options.strictPort ||
+      (error as NodeJS.ErrnoException).code !== 'EADDRINUSE' ||
+      requestedPort === 0
+    )
+      throw error;
     await listen(0);
   }
   const port = (server.address() as { port: number }).port;
   const info: ApiInfo = { enabled: true, url: `http://127.0.0.1:${port}/api/v1`, token };
   try {
-    await writeFile(credentialFile, JSON.stringify({ ...info, pid: process.pid }, null, 2), {
-      mode: 0o600,
-    });
-    await chmod(credentialFile, 0o600);
+    const temporary = credentialFile + '.tmp';
+    const handle = await open(temporary, 'w', 0o600);
+    try {
+      await handle.writeFile(JSON.stringify({ ...info, pid: process.pid }, null, 2));
+      await handle.sync();
+    } finally {
+      await handle.close();
+    }
+    await chmod(temporary, 0o600);
+    await rename(temporary, credentialFile);
   } catch (error) {
     await new Promise<void>((resolve) => server.close(() => resolve()));
     throw error;

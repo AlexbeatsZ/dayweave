@@ -96,12 +96,12 @@ export class DesktopSync implements SyncBridge {
         : {}),
     };
   }
-  async enableHub() {
+  async enableHub(initialPort = 49732) {
     await this.client.exclusive(async () => {
       const c = this.client.config;
       if (c.enabled && c.endpoint && !c.hub) throw new Error('请先断开其他同步中心。');
       c.enabled = true;
-      c.hub ??= { port: 49732, clients: {} };
+      c.hub ??= { port: initialPort, clients: {} };
       await this.client.save();
       if (!this.server) await this.listen();
     });
@@ -327,5 +327,7 @@ export class DesktopSync implements SyncBridge {
     this.scheduler.stop();
     this.unsubscribe?.();
     await this.stopServer();
+    // Includes queued authenticated requests and an exchange already started by the scheduler.
+    await this.client.exclusive(async () => {});
   }
 }

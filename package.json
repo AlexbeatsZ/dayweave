@@ -45,6 +45,9 @@
     "serve:api": "node dist-electron/electron/headless.js",
     "bundle:ai": "npm run api:docs && node scripts/bundle-ai.mjs",
     "test:headless": "node scripts/smoke-headless.mjs",
+    "bundle:server": "node scripts/package-server.mjs",
+    "dist:server": "node scripts/package-server.mjs --zip",
+    "test:server": "tsx --test tests/server/server.test.ts",
     "test:tray": "npm run build && node scripts/smoke-tray.mjs"
   },
   "build": {

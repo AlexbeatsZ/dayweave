@@ -22,11 +22,13 @@ export class DesktopUsage implements UsageBridge {
   private running?: Promise<void>;
   private closing = false;
   private error = '';
+  private sourceScans = new Map<string, { checkedAt: number; error: string }>();
   constructor(
     readonly store: UsageStore,
     readonly syncEngine: DesktopSync,
     readonly directory: string,
     readonly binary: string,
+    readonly localCapture = true,
   ) {
     syncEngine.usage = store;
     syncEngine.refreshUsage = () => this.sync();
@@ -51,7 +53,13 @@ export class DesktopUsage implements UsageBridge {
       .map((row) => ({ id: String(row.app), name: String(row.app) }));
   }
   async status() {
-    let capture = this.child ? '正在采集' : this.store.settings().enabled ? '采集不可用' : '未启用';
+    let capture = !this.localCapture
+      ? '服务器模式已禁用本机采集'
+      : this.child
+        ? '正在采集'
+        : this.store.settings().enabled
+          ? '采集不可用'
+          : '未启用';
     let error = this.error;
     if (this.child)
       try {
@@ -96,7 +104,23 @@ export class DesktopUsage implements UsageBridge {
     await this.sync();
     return this.status();
   }
+  async health() {
+    const sources = this.store.meta('sources') ?? {};
+    return {
+      ...(await this.status()),
+      localCapture: this.localCapture,
+      sources: [
+        { kind: 'collector-cache', path: path.join(this.directory, 'collector', 'agent.db') },
+        ...Object.entries(sources).map(([kind, file]) => ({ kind, path: String(file) })),
+      ].map((source) => ({
+        ...source,
+        exists: existsSync(source.path),
+        ...this.sourceScans.get(source.path),
+      })),
+    };
+  }
   private async applyCollector() {
+    if (!this.localCapture) return;
     const settings = this.store.settings();
     const collector = path.join(this.directory, 'collector');
     if (!settings.enabled) {
@@ -251,7 +275,7 @@ export class DesktopUsage implements UsageBridge {
             !Array.isArray(content?.items)
           )
             continue;
-          const events = parseUsageImport(content, info.mtimeMs);
+          const events = parseUsageImport(content, Math.floor(info.mtimeMs));
           this.store.import(events);
           this.store.setMeta(`source:${file}`, signature);
           processed++;
@@ -261,15 +285,31 @@ export class DesktopUsage implements UsageBridge {
     await walk(root, 0);
   }
   sync() {
+    if (this.closing) return Promise.resolve();
     if (this.running) return this.running;
     this.running = (async () => {
       const sources = this.store.meta('sources') ?? {};
-      if (this.store.settings().enabled && !this.child) await this.applyCollector();
+      if (this.localCapture && this.store.settings().enabled && !this.child)
+        await this.applyCollector();
       const ownDatabase = path.join(this.directory, 'collector', 'agent.db');
-      this.importWorkReview(ownDatabase);
-      if (sources['work-review']) this.importWorkReview(sources['work-review']);
-      if (sources.activitywatch) await this.importActivityWatch(sources.activitywatch);
+      const failures: string[] = [];
+      const scan = async (file: string, action: () => void | Promise<void>) => {
+        let error = '';
+        try {
+          await action();
+        } catch (failure) {
+          error = failure instanceof Error ? failure.message : String(failure);
+          failures.push(error);
+        }
+        this.sourceScans.set(file, { checkedAt: Date.now(), error });
+      };
+      await scan(ownDatabase, () => this.importWorkReview(ownDatabase));
+      if (sources['work-review'])
+        await scan(sources['work-review'], () => this.importWorkReview(sources['work-review']));
+      if (sources.activitywatch)
+        await scan(sources.activitywatch, () => this.importActivityWatch(sources.activitywatch));
       if (!this.closing) await syncUsage(this.syncEngine.client, this.store);
+      if (failures.length) throw new Error(failures.join('; '));
       if (this.error.startsWith('同步或载入失败')) this.error = '';
     })()
       .catch((error) => {

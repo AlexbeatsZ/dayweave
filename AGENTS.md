@@ -4,6 +4,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Current State
 
+- 2026-10-31 server-only work: independent Dayweave Server0.1.0 is being prepared using the original FileStore/StateService/DesktopSync/UsageStore owners; client remains0.4.10. Explicit profile/default refuse-empty migration, forced local-capture off with retained settings/import/exchange, authenticated management, shutdown drain and standalone Node24.14.1 bundle. Read docs/design/server.md and server/README.md before changing lifecycle/deployment. This chat does not stop/deploy ROG or change its tasks/firewall/gateway; parent deployment chat owns production switch.
+
 - 2026-10-30 authorized0.4.10/code17 icon update installed on all five devices. Android stable-signed overwrite preserved UIDs10812/10414 and firstInstallTime; Pad widget253/provider/host retained. OMEN was stopped before upgrade; Mac used normal quit; ROG used cooperative Restart Manager flags0 in interactive Session1, with original DayweaveHub task retained and no forced exit. After delivery all three desktops reported1190 tasks/1014 records and connected, preserving OMEN2 conflicts and all pairing/address settings. Phone later disconnected USB and Mac later became unreachable, so subsequent visible-icon/resource inspection on those devices is unverified. Release v0.4.10 is published with14 verified assets; four-platform CI41056158046 passed with143 Node/86 browser/22 Android/36 Rust tests. Evidence .local/deploy-0.4.10/; recovery copies under each host's temporary .agents/dayweave-upgrade-0.4.10*. Local release contains only0.4.10 generated versions; profile/bundle recovery backups retained.
 
 - Shizhi icon sources: only the user's eight original assets are preserved under assets/icons/. Windows/macOS packaging uses supplied ICO/ICNS, desktop window/tray chooses platform PNG, Web favicon uses supplied SVG, Android launcher/adaptive/splash shares converted original vector paths. npm run icons reproduces resources; unused Clearlist/Capacitor resources removed. Byte/path equality and reproducibility passed; installed OMEN/ROG asar brand assets match source and native Windows EXE icon renders the new artwork. Preview .local/preview/shizhi-icons/preview.png. Resource checks do not prove desktop/Dock/launcher icon-cache or startup-screen appearance.
@@ -48,6 +50,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Active Work
 
+- Finish targeted server/legacy-headless validation and independent server-v0.1.0 non-latest publication. Main push for this server-only change uses [skip ci]; server tag is excluded from full client Check, and Server workflow is dispatched separately. No APK/EXE/DMG builds or client version bump.
+
 - 0.4.10 deployment/publication is complete. User's actual desktop/Dock/tray/Android launcher/splash visual acceptance remains pending; do not refresh system icon caches or infer visual acceptance from installed resources. Later phone/Mac disconnection does not invalidate the recorded successful installation, but their subsequent live state is unknown.
 
 - 0.4.9 delivery/publication is complete. User's actual installed-layout, background/cold-boot and permission-dependent capture acceptance remain separate; future feature builds/deployments still require explicit authorization.
@@ -68,6 +72,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 - Preserve keys only under ignored .local. Keep original repos/profiles untouched.
 
 # Build / Run / Test
+
+- Server: npm run bundle:server; npm run test:server; npm run dist:server (Windows ZIP). Node>=24.14.1<25, no runtime npm install. Production config explicitly points to original profile; default hub=preserve. Only server implementation/isolated tests/independent release are authorized here; production ROG switch belongs to parent chat. Preserve original DayweaveHub and all shared gateway dependencies.
 
 - Icons: `npm run icons` copies supplied desktop/Web files unchanged and converts supplied SVG paths for Android; source/mapping notes in assets/icons/README.md and docs/design/platforms.md. Check with npm run check and targeted Android resource compilation; do not equate this with application packaging or installed-system acceptance.
 
@@ -101,6 +107,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 - For sideloaded builds, omit Xiaomi-market miuiWidget/miuiWidgetVersion markers: the standard Android picker then exposes both variants on the tested Pad 6 Pro. A successful requestPinAppWidget result does not prove Xiaomi showed a confirmation; keep manual picker instructions.
 
 # Docs Index
+
+- docs/design/server.md and server/README.md: independent Node server, profile/lifecycle/capture policy, local administration and offline migration/update.
 
 - docs/design/settings.md: settings categories, draft ownership, shared modal/style boundaries and prioritized reuse/decoupling review.
 

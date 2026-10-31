@@ -2,6 +2,8 @@ name: Check
 
 on:
   push:
+    tags-ignore:
+      - server-v*
   pull_request:
   workflow_dispatch:
 

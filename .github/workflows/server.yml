@@ -1,0 +1,38 @@
+name: Server
+
+on:
+  push:
+    tags:
+      - server-v*
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  server:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.14.1
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm run bundle:server
+      - run: npm run test:server
+      - run: node --import tsx --test tests/api.test.ts tests/timer-api.test.ts tests/sync.test.ts tests/sync-recovery.test.ts tests/sync-scheduler.test.ts tests/sync-failover.test.ts tests/usage.test.ts tests/sync-gateway.test.ts
+      - run: node scripts/bundle-ai.mjs
+      - run: npm run test:headless
+      - if: runner.os == 'Windows'
+        run: npm run dist:server
+      - if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Dayweave-Server
+          path: release/Dayweave-Server-*.zip
