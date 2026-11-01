@@ -23,7 +23,7 @@ test(
     const store = new UsageStore(path.join(profile, 'usage.db'));
     const count = 100000;
     const title = 'Synthetic fixture '.repeat(75);
-    source.exec(`PRAGMA synchronous=OFF;
+    source.exec(`PRAGMA journal_mode=WAL; PRAGMA synchronous=OFF;
     CREATE TABLE devices(id TEXT PRIMARY KEY,name TEXT,platform TEXT);
     CREATE TABLE events(device_id TEXT,id TEXT,timestamp INTEGER,payload TEXT,synced INTEGER,PRIMARY KEY(device_id,id));
     CREATE INDEX events_time ON events(timestamp DESC,id DESC);`);
@@ -156,6 +156,25 @@ test(
       });
       void detailed.catch(() => {});
       void scan.catch(() => {});
+      let whileStatus = 0,
+        whileScan = 0;
+      for (let attempt = 0; attempt < 30 && (!statusDone || !scanDone); attempt++) {
+        const started = performance.now();
+        await request(attempt % 2 ? '/export' : '/health');
+        healthTimes.push(performance.now() - started);
+        if (!statusDone) whileStatus++;
+        if (!scanDone) whileScan++;
+      }
+      assert.ok(
+        whileStatus >= 2,
+        'Health/export must respond while detailed aggregation is still running',
+      );
+      assert.ok(
+        whileScan >= 2,
+        'Health/export must respond while historical import scanning is still running',
+      );
+      // Source writes can synchronously wait for SQLite locks. Keep that fixture
+      // work outside the response window, so it cannot delay the probe client.
       const append = new DatabaseSync(sourceFile);
       try {
         append.exec('PRAGMA busy_timeout=5000');
@@ -175,23 +194,6 @@ test(
       } finally {
         append.close();
       }
-      let whileStatus = 0,
-        whileScan = 0;
-      for (let attempt = 0; attempt < 30 && (!statusDone || !scanDone); attempt++) {
-        const started = performance.now();
-        await request(attempt % 2 ? '/export' : '/health');
-        healthTimes.push(performance.now() - started);
-        if (!statusDone) whileStatus++;
-        if (!scanDone) whileScan++;
-      }
-      assert.ok(
-        whileStatus >= 2,
-        'Health/export must respond while detailed aggregation is still running',
-      );
-      assert.ok(
-        whileScan >= 2,
-        'Health/export must respond while historical import scanning is still running',
-      );
       assert.equal((await detailed).usage.count, count);
       await scan;
       // Re-scan if the append happened just after the prior scan's end. An old
