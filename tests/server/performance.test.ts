@@ -122,7 +122,9 @@ test(
       try {
         const response = await fetch(info.url + route, {
           method,
-          headers: { Authorization: `Bearer ${info.token}` },
+          // Fixture VACUUM can block this client past a pooled socket's idle
+          // lifetime. A fresh connection measures service latency independently.
+          headers: { Authorization: `Bearer ${info.token}`, Connection: 'close' },
           signal: AbortSignal.timeout(5000),
         });
         const result = await response.json();
@@ -223,7 +225,7 @@ test(
       reader.close();
       const active = request('/sync/now', 'POST');
       const reading = fetch(info.url + '/server/status', {
-        headers: { Authorization: `Bearer ${info.token}` },
+        headers: { Authorization: `Bearer ${info.token}`, Connection: 'close' },
         signal: AbortSignal.timeout(5000),
       }).then(async (response) => ({ status: response.status, value: await response.json() }));
       await request('/health');
