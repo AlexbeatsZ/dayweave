@@ -1,10 +1,12 @@
-import { useState, type CSSProperties } from 'react';
+import { useMemo, useState, type CSSProperties } from 'react';
 import { dayRange, formatDuration, formatTime, liveSpans, type State } from '../timelog/domain';
 import { Modal } from '../components/Modal';
 import { useUsage } from './client';
 import type { UsageEvent } from './domain';
 import { createTimelineAxis, mergeUsageEvents } from './timeline-layout';
 import { intervalLanes } from '../interval-lanes';
+import { getTimeZone } from '../timezone';
+import { useTimelineViewport } from './useTimelineViewport';
 import './usage.css';
 
 export type TimelineMode = 'manual' | 'automatic' | 'compare';
@@ -57,112 +59,159 @@ export function AlignedUsageTimeline({
   onManual: (id: string) => void;
   filter?: { activityId?: string; tag?: string };
 }) {
-  const dayBounds = dayRange(day);
+  const zone = getTimeZone();
+  const dayBounds = useMemo(() => dayRange(day), [day, zone]);
   const range = { start: dayBounds.start, end: Math.min(dayBounds.end, now) };
   const result = useUsage(dayBounds, false);
   const [selected, setSelected] = useState<Block>();
   const visible = (block: { start: number; end: number }) =>
     block.start < range.end &&
     (block.end > range.start || (block.start === block.end && block.start >= range.start));
-  const automatic: Block[] = mergeUsageEvents(result.events)
-    .filter(visible)
-    .map((event) => ({
-      id: event.id,
-      start: event.start,
-      end: event.end,
-      label:
-        event.kind === 'unlock'
-          ? '解锁'
-          : event.app || (event.kind === 'web' ? '网页访问' : '设备活动'),
-      detail: event.title || event.url,
-      color: event.kind === 'web' ? '#a687bb' : event.kind === 'media' ? '#b08962' : '#638fa6',
-      event,
-    }));
+  const automatic = useMemo<Block[]>(
+    () =>
+      mergeUsageEvents(result.events).map((event) => ({
+        id: event.id,
+        start: event.start,
+        end: event.end,
+        label:
+          event.kind === 'unlock'
+            ? '解锁'
+            : event.app || (event.kind === 'web' ? '网页访问' : '设备活动'),
+        detail: event.title || event.url,
+        color: event.kind === 'web' ? '#a687bb' : event.kind === 'media' ? '#b08962' : '#638fa6',
+        event,
+      })),
+    [result.events],
+  );
   const matches = (row: { activityId: string; tags: string[] }) =>
     (!filter?.activityId || filter.activityId === row.activityId) &&
     (!filter?.tag || row.tags.includes(filter.tag));
-  const manual: Block[] =
-    mode !== 'compare'
-      ? []
-      : state.records
-          .filter((record) => !record.deletedAt && matches(record))
-          .flatMap((record) =>
-            record.spans.map((span, index) => ({
-              ...span,
-              id: `${record.id}:${index}`,
-              manualId: record.id,
-              label:
-                state.activities.find((activity) => activity.id === record.activityId)?.name ??
-                '活动',
-              detail: record.note,
-              color: state.activities.find((activity) => activity.id === record.activityId)?.color,
-            })),
-          )
-          .filter(visible);
-  if (mode === 'compare' && state.timer && matches(state.timer))
-    manual.push(
-      ...liveSpans(state.timer, now)
-        .filter(visible)
-        .map((span, index) => ({
-          ...span,
-          id: `timer:${index}`,
-          label: '正在计时',
-          detail: '',
-          color: '#71a8c7',
-        })),
-    );
-  const axis = createTimelineAxis([...manual, ...automatic], range);
-  function renderColumn(blocks: Block[], side: 'manual' | 'automatic') {
-    const lanes = intervalLanes(
-      blocks.filter((block) => block.end > block.start),
-      (left, right) => right.end - left.end || left.id.localeCompare(right.id),
-    );
-    return blocks.map((block) => {
-      const instant = block.end === block.start;
-      const placement = lanes.get(block) ?? { lane: 0, lanes: 1 };
-      const top = axis.top(Math.min(range.end, block.end));
-      const style = {
-        top: instant ? Math.max(0, top - 11) : top,
-        height: instant ? 22 : axis.top(Math.max(range.start, block.start)) - top - 6,
-        left: instant ? 'auto' : `${(placement.lane / placement.lanes) * 100}%`,
-        right: instant ? 0 : undefined,
-        width: instant ? 'min(38px, 100%)' : `${100 / placement.lanes}%`,
-        '--activity-color': block.color ?? '#638fa6',
-      } as CSSProperties;
-      return (
-        <button
-          type="button"
-          key={block.id}
-          className={`usage-block record-card ${side === 'manual' ? 'manual' : block.event!.kind}${instant ? ' instant' : placement.lanes >= 3 ? ' dense' : ''}`}
-          data-start={block.start}
-          data-end={block.end}
-          data-device={block.event?.deviceId}
-          style={style}
-          title={`${block.label} · ${formatTime(block.start)}–${formatTime(block.end)}${block.detail ? ` · ${block.detail}` : ''}`}
-          onClick={() => {
-            if (side === 'automatic') setSelected(block);
-            else if (block.manualId) onManual(block.manualId);
-          }}
-        >
-          <strong>{block.label}</strong>
-          {!instant && (
-            <>
-              <small>
-                {formatTime(Math.max(range.start, block.start))}–
-                {formatTime(Math.min(range.end, block.end))}
-              </small>
-              <span>
-                {block.detail ||
-                  formatDuration(
-                    Math.min(range.end, block.end) - Math.max(range.start, block.start),
-                  )}
-              </span>
-            </>
-          )}
-        </button>
+  const savedManual = useMemo<Block[]>(
+    () =>
+      mode !== 'compare'
+        ? []
+        : state.records
+            .filter((record) => !record.deletedAt && matches(record))
+            .flatMap((record) =>
+              record.spans.map((span, index) => ({
+                ...span,
+                id: `${record.id}:${index}`,
+                manualId: record.id,
+                label:
+                  state.activities.find((activity) => activity.id === record.activityId)?.name ??
+                  '活动',
+                detail: record.note,
+                color: state.activities.find((activity) => activity.id === record.activityId)
+                  ?.color,
+              })),
+            ),
+    [mode, state.records, state.activities, filter?.activityId, filter?.tag],
+  );
+  const manual = useMemo(() => {
+    if (mode !== 'compare' || !state.timer || !matches(state.timer)) return savedManual;
+    return [
+      ...savedManual,
+      ...liveSpans(state.timer, now).map((span, index) => ({
+        ...span,
+        id: `timer:${index}`,
+        label: '正在计时',
+        detail: '',
+        color: '#71a8c7',
+      })),
+    ];
+  }, [
+    savedManual,
+    mode,
+    state.timer,
+    state.timer ? now : undefined,
+    filter?.activityId,
+    filter?.tag,
+  ]);
+  const layout = useMemo(() => {
+    const manualBlocks = manual.filter(visible);
+    const automaticBlocks = automatic.filter(visible);
+    const axis = createTimelineAxis([...manualBlocks, ...automaticBlocks], range);
+    const place = (blocks: Block[]) => {
+      const lanes = intervalLanes(
+        blocks.filter((block) => block.end > block.start),
+        (left, right) => right.end - left.end || left.id.localeCompare(right.id),
       );
-    });
-  }
+      return blocks.map((block) => {
+        const instant = block.end === block.start;
+        const placement = lanes.get(block) ?? { lane: 0, lanes: 1 };
+        const endTop = axis.top(Math.min(range.end, block.end));
+        const top = instant ? Math.max(0, endTop - 11) : endTop;
+        const height = instant ? 22 : axis.top(Math.max(range.start, block.start)) - endTop - 6;
+        const style = {
+          top,
+          height,
+          left: instant ? 'auto' : `${(placement.lane / placement.lanes) * 100}%`,
+          right: instant ? 0 : undefined,
+          width: instant ? 'min(38px, 100%)' : `${100 / placement.lanes}%`,
+          '--activity-color': block.color ?? '#638fa6',
+        } as CSSProperties;
+        return {
+          block,
+          style,
+          dense: placement.lanes >= 3,
+          top,
+          bottom: top + height,
+        };
+      });
+    };
+    return { axis, manual: place(manualBlocks), automatic: place(automaticBlocks) };
+  }, [automatic, manual, range.start, range.end]);
+  const { axis } = layout;
+  const { element, viewport } = useTimelineViewport(axis.height);
+  const columns = useMemo(() => {
+    function renderColumn(blocks: typeof layout.automatic, side: 'manual' | 'automatic') {
+      return blocks
+        .filter(
+          ({ top, bottom }) => !viewport || (bottom >= viewport.top && top <= viewport.bottom),
+        )
+        .map(({ block, style, dense }) => {
+          const instant = block.end === block.start;
+          const startTime = formatTime(block.start);
+          const endTime = formatTime(block.end);
+          return (
+            <button
+              type="button"
+              key={block.id}
+              className={`usage-block record-card ${side === 'manual' ? 'manual' : block.event!.kind}${instant ? ' instant' : dense ? ' dense' : ''}`}
+              data-start={block.start}
+              data-end={block.end}
+              data-device={block.event?.deviceId}
+              style={style}
+              title={`${block.label} · ${startTime}–${endTime}${block.detail ? ` · ${block.detail}` : ''}`}
+              onClick={() => {
+                if (side === 'automatic') setSelected(block);
+                else if (block.manualId) onManual(block.manualId);
+              }}
+            >
+              <strong>{block.label}</strong>
+              {!instant && (
+                <>
+                  <small>
+                    {block.start < range.start ? formatTime(range.start) : startTime}–
+                    {block.end > range.end ? formatTime(range.end) : endTime}
+                  </small>
+                  <span>
+                    {block.detail ||
+                      formatDuration(
+                        Math.min(range.end, block.end) - Math.max(range.start, block.start),
+                      )}
+                  </span>
+                </>
+              )}
+            </button>
+          );
+        });
+    }
+    return {
+      manual: renderColumn(layout.manual, 'manual'),
+      automatic: renderColumn(layout.automatic, 'automatic'),
+    };
+  }, [layout, viewport, range.start, range.end, onManual, zone]);
   return (
     <div className="usage-day">
       {result.loading && <p role="status">正在载入自动记录…</p>}
@@ -171,28 +220,35 @@ export function AlignedUsageTimeline({
       {axis.height > 0 && (
         <div className="usage-frame" role="region" aria-label={`${day} 记录对照`}>
           <div
+            ref={element}
             className={`usage-aligned ${mode}`}
             style={{ height: axis.height }}
             aria-label={`${day} 对齐时间线`}
           >
             {mode === 'compare' && (
               <div className="usage-lane manual" aria-label="手动记录列">
-                {renderColumn(manual, 'manual')}
+                {columns.manual}
               </div>
             )}
             <div className="usage-ruler">
-              {axis.ticks.map((tick) => (
-                <time
-                  key={tick.time}
-                  dateTime={new Date(tick.time).toISOString()}
-                  style={{ top: tick.top }}
-                >
-                  {formatTime(tick.time)}
-                </time>
-              ))}
+              {axis.ticks
+                .filter(
+                  (tick) =>
+                    !viewport ||
+                    (tick.top >= viewport.top - 24 && tick.top <= viewport.bottom + 24),
+                )
+                .map((tick) => (
+                  <time
+                    key={tick.time}
+                    dateTime={new Date(tick.time).toISOString()}
+                    style={{ top: tick.top }}
+                  >
+                    {formatTime(tick.time)}
+                  </time>
+                ))}
             </div>
             <div className="usage-lane automatic" aria-label="自动记录列">
-              {renderColumn(automatic, 'automatic')}
+              {columns.automatic}
             </div>
           </div>
         </div>

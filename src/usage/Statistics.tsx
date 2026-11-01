@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { dayRange, formatDuration, shiftDay, stats, type State } from '../timelog/domain';
 import { DateNavigator } from '../phone/DateNavigator';
 import { PhoneAnalysis } from '../phone/Analysis';
@@ -21,8 +21,14 @@ export function RecordStatistics({
     [days, setDays] = useState(1),
     [deviceId, setDeviceId] = useState('');
   const range = { start: dayRange(shiftDay(date, 1 - days)).start, end: dayRange(date).end };
-  const result = useUsage({ ...range, deviceId: deviceId || undefined }),
-    summary = usageSummary(result.events, range);
+  const result = useUsage(
+    mode === 'manual' ? undefined : { ...range, deviceId: deviceId || undefined },
+    mode !== 'manual',
+  );
+  const summary = useMemo(
+    () => usageSummary(result.events, range),
+    [result.events, range.start, range.end],
+  );
   return (
     <div className="usage-statistics">
       <div className="phone-segments" aria-label="记录统计来源">

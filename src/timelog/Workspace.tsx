@@ -1,5 +1,5 @@
 import { getTimeZone } from '../timezone';
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { ArrowDown, ArrowUp, Clock3, MoreHorizontal, Pencil, Trash2, X } from 'lucide-react';
 import {
   activeActivity,
@@ -55,6 +55,13 @@ export default function Workspace({
   const setDate = timeline.jump;
   const [editor, setEditor] = useState<EditTarget | null>(null),
     [confirmation, setConfirmation] = useState<Confirm | null>(null);
+  const openManualRecord = useCallback(
+    (id: string) => {
+      const record = state.records.find((row) => row.id === id);
+      if (record) setEditor({ kind: 'record', record });
+    },
+    [state.records],
+  );
   const [notice, setNotice] = useState<{ text: string; error: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
   const pendingWrites = useRef(0);
@@ -296,7 +303,8 @@ export default function Workspace({
               </div>
               <div ref={timeline.list} className="timeline-list phone-day-groups">
                 {timeline.dates.map((day) => {
-                  const group = buildTimeline(state, day, now, false);
+                  const group =
+                    timelineMode === 'manual' ? buildTimeline(state, day, now, false) : [];
                   const shown = group.filter(matches);
                   return (
                     <section
@@ -319,10 +327,7 @@ export default function Workspace({
                           now={now}
                           mode={timelineMode}
                           filter={filter}
-                          onManual={(id) => {
-                            const record = state.records.find((row) => row.id === id);
-                            if (record) setEditor({ kind: 'record', record });
-                          }}
+                          onManual={openManualRecord}
                         />
                       ) : (
                         <TimelineEntries

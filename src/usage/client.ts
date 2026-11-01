@@ -126,12 +126,14 @@ export const usageBridge = (): UsageBridge => window.clearlist?.usage ?? browser
 export function usageChanged() {
   window.dispatchEvent(new Event('dayweave:usage'));
 }
-export async function loadUsageRange(query: UsageQuery) {
+export async function loadUsageRange(query: UsageQuery, signal?: AbortSignal) {
   const bridge = usageBridge(),
     events: UsageEvent[] = [];
   let before: number | undefined;
   for (let page = 0; page < 200; page++) {
+    signal?.throwIfAborted();
     const result = await bridge.query({ ...query, before, limit: 5000 });
+    signal?.throwIfAborted();
     events.push(...result.events);
     if (result.complete || result.next === undefined) return events;
     if (result.next === before) throw new Error('自动记录分页未前进，请重试');
@@ -146,37 +148,55 @@ export function useUsage(query?: UsageQuery, includeStatus = true) {
     loading: boolean;
     error: string;
   }>({ events: [], loading: true, error: '' });
-  const [revision, setRevision] = useState(0);
   useEffect(() => {
-    const changed = () => setRevision((value) => value + 1);
+    if (!query && !includeStatus) {
+      setResult({ events: [], loading: false, error: '' });
+      return;
+    }
+    const controller = new AbortController();
+    let running = false;
+    let pending = false;
+    setResult((previous) => ({ ...previous, events: [], loading: true, error: '' }));
+    const refresh = async () => {
+      if (running) {
+        pending = true;
+        return;
+      }
+      running = true;
+      try {
+        do {
+          pending = false;
+          try {
+            const [events, status] = await Promise.allSettled([
+              query ? loadUsageRange(query, controller.signal) : Promise.resolve([]),
+              includeStatus ? usageBridge().status() : Promise.resolve(undefined),
+            ]);
+            if (events.status === 'rejected') throw events.reason;
+            if (status.status === 'rejected') throw status.reason;
+            if (!controller.signal.aborted)
+              setResult({ events: events.value, status: status.value, loading: false, error: '' });
+          } catch (error) {
+            if (!controller.signal.aborted)
+              setResult((previous) => ({
+                ...previous,
+                loading: false,
+                error: error instanceof Error ? error.message : String(error),
+              }));
+          }
+        } while (pending && !controller.signal.aborted);
+      } finally {
+        running = false;
+      }
+    };
+    const changed = () => void refresh();
     window.addEventListener('dayweave:usage', changed);
     const timer = setInterval(changed, 30000);
+    changed();
     return () => {
+      controller.abort();
       window.removeEventListener('dayweave:usage', changed);
       clearInterval(timer);
     };
-  }, []);
-  useEffect(() => {
-    let cancelled = false;
-    setResult((previous) => ({ ...previous, events: [], loading: true, error: '' }));
-    void Promise.all([
-      query ? loadUsageRange(query) : Promise.resolve([]),
-      includeStatus ? usageBridge().status() : Promise.resolve(undefined),
-    ])
-      .then(([events, status]) => {
-        if (!cancelled) setResult({ events, status, loading: false, error: '' });
-      })
-      .catch((error) => {
-        if (!cancelled)
-          setResult({
-            events: [],
-            loading: false,
-            error: error instanceof Error ? error.message : String(error),
-          });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [query?.start, query?.end, query?.deviceId, query?.search, includeStatus, revision]);
+  }, [query?.start, query?.end, query?.deviceId, query?.search, includeStatus]);
   return result;
 }
