@@ -2,7 +2,7 @@
 
 ## 范围和所有者
 
-Server `0.1.0` 与客户端 `0.4.10` 独立版本/发行；它复用 `electron/headless-runtime.ts` 的初始化和关闭路径，底层仍是 FileStore → StateService → DesktopSync、UsageStore → DesktopUsage、startApi。业务写入、计时截止、同步合并和 usage 接收不建立第二个实现或文件同步库。原 `electron/headless.ts` / AI-tools 入口继续默认遵循桌面采集设置，保留环境变量、`--invite` 和默认 profile。
+Server `0.1.1` 与客户端 `0.4.10` 独立版本/发行；它复用 `electron/headless-runtime.ts` 的初始化和关闭路径，底层仍是 FileStore → StateService → DesktopSync、UsageStore → DesktopUsage、startApi。业务写入、计时截止、同步合并和 usage 接收不建立第二个实现或文件同步库。原 `electron/headless.ts` / AI-tools 入口继续默认遵循桌面采集设置，保留环境变量、`--invite` 和默认 profile。
 
 `server/package.json` 拥有服务器版本与 Node 要求。`scripts/package-server.mjs` bundle 所有非 Node 内置依赖，并附入配置读取、CLI、启动及离线更新脚本、操作手册和许可；生成元数据保留客户端领域版本、源 commit。客户端主版本、图标和平台包不随服务器发行变化。独立 `server-v*` tag，Release 使用 `--latest=false`，不改变客户端 latest；Check 工作流忽略此 tag，Server 工作流只测试 Node 服务端。
 
@@ -36,4 +36,24 @@ stage-update.mjs 不停止/启动进程或写计划任务：先验证路径隔�
 
 隔离测试覆盖原备份恢复、跨进程profile互斥、保留身份/密钥/序号/冲突/令牌/原采集设置、API任务与计时截止、两客户端业务与usage加密交换、设备撤销、真实正常退出/重启、强制崩溃及非空WAL恢复、来源失败时继续交换、停止排空和离线更新脚本。所有合成数据仅在临时.agents。
 
-共享API/计时/同步/usage回归与原AI-tools烟测单独执行。未部署ROG，不将隔离测试等同于生产数据、真实客户端公网、未登录开机或资源收益验收。
+共享API/计时/同步/usage回归与原AI-tools烟测单独执行。本实现对话未部署ROG；父对话的生产证据在下节独立记录，不将隔离测试等同于真实客户端公网、未登录开机或资源收益验收。
+
+## 大历史诊断与运维约束
+
+0.1.0 的详细 status 每次调用 UsageStore.status，执行设备分组、带 JSON 条件的记录计数和pending计数；这些同步聚合与旧来源扫描都可能占用主事件循环。`void sync()` 也不能保证其同步前缀不阻塞。健康探测只用 `/health`，请求串行并退避；详细status在就绪后单次读取，不能以两秒轮询堆积重查询。业务本身的同步调度不因此改变。
+
+2026-10-31 本地合成100000条/214614016字节usage库，原实现status约943ms、health约25ms、停机约15ms；临时数据库已清理，只有无业务内容的基准脚本和结果保留于.local/server-0.1.1/。部署对话随后报告：同一原profile副本普通SSH启动及停机正常，status约1533ms；S4U/原Priority7任务的单次status约17031ms，但health约90ms、正常停机。此前生产反复重型探测的积压是待核查的解释，不能将慢响应直接判定为数据损坏。
+
+微软任务Priority官方映射为6=Normal/IoPriorityNormal/Medium memory，7=BelowNormal/IoPriorityLow/Low memory；默认7。资源优先级和登录类型是不同维度，真实S4U验收需保留两者记录。父对话以Priority6完成0.1.0接管及有序重启后，18次轻量health均返回200但最大16777ms，另有8539ms峰值，证明仍有周期性同步阻塞，不能归结为探测积压或宣布性能通过。
+
+0.1.1用更小的分页修复替代worker：Work Review每页读取200行，再由UsageStore.importMissing在原写入连接上事务提交；不再执行可能扫描完整来源的跨库NOT EXISTS/ORDER BY/LIMIT2000。每页让出I/O，每轮最多接入2000个新增事件；游标仅在当前扫描有效，重新扫描从实际首行开始，BigInt支持负数/完整64位rowid，稳定事件ID才是去重依据。WITHOUT ROWID显式报source error；其他来源和远端交换继续。collector同样分200行，仅确认已进入usage.db的本应用缓存；外部SQLite只读。AW只把事务分成200条批次，全部批次完成才写文件签名，关闭中途不推进签名。
+
+服务器先启动API再启动后台扫描；详细usage状态由UsageStore在独立只读连接/BEGIN快照中每页256条聚合，页间让出，并发调用共享进行中读取，完成不长期缓存。设置/lastSync仍来自主owner，无第二份持久业务状态。runtime关闭前先设置停止扫描标志；API排空后，usage还要drainReads，finally关闭快照连接后才能关闭主数据库。关闭期间取消未处理页，保留已提交批次。既有桌面小型同步status路径仍兼容。
+
+## 父部署对话的生产验收
+
+父对话报告03:06:57Z切到server0.1.0/Meta/S4U/Session0/Priority6；03:09:17Z通过admin stop使原serverPID33268退出0，再由原应用任务启动PID47556。记录1198任务/1048手动记录、5peer、conflicts0，原deviceId/API令牌/peer密钥/序号保留；usage224002/pending0、localCapture=false、settings.enabled=true保留，collector-cache/work-review均存在无错，没有Dayweave.exe及该appcollector。
+
+第一次Priority7候选任务因低I/O优先级和高频重型status探测出现积压/停机超时后，父对话精确停止候选、保留当前data/sync/usage.db和WAL快照并恢复旧任务；没有还原旧业务数据。先在原profile完整副本上验证普通SSH/S4U对照及正常退出，再重试生产。该恢复经过与最终正常退出分开记录，不把精确强停称为优雅退出。
+
+父对话后来报告AI adapter实际snapshot/query及OMEN已配对密钥的Tailscale/公网usage加解密通过，0.1.0业务序号109632→109830、usage224085/pending0、5key保留；但跨周期health16.777秒峰值使最终性能验收暂缓。0.1.1由实现对话完成独立发行后，父对话先在ROG原profile副本跨周期采样，再有序升级生产。S4U/Session0运行及任务重启不等同于整机无人登录开机验收。

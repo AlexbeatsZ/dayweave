@@ -27,6 +27,7 @@ const exists = async (file: string) =>
     () => true,
     () => false,
   );
+const serverVersion = JSON.parse(await readFile('server/package.json', 'utf8')).version;
 
 async function fixture(run: (root: string, pkg: string) => Promise<void>) {
   await mkdir(base, { recursive: true });
@@ -208,7 +209,7 @@ test(
         assert.equal(await exists(path.join(pkg, 'node_modules')), false);
         const status = await admin(pkg, config, 'status');
         assert.equal(status.mode, 'server');
-        assert.equal(status.version, '0.1.0');
+        assert.equal(status.version, serverVersion);
         assert.equal(status.appVersion, '0.4.10');
         assert.equal(status.sync.hubId, 'original-hub');
         assert.deepEqual(status.sync.conflicts, [conflict]);
@@ -500,13 +501,20 @@ test(
           }),
         );
         const invalid = path.join(root, 'invalid.db');
-        await writeFile(invalid, 'broken source database');
+        const unsupported = new DatabaseSync(invalid);
+        unsupported.exec(
+          'CREATE TABLE events(device_id TEXT,id TEXT,payload TEXT,PRIMARY KEY(device_id,id)) WITHOUT ROWID; CREATE TABLE devices(id TEXT,name TEXT,platform TEXT)',
+        );
+        unsupported.close();
         client.usage.store.setMeta('sources', { 'work-review': invalid, activitywatch: aw });
         await assert.rejects(client.usage.sync());
         const health = await client.usage.health();
         assert.equal(health.localCapture, false);
         assert.ok(health.error);
-        assert.ok(health.sources.find((source) => source.kind === 'work-review')!.error);
+        assert.match(
+          health.sources.find((source) => source.kind === 'work-review')!.error ?? '',
+          /WITHOUT ROWID/,
+        );
         assert.equal(hub.usage.store.status().count, 1, JSON.stringify(health));
         assert.equal(client.usage.store.status().pending, 0);
       } finally {

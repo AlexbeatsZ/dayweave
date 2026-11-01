@@ -168,6 +168,27 @@ test('stale acknowledgement never marks a newer local correction delivered', asy
     store.close();
   }
 });
+test('paged status keeps a consistent read snapshot and releases it before the store closes', async () => {
+  const base = path.join(os.tmpdir(), '.agents');
+  await mkdir(base, { recursive: true });
+  const directory = await mkdtemp(path.join(base, 'dayweave-status-snapshot-'));
+  const store = new UsageStore(path.join(directory, 'usage.db'));
+  try {
+    store.import(Array.from({ length: 1000 }, (_, index) => event({ id: `snapshot-${index}` })));
+    const expected = store.status();
+    const reading = store.statusAsync(() => false);
+    store.import([event({ id: 'arrived-during-read', deviceId: 'phone', deviceName: 'Phone' })]);
+    assert.deepEqual(await reading, expected);
+    assert.deepEqual(await store.statusAsync(() => false), store.status());
+    store.import([event({ id: 'snapshot-0', revision: 2, deleted: true })]);
+    assert.deepEqual(await store.statusAsync(() => false), store.status());
+    await store.drainReads();
+  } finally {
+    store.close();
+    assert.ok(directory.startsWith(base + path.sep));
+    await rm(directory, { recursive: true, force: true });
+  }
+});
 test('paired encrypted usage sync distributes all devices without modifying manual state', async () => {
   await mkdir(path.join(os.tmpdir(), '.agents'), { recursive: true });
   const directory = await mkdtemp(path.join(os.tmpdir(), '.agents/dayweave-usage-'));
@@ -289,6 +310,22 @@ test('Work Review source is read-only, imports late historical rows and survives
       }),
     );
   insert('recent', 1000);
+  source
+    .prepare('INSERT INTO events(rowid,id,device_id,timestamp,payload,synced) VALUES(?,?,?,?,?,0)')
+    .run(
+      -1,
+      'negative-rowid',
+      'old-device',
+      1,
+      JSON.stringify({
+        id: 'negative-rowid',
+        device_id: 'old-device',
+        timestamp: 1,
+        duration: 10,
+        app_name: 'Editor',
+        window_title: '',
+      }),
+    );
   const sync = await new DesktopSync(
     new StateService(new FileStore(directory)),
     directory,
@@ -298,12 +335,12 @@ test('Work Review source is read-only, imports late historical rows and survives
   const usage = new DesktopUsage(store, sync, directory, 'missing');
   try {
     await usage.connectSource('work-review', path.join(directory, 'legacy.db'));
-    assert.equal(store.status().count, 1);
+    assert.equal(store.status().count, 2);
     insert('late-old-record', 10);
     source.exec('VACUUM');
     await usage.sync();
     await usage.sync();
-    assert.equal(store.status().count, 2);
+    assert.equal(store.status().count, 3);
     assert.equal(source.prepare('SELECT SUM(synced) total FROM events').get()!.total, 0);
     assert.equal(store.query({ start: 0, end: 2000000 }).events[0].deviceName, 'Old desktop');
   } finally {

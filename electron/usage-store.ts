@@ -1,4 +1,5 @@
 import { DatabaseSync } from 'node:sqlite';
+import { setImmediate as yieldToIO } from 'node:timers/promises';
 import {
   usageEventSchema,
   usageQuerySchema,
@@ -19,6 +20,7 @@ import {
 
 export class UsageStore implements UsageReplica {
   readonly database: DatabaseSync;
+  private readingStatus?: Promise<UsageStatus>;
   constructor(readonly file: string) {
     this.database = new DatabaseSync(file);
     this.database.exec(`PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;
@@ -81,6 +83,19 @@ export class UsageStore implements UsageReplica {
     return this.transaction(() =>
       events.reduce((count, event) => count + Number(this.put(event, owner, true)), 0),
     );
+  }
+  importMissing(value: UsageEvent[]) {
+    const events = usageEventSchema.array().max(500).parse(value);
+    if (!events.length) return;
+    const exists = this.database.prepare('SELECT 1 FROM usage_events WHERE id=?');
+    const insert = this.database.prepare(
+      "INSERT INTO usage_events(id,device,start,end,payload,owner,pending) VALUES(?,?,?,?,?,'@local',1)",
+    );
+    this.transaction(() => {
+      for (const event of events)
+        if (!exists.get(event.id))
+          insert.run(event.id, event.deviceId, event.start, event.end, JSON.stringify(event));
+    });
   }
   query(value: UsageQuery) {
     const query = usageQuerySchema.parse(value),
@@ -146,11 +161,68 @@ export class UsageStore implements UsageReplica {
       }),
     };
   }
+  async statusAsync(cancelled: () => boolean): Promise<UsageStatus> {
+    if (this.file === ':memory:') return this.status();
+    this.readingStatus ??= (async () => {
+      // A separate read-only connection holds a consistent WAL snapshot while
+      // the existing owner continues accepting writes between bounded pages.
+      const reader = new DatabaseSync(this.file, { readOnly: true });
+      try {
+        reader.exec('BEGIN');
+        const page = reader.prepare(
+          'SELECT seq,payload,pending FROM usage_events WHERE seq>? ORDER BY seq LIMIT 256',
+        );
+        let cursor = 0,
+          count = 0,
+          pending = 0;
+        const devices = new Map<string, UsageStatus['devices'][number]>();
+        for (;;) {
+          if (cancelled()) throw new Error('Usage status cancelled during shutdown');
+          const rows = page.all(cursor);
+          if (!rows.length) break;
+          for (const row of rows) {
+            pending += Number(row.pending) === 1 ? 1 : 0;
+            const event = JSON.parse(String(row.payload)) as UsageEvent;
+            if (event.deleted === false) {
+              count++;
+              const previous = devices.get(event.deviceId);
+              if (!previous || event.end > previous.lastEvent)
+                devices.set(event.deviceId, {
+                  id: event.deviceId,
+                  name: event.deviceName,
+                  platform: event.platform,
+                  lastEvent: event.end,
+                });
+            }
+          }
+          cursor = Number(rows.at(-1)!.seq);
+          await yieldToIO();
+        }
+        return {
+          settings: this.settings(),
+          capture: '未启用',
+          error: '',
+          count,
+          pending,
+          lastSync: this.meta('lastSync'),
+          devices: [...devices.values()].sort((a, b) => a.id.localeCompare(b.id)),
+        };
+      } finally {
+        reader.close();
+      }
+    })().finally(() => {
+      this.readingStatus = undefined;
+    });
+    return this.readingStatus;
+  }
   async pending(limit: number) {
     return this.database
       .prepare('SELECT payload FROM usage_events WHERE pending=1 ORDER BY seq LIMIT ?')
       .all(limit)
       .map((row) => JSON.parse(String(row.payload)) as UsageEvent);
+  }
+  async drainReads() {
+    await this.readingStatus?.catch(() => {});
   }
   async cursor(hubId: string) {
     return Number(this.meta(`cursor:${hubId}`) ?? 0);

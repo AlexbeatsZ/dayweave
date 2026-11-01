@@ -1,6 +1,6 @@
 # 时织 / Dayweave Server
 
-独立版本 `0.1.0`，共享客户端 `0.4.10` 的业务、计时、同步及 SQLite 所有者。需要 **Node 24.14.1 或更高的 24.x**，本版在 Windows Node 24.14.1 上验证。包已含 JavaScript 依赖，不需要 npm install、编译、Electron、React、Rust 或本机采集程序。Node 运行时由运行机器提供。
+独立版本 `0.1.1`，共享客户端 `0.4.10` 的业务、计时、同步及 SQLite 所有者。需要 **Node 24.14.1 或更高的 24.x**，本版在 Windows Node 24.14.1 上验证。包已含 JavaScript 依赖，不需要 npm install、编译、Electron、React、Rust 或本机采集程序。Node 运行时由运行机器提供。
 
 ## 配置与启动
 
@@ -66,6 +66,25 @@ node .\admin.mjs --config 'C:\Users\Meta\Project\Workspaces\dayweave-server\serv
 
 不提供 Web 管理界面，不把 AI API 经过公网网关暴露。
 
+## 健康探测与 Windows 任务优先级
+
+就绪探测使用认证 `GET /api/v1/health`，一次只保留一个请求；完成或超时后再按退避间隔重试。就绪后仅取一次 `/server/status` 做详细检查。`admin status`、`/server/status` 和 `/usage/status` 需要统计全部 usage 历史，不用于两秒一次的存活探测；0.1.1 已改为异步分页及合并并发读取，仍应避免无意义的高频重查询。
+
+2026-10-31 的隔离对照中，同一 ROG 原 profile 副本经普通 SSH 进程运行时，详细 status 约1533ms；经 S4U/原 Priority7 任务运行时约17031ms。部署对话随后以该应用任务 Priority6 完成0.1.0接管和有序重启，但后续仅用轻量 health 跨周期采样仍观察到最大16777ms延迟，不能把优先级调整视为最终性能修复。0.1.1 保留任务策略，针对长同步来源扫描和状态聚合做有界分页；生产效果须在原 profile 副本及升级后单独验证。
+
+微软 [Priority (settingsType) 官方映射](https://learn.microsoft.com/en-us/windows/win32/taskschd/taskschedulerschema-priority-settingstype-element)：
+
+| 任务 Priority | 进程优先级  | I/O 优先级       | 内存优先级 |
+| ------------- | ----------- | ---------------- | ---------- |
+| 6             | Normal      | IoPriorityNormal | Medium     |
+| 7（默认）     | BelowNormal | IoPriorityLow    | Low        |
+
+S4U/Session0 并不自动表示这些资源优先级相同。部署时记录任务 XML 的 Priority 和实际进程优先级；需要正常交互响应的服务器可先在临时任务中验证 Priority6，再由部署方受控调整生产任务。不通过启动脚本改全局优先级，也不更改业务同步轮询规则。
+
+0.1.1 的 Work Review/collector 扫描每页200行，逐页按稳定事件ID核对并由原 UsageStore 事务写入，页间让出事件循环。rowid仅为本轮内的游标，不持久化；每轮从实际首行开始，支持显式负数及64位rowid，旧时间戳晚到和轮间VACUUM仍可重新去重。WITHOUT ROWID来源明确报告source error并继续其他来源和远端交换，不静默当空表。collector只确认本应用缓存里已提交的事件；外部来源不修改。
+
+服务器 API 先就绪，再启动后台扫描。服务器详细状态使用独立只读WAL快照，每页256条、页间让出；并发状态请求共用一个进行中读取，不保存第二份业务状态。关闭时停止新扫描、取消剩余页、排空已受理API和同步，再等待只读连接释放并关闭主SQLite；已经提交的页保留，未完成AW文件不推进文件签名。
+
 ## 受控更新与 ROG 切换
 
 本包不自动注册/修改计划任务、不停止生产程序、不改防火墙或系统环境。ROG 的生产切换由运维对话执行。
@@ -85,13 +104,25 @@ node 'C:\staging\Dayweave-Server\stage-update.mjs' `
 恢复目录必须尚不存在，其父目录必须存在。各目标互相独立，配置保存在 current 外。脚本只准备程序并输出 `activated:false`，不启动新进程、恢复数据或管理任务。完整备份包含敏感数据和配对密钥，保留原用户访问权限。
 
 4. 沿用 Meta 用户、显式 profile，把原 DayweaveHub 任务动作改成 Node + server.mjs + `--config`。可使用“未登录也运行”的任务方式；需由运维在该真实身份下验证目录权限和网络可达性，不能改成 SYSTEM 并依赖其 APPDATA。工作目录无需参与路径解析。启用任务失败重试（例如一分钟、三次），不要反复并行创建 writer；开机/未登录的真实验收单独记录。
-5. 检查 `/health` 为 mode=server、版本0.1.0，API 49731、中心49732，原身份/客户端授权/序号/冲突与旧记录还在；由真实客户端完成正常同步，AI Decision只读查询原 API。共享网关、订阅、Tailscale以及其他程序的任务不随本包改动。
+5. 检查 `/health` 为 mode=server、版本0.1.1，API 49731、中心49732，原身份/客户端授权/序号/冲突与旧记录还在；跨至少两个15秒导入周期串行采样health/export，再单次检查详细状态及真实同步、AI Decision。共享网关、订阅、Tailscale以及其他程序的任务不随本包改动。
 6. 需要回退时先有序关闭新 writer，保留新数据，先恢复原程序/任务入口并使用当前兼容 profile。只有证据表明数据损坏且明确授权时才从本次完整 profile 恢复；不要单独覆盖 usage.db、丢弃 WAL 或用旧备份回滚已确认的新业务数据。
 
 `owner.lock` 与桌面共用，Windows 另用由规范化 profile 路径派生的内核命名管道串行化恢复，防止同时启动时竞争移除旧锁。崩溃退出后通过死亡 PID 恢复；无法确定锁所有者时失败并要求检查，不删除活动锁。SQLite 沿用 WAL 恢复，坏 data.json 只从通过校验的 data.backup.json 恢复并保留损坏原件，没有有效数据则拒绝启动。
 
+## ROG 已记录的接管结果
+
+以下为父部署对话提供的生产证据，本实现对话未操作 ROG。server0.1.0 已以 Meta/S4U、Session0、Priority6 接管原 profile。父对话记录03:06:57Z切换成功，03:09:17Z通过admin stop正常退出旧PID33268（退出码0），再由任务启动新PID47556。
+
+- 1198任务、1048手动记录、5个已配对设备、0冲突；原deviceId、API令牌、各设备密钥及序号保留。
+- usage224002、pending0；localCapture=false，原settings.enabled=true保留；collector-cache和已配置work-review来源均存在且无错误。
+- Dayweave.exe及该应用本机collector进程均为0。上述是0.1.0接管时的快照，不能替代0.1.1副本/生产性能验收。
+
+首次Priority7候选曾在两秒一次重型status探测下出现health/停机超时；部署方精确停止该候选任务，保留当时全部data/sync/usage.db及WAL快照后恢复原任务，没有用旧数据覆盖当前profile。完成原profile副本的普通SSH与S4U对照及正常停机后，才以Priority6和轻量探测重试生产。该诊断过程不作为常规强制停止流程；正常停机仍使用admin stop并确认退出。
+
+父对话随后报告真实AI adapter的snapshot/query、已配对设备的Tailscale/公网usage加解密均通过，业务序号自然推进；但0.1.0跨周期health仍有16.777秒峰值，性能最终验收暂缓。S4U/Session0任务已经运行不等于已发生整机重启且无人登录。0.1.1由父对话先在原profile副本验收，再有序升级。
+
 ## 构建与发行
 
-仓库中 `npm run bundle:server` 只 bundle 服务端；Windows `npm run dist:server` 同时生成 `release/Dayweave-Server-0.1.0.zip`。包里只有运行文件、示例配置与许可，不含 Node 运行时、profile 或源码依赖目录。`npm run test:server` 在隔离临时 profile 中验证，需先 bundle。
+仓库中 `npm run bundle:server` 只 bundle 服务端；Windows `npm run dist:server` 同时生成 `release/Dayweave-Server-0.1.1.zip`。包里只有运行文件、示例配置与许可，不含 Node 运行时、profile 或源码依赖目录。`npm run test:server` 在隔离临时 profile 中验证，包含约200MiB合成历史及跨导入周期采样，需先 bundle。
 
-独立 tag `server-v0.1.0`，Release 指定 `--latest=false`，客户端仍为0.4.10。服务端后续升级独立递增 server/package.json；不重建 APK/EXE/DMG。当前发行不代表已完成生产ROG切换、物理客户端/公网/未登录重启或内存收益验收。
+独立 tag `server-v0.1.1`，Release 指定 `--latest=false`，客户端仍为0.4.10。服务端后续升级独立递增 server/package.json；不重建 APK/EXE/DMG。生产ROG的0.1.0接管证据见上；0.1.1副本/生产性能、整机重启及资源收益按各自证据单独记录。

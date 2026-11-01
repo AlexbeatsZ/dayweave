@@ -42,6 +42,7 @@ export async function startHeadless(options: HeadlessOptions) {
   let shutdown: Promise<void> | undefined;
   const close = () => {
     closing = true;
+    usage?.stopBackground();
     shutdown ??= (async () => {
       // Do not release the profile if draining/closing fails: the caller exits nonzero,
       // and stale-lock recovery can then check that this process really ended.
@@ -64,7 +65,7 @@ export async function startHeadless(options: HeadlessOptions) {
       options.binary ?? '',
       !options.server,
     );
-    await usage.initialize();
+    await usage.initialize(!options.server);
     if (options.enableHub) await sync.enableHub(options.initialHubPort);
     api = await startApi(service, options.apiPort, () => sync, {
       ...(options.server
@@ -89,6 +90,7 @@ export async function startHeadless(options: HeadlessOptions) {
           }
         : {}),
     });
+    if (options.server) usage.startBackground();
     return { service, sync, usage, api, close };
   } catch (error) {
     await close().catch((failure) => {

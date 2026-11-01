@@ -4,6 +4,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
+import { setImmediate as yieldToIO } from 'node:timers/promises';
 import { UsageStore } from './usage-store.js';
 import { parseUsageImport } from '../src/usage/import.js';
 import { syncUsage } from '../src/usage/sync.js';
@@ -18,6 +19,7 @@ import type { DesktopSync } from './sync.js';
 
 export class DesktopUsage implements UsageBridge {
   private timer?: ReturnType<typeof setInterval>;
+  private initialSync?: ReturnType<typeof setImmediate>;
   private child?: ChildProcess;
   private running?: Promise<void>;
   private closing = false;
@@ -33,13 +35,19 @@ export class DesktopUsage implements UsageBridge {
     syncEngine.usage = store;
     syncEngine.refreshUsage = () => this.sync();
   }
-  async initialize() {
+  async initialize(background = true) {
     await this.applyCollector();
+    if (background) this.startBackground();
+    return this;
+  }
+  startBackground() {
     this.timer = setInterval(() => {
       void this.sync().catch(() => {});
     }, 15000);
-    void this.sync().catch(() => {});
-    return this;
+    this.initialSync = setImmediate(() => {
+      this.initialSync = undefined;
+      void this.sync().catch(() => {});
+    });
   }
   query(query: UsageQuery) {
     return Promise.resolve(this.store.query(query));
@@ -79,7 +87,9 @@ export class DesktopUsage implements UsageBridge {
           )[status.capture?.state] ?? capture;
         error = status.capture?.last_error || error;
       } catch {}
-    const status = this.store.status();
+    const status = this.localCapture
+      ? this.store.status()
+      : await this.store.statusAsync(() => this.closing);
     return {
       ...status,
       pending: this.syncEngine.client.config.hub ? 0 : status.pending,
@@ -200,51 +210,88 @@ export class DesktopUsage implements UsageBridge {
       log.end();
     });
   }
-  private importWorkReview(file: string) {
+  private async importWorkReview(file: string) {
     if (!existsSync(file)) return;
     const database = new DatabaseSync(file, { readOnly: true });
     try {
-      database.prepare('ATTACH DATABASE ? AS merged').run(this.store.file);
-      const rows = database
-        .prepare(
-          "SELECT e.timestamp,e.id,e.device_id,e.payload FROM events e WHERE NOT EXISTS (SELECT 1 FROM merged.usage_events u WHERE u.id='work-review:'||e.device_id||':'||e.id) ORDER BY e.timestamp,e.id,e.device_id LIMIT 2000",
-        )
-        .all();
+      const definition = database
+        .prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='events'")
+        .get();
+      if (/\bWITHOUT\s+ROWID\b/i.test(String(definition?.sql)))
+        throw new Error(
+          'Work Review events WITHOUT ROWID is unsupported; preserve the source and convert an offline copy before importing',
+        );
+      // Rowid is only a cursor within this scan. Start at the actual first row,
+      // including negative/64-bit values; stable event keys deduplicate history.
+      const page = database.prepare(
+        'SELECT rowid AS cursor,id,device_id,payload FROM events WHERE rowid>? ORDER BY rowid LIMIT 200',
+      );
+      const firstPage = database.prepare(
+        'SELECT rowid AS cursor,id,device_id,payload FROM events ORDER BY rowid LIMIT 200',
+      );
+      page.setReadBigInts(true);
+      firstPage.setReadBigInts(true);
+      const exists = this.store.database.prepare('SELECT 1 FROM usage_events WHERE id=?');
       const devices = new Map(
         database
           .prepare('SELECT id,name,platform FROM devices')
           .all()
           .map((device) => [String(device.id), device]),
       );
-      const events = rows.flatMap((row) => {
-        const data = JSON.parse(String(row.payload));
-        const device = devices.get(data.device_id);
-        return parseUsageImport({
-          ...data,
-          device_name: device?.name ?? os.hostname(),
-          platform: device?.platform ?? process.platform,
+      let cursor: bigint | undefined,
+        imported = 0;
+      while (!this.closing && imported < 2000) {
+        const rows = cursor === undefined ? firstPage.all() : page.all(cursor);
+        if (!rows.length) break;
+        const events = rows.flatMap((row) => {
+          if (exists.get(`work-review:${row.device_id}:${row.id}`)) return [];
+          const data = JSON.parse(String(row.payload));
+          const device = devices.get(data.device_id);
+          return parseUsageImport({
+            ...data,
+            device_name: device?.name ?? os.hostname(),
+            platform: device?.platform ?? process.platform,
+          });
         });
-      });
-      this.store.transaction(() => {
-        for (let offset = 0; offset < events.length; offset += 500) {
-          const batch = events.slice(offset, offset + 500);
-          for (const event of batch)
-            this.store.database
-              .prepare(
-                `INSERT OR IGNORE INTO usage_events(id,device,start,end,payload,owner,pending) VALUES(?,?,?,?,?,'@local',1)`,
-              )
-              .run(event.id, event.deviceId, event.start, event.end, JSON.stringify(event));
-        }
-      });
-      if (file === path.join(this.directory, 'collector', 'agent.db')) {
+        this.store.importMissing(events);
+        imported += events.length;
+        cursor = rows.at(-1)!.cursor as bigint;
+        await yieldToIO();
+      }
+      if (file === path.join(this.directory, 'collector', 'agent.db') && !this.closing) {
         const local = new DatabaseSync(file);
         try {
-          local.exec('BEGIN IMMEDIATE');
-          local.prepare('ATTACH DATABASE ? AS merged').run(this.store.file);
-          local.exec(
-            "UPDATE events SET synced=1 WHERE synced=0 AND EXISTS (SELECT 1 FROM merged.usage_events u WHERE u.id='work-review:'||events.device_id||':'||events.id)",
+          const pending = local.prepare(
+            'SELECT rowid AS cursor,id,device_id,synced FROM events WHERE rowid>? ORDER BY rowid LIMIT 200',
           );
-          local.exec('COMMIT');
+          const firstPending = local.prepare(
+            'SELECT rowid AS cursor,id,device_id,synced FROM events ORDER BY rowid LIMIT 200',
+          );
+          pending.setReadBigInts(true);
+          firstPending.setReadBigInts(true);
+          const acknowledge = local.prepare(
+            'UPDATE events SET synced=1 WHERE device_id=? AND id=? AND synced=0',
+          );
+          let next: bigint | undefined;
+          while (!this.closing) {
+            const rows = next === undefined ? firstPending.all() : pending.all(next);
+            if (!rows.length) break;
+            local.exec('BEGIN IMMEDIATE');
+            try {
+              for (const row of rows)
+                if (
+                  Number(row.synced) === 0 &&
+                  exists.get(`work-review:${row.device_id}:${row.id}`)
+                )
+                  acknowledge.run(row.device_id, row.id);
+              local.exec('COMMIT');
+            } catch (error) {
+              local.exec('ROLLBACK');
+              throw error;
+            }
+            next = rows.at(-1)!.cursor as bigint;
+            await yieldToIO();
+          }
         } finally {
           local.close();
         }
@@ -256,8 +303,9 @@ export class DesktopUsage implements UsageBridge {
   private async importActivityWatch(root: string) {
     let processed = 0;
     const walk = async (directory: string, depth: number): Promise<void> => {
-      if (depth > 4 || processed >= 200) return;
+      if (this.closing || depth > 4 || processed >= 200) return;
       for (const entry of await readdir(directory, { withFileTypes: true })) {
+        if (this.closing) return;
         const file = path.join(directory, entry.name);
         if (entry.isDirectory() && entry.name !== 'exports') await walk(file, depth + 1);
         else if (entry.isFile() && entry.name.endsWith('.json') && processed < 200) {
@@ -276,13 +324,17 @@ export class DesktopUsage implements UsageBridge {
           )
             continue;
           const events = parseUsageImport(content, Math.floor(info.mtimeMs));
-          this.store.import(events);
+          for (let offset = 0; offset < events.length; offset += 200) {
+            if (this.closing) return;
+            this.store.import(events.slice(offset, offset + 200));
+            await yieldToIO();
+          }
           this.store.setMeta(`source:${file}`, signature);
           processed++;
         }
       }
     };
-    await walk(root, 0);
+    if (!this.closing) await walk(root, 0);
   }
   sync() {
     if (this.closing) return Promise.resolve();
@@ -294,6 +346,7 @@ export class DesktopUsage implements UsageBridge {
       const ownDatabase = path.join(this.directory, 'collector', 'agent.db');
       const failures: string[] = [];
       const scan = async (file: string, action: () => void | Promise<void>) => {
+        if (this.closing) return;
         let error = '';
         try {
           await action();
@@ -322,11 +375,16 @@ export class DesktopUsage implements UsageBridge {
     return this.running;
   }
   async close() {
-    this.closing = true;
-    clearInterval(this.timer);
+    this.stopBackground();
     await this.stopCollector();
     await this.running?.catch(() => {});
+    await this.store.drainReads();
     this.store.close();
+  }
+  stopBackground() {
+    this.closing = true;
+    clearInterval(this.timer);
+    clearImmediate(this.initialSync);
   }
   private async stopCollector() {
     const child = this.child;
