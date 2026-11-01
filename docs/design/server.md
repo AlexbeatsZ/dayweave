@@ -38,6 +38,8 @@ stage-update.mjs 不停止/启动进程或写计划任务：先验证路径隔�
 
 共享API/计时/同步/usage回归与原AI-tools烟测单独执行。本实现对话未部署ROG；父对话的生产证据在下节独立记录，不将隔离测试等同于真实客户端公网、未登录开机或资源收益验收。
 
+0.1.1独立发行的Windows/Ubuntu CI41284031226均通过7项server集成、47项相关回归与原AI-tools smoke。100000条约200MiB合成历史在扫描/详细聚合期间health/export各30次返回，最大Windows21.0ms/Ubuntu26.5ms，停止37.7ms/141.6ms；跨周期采样仍使用1500ms阈值且不重试失败请求。正式ZIP的解压PowerShell启动、关闭stdin、不同cwd及认证stop退出0/profile释放通过。早期Windows测试发现同步夹具写锁/DELETE journal和VACUUM后的空闲连接复用干扰，最终夹具明确WAL且性能探测每次独立连接；产品实现未为测试放宽响应要求。tag server-v0.1.1和正式manifest来源为7abd5ed650ffb2f1a6efe6f3adf785f115dd97a7，Release非latest，客户端latest仍v0.4.10。
+
 ## 大历史诊断与运维约束
 
 0.1.0 的详细 status 每次调用 UsageStore.status，执行设备分组、带 JSON 条件的记录计数和pending计数；这些同步聚合与旧来源扫描都可能占用主事件循环。`void sync()` 也不能保证其同步前缀不阻塞。健康探测只用 `/health`，请求串行并退避；详细status在就绪后单次读取，不能以两秒轮询堆积重查询。业务本身的同步调度不因此改变。
