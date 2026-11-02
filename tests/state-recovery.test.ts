@@ -51,7 +51,6 @@ test('optional field removal and independent record edits survive concurrent mod
     note: 'Before',
     tags: [],
     spans: [{ start: 1000, end: 61000 }],
-    pointsPerHour: 20,
     nature: 'positive',
     deletedAt: null,
     updatedAt: 61000,

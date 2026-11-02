@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { usageEventSchema, type UsageEvent } from '../src/usage/domain.js';
-import { createTimelineAxis, mergeUsageEvents } from '../src/usage/timeline-layout.js';
+import { createTimelineAxis, MERGE_GAP, mergeUsageEvents } from '../src/usage/timeline-layout.js';
 
 const event = (patch: Partial<UsageEvent> = {}): UsageEvent =>
   usageEventSchema.parse({
@@ -30,22 +30,57 @@ test('timeline coalesces each device and layer independently without changing ob
   const result = mergeUsageEvents(input);
   assert.deepEqual(input, original);
   assert.equal(result.length, 3);
+  assert.deepEqual(result.find((row) => row.id === 'editor-1')!.titles, []);
   assert.equal(result.find((row) => row.id === 'editor-1')!.end, 21000);
   assert.equal(result.find((row) => row.id === 'phone')!.deviceId, 'phone');
 });
 
-test('timeline keeps interruptions, changed content and producer identities separate', () => {
+test('timeline keeps interruptions, long gaps and producer identities separate', () => {
   const result = mergeUsageEvents([
     event(),
     event({ id: 'other-app', app: 'Browser', start: 11000, end: 21000 }),
     event({ id: 'back', start: 21000, end: 31000 }),
-    event({ id: 'title', start: 31000, end: 41000, title: 'Another file' }),
-    event({ id: 'url', start: 41000, end: 51000, title: 'Another file', url: 'https://a.test' }),
+    event({ id: 'later', start: 31000 + MERGE_GAP + 1, end: 41000 + MERGE_GAP }),
     event({ id: 'old-producer', deviceId: 'old-desktop' }),
     event({ id: 'unlock-1', kind: 'unlock', start: 1000, end: 1000 }),
     event({ id: 'unlock-2', kind: 'unlock', start: 1000, end: 1000 }),
   ]);
-  assert.equal(result.length, 8);
+  assert.equal(result.length, 7);
+});
+
+test('same app merges across window titles and short gaps; websites merge per host', () => {
+  const result = mergeUsageEvents([
+    event({ id: 'f1', app: 'Finder', title: '下载' }),
+    event({ id: 'f2', app: 'Finder', title: '文稿', start: 30000, end: 40000 }),
+    event({ id: 'f3', app: 'Finder', title: '下载', start: 100000, end: 110000 }),
+    event({ id: 'w1', kind: 'web', app: 'Chrome', url: 'https://a.test/1', title: 'A1' }),
+    event({
+      id: 'w2',
+      kind: 'web',
+      app: 'Chrome',
+      url: 'https://a.test/2',
+      title: 'A2',
+      start: 11000,
+      end: 20000,
+    }),
+    event({
+      id: 'w3',
+      kind: 'web',
+      app: 'Chrome',
+      url: 'https://b.test/',
+      title: 'B',
+      start: 20000,
+      end: 30000,
+    }),
+  ]);
+  const finder = result.filter((row) => row.app === 'Finder');
+  assert.equal(finder.length, 1);
+  assert.equal(finder[0].end, 110000);
+  assert.deepEqual(finder[0].titles, ['下载', '文稿']);
+  assert.deepEqual(
+    result.filter((row) => row.kind === 'web').map((row) => row.titles),
+    [['A1', 'A2'], ['B']],
+  );
 });
 
 test('automatic axis expands short records and compresses empty hours on a shared clock', () => {

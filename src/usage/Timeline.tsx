@@ -77,7 +77,7 @@ export function AlignedUsageTimeline({
           event.kind === 'unlock'
             ? '解锁'
             : event.app || (event.kind === 'web' ? '网页访问' : '设备活动'),
-        detail: event.title || event.url,
+        detail: event.titles.length ? event.titles.join(' · ') : event.url,
         color: event.kind === 'web' ? '#a687bb' : event.kind === 'media' ? '#b08962' : '#638fa6',
         event,
       })),

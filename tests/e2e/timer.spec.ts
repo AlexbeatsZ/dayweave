@@ -49,7 +49,6 @@ async function seed(page: Page, configure?: (state: AppState) => void) {
       note: '上一段有效记录',
       tags: ['历史标签'],
       spans: [{ start: NOW - 2400000, end: PREVIOUS_END }],
-      pointsPerHour: 20,
       nature: 'positive',
       deletedAt: null,
       updatedAt: PREVIOUS_END,
@@ -490,7 +489,7 @@ test('empty activity groups retain create tiles, cancel is read-only and nature 
   await expect(editor).toHaveCount(0);
   expect(
     (await stored(page)).timelog.activities.find((row) => row.name === '自选性质活动'),
-  ).toMatchObject({ nature: 'neutral', pointsPerHour: 0 });
+  ).toMatchObject({ nature: 'neutral' });
   await page.reload();
   await openTimer(page);
   await expect(

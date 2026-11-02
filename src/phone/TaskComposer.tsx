@@ -3,7 +3,7 @@ import { CalendarDays, Flag, ListChecks, Plus, Repeat2, X } from 'lucide-react';
 import {
   formatTaskMinutes,
   newTask,
-  priorityLabels,
+  quadrantLabels,
   recordedTaskMinutes,
   shiftDate,
   uid,
@@ -40,7 +40,7 @@ export function TaskComposer({
     [notes, setNotes] = useState(task?.notes ?? '');
   const [date, setDate] = useState(task?.due ?? due),
     [list, setList] = useState(task?.listId ?? listId);
-  const [priority, setPriority] = useState<Task['priority']>(task?.priority ?? 4);
+  const [quadrant, setQuadrant] = useState<Task['quadrant']>(task?.quadrant ?? null);
   const [repeat, setRepeat] = useState<Task['repeat']>(task?.repeat ?? 'none');
   const [subtasks, setSubtasks] = useState<Task['subtasks']>(task?.subtasks ?? []),
     [subtask, setSubtask] = useState('');
@@ -67,7 +67,7 @@ export function TaskComposer({
         notes,
         estimatedMinutes: estimatedMinutes.trim() === '' ? null : Number(estimatedMinutes),
         actualMinutes: actualMinutes.trim() === '' ? null : Number(actualMinutes),
-        priority,
+        quadrant,
         repeat: date ? repeat : 'none',
         tags: [
           ...new Set([
@@ -102,7 +102,7 @@ export function TaskComposer({
                     actualMinutes: created.actualMinutes,
                     listId: list,
                     due: date || null,
-                    priority,
+                    quadrant,
                     repeat: created.repeat,
                     repeatDay: date && date !== item.due ? Number(date.slice(-2)) : item.repeatDay,
                     tags: created.tags,
@@ -290,11 +290,14 @@ export function TaskComposer({
           <label>
             <Flag size={17} />
             <select
-              aria-label={task ? '任务优先级' : '新任务优先级'}
-              value={priority}
-              onChange={(e) => setPriority(Number(e.target.value) as Task['priority'])}
+              aria-label={task ? '任务四象限' : '新任务四象限'}
+              value={quadrant ?? ''}
+              onChange={(e) =>
+                setQuadrant(e.target.value ? (Number(e.target.value) as Task['quadrant']) : null)
+              }
             >
-              {Object.entries(priorityLabels).map(([value, label]) => (
+              <option value="">不分象限</option>
+              {Object.entries(quadrantLabels).map(([value, label]) => (
                 <option key={value} value={value}>
                   {label}
                 </option>

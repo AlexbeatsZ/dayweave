@@ -34,7 +34,8 @@
           "actualMinutes": { "nullable": true, "type": "number", "minimum": 0 },
           "listId": { "type": "string", "minLength": 1, "maxLength": 100 },
           "due": { "nullable": true, "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
-          "priority": {
+          "quadrant": {
+            "nullable": true,
             "anyOf": [
               { "type": "number", "enum": [1] },
               { "type": "number", "enum": [2] },
@@ -96,7 +97,6 @@
           "notes",
           "listId",
           "due",
-          "priority",
           "tags",
           "subtasks",
           "repeat",
@@ -131,7 +131,7 @@
           "timelog": {},
           "schedule": {
             "default": {
-              "semesterStart": "2026-10-19",
+              "semesterStart": "2026-11-02",
               "totalWeeks": 20,
               "timeZone": "Asia/Shanghai",
               "displayDays": "auto",
@@ -350,7 +350,8 @@
                 "actualMinutes": { "nullable": true, "type": "number", "minimum": 0 },
                 "listId": { "type": "string", "minLength": 1, "maxLength": 100 },
                 "due": { "nullable": true, "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
-                "priority": {
+                "quadrant": {
+                  "nullable": true,
                   "anyOf": [
                     { "type": "number", "enum": [1] },
                     { "type": "number", "enum": [2] },
@@ -422,7 +423,6 @@
                 "notes",
                 "listId",
                 "due",
-                "priority",
                 "tags",
                 "subtasks",
                 "repeat",
@@ -1544,7 +1544,8 @@
                     "type": "string",
                     "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
                   },
-                  "priority": {
+                  "quadrant": {
+                    "nullable": true,
                     "anyOf": [
                       { "type": "number", "enum": [1] },
                       { "type": "number", "enum": [2] },
@@ -1658,7 +1659,8 @@
                     "type": "string",
                     "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
                   },
-                  "priority": {
+                  "quadrant": {
+                    "nullable": true,
                     "anyOf": [
                       { "type": "number", "enum": [1] },
                       { "type": "number", "enum": [2] },
@@ -2135,7 +2137,7 @@
                   "timelog": {},
                   "schedule": {
                     "default": {
-                      "semesterStart": "2026-10-19",
+                      "semesterStart": "2026-11-02",
                       "totalWeeks": 20,
                       "timeZone": "Asia/Shanghai",
                       "displayDays": "auto",
@@ -2361,7 +2363,8 @@
                           "type": "string",
                           "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
                         },
-                        "priority": {
+                        "quadrant": {
+                          "nullable": true,
                           "anyOf": [
                             { "type": "number", "enum": [1] },
                             { "type": "number", "enum": [2] },
@@ -2436,7 +2439,6 @@
                         "notes",
                         "listId",
                         "due",
-                        "priority",
                         "tags",
                         "subtasks",
                         "repeat",

@@ -8,6 +8,8 @@ One validated JSON file owns tasks/lists/tag colors, timelog and schedule. Legac
 
 Task `estimatedMinutes` and `actualMinutes` are independently optional/nullable, finite nonnegative minute values; zero and fractional minutes are valid. Omission preserves legacy data and an unrelated PATCH must retain existing values; explicit `null` clears a value. The common new/edit form never fills actual time from records: saved, non-deleted records linked by `taskId` provide a separate read-only cumulative reference, excluding a running timer. Recurring tasks inherit the estimate but start each occurrence with no actual value. Task deltas and synchronization merge these properties as independent fields.
 
+Since 2026-11-02 tasks have no priority. Task size is derived only from `estimatedMinutes` (≤30 小, ≤120 中, otherwise 大); `quadrant` (1 important+urgent, 2 important, 3 urgent, 4 neither, or absent) is an explicit attribute set by the user or the AI and is never computed from dates. Loading drops a legacy `priority` field before strict validation, so old backups and not-yet-upgraded peers still parse; the API rejects `priority` in task input.
+
 ## Timezone
 
 Default Asia/Shanghai for all schedule days, task dates and time-record grouping. Host system timezone stays unchanged. IANA regions and fixed UTC offsets are supported. Course wall clocks resolve using the course/semester timezone and Temporal; stored occurrences use UTC epoch. Device-local secondary labels are display only. Recurring courses use semester start Monday, teaching weeks, weekday, start/end, exceptions. ICS imports expand bounded recurrence while preserving absolute instants.

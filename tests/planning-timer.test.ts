@@ -136,6 +136,7 @@ test('activity deletion removes goals and choices but preserves historical refer
     activityId: 'study',
     minutes: 30,
     period: 'day',
+    comparison: 'atLeast',
     archived: false,
     updatedAt: start,
   });
@@ -201,7 +202,6 @@ test('explicit list activity mapping overrides defaults and survives renaming th
   state.tasks = [newTask('阅读文献', { listId: 'subject' })];
   const mapped = startTaskTimer(state, state.tasks[0].id, start);
   assert.equal(mapped.timelog.timer!.activityId, 'reading');
-  assert.equal(mapped.timelog.timer!.pointsPerHour, 15);
   assert.equal(mapped.timelog.activities.length, state.timelog.activities.length);
   state.lists[1].name = '专业资料';
   const restored = fromDocument(toDocument(state), emptyState());
@@ -223,7 +223,6 @@ test('a deleted custom mapping reports the stale binding instead of silently sta
     name: '实验操作',
     color: '#9955bb',
     nature: 'positive',
-    pointsPerHour: 12,
     archived: false,
     updatedAt: start,
   });
@@ -253,11 +252,11 @@ test('a deleted custom mapping reports the stale binding instead of silently sta
 test('dragging visible tasks changes their manual order while preserving filtered-out tasks and data', () => {
   const state = emptyState();
   state.tasks = [
-    newTask('第一项', { id: 'a', order: 10, tags: ['当前'], priority: 4 }),
+    newTask('第一项', { id: 'a', order: 10, tags: ['当前'] }),
     newTask('其他清单任务', { id: 'hidden-a', order: 20, notes: '保留原内容' }),
-    newTask('第二项', { id: 'b', order: 30, tags: ['当前'], priority: 1 }),
+    newTask('第二项', { id: 'b', order: 30, tags: ['当前'] }),
     newTask('其他标签任务', { id: 'hidden-b', order: 40 }),
-    newTask('第三项', { id: 'c', order: 50, tags: ['当前'], priority: 2 }),
+    newTask('第三项', { id: 'c', order: 50, tags: ['当前'] }),
   ];
   const before = structuredClone(state);
   const reordered = reorderTasks(state, ['a', 'b', 'c'], 'a', 'c');

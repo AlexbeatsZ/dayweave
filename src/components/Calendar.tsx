@@ -6,12 +6,17 @@ export function Calendar({
   tasks,
   selectedDate,
   onDate,
+  onAdd,
+  onOpenDay,
   onSelect,
   onDrop,
 }: {
   tasks: Task[];
   selectedDate: string;
   onDate: (date: string) => void;
+  onAdd?: (date: string) => void;
+  /** Opens the whole day when its cell cannot show every task. */
+  onOpenDay?: (date: string) => void;
   onSelect: (id: string) => void;
   onDrop: (id: string, date: string) => void;
 }) {
@@ -52,7 +57,10 @@ export function Calendar({
       </div>
       <div className="calendar-grid">
         {days.map((day) => {
-          const dayTasks = tasks.filter((t) => t.due === day && !t.deletedAt);
+          // Completed plans stay visible, dimmed, after the open ones.
+          const dayTasks = tasks
+            .filter((t) => t.due === day && !t.deletedAt)
+            .sort((a, b) => Number(!!a.completedAt) - Number(!!b.completedAt) || a.order - b.order);
           const out = fromDateKey(day).getMonth() !== month.getMonth();
           return (
             <div
@@ -79,7 +87,7 @@ export function Calendar({
                 {dayTasks.slice(0, 3).map((task) => (
                   <button
                     key={task.id}
-                    className={`calendar-event priority-${task.priority} ${task.completedAt ? 'event-done' : ''}`}
+                    className={`calendar-event quadrant-${task.quadrant ?? 0} ${task.completedAt ? 'event-done' : ''}`}
                     draggable
                     onDragStart={(e) =>
                       e.dataTransfer.setData('application/clearlist-task', task.id)
@@ -92,7 +100,7 @@ export function Calendar({
                   </button>
                 ))}
                 {dayTasks.length > 3 && (
-                  <button className="calendar-more" onClick={() => onDate(day)}>
+                  <button className="calendar-more" onClick={() => (onOpenDay ?? onDate)(day)}>
                     还有 {dayTasks.length - 3} 件
                   </button>
                 )}
@@ -100,7 +108,7 @@ export function Calendar({
               <button
                 className="day-add"
                 aria-label={`在 ${day} 添加任务`}
-                onClick={() => onDate(day)}
+                onClick={() => (onAdd ? onAdd(day) : onDate(day))}
               >
                 <Plus size={13} />
               </button>

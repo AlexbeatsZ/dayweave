@@ -16,7 +16,6 @@ async function seed(page: Page, phone = false, crowded = false) {
       note: '保留手动记录',
       tags: [],
       spans: [{ start, end: start + 3600000 }],
-      pointsPerHour: 20,
       nature: 'positive',
       deletedAt: null,
       updatedAt: start + 3600000,

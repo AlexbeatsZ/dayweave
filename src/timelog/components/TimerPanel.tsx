@@ -10,7 +10,6 @@ import {
   duration,
   finishTimer,
   formatClock,
-  formatPoints,
   liveSpans,
   nextActivity,
   startTimer,
@@ -182,10 +181,6 @@ export function TimerPanel({
                   <strong className="timer-clock" aria-label="计时时长">
                     {formatClock(clock)}
                   </strong>
-                  <span className="timer-points">
-                    {formatPoints((elapsed / 3600000) * timer.pointsPerHour)}
-                    <small> 积分</small>
-                  </span>
                   <button
                     className="timer-pause"
                     aria-label={timer.runningSince === null ? '继续' : '暂停'}

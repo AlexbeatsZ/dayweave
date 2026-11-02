@@ -1,8 +1,28 @@
 import type { Span } from '../timelog/domain.js';
 import type { UsageEvent } from './domain.js';
 
-export function mergeUsageEvents(events: readonly UsageEvent[]) {
-  const streams = new Map<string, UsageEvent[]>();
+/** Short pauses between samples of the same app (window switches, sampling gaps) stay one card. */
+export const MERGE_GAP = 2 * 60000;
+export type MergedUsageEvent = UsageEvent & { titles: string[] };
+const site = (url?: string) => {
+  try {
+    return url ? new URL(url).hostname : '';
+  } catch {
+    return url ?? '';
+  }
+};
+/**
+ * Display-only coalescing per device and layer. Apps merge by application regardless of window
+ * title, websites by host, media by title; every distinct title is kept for the details view.
+ */
+export function mergeUsageEvents(events: readonly UsageEvent[]): MergedUsageEvent[] {
+  const streams = new Map<string, MergedUsageEvent[]>();
+  const identity = (event: UsageEvent) =>
+    event.kind === 'app'
+      ? event.app
+      : event.kind === 'web'
+        ? `${event.app}|${site(event.url)}`
+        : `${event.app}|${event.title}|${event.url}`;
   for (const event of events
     .filter((event) => !event.deleted)
     .slice()
@@ -14,14 +34,13 @@ export function mergeUsageEvents(events: readonly UsageEvent[]) {
       previous &&
       event.kind !== 'unlock' &&
       previous.source === event.source &&
-      previous.app === event.app &&
-      previous.title === event.title &&
-      previous.url === event.url &&
       previous.category === event.category &&
-      event.start - previous.end <= 1000
+      identity(previous) === identity(event) &&
+      event.start - previous.end <= (event.kind === 'media' ? 1000 : MERGE_GAP)
     ) {
       previous.end = Math.max(previous.end, event.end);
-    } else stream.push({ ...event });
+      if (event.title && !previous.titles.includes(event.title)) previous.titles.push(event.title);
+    } else stream.push({ ...event, titles: event.title ? [event.title] : [] });
     streams.set(key, stream);
   }
   return [...streams.values()].flat();

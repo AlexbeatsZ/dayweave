@@ -155,7 +155,6 @@ test('old Clearlist and Timelog backups merge into the same store and retain tas
       note: 'read',
       tags: [],
       spans: [{ start: 100, end: 300000 }],
-      pointsPerHour: 20,
       nature: 'positive',
       deletedAt: null,
       updatedAt: 1,

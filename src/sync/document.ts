@@ -30,7 +30,7 @@ export function toDocument(state: AppState): SyncDocument {
   const doc: SyncDocument = {};
   for (const collection of ['tasks', 'lists', 'sessions'] as const)
     for (const row of state[collection]) doc[entityKey(collection, row.id)] = { ...row };
-  for (const collection of ['activities', 'goals', 'rewards', 'redemptions'] as const)
+  for (const collection of ['activities', 'goals'] as const)
     for (const row of state.timelog[collection]) doc[entityKey(collection, row.id)] = { ...row };
   for (const collection of ['courses', 'events'] as const)
     for (const row of state.schedule[collection]) doc[entityKey(collection, row.id)] = { ...row };
@@ -40,7 +40,6 @@ export function toDocument(state: AppState): SyncDocument {
       activityId: row.activityId,
       note: row.note,
       tags: row.tags,
-      pointsPerHour: row.pointsPerHour,
       nature: row.nature,
       deletedAt: row.deletedAt,
       updatedAt: row.updatedAt,
@@ -59,7 +58,6 @@ export function toDocument(state: AppState): SyncDocument {
         activityId: row.activityId,
         note: row.note,
         tags: row.tags,
-        pointsPerHour: row.pointsPerHour,
         nature: row.nature,
         deletedAt: null,
         updatedAt: row.startedAt,
@@ -118,7 +116,6 @@ export function fromDocument(doc: SyncDocument, local: AppState): AppState {
       activityId: row.activityId as string,
       note: row.note as string,
       tags: row.tags as string[],
-      pointsPerHour: row.pointsPerHour as number,
       nature: row.nature as TimeRecord['nature'],
       ...(row.taskId ? { taskId: row.taskId as string } : {}),
     };
@@ -142,9 +139,8 @@ export function fromDocument(doc: SyncDocument, local: AppState): AppState {
   next.timelog = validateState({
     ...next.timelog,
     activities: rows('activities'),
+    // rewards/* and redemptions/* from older devices are ignored; points were removed.
     goals: rows('goals'),
-    rewards: rows('rewards'),
-    redemptions: rows('redemptions'),
     records,
     timer: timers[0] ?? null,
     settings: {

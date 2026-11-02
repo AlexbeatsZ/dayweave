@@ -96,7 +96,6 @@ test('course and full backup imports preserve both original project formats', as
       note: '旧时迹记录',
       tags: [],
       spans: [{ start: Date.now() - 600000, end: Date.now() - 1000 }],
-      pointsPerHour: 20,
       nature: 'positive',
       updatedAt: Date.now(),
       deletedAt: null,

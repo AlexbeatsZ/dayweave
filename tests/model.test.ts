@@ -9,7 +9,7 @@ import {
   mergeImport,
   newTask,
   nextRepeatDate,
-  quadrant,
+  effortTier,
   selectTasks,
   shiftDate,
   stateSchema,
@@ -102,11 +102,22 @@ test('search covers notes, tags and subtasks across the current filtered view', 
   for (const query of ['ALPHA', '#science', 'Beta'])
     assert.equal(selectTasks(s, 'today', query).length, 1);
 });
-test('quadrants derive importance from priority and urgency from the local date', () => {
-  assert.equal(quadrant(newTask('A', { priority: 1, due: '2026-10-18' }), '2026-10-19'), 0);
-  assert.equal(quadrant(newTask('B', { priority: 2, due: '2026-10-20' }), '2026-10-19'), 1);
-  assert.equal(quadrant(newTask('C', { priority: 3, due: '2026-10-19' }), '2026-10-19'), 2);
-  assert.equal(quadrant(newTask('D'), '2026-10-19'), 3);
+test('quadrant is an explicit optional attribute and legacy priority is dropped on load', () => {
+  assert.equal(newTask('A').quadrant, undefined);
+  assert.equal(newTask('B', { quadrant: 2 }).quadrant, 2);
+  const legacy = {
+    ...emptyState(),
+    tasks: [{ ...newTask('C', { due: '2026-10-18' }), priority: 1 }],
+  };
+  const [task] = stateSchema.parse(legacy).tasks;
+  assert.equal('priority' in task, false);
+  assert.equal(task.quadrant, undefined);
+});
+test('task size tier comes only from the estimate', () => {
+  assert.deepEqual(
+    [null, 0, 20, 30, 31, 120, 121].map((minutes) => effortTier(minutes)),
+    [null, null, '小', '小', '中', '中', '大'],
+  );
 });
 test('import merges newer edits and tombstones without removing local tasks or settings', () => {
   const task = newTask('Original', { updatedAt: '2026-10-18T10:00:00.000Z' });

@@ -209,7 +209,6 @@ test('task creation, lookup, pagination, search and strict validation share pers
       title: 'API task',
       notes: 'searchable',
       due: '2026-10-26',
-      priority: 1,
     });
     assert.equal(response.status, 200);
     const { data: task } = await response.json();
@@ -246,7 +245,7 @@ test('ETag protects stale API writes and field deltas merge disjoint UI edits', 
       200,
     );
     assert.equal(
-      (await request('PATCH', `/tasks/${task.id}`, { priority: 2 }, { 'If-Match': etag })).status,
+      (await request('PATCH', `/tasks/${task.id}`, { quadrant: 2 }, { 'If-Match': etag })).status,
       409,
     );
     await service.patch(diffState(base, local));

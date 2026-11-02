@@ -6,9 +6,7 @@ import {
   dayKey,
   duration,
   formatDuration,
-  formatPoints,
   formatTime,
-  recordPoints,
   recordsIn,
   shiftDay,
   stats,
@@ -47,7 +45,6 @@ export function PhoneAnalysis({
       return {
         ...activity,
         ms: rows.reduce((sum, row) => sum + duration(clipped(row.spans, range)), 0),
-        points: rows.reduce((sum, row) => sum + recordPoints(row, range), 0),
         rows,
       };
     })
@@ -209,7 +206,7 @@ export function PhoneAnalysis({
         <header>
           <h2>活动汇总</h2>
           <span>
-            {total.count} 条 · {formatPoints(total.points)} 分
+            {total.count} 条 · {formatDuration(total.tracked)}
           </span>
         </header>
         {breakdown.map((activity) => (

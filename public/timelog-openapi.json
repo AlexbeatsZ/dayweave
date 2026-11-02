@@ -716,9 +716,6 @@
                     "type": "string",
                     "enum": ["positive", "neutral", "negative"]
                   },
-                  "pointsPerHour": {
-                    "type": "number"
-                  },
                   "archived": {
                     "type": "boolean"
                   }
@@ -842,9 +839,6 @@
                   "nature": {
                     "type": "string",
                     "enum": ["positive", "neutral", "negative"]
-                  },
-                  "pointsPerHour": {
-                    "type": "number"
                   },
                   "archived": {
                     "type": "boolean"

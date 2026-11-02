@@ -9,7 +9,6 @@ import {
   duration,
   formatClock,
   formatDuration,
-  formatPoints,
   formatTime,
   liveSpans,
   natureLabels,
@@ -32,7 +31,6 @@ import { AlignedUsageTimeline, UsageToolbar, type TimelineMode } from '../usage/
 export type TimePage = 'timeline' | 'timer' | 'goals';
 type Confirm = { title: string; body: string; action: () => Promise<boolean> };
 const activityStyle = (color: string) => ({ '--activity-color': color }) as CSSProperties;
-const points = (value: number) => `${value > 0 ? '+' : ''}${formatPoints(value)}`;
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
 export default function Workspace({
@@ -192,9 +190,6 @@ export default function Workspace({
             </h3>
             <div className="phone-record-numbers">
               <span>{formatDuration(row.end - row.start)}</span>
-              <strong className={record.pointsPerHour < 0 ? 'negative-text' : 'positive-text'}>
-                {points(((row.end - row.start) / 3600000) * record.pointsPerHour)}
-              </strong>
             </div>
             {record.note && <p className="record-note">{record.note}</p>}
             {!!record.tags.length && (
@@ -211,9 +206,6 @@ export default function Workspace({
                 {formatTime(row.start)}–{endText(row.end, day)}
               </span>
               <span>{formatDuration(row.end - row.start)}</span>
-              <span className={record.pointsPerHour < 0 ? 'negative-text' : 'positive-text'}>
-                {points(((row.end - row.start) / 3600000) * record.pointsPerHour)} 分
-              </span>
               {record.spans.length > 1 && <span>第 {row.spanIndex + 1} 段</span>}
             </div>
           </div>

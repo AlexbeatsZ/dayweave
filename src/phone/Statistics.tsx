@@ -1,9 +1,10 @@
 import { dateKey } from '../model';
 import { useStore } from '../store';
 import { Statistics } from '../components/Statistics';
-import { dayRange, formatDuration, formatPoints, stats } from '../timelog/domain';
+import { dayRange, formatDuration, stats } from '../timelog/domain';
 import { DateNavigator } from './DateNavigator';
 import { RecordStatistics } from '../usage/Statistics';
+import { DayPie } from '../timelog/components/DayPie';
 
 export type StatisticsPage = 'daily' | 'tasks' | 'records';
 export function PhoneStatistics({
@@ -69,11 +70,8 @@ export function PhoneStatistics({
             <strong>{summary.count}</strong>
             <span>活动记录</span>
           </div>
-          <div>
-            <strong>{formatPoints(summary.points)}</strong>
-            <span>当天积分</span>
-          </div>
         </div>
+        <DayPie state={data.timelog} day={date} />
         <button className="phone-stat-link" onClick={() => onTimeline(date)}>
           查看当天时间线
         </button>

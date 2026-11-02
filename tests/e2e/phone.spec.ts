@@ -22,7 +22,6 @@ async function seed(page: Page) {
       due: day,
       listId: 'study-list',
       notes: '整理波函数归一化的推导，补上课后问题。',
-      priority: 2,
     }),
     newTask('一个还没安排日期的想法'),
   ];
@@ -33,7 +32,6 @@ async function seed(page: Page) {
       note: '阅读量子化学讲义，整理波函数归一化推导。',
       tags: ['量子化学'],
       spans: [{ start, end: start + 1800000 }],
-      pointsPerHour: 20,
       nature: 'positive',
       deletedAt: null,
       updatedAt: start + 1800000,
@@ -45,6 +43,7 @@ async function seed(page: Page) {
       activityId: 'study',
       name: '每天读一点',
       period: 'day',
+      comparison: 'atLeast',
       minutes: 60,
       archived: false,
       updatedAt: start,
@@ -141,6 +140,7 @@ test('compact shared tabs swipe both ways, goals group densely, and all add butt
             activityId: 'exercise',
             minutes: 30,
             period: 'day',
+            comparison: 'atLeast',
             archived: false,
             updatedAt: Date.now(),
           },
@@ -150,6 +150,7 @@ test('compact shared tabs swipe both ways, goals group densely, and all add butt
             activityId: 'study',
             minutes: 540,
             period: 'week',
+            comparison: 'atLeast',
             archived: false,
             updatedAt: Date.now(),
           },
@@ -159,6 +160,7 @@ test('compact shared tabs swipe both ways, goals group densely, and all add butt
             activityId: 'reading',
             minutes: 120,
             period: 'week',
+            comparison: 'atLeast',
             archived: false,
             updatedAt: Date.now(),
           },
@@ -203,7 +205,6 @@ test('timeline auto-loads beyond seven days, visible-day points follow scrolling
               note: '昨天的独立积分',
               tags: [],
               spans: [{ start, end: start + 3600000 }],
-              pointsPerHour: 15,
               nature: 'positive',
               deletedAt: null,
               updatedAt: start + 3600000,
@@ -263,7 +264,7 @@ test('week, task sheet, subtasks and no-date placement persist in the unified st
   await sheet.getByLabel('新任务子任务').fill('读完第一节');
   await sheet.getByRole('button', { name: '加入子任务' }).tap();
   await sheet.getByRole('button', { name: '无日期', exact: true }).tap();
-  await sheet.getByLabel('新任务优先级').selectOption('2');
+  await sheet.getByLabel('新任务四象限').selectOption('2');
   await page.screenshot({ path: info.outputPath('phone-task-sheet.png') });
   await sheet.getByRole('button', { name: '添加任务', exact: true }).tap();
   await expect(sheet).not.toBeVisible();
@@ -271,6 +272,7 @@ test('week, task sheet, subtasks and no-date placement persist in the unified st
   await page.getByRole('button', { name: '编辑 手机上安排下一步', exact: true }).tap();
   const detail = page.getByRole('dialog', { name: '编辑任务' });
   await expect(detail.getByLabel('任务备注')).toHaveValue('写下明确的行动');
+  await expect(detail.getByLabel('任务四象限')).toHaveValue('2');
   await expect(detail.getByRole('checkbox', { name: '子任务 读完第一节' })).toBeVisible();
   expect((await detail.boundingBox())!.width).toBeLessThanOrEqual(390);
   await page.evaluate(() =>
@@ -303,7 +305,7 @@ test('record sheet, native back and multi-day timeline retain time and historica
   const record = await page.evaluate(
     () => JSON.parse(localStorage.getItem('dayweave.v1')!).timelog.records[0],
   );
-  expect(record.pointsPerHour).toBe(20);
+  expect('pointsPerHour' in record).toBe(false);
   expect(record.spans[0].end - record.spans[0].start).toBe(1800000);
   await page.getByRole('button', { name: '添加记录', exact: true }).tap();
   await page.evaluate(() =>
@@ -382,9 +384,7 @@ test('rejected operations allow subsequent saves and analytics retain historical
       timelog: {
         ...state.timelog,
         activities: state.timelog.activities.map((activity) =>
-          activity.id === 'study'
-            ? { ...activity, nature: 'negative', pointsPerHour: -20 }
-            : activity,
+          activity.id === 'study' ? { ...activity, nature: 'negative' } : activity,
         ),
       },
     }));

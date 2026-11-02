@@ -263,11 +263,14 @@ input[type='date'] {
 .task-row {
   border-left: 3px solid transparent;
 }
-.task-row[data-priority='1'] {
+.task-row[data-quadrant='1'] {
   border-left-color: #ee7878;
 }
-.task-row[data-priority='2'] {
+.task-row[data-quadrant='2'] {
   border-left-color: #e4bc67;
+}
+.task-row[data-quadrant='3'] {
+  border-left-color: #6f9fd8;
 }
 .task-row > .task-check {
   align-self: flex-start;
@@ -342,30 +345,17 @@ input[type='date'] {
 .due-today {
   color: var(--accent);
 }
-.priority-dot {
-  height: 5px;
-  width: 5px;
-  border-radius: 50%;
-  margin-left: 4px;
-  flex-shrink: 0;
-}
-.priority-1 {
-  color: var(--red);
-}
-.priority-2 {
-  color: var(--orange);
-}
-.priority-3 {
-  color: var(--blue);
-}
-.priority-dot.priority-1 {
-  background: var(--red);
-}
-.priority-dot.priority-2 {
-  background: var(--orange);
-}
-.priority-dot.priority-3 {
-  background: var(--blue);
+.effort-tier {
+  display: inline-grid;
+  place-items: center;
+  min-width: 16px;
+  height: 16px;
+  margin-right: 4px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--input);
 }
 .row-action {
   width: 24px;
@@ -557,13 +547,13 @@ input[type='date'] {
   width: 2px;
   background: var(--accent);
 }
-.calendar-event.priority-1 > i {
+.calendar-event.quadrant-1 > i {
   background: var(--red);
 }
-.calendar-event.priority-2 > i {
+.calendar-event.quadrant-2 > i {
   background: var(--orange);
 }
-.calendar-event.priority-3 > i {
+.calendar-event.quadrant-3 > i {
   background: var(--blue);
 }
 .calendar-event.event-done {

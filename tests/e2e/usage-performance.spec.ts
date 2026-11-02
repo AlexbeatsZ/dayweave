@@ -27,7 +27,8 @@ async function seed(page: Page, count = 40) {
         platform: 'win32',
         source: 'work-review',
         kind: 'app',
-        app: 'Editor',
+        // Alternating apps keep every sample a separate card now that one app's samples merge.
+        app: index % 2 ? 'Viewer' : 'Editor',
         title: `Document ${index}`,
         start: start + index * 10000,
         end: start + (index + 1) * 10000,

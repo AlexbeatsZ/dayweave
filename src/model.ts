@@ -47,7 +47,11 @@ export const taskSchema = z
     actualMinutes: z.number().finite().nonnegative().nullable().optional(),
     listId: idSchema,
     due: dateSchema.nullable(),
-    priority: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
+    /** Eisenhower quadrant chosen by the user or the AI; never derived from dates. */
+    quadrant: z
+      .union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)])
+      .nullable()
+      .optional(),
     tags: z.array(z.string().trim().min(1).max(40)).max(30),
     subtasks: z
       .array(
@@ -88,6 +92,12 @@ export const timerSchema = z
     endAt: z.number().finite().nonnegative().nullable(),
   })
   .strict();
+/** Priority was replaced by estimated minutes and an explicit quadrant; older data drops it. */
+function withoutLegacyTaskFields(value: unknown) {
+  if (!value || typeof value !== 'object' || !('priority' in value)) return value;
+  const { priority: _priority, ...task } = value as Record<string, unknown>;
+  return task;
+}
 export const stateSchema = z
   .object({
     version: z.literal(1),
@@ -104,7 +114,7 @@ export const stateSchema = z
       })
       .strict()
       .default(() => ({ tasks: {}, records: {} })),
-    tasks: z.array(taskSchema).max(50000),
+    tasks: z.array(z.preprocess(withoutLegacyTaskFields, taskSchema)).max(50000),
     sessions: z.array(focusSessionSchema).max(100000),
     timer: timerSchema.nullable(),
     settings: z
@@ -167,7 +177,18 @@ export type View =
   | 'trash'
   | `list:${string}`
   | `tag:${string}`;
-export const priorityLabels = { 1: '高优先级', 2: '中优先级', 3: '低优先级', 4: '无优先级' };
+export const quadrantLabels = {
+  1: '重要且紧急',
+  2: '重要不紧急',
+  3: '紧急不重要',
+  4: '不重要不紧急',
+} as const;
+export type Quadrant = keyof typeof quadrantLabels;
+/** Task size shown in lists, derived only from the estimate. */
+export function effortTier(minutes: number | null | undefined): '小' | '中' | '大' | null {
+  if (minutes == null || minutes <= 0) return null;
+  return minutes <= 30 ? '小' : minutes <= 120 ? '中' : '大';
+}
 export const colors = ['#326559', '#5274a3', '#ad6a48', '#9671a5', '#b18a32', '#bb6475'];
 export const uid = () => globalThis.crypto.randomUUID();
 export const now = () => new Date().toISOString();
@@ -274,7 +295,6 @@ export function startTaskTimer(
       name: expected,
       color: list?.color ?? '#76b9ed',
       nature: expected === '日常' ? 'neutral' : 'positive',
-      pointsPerHour: expected === '日常' ? 0 : 20,
       archived: false,
       updatedAt: at,
     };
@@ -294,7 +314,6 @@ export function newTask(title: string, partial: Partial<Task> = {}): Task {
     notes: '',
     listId: 'inbox',
     due: null,
-    priority: 4,
     tags: [],
     subtasks: [],
     repeat: 'none',
@@ -349,7 +368,7 @@ export function toggleTask(state: AppState, id: string): AppState {
       ...(task.estimatedMinutes === undefined ? {} : { estimatedMinutes: task.estimatedMinutes }),
       listId: task.listId,
       due: nextRepeatDate(task),
-      priority: task.priority,
+      ...(task.quadrant == null ? {} : { quadrant: task.quadrant }),
       tags: [...task.tags],
       subtasks: task.subtasks.map((s) => ({ ...s, id: uid(), done: false })),
       repeat: task.repeat,
@@ -373,14 +392,11 @@ export function toggleTask(state: AppState, id: string): AppState {
 export function isUrgent(task: Task, today = dateKey()): boolean {
   return !!task.due && task.due <= today;
 }
-export function quadrant(task: Task, today = dateKey()): number {
-  return (task.priority <= 2 ? 0 : 2) + (isUrgent(task, today) ? 0 : 1);
-}
 export function selectTasks(
   state: AppState,
   view: View,
   query = '',
-  sort: 'manual' | 'date' | 'priority' = 'manual',
+  sort: 'manual' | 'date' | 'effort' = 'manual',
   today = dateKey(),
 ): Task[] {
   const search = query.trim().toLocaleLowerCase();
@@ -416,7 +432,8 @@ export function selectTasks(
       if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
       if (sort === 'date' || view === 'upcoming')
         return (a.due ?? '9999').localeCompare(b.due ?? '9999') || a.order - b.order;
-      if (sort === 'priority') return a.priority - b.priority || a.order - b.order;
+      if (sort === 'effort')
+        return (b.estimatedMinutes ?? -1) - (a.estimatedMinutes ?? -1) || a.order - b.order;
       return a.order - b.order;
     });
 }

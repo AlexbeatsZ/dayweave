@@ -301,8 +301,7 @@
   flex-wrap: wrap;
 }
 .phone-tasks .drag-handle,
-.phone-tasks .row-action,
-.phone-tasks .priority-dot {
+.phone-tasks .row-action {
   display: none;
 }
 .phone-tasks .phone-task-track {
@@ -787,10 +786,6 @@
     Consolas,
     monospace;
   margin: 2px 0 7px;
-}
-.phone-record-numbers strong {
-  margin-left: auto;
-  font-weight: 500;
 }
 .phone-shell .timelog-module .record-note {
   font-size: 12px;
@@ -1465,5 +1460,43 @@
 }
 .task-effort-meta {
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.day-pie {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 4px 0 10px;
+}
+.day-pie svg {
+  flex-shrink: 0;
+}
+.day-pie-total {
+  font-size: 13px;
+  fill: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.day-pie ul {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  color: var(--text);
+}
+.day-pie li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.day-pie li > i {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.day-pie-value {
+  color: var(--muted);
   font-variant-numeric: tabular-nums;
 }

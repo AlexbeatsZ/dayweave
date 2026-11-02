@@ -223,16 +223,6 @@
   line-height: 1.2;
   color: var(--text);
 }
-.timelog-module .timer-points {
-  margin-top: 8px;
-  color: var(--accent);
-  font-size: 16px;
-  font-variant-numeric: tabular-nums;
-}
-.timelog-module .timer-points small {
-  font-size: 10px;
-  color: var(--muted);
-}
 .timelog-module .timer-pause {
   width: 38px;
   height: 30px;

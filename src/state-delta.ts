@@ -139,7 +139,7 @@ export function applyDelta(state: AppState, value: StateDelta, strict = true): A
       const changed = after[module] as unknown as Record<string, unknown>;
       const collections =
         module === 'timelog'
-          ? ['activities', 'records', 'goals', 'rewards', 'redemptions']
+          ? ['activities', 'records', 'goals']
           : module === 'schedule'
             ? ['courses', 'events']
             : [];

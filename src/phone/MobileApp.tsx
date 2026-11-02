@@ -16,7 +16,7 @@ import {
   startTaskTimer,
   formatDate,
   now,
-  quadrant,
+  quadrantLabels,
   reorderTasks,
   selectTasks,
   type Task,
@@ -51,6 +51,8 @@ const titles: Record<string, string> = {
   quadrants: '四象限',
 };
 
+const QUADRANT_GROUPS = [1, 2, 3, 4, 0] as const;
+
 export function MobileApp() {
   const snapshot = useStore(),
     { data } = snapshot;
@@ -59,7 +61,7 @@ export function MobileApp() {
   const [timePage, setTimePage] = useState<TimePage>('timeline');
   const clock = useClock();
   const [day, setDay] = useState(dateKey());
-  const [sort, setSort] = useState<'manual' | 'date' | 'priority'>('manual');
+  const [sort, setSort] = useState<'manual' | 'date' | 'effort'>('manual');
   const [drawer, setDrawer] = useState(false),
     [composer, setComposer] = useState(false),
     [settings, setSettings] = useState(false);
@@ -98,7 +100,9 @@ export function MobileApp() {
   const unfinished = tasks.filter((task) => !task.completedAt);
   const ordered =
     quadrants && (view === 'today' || view === 'all')
-      ? [0, 1, 2, 3].flatMap((index) => unfinished.filter((task) => quadrant(task, day) === index))
+      ? QUADRANT_GROUPS.flatMap((group) =>
+          unfinished.filter((task) => (task.quadrant ?? 0) === group),
+        )
       : view === 'upcoming'
         ? week.flatMap((date) => unfinished.filter((task) => task.due === date))
         : unfinished;
@@ -115,7 +119,7 @@ export function MobileApp() {
     if (
       quadrants &&
       (view === 'today' || view === 'all') &&
-      quadrant(from, day) !== quadrant(to, day)
+      (from.quadrant ?? 0) !== (to.quadrant ?? 0)
     ) {
       notice('请在同一象限内调整顺序');
       return;
@@ -447,23 +451,26 @@ export function MobileApp() {
                 >
                   <option value="manual">手动排序</option>
                   <option value="date">按日期</option>
-                  <option value="priority">按优先级</option>
+                  <option value="effort">按任务量</option>
                 </select>
               </label>
             </div>
             {tasks.length ? (
               quadrants && (view === 'today' || view === 'all') ? (
                 <div className="phone-quadrants">
-                  {['重要且紧急', '重要不紧急', '紧急不重要', '不紧急不重要'].map(
-                    (label, index) => (
-                      <section key={label}>
-                        <h2>{label}</h2>
-                        {tasks
-                          .filter((task) => !task.completedAt && quadrant(task, day) === index)
-                          .map(row)}
+                  {QUADRANT_GROUPS.map((group) => {
+                    const rows = tasks.filter(
+                      (task) => !task.completedAt && (task.quadrant ?? 0) === group,
+                    );
+                    // Unassigned tasks only get a box when there are some.
+                    if (!group && !rows.length) return null;
+                    return (
+                      <section key={group}>
+                        <h2>{group ? quadrantLabels[group] : '未分象限'}</h2>
+                        {rows.map(row)}
                       </section>
-                    ),
-                  )}
+                    );
+                  })}
                 </div>
               ) : view === 'upcoming' ? (
                 <div className="weekly-plan-grid">
@@ -512,24 +519,25 @@ export function MobileApp() {
           ) : (
             <div className="arrangement-calendar">
               <Calendar
-                tasks={data.tasks.filter((task) => !task.deletedAt && !task.completedAt)}
+                tasks={data.tasks.filter((task) => !task.deletedAt)}
                 selectedDate={day}
                 onDate={setDay}
+                onAdd={(date) => {
+                  setDay(date);
+                  setComposer(true);
+                }}
+                onOpenDay={(date) => {
+                  setDay(date);
+                  navigate('today');
+                }}
                 onSelect={setSelected}
                 onDrop={(id, due) => store.patchTask(id, { due, repeatDay: Number(due.slice(-2)) })}
               />
-              <section className="phone-plan-day">
-                <h3>{formatDate(day)}</h3>
-                {tasks.map(row)}
-                <button className="button" onClick={() => setComposer(true)}>
-                  添加当天计划
-                </button>
-              </section>
             </div>
           ))}
         {view === 'calendar' && (
           <Calendar
-            tasks={selectTasks(data, 'all', '', 'date', today)}
+            tasks={data.tasks.filter((task) => !task.deletedAt)}
             selectedDate={day}
             onDate={setDay}
             onSelect={setSelected}

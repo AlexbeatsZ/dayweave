@@ -32,7 +32,7 @@ test('create a list, explicitly edit a recurring task, complete, undo deletion a
   await page.getByRole('button', { name: '编辑 阅读论文', exact: true }).click();
   const editor = page.getByRole('dialog', { name: '编辑任务', exact: true });
   await editor.getByLabel('任务备注').fill('先看摘要和方法');
-  await editor.getByLabel('任务优先级').selectOption('1');
+  await editor.getByLabel('任务四象限').selectOption('1');
   await editor.getByLabel('添加子任务').fill('阅读摘要');
   await editor.getByLabel('添加子任务').press('Enter');
   await editor.getByRole('checkbox', { name: '子任务 阅读摘要', exact: true }).click();

@@ -211,7 +211,6 @@ test('deleting activities and goals removes usable entities while retaining hist
     const activity = await data(
       await request('POST', '/timelog/activities', {
         name: 'Temporary activity',
-        pointsPerHour: 35,
       }),
       201,
     );
@@ -257,7 +256,7 @@ test('deleting activities and goals removes usable entities while retaining hist
       state.goals.some((row) => row.activityId === activity.id),
       false,
     );
-    assert.equal(state.records.find((row) => row.id === record.id)?.pointsPerHour, 35);
+    assert.ok(state.records.find((row) => row.id === record.id));
     assert.ok(state.activities.find((row) => row.id === activity.id)?.deletedAt);
     assert.equal(state.activities.find((row) => row.id === activity.id)?.archived, false);
     assert.equal(

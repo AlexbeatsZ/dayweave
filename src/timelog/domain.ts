@@ -14,7 +14,6 @@ export type Activity = {
   name: string;
   color: string;
   nature: Nature;
-  pointsPerHour: number;
   archived: boolean;
   updatedAt: number;
 };
@@ -25,7 +24,6 @@ export type TimeRecord = {
   note: string;
   tags: string[];
   spans: Span[];
-  pointsPerHour: number;
   nature: Nature;
   deletedAt: number | null;
   updatedAt: number;
@@ -39,7 +37,6 @@ export type Timer = {
   tags: string[];
   runningSince: number | null;
   spans: Span[];
-  pointsPerHour: number;
   nature: Nature;
   startedAt: number;
 };
@@ -48,31 +45,16 @@ export type Goal = {
   name: string;
   activityId: string;
   minutes: number;
+  /** A ceiling ("at most") or a floor ("at least"); judged only once the period has ended. */
+  comparison: 'atLeast' | 'atMost';
   period: 'day' | 'week';
   archived: boolean;
-  updatedAt: number;
-};
-export type Reward = {
-  id: string;
-  name: string;
-  cost: number;
-  archived: boolean;
-  updatedAt: number;
-};
-export type Redemption = {
-  id: string;
-  rewardId: string;
-  name: string;
-  cost: number;
-  at: number;
   updatedAt: number;
 };
 export type State = {
   activities: Activity[];
   records: TimeRecord[];
   goals: Goal[];
-  rewards: Reward[];
-  redemptions: Redemption[];
   timer: Timer | null;
   conflictedTimers?: Timer[];
   settings: { weekStartsOn: 1; updatedAt: number; timerPresets?: number[] };
@@ -109,7 +91,6 @@ export function initialState(): State {
         id: 'study',
         name: '学习',
         nature: 'positive',
-        pointsPerHour: 20,
         color: colors[0],
         archived: false,
         updatedAt: at,
@@ -118,7 +99,6 @@ export function initialState(): State {
         id: 'work',
         name: '工作',
         nature: 'positive',
-        pointsPerHour: 15,
         color: colors[1],
         archived: false,
         updatedAt: at,
@@ -127,7 +107,6 @@ export function initialState(): State {
         id: 'reading',
         name: '阅读',
         nature: 'positive',
-        pointsPerHour: 15,
         color: colors[3],
         archived: false,
         updatedAt: at,
@@ -136,7 +115,6 @@ export function initialState(): State {
         id: 'exercise',
         name: '运动',
         nature: 'positive',
-        pointsPerHour: 25,
         color: colors[6],
         archived: false,
         updatedAt: at,
@@ -145,7 +123,6 @@ export function initialState(): State {
         id: 'life',
         name: '日常生活',
         nature: 'neutral',
-        pointsPerHour: 0,
         color: colors[2],
         archived: false,
         updatedAt: at,
@@ -154,7 +131,6 @@ export function initialState(): State {
         id: 'scroll',
         name: '无目的刷手机',
         nature: 'negative',
-        pointsPerHour: -10,
         color: colors[4],
         archived: false,
         updatedAt: at,
@@ -162,8 +138,6 @@ export function initialState(): State {
     ],
     records: [],
     goals: [],
-    rewards: [],
-    redemptions: [],
     timer: null,
     settings: { weekStartsOn: 1, updatedAt: at, timerPresets: [5, 30, 45, 60] },
   };
@@ -207,7 +181,6 @@ export function startTimer(
       tags: [],
       runningSince: now,
       spans: [],
-      pointsPerHour: activity.pointsPerHour,
       nature: activity.nature,
       startedAt: now,
       ...options,
@@ -252,7 +225,7 @@ export function finishTimer(state: State, now: number): State {
     throw new Error('系统时间早于计时开始时间，请校准时间后保存。');
   const spans = liveSpans(state.timer, now).filter((span) => span.end > span.start);
   if (duration(spans) < 1000) throw new Error('计时不足一秒，请稍后保存。');
-  const { id, taskId, activityId, note, tags, pointsPerHour, nature } = state.timer;
+  const { id, taskId, activityId, note, tags, nature } = state.timer;
   return {
     ...state,
     timer: null,
@@ -265,7 +238,6 @@ export function finishTimer(state: State, now: number): State {
         note,
         tags,
         spans,
-        pointsPerHour,
         nature,
         updatedAt: now,
         deletedAt: null,
@@ -373,9 +345,6 @@ export function unionDuration(spans: Span[]): number {
   }
   return sum;
 }
-export const recordPoints = (record: Pick<TimeRecord, 'spans' | 'pointsPerHour'>, range?: Span) =>
-  (duration(range ? clipped(record.spans, range) : record.spans) / 3_600_000) *
-  record.pointsPerHour;
 export function stats(state: State, range: Span) {
   const records = recordsIn(state, range);
   const tracked = unionDuration(records.flatMap((record) => clipped(record.spans, range)));
@@ -390,39 +359,13 @@ export function stats(state: State, range: Span) {
     positive: byNature('positive'),
     negative: byNature('negative'),
     neutral: byNature('neutral'),
-    points: records.reduce((sum, record) => sum + recordPoints(record, range), 0),
     count: records.length,
   };
 }
-export function balance(state: State): number {
-  return (
-    state.records
-      .filter((item) => !item.deletedAt)
-      .reduce((sum, record) => sum + recordPoints(record), 0) -
-    state.redemptions.reduce((sum, item) => sum + item.cost, 0)
-  );
-}
-export function redeem(state: State, rewardId: string, now: number): State {
-  const reward = state.rewards.find((item) => item.id === rewardId && !item.archived);
-  if (!reward) throw new Error('这个奖励已归档。');
-  if (balance(state) + 1e-9 < reward.cost) throw new Error('积分还不够，继续积累吧。');
-  return {
-    ...state,
-    redemptions: [
-      ...state.redemptions,
-      {
-        id: newId(),
-        rewardId,
-        name: reward.name,
-        cost: reward.cost,
-        at: now,
-        updatedAt: now,
-      },
-    ],
-  };
-}
+export const goalRange = (goal: Pick<Goal, 'period'>, key: string) =>
+  goal.period === 'week' ? weekRange(key) : dayRange(key);
 export function goalProgress(state: State, goal: Goal, key: string): number {
-  const range = goal.period === 'week' ? weekRange(key) : dayRange(key);
+  const range = goalRange(goal, key);
   return (
     unionDuration(
       recordsIn(state, range)
@@ -444,10 +387,43 @@ export const formatClock = (ms: number) => {
     .join(':');
 };
 export const formatTime = (at: number) => zoneClock(at);
-export const formatPoints = (points: number) =>
-  new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 2 }).format(
-    Math.abs(points) < 0.005 ? 0 : points,
-  );
+/**
+ * A period is judged only after it ends, so a ceiling is not met early and a stray
+ * long record can still be corrected before the result counts.
+ */
+export function goalStatus(state: State, goal: Goal, key: string, now = Date.now()) {
+  const progress = goalProgress(state, goal, key);
+  const settled = now >= goalRange(goal, key).end;
+  const within = goal.comparison === 'atMost' ? progress <= goal.minutes : progress >= goal.minutes;
+  return { progress, settled, met: settled ? within : null, within };
+}
+/** "9h", ">90", "<2h", "1h30m", "≤ 45分钟"; a bare number is minutes and means at least. */
+export function parseGoalTarget(text: string): Pick<Goal, 'minutes' | 'comparison'> {
+  const match = text
+    .trim()
+    .replace(/\s+/g, '')
+    .toLowerCase()
+    .match(
+      /^(>=|<=|≥|≤|>|<)?(?:(\d+(?:\.\d+)?)(?:h|小时|时))?(?:(\d+(?:\.\d+)?)(?:m|min|分钟|分)?)?$/,
+    );
+  const minutes =
+    match && (match[2] || match[3]) ? Number(match[2] ?? 0) * 60 + Number(match[3] ?? 0) : NaN;
+  if (!Number.isFinite(minutes) || minutes < 1 || minutes > 1000000)
+    throw new Error('目标时间示例：9h、>90、<2h、1h30m（纯数字按分钟）。');
+  return {
+    minutes: Math.round(minutes),
+    comparison: /[<≤]/.test(match![1] ?? '') ? 'atMost' : 'atLeast',
+  };
+}
+/** Editable form ("<1h30m") or display form ("≤ 1 小时 30 分钟"). */
+export function goalTargetText(goal: Pick<Goal, 'minutes' | 'comparison'>, display = false) {
+  const hours = Math.floor(goal.minutes / 60),
+    minutes = goal.minutes % 60;
+  if (display)
+    return (goal.comparison === 'atMost' ? '≤ ' : '≥ ') + formatDuration(goal.minutes * 60000);
+  const amount = hours ? `${hours}h${minutes ? `${minutes}m` : ''}` : String(minutes);
+  return (goal.comparison === 'atMost' ? '<' : '') + amount;
+}
 export const localDateTime = (at: number) => dateTimeInput(at);
 
 function obj(value: unknown, label: string): Record<string, unknown> {
@@ -522,7 +498,6 @@ export function validateState(value: unknown): State {
         name: name(o.name),
         color,
         nature: nature(o.nature),
-        pointsPerHour: num(o.pointsPerHour, '积分速率', -100000, 100000),
         archived: bool(o.archived),
         ...(o.deletedAt === undefined ? {} : { deletedAt: num(o.deletedAt, '删除时间') }),
         updatedAt: num(o.updatedAt, '更新时间'),
@@ -546,7 +521,6 @@ export function validateState(value: unknown): State {
         note: str(o.note, '描述'),
         tags: tags(o.tags),
         spans: spans(o.spans),
-        pointsPerHour: num(o.pointsPerHour, '积分速率', -100000, 100000),
         nature: nature(o.nature),
         deletedAt: o.deletedAt === null ? null : num(o.deletedAt, '删除时间'),
         updatedAt: num(o.updatedAt, '更新时间'),
@@ -563,40 +537,15 @@ export function validateState(value: unknown): State {
         activityId: activityId(o.activityId),
         ...(o.taskId === undefined ? {} : { taskId: id(o.taskId) }),
         minutes: num(o.minutes, '目标分钟', 1, 1000000),
+        // Goals saved before the comparison existed were all floors.
+        comparison: o.comparison === 'atMost' ? 'atMost' : 'atLeast',
         period: o.period,
         archived: bool(o.archived),
         updatedAt: num(o.updatedAt, '更新时间'),
       };
     }),
   );
-  const rewards = unique(
-    list(root.rewards, '奖励', 2000, (value): Reward => {
-      const o = obj(value, '奖励');
-      return {
-        id: id(o.id),
-        name: name(o.name),
-        cost: num(o.cost, '积分', 0.01, 100000000),
-        archived: bool(o.archived),
-        updatedAt: num(o.updatedAt, '更新时间'),
-      };
-    }),
-  );
-  const rewardIds = new Set(rewards.map((item) => item.id));
-  const redemptions = unique(
-    list(root.redemptions, '兑换', 100000, (value): Redemption => {
-      const o = obj(value, '兑换');
-      const rewardId = id(o.rewardId);
-      if (!rewardIds.has(rewardId)) throw new Error('兑换引用了不存在的奖励。');
-      return {
-        id: id(o.id),
-        rewardId,
-        name: name(o.name),
-        cost: num(o.cost, '积分', 0.01, 100000000),
-        at: num(o.at, '兑换时间'),
-        updatedAt: num(o.updatedAt, '更新时间'),
-      };
-    }),
-  );
+  // Points, rewards and redemptions were removed; older data carrying them is read and dropped.
   const parseTimer = (value: unknown): Timer => {
     const o = obj(value, '计时');
     const timer: Timer = {
@@ -611,7 +560,6 @@ export function validateState(value: unknown): State {
       ...(o.plannedEndAt === undefined
         ? {}
         : { plannedEndAt: o.plannedEndAt === null ? null : num(o.plannedEndAt, '计划结束时间') }),
-      pointsPerHour: num(o.pointsPerHour, '积分速率', -100000, 100000),
       nature: nature(o.nature),
     };
     if (records.some((record) => record.id === timer!.id)) throw new Error('计时与记录 ID 重复。');
@@ -640,8 +588,6 @@ export function validateState(value: unknown): State {
     activities,
     records,
     goals,
-    rewards,
-    redemptions,
     timer,
     ...(conflictedTimers.length ? { conflictedTimers } : {}),
     settings: {
@@ -705,8 +651,6 @@ export function mergeBackup(local: State, incoming: State): State {
     activities: mergeList(local.activities, incoming.activities),
     records: mergeList(local.records, incoming.records),
     goals: mergeList(local.goals, incoming.goals),
-    rewards: mergeList(local.rewards, incoming.rewards),
-    redemptions: mergeList(local.redemptions, incoming.redemptions),
     timer: null,
     settings:
       incoming.settings.updatedAt > local.settings.updatedAt ? incoming.settings : local.settings,
@@ -718,7 +662,7 @@ const csvCell = (value: string | number) => {
 };
 export function toCsv(state: State): string {
   const rows: (string | number)[][] = [
-    ['记录ID', '活动', '性质', '开始时间', '结束时间', '有效秒数', '积分', '描述', '标签'],
+    ['记录ID', '活动', '性质', '开始时间', '结束时间', '有效秒数', '描述', '标签'],
   ];
   for (const record of state.records.filter((item) => !item.deletedAt)) {
     rows.push([
@@ -728,7 +672,6 @@ export function toCsv(state: State): string {
       new Date(record.spans[0].start).toISOString(),
       new Date(record.spans.at(-1)!.end).toISOString(),
       duration(record.spans) / 1000,
-      Number(recordPoints(record).toFixed(4)),
       record.note,
       record.tags.join(', '),
     ]);
@@ -740,7 +683,7 @@ export function toMarkdown(state: State, key: string): string {
     summary = stats(state, range);
   const safe = (text: string) => text.replaceAll('|', '\\|').replaceAll('\n', '<br>');
   return (
-    `# ${key} 时间回顾\n\n记录 ${formatDuration(summary.tracked)} · 积极 ${formatDuration(summary.positive)} · 积分 ${formatPoints(summary.points)}\n\n| 时间 | 活动 | 时长 | 描述 |\n| --- | --- | --- | --- |\n` +
+    `# ${key} 时间回顾\n\n记录 ${formatDuration(summary.tracked)} · 积极 ${formatDuration(summary.positive)}\n\n| 时间 | 活动 | 时长 | 描述 |\n| --- | --- | --- | --- |\n` +
     recordsIn(state, range)
       .sort((a, b) => a.spans[0].start - b.spans[0].start)
       .map((record) => {

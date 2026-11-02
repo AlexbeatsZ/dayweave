@@ -18,7 +18,6 @@ test('shared task form keeps estimated and actual minutes optional and shows sav
       tags: [],
       spans: [{ start: Date.now() - 660000, end: Date.now() - 60000 }],
       nature: 'positive',
-      pointsPerHour: 20,
       updatedAt: Date.now(),
       deletedAt: null,
     },

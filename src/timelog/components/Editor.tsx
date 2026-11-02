@@ -4,7 +4,9 @@ import {
   colors,
   duration,
   formatDuration,
+  goalTargetText,
   newId,
+  parseGoalTarget,
   timestamp,
   type Activity,
   type Goal,
@@ -103,7 +105,6 @@ export function Editor({
               .filter(Boolean),
             spans,
             nature: same ? record.nature : activity.nature,
-            pointsPerHour: same ? record.pointsPerHour : activity.pointsPerHour,
             deletedAt: null,
             updatedAt: timestamp(previous?.updatedAt),
           };
@@ -122,15 +123,12 @@ export function Editor({
           const existing = previous && current.activities.find((row) => row.id === previous.id);
           if (previous && existing?.updatedAt !== previous.updatedAt)
             throw new Error('活动已更新，请重新编辑。');
-          const nature = text('nature') as Nature,
-            raw = Number(text('rate'));
+          const nature = text('nature') as Nature;
           const next: Activity = {
             id: previous?.id || newId(),
             name: text('name'),
             color: text('color'),
             nature,
-            pointsPerHour:
-              nature === 'neutral' ? 0 : nature === 'negative' ? -Math.abs(raw) : Math.abs(raw),
             archived: false,
             updatedAt: timestamp(existing?.updatedAt),
           };
@@ -152,6 +150,7 @@ export function Editor({
         else setError('未保存，请查看提示。');
       } else {
         const previous = target.goal;
+        const goalTarget = parseGoalTarget(text('target'));
         const saved = await commit((current) => {
           const existing = previous && current.goals.find((row) => row.id === previous.id);
           if (previous && existing?.updatedAt !== previous.updatedAt)
@@ -160,7 +159,7 @@ export function Editor({
             id: previous?.id || newId(),
             name: text('name'),
             activityId: text('activityId'),
-            minutes: Number(text('minutes')),
+            ...goalTarget,
             period: text('period') as Goal['period'],
             archived: false,
             updatedAt: timestamp(existing?.updatedAt),
@@ -388,31 +387,17 @@ export function Editor({
               活动名称
               <input name="name" defaultValue={target.activity?.name} maxLength={80} required />
             </label>
-            <div className="form-columns">
-              <label>
-                性质
-                <select
-                  name="nature"
-                  defaultValue={target.activity?.nature || target.nature || 'positive'}
-                >
-                  <option value="positive">积极</option>
-                  <option value="neutral">日常</option>
-                  <option value="negative">消极</option>
-                </select>
-              </label>
-              <label>
-                每小时积分
-                <input
-                  name="rate"
-                  type="number"
-                  defaultValue={Math.abs(target.activity?.pointsPerHour ?? 20)}
-                  min={0}
-                  max={100000}
-                  step="0.01"
-                  required
-                />
-              </label>
-            </div>
+            <label>
+              性质
+              <select
+                name="nature"
+                defaultValue={target.activity?.nature || target.nature || 'positive'}
+              >
+                <option value="positive">积极</option>
+                <option value="neutral">日常</option>
+                <option value="negative">消极</option>
+              </select>
+            </label>
             <label>
               颜色
               <input
@@ -423,7 +408,6 @@ export function Editor({
                 }
               />
             </label>
-            <p className="muted">积分速率调整只影响新记录。</p>
           </>
         )}
         {target.kind === 'goal' && (
@@ -454,17 +438,19 @@ export function Editor({
                 </select>
               </label>
               <label>
-                目标时长（分钟）
+                目标时间
                 <input
-                  name="minutes"
-                  type="number"
-                  defaultValue={target.goal?.minutes || 30}
-                  min={1}
-                  max={1000000}
+                  name="target"
+                  defaultValue={target.goal ? goalTargetText(target.goal) : '30'}
+                  placeholder="9h、>90、<2h"
+                  maxLength={20}
                   required
                 />
               </label>
             </div>
+            <p className="muted">
+              纯数字按分钟、表示至少；写 &lt; 表示不超过。周期结束后才判定是否达成。
+            </p>
           </>
         )}
         {error && (

@@ -1,13 +1,13 @@
 import { buildTimeline, fillAdjacentGap, lastRecordEnd } from './timeline.js';
 import {
-  balance,
   activeActivity,
   adjustTimerStart,
   deleteActivity,
   dayKey,
   dayRange,
   finishTimer,
-  goalProgress,
+  goalStatus,
+  parseGoalTarget,
   liveSpans,
   duration,
   makeBackup,
@@ -138,7 +138,7 @@ export async function handleApi(
         const period = range(url);
         return {
           status: 200,
-          body: { date: period.date, ...stats(state, period), balance: balance(state) },
+          body: { date: period.date, ...stats(state, period) },
         };
       }
       if (resource === 'activities') {
@@ -184,10 +184,16 @@ export async function handleApi(
       }
       if (resource === 'goals') {
         const date = range(url).date;
-        const items = state.goals.map((goal) => ({
-          ...goal,
-          progressMinutes: goalProgress(state, goal, date),
-        }));
+        const items = state.goals.map((goal) => {
+          const status = goalStatus(state, goal, date);
+          // met stays null until the period has ended.
+          return {
+            ...goal,
+            progressMinutes: status.progress,
+            settled: status.settled,
+            met: status.met,
+          };
+        });
         const item = itemId && items.find((row) => row.id === itemId);
         if (itemId && !item) fail(404, 'Goal not found');
         return { status: 200, body: item || { items, total: items.length, date } };
@@ -292,14 +298,11 @@ export async function handleApi(
         if (body.archived !== undefined) fail(400, 'Use DELETE to remove an activity');
         const nature = text(body.nature, previous?.nature || 'positive') as Nature;
         if (!(nature in natureLabels)) fail(400, 'nature must be positive, neutral or negative');
-        const raw = number(body.pointsPerHour, previous?.pointsPerHour ?? 20);
         const item: Activity = {
           id: previous?.id || newId(),
           name: text(body.name, previous?.name),
           color: text(body.color, previous?.color || '#357a9e'),
           nature,
-          pointsPerHour:
-            nature === 'neutral' ? 0 : nature === 'negative' ? -Math.abs(raw) : Math.abs(raw),
           archived: false,
           updatedAt: timestamp(previous?.updatedAt),
         };
@@ -354,7 +357,6 @@ export async function handleApi(
           note: text(body.note, previous?.note),
           tags: (body.tags ?? previous?.tags ?? []) as string[],
           spans: spans as TimeRecord['spans'],
-          pointsPerHour: same ? previous.pointsPerHour : activity.pointsPerHour,
           nature: same ? previous.nature : activity.nature,
           deletedAt:
             method === 'DELETE'
@@ -397,10 +399,28 @@ export async function handleApi(
           updatedAt: timestamp(previous?.updatedAt),
         };
         const old = previous as Goal | undefined;
+        // "target" accepts the same text as the editor (">9h", "<2h", "90"); otherwise minutes/comparison.
+        let target: Pick<Goal, 'minutes' | 'comparison'>;
+        try {
+          target =
+            body.target !== undefined
+              ? parseGoalTarget(text(body.target))
+              : {
+                  minutes: number(body.minutes, old?.minutes ?? 30),
+                  comparison: text(
+                    body.comparison,
+                    old?.comparison || 'atLeast',
+                  ) as Goal['comparison'],
+                };
+        } catch (error) {
+          return fail(400, error instanceof Error ? error.message : String(error));
+        }
+        if (target.comparison !== 'atLeast' && target.comparison !== 'atMost')
+          fail(400, 'comparison must be atLeast or atMost');
         const item: Goal = {
           ...base,
           activityId: text(body.activityId, old?.activityId),
-          minutes: number(body.minutes, old?.minutes ?? 30),
+          ...target,
           period: text(body.period, old?.period || 'day') as Goal['period'],
         };
         result = item;

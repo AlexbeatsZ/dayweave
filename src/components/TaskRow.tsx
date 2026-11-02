@@ -1,10 +1,11 @@
 import { RotateCcw, Pin, Trash2, Repeat2, ListChecks, GripVertical, Timer } from 'lucide-react';
 import {
   dateKey,
+  effortTier,
   formatDate,
   formatTaskMinutes,
   now,
-  priorityLabels,
+  quadrantLabels,
   toggleTask,
   type Task,
 } from '../model';
@@ -34,7 +35,8 @@ export function TaskRow({ task, index, selected, onSelect, onDelete, onMove, onT
       data-testid="task-row"
       data-task-id={task.id}
       data-task-sortable={!!onMove && !task.deletedAt && !task.completedAt}
-      data-priority={task.priority}
+      data-quadrant={task.quadrant ?? undefined}
+      title={task.quadrant ? quadrantLabels[task.quadrant] : undefined}
       style={{ '--task-color': list?.color ?? '#7e8b8b' } as React.CSSProperties}
       onClickCapture={drag.onClickCapture}
       draggable={!task.deletedAt && !onTrack}
@@ -103,6 +105,11 @@ export function TaskRow({ task, index, selected, onSelect, onDelete, onMove, onT
             {task.repeat !== 'none' && <Repeat2 size={12} aria-label="重复任务" />}
             {task.estimatedMinutes != null && (
               <span className="task-effort-meta">
+                {effortTier(task.estimatedMinutes) && (
+                  <b className="effort-tier" title={`任务量：${effortTier(task.estimatedMinutes)}`}>
+                    {effortTier(task.estimatedMinutes)}
+                  </b>
+                )}
                 预计 {formatTaskMinutes(task.estimatedMinutes)}
               </span>
             )}
@@ -163,10 +170,6 @@ export function TaskRow({ task, index, selected, onSelect, onDelete, onMove, onT
           <Timer size={19} />
         </button>
       )}
-      <span
-        className={`priority-dot priority-${task.priority}`}
-        title={priorityLabels[task.priority]}
-      />
       {!task.deletedAt && (
         <button
           className={`icon-button row-action ${task.pinned ? 'is-pinned' : ''}`}
