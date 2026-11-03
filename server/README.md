@@ -1,8 +1,8 @@
 # 时织 / Dayweave Server
 
-独立版本 `0.1.2`，共享客户端 `0.4.11` 的业务、计时、同步及 SQLite 所有者。需要 **Node 24.14.1 或更高的 24.x**，本版在 Windows Node 24.14.1 上验证。包已含 JavaScript 依赖，不需要 npm install、编译、Electron、React、Rust 或本机采集程序。Node 运行时由运行机器提供。
+独立版本 `0.1.3`，共享客户端 `0.4.12` 的业务、计时、同步及 SQLite 所有者。需要 **Node 24.14.1 或更高的 24.x**，本版在 Windows Node 24.14.1 上验证。包已含 JavaScript 依赖，不需要 npm install、编译、Electron、React、Rust 或本机采集程序。Node 运行时由运行机器提供。
 
-0.1.2采用0.4.11任务/目标结构（预计分钟、显式四象限、无积分、周期结束结算）；与客户端同批升级，旧严格客户端不能读取不含priority的新任务。
+0.1.3采用0.4.12结构：可选日界线 `settings.dayStartsAt`、日计划分组 `planGroups` 与任务 `planGroupId`、目标分组与计时/绑定待办/手动勾选三种判定，并提供 `/plan-groups` 与目标勾选接口；完整状态导入在计时进行中保留本机计时。与客户端同批升级，旧严格客户端在新字段被使用后不能读取。
 
 ## 配置与启动
 
