@@ -146,6 +146,10 @@ dialog.settings-modal::backdrop {
   font-size: 12px;
 }
 
+.settings-modal .field-hint + .timezone-setting {
+  margin-top: 14px;
+}
+
 .settings-modal :is(.sync-peer, .sync-status, .api-settings, .about-block) {
   overflow-wrap: anywhere;
 }
