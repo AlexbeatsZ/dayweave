@@ -269,3 +269,37 @@ test('AI API manages plan sections, task-bound goals and manual checks', async (
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test('a full-state import from the AI keeps the running timer instead of rejecting the write', async () => {
+  const base = path.join(os.tmpdir(), '.agents');
+  await mkdir(base, { recursive: true });
+  const directory = await mkdtemp(path.join(base, 'dayweave-import-'));
+  const service = new StateService(new FileStore(directory));
+  const api = await startApi(service, 0);
+  const request = async (method: string, route: string, body?: unknown) => {
+    const response = await fetch(`${api.info.url}${route}`, {
+      method,
+      headers: {
+        Authorization: `Bearer ${api.info.token}`,
+        ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+      },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    });
+    return { status: response.status, body: await response.json() };
+  };
+  try {
+    const started = await request('POST', '/time-records', { startAt: Date.now() - 60000 });
+    assert.equal(started.status, 200);
+    const exported = (await request('GET', '/export')).body.data;
+    exported.tasks.push(newTask('计时中由 AI 新建'));
+    const imported = await request('POST', '/import', exported);
+    assert.equal(imported.status, 200, JSON.stringify(imported.body));
+    const state = (await service.snapshot()).state;
+    assert.equal(state.timelog.timer?.id, started.body.data.id);
+    assert.ok(state.tasks.some((task) => task.title === '计时中由 AI 新建'));
+  } finally {
+    await api.close();
+    assert.ok(directory.startsWith(base + path.sep));
+    await rm(directory, { recursive: true, force: true });
+  }
+});

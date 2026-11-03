@@ -550,6 +550,19 @@ export function selectTasks(
     });
 }
 
+/**
+ * A full-state import (the AI's read-modify-write, or a Dayweave backup) merges history only.
+ * Running timers stay those of this state: the incoming copy is a snapshot of them, and a
+ * concurrent start or stop is already caught by the caller's revision check.
+ */
+function mergeAroundTimers(local: AppState['timelog'], incoming: AppState['timelog']) {
+  const idle = (state: AppState['timelog']) => ({ ...state, timer: null, conflictedTimers: [] });
+  return {
+    ...mergeBackup(idle(local), idle(incoming)),
+    timer: local.timer,
+    ...(local.conflictedTimers?.length ? { conflictedTimers: local.conflictedTimers } : {}),
+  };
+}
 export function mergeImport(local: AppState, incoming: unknown): AppState {
   if (
     incoming &&
@@ -578,7 +591,7 @@ export function mergeImport(local: AppState, incoming: unknown): AppState {
     ...local,
     timelog:
       incoming && typeof incoming === 'object' && 'timelog' in incoming
-        ? mergeBackup(local.timelog, imported.timelog)
+        ? mergeAroundTimers(local.timelog, imported.timelog)
         : local.timelog,
     schedule:
       incoming && typeof incoming === 'object' && 'schedule' in incoming
