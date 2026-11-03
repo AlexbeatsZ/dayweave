@@ -117,7 +117,7 @@ if (!debug && !unsigned) {
 }
 if (!signOnly)
   await run(
-    windows ? 'gradlew.bat' : './gradlew',
+    windows ? '.\\gradlew.bat' : './gradlew',
     [
       '--no-daemon',
       debug ? ':app:assembleDebug' : ':app:assembleRelease',

@@ -2,7 +2,7 @@
 
 ## 范围和所有者
 
-Server `0.1.1` 与客户端 `0.4.10` 独立版本/发行；它复用 `electron/headless-runtime.ts` 的初始化和关闭路径，底层仍是 FileStore → StateService → DesktopSync、UsageStore → DesktopUsage、startApi。业务写入、计时截止、同步合并和 usage 接收不建立第二个实现或文件同步库。原 `electron/headless.ts` / AI-tools 入口继续默认遵循桌面采集设置，保留环境变量、`--invite` 和默认 profile。
+Server `0.1.2` 与客户端 `0.4.11` 独立版本/发行；它复用 `electron/headless-runtime.ts` 的初始化和关闭路径，底层仍是 FileStore → StateService → DesktopSync、UsageStore → DesktopUsage、startApi。业务写入、计时截止、同步合并和 usage 接收不建立第二个实现或文件同步库。原 `electron/headless.ts` / AI-tools 入口继续默认遵循桌面采集设置，保留环境变量、`--invite` 和默认 profile。0.1.2采用新任务/目标结构，必须与客户端0.4.11同批升级；历史0.1.1验收保留于下文。
 
 `server/package.json` 拥有服务器版本与 Node 要求。`scripts/package-server.mjs` bundle 所有非 Node 内置依赖，并附入配置读取、CLI、启动及离线更新脚本、操作手册和许可；生成元数据保留客户端领域版本、源 commit。客户端主版本、图标和平台包不随服务器发行变化。独立 `server-v*` tag，Release 使用 `--latest=false`，不改变客户端 latest；Check 工作流忽略此 tag，Server 工作流只测试 Node 服务端。
 

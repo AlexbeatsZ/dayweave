@@ -75,8 +75,13 @@ for (const width of [390, 1440]) {
       await expect.poll(() => cards.count()).toBeGreaterThan(0);
       expect(await cards.count()).toBeLessThan(80);
       if (fraction === 0.5) {
-        const titles = await cards.locator('span').allTextContents();
-        expect(titles.some((title) => /Document 12\d\d/.test(title))).toBe(true);
+        await expect
+          .poll(async () => {
+            await page.clock.runFor(100);
+            const titles = await cards.locator('span').allTextContents();
+            return titles.some((title) => /Document 12\d\d/.test(title));
+          })
+          .toBe(true);
       }
       if (fraction === 1) await expect(cards.filter({ hasText: 'Document 0' })).toBeAttached();
       if (fraction === 0) await expect(cards.filter({ hasText: 'Document 2399' })).toBeAttached();

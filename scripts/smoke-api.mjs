@@ -62,7 +62,7 @@ try {
   assert.equal((await request('GET', `/tasks/${task.id}`)).data.notes, '');
   await page.getByRole('button', { name: '关闭对话框', exact: true }).click();
   await page.getByRole('button', { name: '编辑 AI 更新的标题', exact: true }).click();
-  await expect(page.getByLabel('任务优先级', { exact: true })).toHaveValue('1');
+  await expect(page.getByLabel('任务四象限', { exact: true })).toHaveValue('1');
   await expect(page.getByLabel('任务标题', { exact: true })).toHaveValue('AI 更新的标题');
   await page.getByLabel('任务备注').fill('界面补充的备注');
   await page.getByRole('button', { name: '保存任务', exact: true }).click();
