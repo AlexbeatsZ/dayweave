@@ -125,6 +125,6 @@ node 'C:\staging\Dayweave-Server\stage-update.mjs' `
 
 ## 构建与发行
 
-仓库中 `npm run bundle:server` 只 bundle 服务端；Windows `npm run dist:server` 同时生成 `release/Dayweave-Server-0.1.1.zip`。包里只有运行文件、示例配置与许可，不含 Node 运行时、profile 或源码依赖目录。`npm run test:server` 在隔离临时 profile 中验证，包含约200MiB合成历史及跨导入周期采样，需先 bundle。
+仓库中 `npm run bundle:server` 只 bundle 服务端；Windows `npm run dist:server` 同时生成 `release/Dayweave-Server-0.1.2.zip`。包里只有运行文件、示例配置与许可，不含 Node 运行时、profile 或源码依赖目录。`npm run test:server` 在隔离临时 profile 中验证，包含约200MiB合成历史及跨导入周期采样，需先 bundle。
 
-独立 tag `server-v0.1.1`，Release 指定 `--latest=false`，客户端仍为0.4.10。服务端后续升级独立递增 server/package.json；不重建 APK/EXE/DMG。生产ROG的0.1.0接管证据见上；0.1.1副本/生产性能、整机重启及资源收益按各自证据单独记录。
+独立 tag `server-v0.1.2`，Release 指定 `--latest=false`，兼容客户端0.4.11。服务端后续升级独立递增 server/package.json；纯服务器变更不重建 APK/EXE/DMG，领域结构变化则按兼容性要求同批升级客户端。历史生产接管证据见上；副本/生产性能、整机重启及资源收益按各自证据单独记录。
