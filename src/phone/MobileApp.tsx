@@ -8,17 +8,22 @@ import {
   ListTodo,
   Menu,
   Pause,
+  Pencil,
   Play,
+  Plus,
   X,
 } from 'lucide-react';
 import {
   dateKey,
+  dayPlanGroups,
+  taskPlanGroup,
   startTaskTimer,
   formatDate,
   now,
   quadrantLabels,
   reorderTasks,
   selectTasks,
+  type PlanGroup,
   type Task,
   type View,
 } from '../model';
@@ -27,6 +32,7 @@ import { useClock } from '../runtime';
 import { duration, formatClock, liveSpans, toggleTimer } from '../timelog/domain';
 import { TaskRow } from '../components/TaskRow';
 import { Settings } from '../components/Settings';
+import { PlanGroupModal } from '../components/PlanGroupModal';
 import { StorageRecovery } from '../components/StorageRecovery';
 import { Timetable, NextClass } from '../components/Timetable';
 import { Calendar } from '../components/Calendar';
@@ -52,6 +58,17 @@ const titles: Record<string, string> = {
 };
 
 const QUADRANT_GROUPS = [1, 2, 3, 4, 0] as const;
+/** "约 90 分钟 · 15:00 前 · 任务约 70 分钟", whatever of it is known. */
+function planGroupMeta(group: PlanGroup, rows: Task[]) {
+  const estimated = rows.reduce((sum, task) => sum + (task.estimatedMinutes ?? 0), 0);
+  return [
+    group.minutes && `约 ${group.minutes} 分钟`,
+    group.until && `${group.until} 前`,
+    estimated > 0 && `任务约 ${Math.round(estimated)} 分钟`,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+}
 
 export function MobileApp() {
   const snapshot = useStore(),
@@ -65,6 +82,7 @@ export function MobileApp() {
   const [drawer, setDrawer] = useState(false),
     [composer, setComposer] = useState(false),
     [settings, setSettings] = useState(false);
+  const [planGroup, setPlanGroup] = useState<{ group?: PlanGroup } | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [recordFilter, setRecordFilter] = useState<RecordFilter>({});
   const [arrangement, setArrangement] = useState<'calendar' | 'timetable'>(
@@ -98,8 +116,19 @@ export function MobileApp() {
         : view !== 'today' || day === today || task.due === day,
   );
   const unfinished = tasks.filter((task) => !task.completedAt);
-  const ordered =
-    quadrants && (view === 'today' || view === 'all')
+  // Sections of the day's plan; overdue tasks from earlier days fall outside them.
+  const planGroups = view === 'today' && !quadrants ? dayPlanGroups(data, day) : [];
+  const sectionOf = (task: Task) =>
+    planGroups.length && task.due === day ? (taskPlanGroup(data, task)?.id ?? '') : '';
+  const sections = planGroups.length
+    ? [...planGroups.map((group) => group.id), ''].map((id) => ({
+        group: planGroups.find((group) => group.id === id),
+        rows: unfinished.filter((task) => sectionOf(task) === id),
+      }))
+    : [];
+  const ordered = sections.length
+    ? sections.flatMap((section) => section.rows)
+    : quadrants && (view === 'today' || view === 'all')
       ? QUADRANT_GROUPS.flatMap((group) =>
           unfinished.filter((task) => (task.quadrant ?? 0) === group),
         )
@@ -131,6 +160,7 @@ export function MobileApp() {
           ordered.map((task) => task.id),
           source,
           target,
+          sections.length > 0 && from.due === to.due,
         ),
       )
       .catch((error) => notice(String(error)));
@@ -432,6 +462,12 @@ export function MobileApp() {
                   ? `${formatDate(day)} · ${tasks.length} 件`
                   : `${title} · ${tasks.length}`}
               </h2>
+              {view === 'today' && !quadrants && (
+                <button className="text-button" onClick={() => setPlanGroup({})}>
+                  <Plus size={15} />
+                  分组
+                </button>
+              )}
               {(view === 'today' || view === 'all') && (
                 <div className="phone-layout-switch" role="group" aria-label="待办显示方式">
                   <button aria-pressed={!quadrants} onClick={() => setQuadrants(false)}>
@@ -483,6 +519,37 @@ export function MobileApp() {
                       )}
                     </section>
                   ))}
+                </div>
+              ) : sections.length ? (
+                <div className="plan-groups">
+                  {sections.map(({ group, rows }) =>
+                    group ? (
+                      <section className="plan-group" key={group.id} aria-label={group.title}>
+                        <header>
+                          <h3>{group.title}</h3>
+                          <span>{planGroupMeta(group, rows)}</span>
+                          <button
+                            className="icon-button"
+                            aria-label={`编辑分组 ${group.title}`}
+                            onClick={() => setPlanGroup({ group })}
+                          >
+                            <Pencil size={15} />
+                          </button>
+                        </header>
+                        {group.note && <p className="plan-group-note">{group.note}</p>}
+                        {rows.length ? rows.map(row) : <p className="muted">暂无任务</p>}
+                      </section>
+                    ) : (
+                      rows.length > 0 && (
+                        <section className="plan-group" key="" aria-label="其他">
+                          <header>
+                            <h3>其他</h3>
+                          </header>
+                          {rows.map(row)}
+                        </section>
+                      )
+                    ),
+                  )}
                 </div>
               ) : (
                 <>{tasks.filter((task) => !task.completedAt).map(row)}</>
@@ -666,6 +733,15 @@ export function MobileApp() {
           }}
           onDelete={remove}
           onTrack={track}
+        />
+      )}
+      {planGroup && (
+        <PlanGroupModal
+          key={planGroup.group?.id ?? 'new'}
+          date={day}
+          group={planGroup.group}
+          onClose={() => setPlanGroup(null)}
+          onSaved={notice}
         />
       )}
       {settings && <Settings onClose={() => setSettings(false)} onMessage={notice} />}

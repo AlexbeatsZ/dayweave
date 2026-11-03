@@ -1052,3 +1052,22 @@
   margin: 0;
   padding: 0;
 }
+.timelog-module .goal-check {
+  position: absolute;
+  top: 3px;
+  right: 32px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1.5px solid var(--activity-color);
+  border-radius: 50%;
+  color: transparent;
+}
+.timelog-module .goal-card .goal-check[aria-pressed='true'] {
+  color: var(--surface);
+  background: var(--activity-color);
+}
+.timelog-module .goal-card:has(.goal-check) h3 {
+  padding-right: 52px;
+}

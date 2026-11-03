@@ -28,7 +28,7 @@ export function stable(value: unknown): string {
 const entityKey = (collection: string, id: string) => collection + '/' + encodeURIComponent(id);
 export function toDocument(state: AppState): SyncDocument {
   const doc: SyncDocument = {};
-  for (const collection of ['tasks', 'lists', 'sessions'] as const)
+  for (const collection of ['tasks', 'lists', 'sessions', 'planGroups'] as const)
     for (const row of state[collection]) doc[entityKey(collection, row.id)] = { ...row };
   for (const collection of ['activities', 'goals'] as const)
     for (const row of state.timelog[collection]) doc[entityKey(collection, row.id)] = { ...row };
@@ -82,6 +82,7 @@ export function toDocument(state: AppState): SyncDocument {
     taskTagColors: state.tagColors.tasks,
     recordTagColors: state.tagColors.records,
     timeZone: state.settings.timeZone,
+    ...(state.settings.dayStartsAt ? { dayStartsAt: state.settings.dayStartsAt } : {}),
     timerPresets: state.timelog.settings.timerPresets ?? [5, 30, 45, 60],
     timerPresetsUpdatedAt: state.timelog.settings.updatedAt,
   };
@@ -97,6 +98,7 @@ export function fromDocument(doc: SyncDocument, local: AppState): AppState {
   next.tasks = rows('tasks') as AppState['tasks'];
   next.lists = rows('lists') as AppState['lists'];
   next.sessions = rows('sessions') as AppState['sessions'];
+  next.planGroups = rows('planGroups') as AppState['planGroups'];
   if (!next.lists.some((x) => x.id === 'inbox'))
     next.lists.unshift({ id: 'inbox', name: '未分组', color: '#7e8b8b', order: 0 });
   for (const task of next.tasks)
@@ -172,6 +174,7 @@ export function fromDocument(doc: SyncDocument, local: AppState): AppState {
     ...preferences
   } = doc.preferences ?? {};
   next.settings = { ...next.settings, ...preferences };
+  if (!('dayStartsAt' in preferences)) delete next.settings.dayStartsAt;
   next.timer = (doc.focus ?? null) as AppState['timer'];
   // Running record remains authoritative when a stale offline focus timer arrives.
   if (next.timelog.timer) next.timer = null;

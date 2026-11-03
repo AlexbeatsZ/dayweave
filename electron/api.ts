@@ -12,13 +12,21 @@ import {
   mergeImport,
   selectTasks,
   statistics,
+  dayPlanGroups,
+  dateKey,
+  deletePlanGroup,
+  newPlanGroup,
+  withTaskDay,
   type AppState,
+  type Task,
   type View,
 } from '../src/model.js';
 import {
   taskInputSchema,
   taskPatchSchema,
   listInputSchema,
+  planGroupInputSchema,
+  planGroupPatchSchema,
   settingsPatchSchema,
   openapi,
 } from '../src/api-contract.js';
@@ -40,6 +48,13 @@ export type ApiOptions = {
 };
 function fail(status: number, message: string): never {
   throw Object.assign(new Error(message), { status });
+}
+/** A task may name only a live section of its own day. */
+function planGroupFits(state: AppState, task: Task) {
+  if (!task.planGroupId) return;
+  const group = state.planGroups.find((g) => g.id === task.planGroupId && !g.deletedAt);
+  if (!group) fail(400, 'Plan group not found');
+  if (group!.date !== task.due) fail(400, 'Task due date must equal the plan group date');
 }
 function taskAt(state: AppState, id: string) {
   const task = state.tasks.find((t) => t.id === id);
@@ -233,6 +248,7 @@ export async function startApi(
         let id = '';
         snapshot = await mutate((s) => {
           const task = newTask(input.title, input);
+          planGroupFits(s, task);
           id = task.id;
           return { ...s, tasks: [...s.tasks, task] };
         });
@@ -248,19 +264,19 @@ export async function startApi(
           snapshot = await mutate((s) => {
             const task = taskAt(s, id);
             if (task.deletedAt) fail(409, 'Restore task before editing');
-            return {
-              ...s,
-              tasks: s.tasks.map((t) =>
-                t.id === id
-                  ? {
-                      ...t,
-                      ...input,
-                      ...(input.due ? { repeatDay: Number(input.due.slice(-2)) } : {}),
-                      updatedAt: now(),
-                    }
-                  : t,
+            const { due, planGroupId, ...fields } = input;
+            // Moving to another day leaves the old section unless a new one is named.
+            const next = {
+              ...withTaskDay(
+                { ...task, ...fields },
+                due === undefined ? task.due : due,
+                planGroupId,
               ),
+              ...(due ? { repeatDay: Number(due.slice(-2)) } : {}),
+              updatedAt: now(),
             };
+            planGroupFits(s, next);
+            return { ...s, tasks: s.tasks.map((t) => (t.id === id ? next : t)) };
           });
           return send(taskAt(snapshot.state, id), snapshot);
         }
@@ -291,6 +307,37 @@ export async function startApi(
           });
           return send(taskAt(snapshot.state, id), snapshot);
         }
+      }
+      if (route === '/plan-groups' && method === 'GET') {
+        const date = url.searchParams.get('date') ?? dateKey();
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) fail(400, 'date must be YYYY-MM-DD');
+        return send(dayPlanGroups(snapshot.state, date), snapshot);
+      }
+      if (route === '/plan-groups' && method === 'POST') {
+        const input = planGroupInputSchema.parse(await body(request));
+        const group = newPlanGroup(input.date, input);
+        snapshot = await mutate((s) => ({ ...s, planGroups: [...s.planGroups, group] }));
+        return send(group, snapshot);
+      }
+      const groupMatch = route.match(/^\/plan-groups\/([^/]+)$/);
+      if (groupMatch && ['PATCH', 'DELETE'].includes(method)) {
+        const id = decodeURIComponent(groupMatch[1]);
+        const input = method === 'PATCH' ? planGroupPatchSchema.parse(await body(request)) : null;
+        snapshot = await mutate((s) => {
+          if (!s.planGroups.some((g) => g.id === id && !g.deletedAt))
+            fail(404, 'Plan group not found');
+          if (!input) return deletePlanGroup(s, id);
+          return {
+            ...s,
+            planGroups: s.planGroups.map((g) =>
+              g.id === id ? { ...g, ...input, updatedAt: now() } : g,
+            ),
+          };
+        });
+        return send(
+          input ? snapshot.state.planGroups.find((g) => g.id === id) : { deleted: id },
+          snapshot,
+        );
       }
       if (route === '/lists' && method === 'GET') return send(snapshot.state.lists, snapshot);
       if (route === '/lists' && method === 'POST') {

@@ -19,7 +19,8 @@ export function TimelineEntries({
   showTimer: () => void;
   timerName: string;
 }) {
-  const endText = (at: number) => (at === dayRange(day).end ? '24:00' : formatTime(at));
+  const endText = (at: number) =>
+    at === dayRange(day).end && formatTime(at) === '00:00' ? '24:00' : formatTime(at);
   return (
     <>
       {entries.map((row) => (

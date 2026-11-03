@@ -10,6 +10,7 @@ import {
   formatClock,
   formatDuration,
   formatTime,
+  goalPeriodKey,
   liveSpans,
   natureLabels,
   timestamp,
@@ -118,7 +119,7 @@ export default function Workspace({
       (!filter.activityId || row.record.activityId === filter.activityId) &&
       (!filter.tag || row.record.tags.includes(filter.tag)));
   const endText = (at: number, day: string) =>
-    at === dayRange(day).end ? '24:00' : formatTime(at);
+    at === dayRange(day).end && formatTime(at) === '00:00' ? '24:00' : formatTime(at);
   function requestFill(
     row: Extract<TimelineEntry, { kind: 'record' }>,
     direction: 'up' | 'down',
@@ -364,7 +365,33 @@ export default function Workspace({
               <FloatingAdd label="添加目标" onClick={() => setEditor({ kind: 'goal' })} />
               <Goals
                 state={state}
+                tasks={data.tasks}
                 date={dayKey(now)}
+                check={(goal, done) => {
+                  void commit(
+                    (current) => {
+                      const latest = current.goals.find((row) => row.id === goal.id);
+                      if (latest?.kind !== 'manual') throw new Error('目标已变化，请重新打开。');
+                      const next = {
+                        ...latest,
+                        checks: {
+                          ...latest.checks,
+                          [goalPeriodKey(latest, dayKey(now))]: {
+                            done,
+                            by: 'user' as const,
+                            at: Date.now(),
+                          },
+                        },
+                        updatedAt: timestamp(latest.updatedAt),
+                      };
+                      return {
+                        ...current,
+                        goals: current.goals.map((row) => (row.id === next.id ? next : row)),
+                      };
+                    },
+                    done ? '已勾选' : '已取消勾选',
+                  );
+                }}
                 edit={(goal) => setEditor({ kind: 'goal', goal })}
                 remove={(goal) => {
                   void commit(

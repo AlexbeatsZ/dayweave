@@ -58,6 +58,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Active Work
 
+- 2026-11-03 source-only (not built/pushed/released): 04:00 business-day boundary (`settings.dayStartsAt`), daily-plan groups (`planGroups`, task `planGroupId`), goal groups and goal kinds time/tasks/manual with AI checks, plus `/plan-groups`, task `planGroupId`, goal `check` and `/context` business day/groups/goal status. 155 unit and related browser tests pass; UI previewed in the Web build only. Needs user UI review and explicit build/deploy authorization; all five devices and the ROG hub must upgrade together before anyone uses the new fields. AI Decision consumption (settlement at 04:30, planning creates groups) is a separate follow-up. Read docs/design/planning-goals.md first.
+
 - Authorized0.4.11/0.1.2 delivery is complete. Keep desktop/profile recovery copies, original Android identities/widgets and unresolved conflicts. Mac requires the user's Accessibility/browser-capture/Automation approval; phone/Pad foreground sync and actual new UI, background/cold boot remain user acceptance. No new system permissions, desktop shortcuts or unrelated service restarts were used. Future feature delivery still follows the explicit UI-review/build gate.
 
 - Server0.1.1 implementation/release and parent-reported original-profile-copy, production upgrade/restart, bounded cross-cycle latency, encrypted-network and real AI adapter acceptance are complete. Actual whole-machine reboot without login, long-term monitoring and fixed memory gains remain unverified. OMEN was not started for this acceptance; installed-client UI remains user-reviewed. Any later production operations remain owned by the deployment chat.
@@ -131,6 +133,7 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 - docs/design/integration.md: unified state, migration, timezone, widget and API contracts.
 - docs/design/storage.md: inherited durable task storage.
 - docs/design/timelog-domain.md: time segments and goals.
+- docs/design/planning-goals.md: business-day boundary, daily-plan groups, goal groups/kinds and their AI API.
 - docs/design/platforms.md: mobile/desktop platforms.
 - docs/design/mobile-interface.md: phone layouts, navigation, sheets, native back, timeline/analytics and narrow-screen checks.
 - docs/design/architecture.md: module ownership, shared UI behavior and consolidation rules.

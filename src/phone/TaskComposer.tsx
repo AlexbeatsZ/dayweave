@@ -1,8 +1,11 @@
 import { useState, type CSSProperties, type FormEvent } from 'react';
 import { CalendarDays, Flag, ListChecks, Plus, Repeat2, X } from 'lucide-react';
 import {
+  dayPlanGroups,
   formatTaskMinutes,
   newTask,
+  taskPlanGroup,
+  withTaskDay,
   quadrantLabels,
   recordedTaskMinutes,
   shiftDate,
@@ -41,6 +44,10 @@ export function TaskComposer({
   const [date, setDate] = useState(task?.due ?? due),
     [list, setList] = useState(task?.listId ?? listId);
   const [quadrant, setQuadrant] = useState<Task['quadrant']>(task?.quadrant ?? null);
+  const [planGroup, setPlanGroup] = useState(task ? (taskPlanGroup(data, task)?.id ?? '') : '');
+  const planGroups = date ? dayPlanGroups(data, date) : [];
+  // A section belongs to one day; picking another day silently leaves it.
+  const chosenGroup = planGroups.some((group) => group.id === planGroup) ? planGroup : '';
   const [repeat, setRepeat] = useState<Task['repeat']>(task?.repeat ?? 'none');
   const [subtasks, setSubtasks] = useState<Task['subtasks']>(task?.subtasks ?? []),
     [subtask, setSubtask] = useState('');
@@ -68,6 +75,7 @@ export function TaskComposer({
         estimatedMinutes: estimatedMinutes.trim() === '' ? null : Number(estimatedMinutes),
         actualMinutes: actualMinutes.trim() === '' ? null : Number(actualMinutes),
         quadrant,
+        ...(chosenGroup ? { planGroupId: chosenGroup } : {}),
         repeat: date ? repeat : 'none',
         tags: [
           ...new Set([
@@ -86,6 +94,8 @@ export function TaskComposer({
       await store.transact((state) => {
         if (!state.lists.some((item) => item.id === list))
           throw new Error('清单已变化，请重新选择。');
+        if (chosenGroup && !dayPlanGroups(state, date).some((group) => group.id === chosenGroup))
+          throw new Error('计划分组已变化，请重新选择。');
         if (task) {
           const latest = state.tasks.find((item) => item.id === task.id);
           if (!latest || latest.deletedAt || latest.updatedAt !== revision)
@@ -95,13 +105,12 @@ export function TaskComposer({
             tasks: state.tasks.map((item) =>
               item.id === task.id
                 ? {
-                    ...item,
+                    ...withTaskDay(item, date || null, chosenGroup || null),
                     title: created.title,
                     notes: created.notes,
                     estimatedMinutes: created.estimatedMinutes,
                     actualMinutes: created.actualMinutes,
                     listId: list,
-                    due: date || null,
                     quadrant,
                     repeat: created.repeat,
                     repeatDay: date && date !== item.due ? Number(date.slice(-2)) : item.repeatDay,
@@ -191,6 +200,20 @@ export function TaskComposer({
             />
           </label>
         </div>
+        {planGroups.length > 0 && (
+          <div className="date-chips" aria-label="计划分组">
+            {[{ id: '', title: '不分组' }, ...planGroups].map((group) => (
+              <button
+                type="button"
+                key={group.id}
+                aria-pressed={chosenGroup === group.id}
+                onClick={() => setPlanGroup(group.id)}
+              >
+                {group.title}
+              </button>
+            ))}
+          </div>
+        )}
         <div
           className="phone-subtasks"
           style={

@@ -53,6 +53,7 @@ test('goals are judged only after their period ends', () => {
   // During the day a met floor is not yet counted and a ceiling is not met early.
   assert.deepEqual(goalStatus(state, floor, day, end - 1), {
     progress: 120,
+    target: 60,
     settled: false,
     met: null,
     within: true,
@@ -82,7 +83,8 @@ test('older data without comparison or with points still loads', () => {
     redemptions: [],
   };
   const state = validateState(legacy);
-  assert.equal(state.goals[0].comparison, 'atLeast');
+  const [goal] = state.goals;
+  assert.equal(goal.kind === undefined && goal.comparison, 'atLeast');
   assert.equal('pointsPerHour' in state.activities[0], false);
   assert.equal('rewards' in state, false);
 });

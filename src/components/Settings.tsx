@@ -119,6 +119,31 @@ export function Settings({
               <p className="field-hint">
                 设备：{zoneLabel(deviceZone())} · 日程：{zoneLabel(settings.timeZone)}
               </p>
+              <label className="timezone-setting">
+                一天开始于
+                <select
+                  aria-label="一天开始于"
+                  value={settings.dayStartsAt ?? '00:00'}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    // Midnight is stored as absence, so peers that predate the setting keep syncing.
+                    void store.update((s) => {
+                      const { dayStartsAt: _previous, ...rest } = s.settings;
+                      return {
+                        ...s,
+                        settings: value === '00:00' ? rest : { ...rest, dayStartsAt: value },
+                      };
+                    });
+                  }}
+                >
+                  {['00:00', '01:00', '02:00', '03:00', '04:00', '05:00', '06:00'].map((time) => (
+                    <option key={time} value={time}>
+                      {time}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <p className="field-hint">在此之前的计时、完成和计划都算前一天；课表仍按日历日期。</p>
             </section>
             {error && (
               <p className="form-error" role="alert">

@@ -2,7 +2,7 @@ import { useSyncExternalStore } from 'react';
 import { emptyState, mergeImport, now, stateSchema, type AppState, type Task } from './model';
 import { applyDelta, diffState, type StateDelta } from './state-delta';
 
-import { setTimeZone } from './timezone';
+import { setDayStart, setTimeZone } from './timezone';
 const key = 'dayweave.v1';
 type Snapshot = {
   data: AppState;
@@ -42,6 +42,7 @@ let recovering = false;
 function emit(patch: Partial<Snapshot>) {
   snapshot = { ...snapshot, ...patch };
   setTimeZone(snapshot.data.settings.timeZone);
+  setDayStart(snapshot.data.settings.dayStartsAt);
   listeners.forEach((f) => f());
 }
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));

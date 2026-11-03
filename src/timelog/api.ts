@@ -19,7 +19,9 @@ import {
   timestamp,
   toggleTimer,
   type Activity,
+  goalPeriodKey,
   type Goal,
+  type GoalTask,
   type Nature,
   type State,
   type TimeRecord,
@@ -94,6 +96,8 @@ export async function handleApi(
   storage: {
     readState: () => Promise<State>;
     mutateState: (fn: (state: State) => State) => Promise<State>;
+    /** Tasks for task-bound goals; the standalone timelog module has none. */
+    readTasks?: () => Promise<GoalTask[]>;
   },
 ): Promise<ApiResult> {
   const { readState, mutateState } = storage;
@@ -184,12 +188,18 @@ export async function handleApi(
       }
       if (resource === 'goals') {
         const date = range(url).date;
+        const tasks = (await storage.readTasks?.()) ?? [];
         const items = state.goals.map((goal) => {
-          const status = goalStatus(state, goal, date);
-          // met stays null until the period has ended.
+          const status = goalStatus(state, goal, date, Date.now(), tasks);
+          // met stays null until the period has ended. progress/target are minutes for
+          // time goals, completed/due tasks for task goals and 0|1 for manual goals.
           return {
             ...goal,
-            progressMinutes: status.progress,
+            kind: goal.kind ?? 'time',
+            periodKey: goalPeriodKey(goal, date),
+            ...(goal.kind === undefined ? { progressMinutes: status.progress } : {}),
+            progress: status.progress,
+            target: status.target,
             settled: status.settled,
             met: status.met,
           };
@@ -392,37 +402,67 @@ export async function handleApi(
           return { ...state, goals: state.goals.filter((goal) => goal.id !== itemId) };
         }
         if (body.archived !== undefined) fail(400, 'Use DELETE to remove a goal');
+        const old = previous as Goal | undefined;
+        if (body.check !== undefined) {
+          // Manual goals are checked per period by the user or the AI; nothing else changes.
+          if (old?.kind !== 'manual') return fail(400, 'Only manual goals can be checked');
+          const check = object(body.check);
+          const day = text(check.period, dayKey(now));
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || dayKey(dayRange(day).start) !== day)
+            fail(400, 'check.period must be a real YYYY-MM-DD date');
+          const period = goalPeriodKey(old, day);
+          const by = text(check.by, 'ai');
+          if (by !== 'user' && by !== 'ai') fail(400, 'check.by must be user or ai');
+          const item: Goal = {
+            ...old,
+            checks: {
+              ...old.checks,
+              [period]: { done: bool(check.done, true), by: by as 'user' | 'ai', at: now },
+            },
+            updatedAt: timestamp(old.updatedAt),
+          };
+          result = item;
+          return { ...state, goals: state.goals.map((row) => (row.id === item.id ? item : row)) };
+        }
+        const kind = text(body.kind, old?.kind ?? 'time');
+        const group = body.group === null ? '' : text(body.group, old?.group).trim();
         const base = {
           id: previous?.id || newId(),
           name: text(body.name, previous?.name),
+          ...(group ? { group } : {}),
+          period: text(body.period, old?.period || 'day') as Goal['period'],
           archived: false,
           updatedAt: timestamp(previous?.updatedAt),
         };
-        const old = previous as Goal | undefined;
-        // "target" accepts the same text as the editor (">9h", "<2h", "90"); otherwise minutes/comparison.
-        let target: Pick<Goal, 'minutes' | 'comparison'>;
-        try {
-          target =
-            body.target !== undefined
-              ? parseGoalTarget(text(body.target))
-              : {
-                  minutes: number(body.minutes, old?.minutes ?? 30),
-                  comparison: text(
-                    body.comparison,
-                    old?.comparison || 'atLeast',
-                  ) as Goal['comparison'],
-                };
-        } catch (error) {
-          return fail(400, error instanceof Error ? error.message : String(error));
-        }
-        if (target.comparison !== 'atLeast' && target.comparison !== 'atMost')
-          fail(400, 'comparison must be atLeast or atMost');
-        const item: Goal = {
-          ...base,
-          activityId: text(body.activityId, old?.activityId),
-          ...target,
-          period: text(body.period, old?.period || 'day') as Goal['period'],
-        };
+        let item: Goal;
+        if (kind === 'tasks')
+          item = {
+            ...base,
+            kind,
+            taskTag: text(body.taskTag, old?.kind === 'tasks' ? old.taskTag : '').trim(),
+          };
+        else if (kind === 'manual')
+          item = { ...base, kind, checks: old?.kind === 'manual' ? old.checks : {} };
+        else if (kind === 'time') {
+          const timeGoal = old?.kind === undefined ? old : undefined;
+          // "target" accepts the same text as the editor (">9h", "<2h", "90"); otherwise minutes/comparison.
+          let target: Pick<Extract<Goal, { kind?: undefined }>, 'minutes' | 'comparison'>;
+          try {
+            target =
+              body.target !== undefined
+                ? parseGoalTarget(text(body.target))
+                : {
+                    minutes: number(body.minutes, timeGoal?.minutes ?? 30),
+                    comparison: text(body.comparison, timeGoal?.comparison || 'atLeast') as
+                      'atLeast' | 'atMost',
+                  };
+          } catch (error) {
+            return fail(400, error instanceof Error ? error.message : String(error));
+          }
+          if (target.comparison !== 'atLeast' && target.comparison !== 'atMost')
+            fail(400, 'comparison must be atLeast or atMost');
+          item = { ...base, activityId: text(body.activityId, timeGoal?.activityId), ...target };
+        } else return fail(400, 'kind must be time, tasks or manual');
         result = item;
         return {
           ...state,

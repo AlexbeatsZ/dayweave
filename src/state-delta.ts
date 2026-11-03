@@ -9,7 +9,7 @@ export const deltaSchema = z
       .array(
         z
           .object({
-            collection: z.enum(['tasks', 'lists', 'sessions']),
+            collection: z.enum(['tasks', 'lists', 'sessions', 'planGroups']),
             id: z.string().min(1).max(100),
             before: jsonObject.nullable(),
             after: jsonObject.nullable(),
@@ -42,7 +42,7 @@ function diffRows(before: Row[], after: Row[]) {
 
 export function diffState(before: AppState, after: AppState): StateDelta {
   const delta: StateDelta = { entities: [] };
-  for (const collection of ['tasks', 'lists', 'sessions'] as const) {
+  for (const collection of ['tasks', 'lists', 'sessions', 'planGroups'] as const) {
     delta.entities.push(
       ...diffRows(before[collection], after[collection]).map((change) => ({
         collection,

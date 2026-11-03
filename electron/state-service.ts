@@ -1,4 +1,4 @@
-import { setTimeZone } from '../src/timezone.js';
+import { setDayStart, setTimeZone } from '../src/timezone.js';
 import { randomUUID } from 'node:crypto';
 import { stateSchema, type AppState } from '../src/model.js';
 import { applyDelta, type StateDelta } from '../src/state-delta.js';
@@ -36,6 +36,7 @@ export class StateService {
       });
     await this.loaded;
     setTimeZone(this.current!.state.settings.timeZone);
+    setDayStart(this.current!.state.settings.dayStartsAt);
   }
   async snapshot() {
     await this.load();
@@ -103,6 +104,7 @@ export class StateService {
       this.current = { ...restored, revision: this.revision() };
       this.loaded = Promise.resolve(this.current);
       setTimeZone(this.current.state.settings.timeZone);
+      setDayStart(this.current.state.settings.dayStartsAt);
       this.scheduleDeadline();
       const result = structuredClone(this.current);
       for (const listener of this.listeners) listener(structuredClone(result));

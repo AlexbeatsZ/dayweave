@@ -10,7 +10,12 @@ import {
   duration,
 } from './timelog/domain.js';
 import { scheduleSchema, emptySchedule, mergeSchedule, zoneSchema } from './schedule.js';
-import { zoneDateKey, weekday, shiftDay as shiftCalendarDay } from './timezone.js';
+import {
+  businessDateKey,
+  weekday,
+  shiftDay as shiftCalendarDay,
+  DAY_START_PATTERN,
+} from './timezone.js';
 
 export const idSchema = z.string().min(1).max(100);
 export const dateSchema = z
@@ -53,6 +58,8 @@ export const taskSchema = z
       .nullable()
       .optional(),
     tags: z.array(z.string().trim().min(1).max(40)).max(30),
+    /** Section of the daily plan; only meaningful while it names a live group of the same day. */
+    planGroupId: idSchema.optional(),
     subtasks: z
       .array(
         z
@@ -69,6 +76,24 @@ export const taskSchema = z
     createdAt: instant,
     updatedAt: instant,
     completedAt: instant.nullable(),
+    deletedAt: instant.nullable(),
+  })
+  .strict();
+/** A section of one day's plan, such as "午饭前"; tasks still belong to the day through `due`. */
+export const planGroupSchema = z
+  .object({
+    id: idSchema,
+    date: dateSchema,
+    title: z.string().trim().min(1).max(60),
+    minutes: z.number().int().min(1).max(1440).nullable(),
+    until: z
+      .string()
+      .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+      .nullable(),
+    note: z.string().max(2000),
+    order: z.number().finite(),
+    createdAt: instant,
+    updatedAt: instant,
     deletedAt: instant.nullable(),
   })
   .strict();
@@ -115,12 +140,22 @@ export const stateSchema = z
       .strict()
       .default(() => ({ tasks: {}, records: {} })),
     tasks: z.array(z.preprocess(withoutLegacyTaskFields, taskSchema)).max(50000),
+    planGroups: z
+      .array(planGroupSchema)
+      .max(20000)
+      .default(() => []),
     sessions: z.array(focusSessionSchema).max(100000),
     timer: timerSchema.nullable(),
     settings: z
       .object({
         theme: z.enum(['light', 'dark', 'system']),
         timeZone: zoneSchema.default('Asia/Shanghai'),
+        /** Absent means midnight; omitted rather than defaulted so older peers keep syncing. */
+        dayStartsAt: z
+          .string()
+          .regex(DAY_START_PATTERN)
+          .refine((value) => value <= '06:00', '一天的开始时间须在 00:00 到 06:00 之间')
+          .optional(),
         focusMinutes: z.number().int().min(1).max(180),
         breakMinutes: z.number().int().min(1).max(60),
         showCompleted: z.boolean(),
@@ -145,6 +180,10 @@ export const stateSchema = z
       state.sessions.map((x) => x.id),
       'sessions',
     );
+    unique(
+      state.planGroups.map((x) => x.id),
+      'planGroups',
+    );
     const lists = new Set(state.lists.map((x) => x.id));
     if (!lists.has('inbox'))
       ctx.addIssue({ code: 'custom', path: ['lists'], message: '缺少默认分组' });
@@ -161,6 +200,7 @@ export const stateSchema = z
 export type AppState = z.infer<typeof stateSchema>;
 export type Task = z.infer<typeof taskSchema>;
 export type TaskList = z.infer<typeof listSchema>;
+export type PlanGroup = z.infer<typeof planGroupSchema>;
 export type Timer = z.infer<typeof timerSchema>;
 export type View =
   | 'timetable'
@@ -193,8 +233,9 @@ export const colors = ['#326559', '#5274a3', '#ad6a48', '#9671a5', '#b18a32', '#
 export const uid = () => globalThis.crypto.randomUUID();
 export const now = () => new Date().toISOString();
 
+/** The business day: before `settings.dayStartsAt` it is still the previous date. */
 export function dateKey(date = new Date()): string {
-  return zoneDateKey(date.getTime());
+  return businessDateKey(date.getTime());
 }
 export function civilDateKey(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -222,6 +263,7 @@ export function emptyState(): AppState {
     lists: [{ id: 'inbox', name: '未分组', color: '#7e8b8b', order: 0 }],
     tagColors: { tasks: {}, records: {} },
     tasks: [],
+    planGroups: [],
     sessions: [],
     timer: null,
     settings: {
@@ -241,6 +283,7 @@ export function reorderTasks(
   visibleIds: string[],
   source: string,
   target: string,
+  adoptPlanGroup = false,
 ): AppState {
   const ids = visibleIds.filter((id) =>
     state.tasks.some((task) => task.id === id && !task.deletedAt && !task.completedAt),
@@ -250,7 +293,8 @@ export function reorderTasks(
   if (from < 0 || to < 0 || from === to) return state;
   // A drop across the pinned boundary moves into the target group. Keeping the
   // old flag would make selectTasks immediately put the source back again.
-  const targetPinned = state.tasks.find((task) => task.id === target)!.pinned;
+  const targetTask = state.tasks.find((task) => task.id === target)!;
+  const targetPinned = targetTask.pinned;
   ids.splice(from, 1);
   ids.splice(to, 0, source);
   const selected = new Set(ids),
@@ -263,10 +307,78 @@ export function reorderTasks(
     ...state,
     tasks: state.tasks.map((task) => {
       const pinned = task.id === source ? targetPinned : task.pinned;
-      return task.order === order.get(task.id) && task.pinned === pinned
-        ? task
-        : { ...task, order: order.get(task.id)!, pinned, updatedAt: now() };
+      // In the daily plan a drop next to a task of another section moves into that section.
+      const planGroupId =
+        adoptPlanGroup && task.id === source ? targetTask.planGroupId : task.planGroupId;
+      if (
+        task.order === order.get(task.id) &&
+        task.pinned === pinned &&
+        task.planGroupId === planGroupId
+      )
+        return task;
+      const { planGroupId: _previous, ...rest } = task;
+      return {
+        ...rest,
+        ...(planGroupId ? { planGroupId } : {}),
+        order: order.get(task.id)!,
+        pinned,
+        updatedAt: now(),
+      };
     }),
+  };
+}
+/** Live sections of one day's plan in display order. */
+export function dayPlanGroups(state: Pick<AppState, 'planGroups'>, date: string): PlanGroup[] {
+  return state.planGroups
+    .filter((group) => !group.deletedAt && group.date === date)
+    .sort((a, b) => a.order - b.order || a.createdAt.localeCompare(b.createdAt));
+}
+/** A task is in a section only while that section is live and on the task's own day. */
+export function taskPlanGroup(state: Pick<AppState, 'planGroups'>, task: Task): PlanGroup | null {
+  if (!task.planGroupId || !task.due) return null;
+  return (
+    state.planGroups.find(
+      (group) => group.id === task.planGroupId && !group.deletedAt && group.date === task.due,
+    ) ?? null
+  );
+}
+/** Changing a task's day leaves its old section; every editor and the API use this. */
+export function withTaskDay(task: Task, due: string | null, planGroupId?: string | null): Task {
+  const { planGroupId: previous, ...rest } = task;
+  const group = planGroupId === undefined ? (due === task.due ? previous : undefined) : planGroupId;
+  return { ...rest, due, ...(group ? { planGroupId: group } : {}) };
+}
+export function newPlanGroup(
+  date: string,
+  input: Partial<Pick<PlanGroup, 'title' | 'minutes' | 'until' | 'note' | 'order'>>,
+): PlanGroup {
+  const at = now();
+  return planGroupSchema.parse({
+    id: uid(),
+    date,
+    title: input.title ?? '',
+    minutes: input.minutes ?? null,
+    until: input.until ?? null,
+    note: input.note ?? '',
+    order: input.order ?? Date.now(),
+    createdAt: at,
+    updatedAt: at,
+    deletedAt: null,
+  });
+}
+/** Removing a section keeps its tasks on the same day, outside any section. */
+export function deletePlanGroup(state: AppState, id: string): AppState {
+  const group = state.planGroups.find((row) => row.id === id && !row.deletedAt);
+  if (!group) return state;
+  const at = now();
+  return {
+    ...state,
+    planGroups: state.planGroups.map((row) =>
+      row.id === id ? { ...row, deletedAt: at, updatedAt: at } : row,
+    ),
+    tasks: state.tasks.map((task) =>
+      task.planGroupId === id ? { ...withTaskDay(task, task.due, null), updatedAt: at } : task,
+    ),
   };
 }
 export function startTaskTimer(
@@ -455,6 +567,10 @@ export function mergeImport(local: AppState, incoming: unknown): AppState {
   for (const task of imported.tasks)
     if (!tasks.has(task.id) || tasks.get(task.id)!.updatedAt < task.updatedAt)
       tasks.set(task.id, task);
+  const planGroups = new Map(local.planGroups.map((x) => [x.id, x]));
+  for (const group of imported.planGroups)
+    if (!planGroups.has(group.id) || planGroups.get(group.id)!.updatedAt < group.updatedAt)
+      planGroups.set(group.id, group);
   const sessions = new Map(local.sessions.map((x) => [x.id, x]));
   for (const session of imported.sessions)
     if (!sessions.has(session.id)) sessions.set(session.id, session);
@@ -474,6 +590,7 @@ export function mergeImport(local: AppState, incoming: unknown): AppState {
       records: { ...imported.tagColors.records, ...local.tagColors.records },
     },
     tasks: [...tasks.values()],
+    planGroups: [...planGroups.values()],
     sessions: [...sessions.values()],
   });
 }

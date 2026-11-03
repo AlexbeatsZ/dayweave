@@ -44,7 +44,11 @@ export const extraPaths: Record<string, unknown> = {
       additionalProperties: false,
     }),
   },
-  '/context': { get: op('AI 决策上下文：今天任务、活动计时、当前和下一节课以及未来七天课程') },
+  '/context': {
+    get: op(
+      'AI 决策上下文：业务日与日界线、今天任务和计划分组、目标的本期与上期状态、活动计时、当前和下一节课以及未来七天课程',
+    ),
+  },
   '/tasks/{id}/track': {
     parameters: id,
     post: op('从任务开始正向计时，与现有时间线共用计时器', {

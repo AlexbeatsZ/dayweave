@@ -1,6 +1,6 @@
 import {
-  zoneDateKey,
-  dayStart as zoneDayStart,
+  businessDateKey,
+  businessDayStart,
   shiftDay as zoneShiftDay,
   weekday,
   zoneClock,
@@ -40,16 +40,36 @@ export type Timer = {
   nature: Nature;
   startedAt: number;
 };
-export type Goal = {
+export type GoalCheck = { done: boolean; by: 'user' | 'ai'; at: number };
+type GoalCommon = {
   id: string;
   name: string;
+  /** Optional heading the goals page groups by. */
+  group?: string;
+  taskId?: string;
+  period: 'day' | 'week';
+  archived: boolean;
+  updatedAt: number;
+};
+/** Judged automatically from saved records of one activity. `kind` is omitted for these. */
+export type TimeGoal = GoalCommon & {
+  kind?: undefined;
   activityId: string;
   minutes: number;
   /** A ceiling ("at most") or a floor ("at least"); judged only once the period has ended. */
   comparison: 'atLeast' | 'atMost';
-  period: 'day' | 'week';
-  archived: boolean;
-  updatedAt: number;
+};
+/** Met when every task with the tag that is due in the period is completed. */
+export type TaskGoal = GoalCommon & { kind: 'tasks'; taskTag: string };
+/** Checked by the user or the AI, keyed by period (day or the week's Monday). */
+export type ManualGoal = GoalCommon & { kind: 'manual'; checks: Record<string, GoalCheck> };
+export type Goal = TimeGoal | TaskGoal | ManualGoal;
+/** The task fields a task-bound goal reads; tasks live outside the timelog module. */
+export type GoalTask = {
+  due: string | null;
+  tags: string[];
+  completedAt: string | null;
+  deletedAt: string | null;
 };
 export type State = {
   activities: Activity[];
@@ -301,7 +321,7 @@ export function deleteActivity(state: State, id: string, at = Date.now()): State
   const referenced = state.records.some((record) => record.activityId === id);
   return {
     ...state,
-    goals: state.goals.filter((goal) => goal.activityId !== id),
+    goals: state.goals.filter((goal) => goal.kind !== undefined || goal.activityId !== id),
     activities: referenced
       ? state.activities.map((activity) =>
           activity.id === id
@@ -312,8 +332,8 @@ export function deleteActivity(state: State, id: string, at = Date.now()): State
   };
 }
 
-export const dayKey = (date: Date | number) => zoneDateKey(Number(date));
-export const dayStart = (key: string) => zoneDayStart(key);
+export const dayKey = (date: Date | number) => businessDateKey(Number(date));
+export const dayStart = (key: string) => businessDayStart(key);
 export const shiftDay = (key: string, offset: number) => zoneShiftDay(key, offset);
 export function dayRange(key: string): Span {
   return { start: dayStart(key), end: dayStart(shiftDay(key, 1)) };
@@ -364,7 +384,10 @@ export function stats(state: State, range: Span) {
 }
 export const goalRange = (goal: Pick<Goal, 'period'>, key: string) =>
   goal.period === 'week' ? weekRange(key) : dayRange(key);
-export function goalProgress(state: State, goal: Goal, key: string): number {
+/** The day, or the week's Monday, that names the period containing `key`. */
+export const goalPeriodKey = (goal: Pick<Goal, 'period'>, key: string) =>
+  goal.period === 'week' ? shiftDay(key, 1 - weekday(key)) : key;
+export function goalProgress(state: State, goal: TimeGoal, key: string): number {
   const range = goalRange(goal, key);
   return (
     unionDuration(
@@ -391,14 +414,42 @@ export const formatTime = (at: number) => zoneClock(at);
  * A period is judged only after it ends, so a ceiling is not met early and a stray
  * long record can still be corrected before the result counts.
  */
-export function goalStatus(state: State, goal: Goal, key: string, now = Date.now()) {
-  const progress = goalProgress(state, goal, key);
+export function goalStatus(
+  state: State,
+  goal: Goal,
+  key: string,
+  now = Date.now(),
+  tasks: GoalTask[] = [],
+) {
   const settled = now >= goalRange(goal, key).end;
-  const within = goal.comparison === 'atMost' ? progress <= goal.minutes : progress >= goal.minutes;
-  return { progress, settled, met: settled ? within : null, within };
+  let progress: number, target: number, within: boolean;
+  if (goal.kind === 'tasks') {
+    const first = goalPeriodKey(goal, key),
+      last = goal.period === 'week' ? shiftDay(first, 6) : first;
+    const due = tasks.filter(
+      (task) =>
+        !task.deletedAt &&
+        !!task.due &&
+        task.due >= first &&
+        task.due <= last &&
+        task.tags.includes(goal.taskTag),
+    );
+    progress = due.filter((task) => task.completedAt).length;
+    target = due.length;
+    within = target > 0 && progress === target;
+  } else if (goal.kind === 'manual') {
+    progress = goal.checks[goalPeriodKey(goal, key)]?.done ? 1 : 0;
+    target = 1;
+    within = progress === 1;
+  } else {
+    progress = goalProgress(state, goal, key);
+    target = goal.minutes;
+    within = goal.comparison === 'atMost' ? progress <= goal.minutes : progress >= goal.minutes;
+  }
+  return { progress, target, settled, met: settled ? within : null, within };
 }
 /** "9h", ">90", "<2h", "1h30m", "≤ 45分钟"; a bare number is minutes and means at least. */
-export function parseGoalTarget(text: string): Pick<Goal, 'minutes' | 'comparison'> {
+export function parseGoalTarget(text: string): Pick<TimeGoal, 'minutes' | 'comparison'> {
   const match = text
     .trim()
     .replace(/\s+/g, '')
@@ -416,7 +467,7 @@ export function parseGoalTarget(text: string): Pick<Goal, 'minutes' | 'compariso
   };
 }
 /** Editable form ("<1h30m") or display form ("≤ 1 小时 30 分钟"). */
-export function goalTargetText(goal: Pick<Goal, 'minutes' | 'comparison'>, display = false) {
+export function goalTargetText(goal: Pick<TimeGoal, 'minutes' | 'comparison'>, display = false) {
   const hours = Math.floor(goal.minutes / 60),
     minutes = goal.minutes % 60;
   if (display)
@@ -531,17 +582,43 @@ export function validateState(value: unknown): State {
     list(root.goals, '目标', 2000, (value): Goal => {
       const o = obj(value, '目标');
       if (o.period !== 'day' && o.period !== 'week') throw new Error('目标周期错误。');
-      return {
+      const common = {
         id: id(o.id),
         name: name(o.name),
-        activityId: activityId(o.activityId),
+        ...(o.group === undefined ? {} : { group: name(o.group) }),
         ...(o.taskId === undefined ? {} : { taskId: id(o.taskId) }),
-        minutes: num(o.minutes, '目标分钟', 1, 1000000),
-        // Goals saved before the comparison existed were all floors.
-        comparison: o.comparison === 'atMost' ? 'atMost' : 'atLeast',
         period: o.period,
         archived: bool(o.archived),
         updatedAt: num(o.updatedAt, '更新时间'),
+      } as const;
+      if (o.kind === 'tasks') {
+        const taskTag = str(o.taskTag, '标签', 40).trim();
+        if (!taskTag) throw new Error('请填写绑定的待办标签。');
+        return { ...common, kind: 'tasks', taskTag };
+      }
+      if (o.kind === 'manual') {
+        const checks = obj(o.checks, '勾选记录');
+        if (Object.keys(checks).length > 2000) throw new Error('勾选记录过多。');
+        return {
+          ...common,
+          kind: 'manual',
+          checks: Object.fromEntries(
+            Object.entries(checks).map(([key, value]): [string, GoalCheck] => {
+              if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) throw new Error('勾选周期错误。');
+              const check = obj(value, '勾选');
+              if (check.by !== 'user' && check.by !== 'ai') throw new Error('勾选来源错误。');
+              return [key, { done: bool(check.done), by: check.by, at: num(check.at, '勾选时间') }];
+            }),
+          ),
+        };
+      }
+      if (o.kind !== undefined) throw new Error('目标类型错误。');
+      return {
+        ...common,
+        activityId: activityId(o.activityId),
+        minutes: num(o.minutes, '目标分钟', 1, 1000000),
+        // Goals saved before the comparison existed were all floors.
+        comparison: o.comparison === 'atMost' ? 'atMost' : 'atLeast',
       };
     }),
   );

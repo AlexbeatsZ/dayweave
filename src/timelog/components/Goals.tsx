@@ -1,76 +1,99 @@
 import type { CSSProperties } from 'react';
-import { Check, MoreHorizontal, Target, X } from 'lucide-react';
+import { Check, CircleCheck, ListChecks, MoreHorizontal, Target, X } from 'lucide-react';
 import {
   formatDuration,
+  goalPeriodKey,
   goalStatus,
   goalTargetText,
   shiftDay,
   type Goal,
+  type GoalTask,
   type State,
 } from '../domain';
 import { ActivityIcon } from '../../phone/ActivityIcon';
 
 const HISTORY = 7;
+const ACCENT = '#76b9ed';
 const periodLength = (goal: Goal) => (goal.period === 'week' ? 7 : 1);
+const periodName = (goal: Goal) => (goal.period === 'week' ? '本周' : '今天');
+type Status = ReturnType<typeof goalStatus>;
 
-function statusText(goal: Goal, progress: number, settled: boolean, met: boolean | null) {
-  if (settled) return met ? '已达成' : '未达成';
-  const gap = formatDuration(Math.ceil(Math.abs(goal.minutes - progress)) * 60000);
+function statusText(goal: Goal, status: Status) {
+  if (status.settled) return status.met ? '已达成' : '未达成';
+  if (goal.kind === 'tasks')
+    return status.target ? `${periodName(goal)}完成 ${status.progress}/${status.target}` : '无任务';
+  if (goal.kind === 'manual') return status.within ? '已勾选' : '未勾选';
+  const gap = formatDuration(Math.ceil(Math.abs(goal.minutes - status.progress)) * 60000);
   if (goal.comparison === 'atMost')
-    return progress <= goal.minutes ? `还可 ${gap}` : `已超出 ${gap}`;
-  return progress >= goal.minutes ? '已到目标，周期结束后结算' : `还需 ${gap}`;
+    return status.progress <= goal.minutes ? `还可 ${gap}` : `已超出 ${gap}`;
+  return status.progress >= goal.minutes ? '已到目标，周期结束后结算' : `还需 ${gap}`;
+}
+function amountText(goal: Goal, status: Status, date: string) {
+  if (goal.kind === 'tasks') return `#${goal.taskTag}`;
+  if (goal.kind === 'manual')
+    return goal.checks[goalPeriodKey(goal, date)]?.by === 'ai' ? 'AI 判定' : '手动勾选';
+  return `${formatDuration(status.progress * 60000)} / ${goalTargetText(goal, true)}`;
 }
 
 export function Goals({
   state,
+  tasks,
   date,
   edit,
   remove,
+  check,
 }: {
   state: State;
+  tasks: GoalTask[];
   date: string;
   edit: (goal?: Goal) => void;
   remove: (goal: Goal) => void;
+  check: (goal: Goal, done: boolean) => void;
 }) {
   const active = state.goals.filter((goal) => !goal.archived);
+  const status = (goal: Goal, key: string) => goalStatus(state, goal, key, Date.now(), tasks);
+  // User-named groups keep their first-seen order; daily goals come before weekly ones inside.
+  const groups = [...new Set(active.map((goal) => goal.group ?? ''))];
   return (
     <div className="goal-groups">
-      {(['day', 'week'] as const).map((period) => {
+      {groups.map((group) => {
         const rows = active
-          .filter((goal) => goal.period === period)
-          .map((goal) => ({ goal, status: goalStatus(state, goal, date) }));
-        if (!rows.length) return null;
-        // The header counts the last finished period, never the one still running.
-        const previous = rows.map(({ goal }) =>
-          goalStatus(state, goal, shiftDay(date, -periodLength(goal))),
-        );
+          .filter((goal) => (goal.group ?? '') === group)
+          .sort((a, b) => periodLength(a) - periodLength(b))
+          .map((goal) => ({ goal, status: status(goal, date) }));
+        // The header counts each goal's last finished period, never the one still running.
+        const previous = rows.map(({ goal }) => status(goal, shiftDay(date, -periodLength(goal))));
+        const title = group || (groups.length > 1 ? '其他目标' : '目标');
         return (
-          <section
-            className="goal-group"
-            key={period}
-            aria-label={period === 'day' ? '每日目标' : '每周目标'}
-          >
+          <section className="goal-group" key={group} aria-label={title}>
             <header>
-              <h2>{period === 'day' ? '每日目标' : '每周目标'}</h2>
-              <span title={period === 'day' ? '昨天' : '上周'}>
-                {period === 'day' ? '昨天' : '上周'} {previous.filter((item) => item.met).length}/
-                {rows.length}
+              <h2>{title}</h2>
+              <span title="每个目标的上一周期">
+                上期 {previous.filter((item) => item.met).length}/{rows.length}
               </span>
             </header>
             <div className="goal-grid">
-              {rows.map(({ goal, status }) => {
-                const activity = state.activities.find((item) => item.id === goal.activityId)!;
-                const percent = Math.min(100, (status.progress / goal.minutes) * 100);
+              {rows.map(({ goal, status: current }) => {
+                const activity =
+                  goal.kind === undefined
+                    ? state.activities.find((item) => item.id === goal.activityId)
+                    : undefined;
+                const percent = current.target
+                  ? Math.min(100, (current.progress / current.target) * 100)
+                  : 0;
                 const history = Array.from({ length: HISTORY }, (_, index) => {
                   const key = shiftDay(date, -periodLength(goal) * (HISTORY - index));
-                  return { key, met: goalStatus(state, goal, key).met };
+                  return { key, met: status(goal, key).met };
                 });
-                const over = goal.comparison === 'atMost' && !status.within;
+                const over =
+                  goal.kind === undefined && goal.comparison === 'atMost' && !current.within;
+                const manualCheck =
+                  goal.kind === 'manual' ? goal.checks[goalPeriodKey(goal, date)] : undefined;
                 return (
                   <article
-                    className={`goal-card ${status.met ? 'achieved' : ''} ${status.met === false || over ? 'missed' : ''}`}
+                    className={`goal-card ${current.met ? 'achieved' : ''} ${current.met === false || over ? 'missed' : ''}`}
                     key={goal.id}
-                    style={{ '--activity-color': activity.color } as CSSProperties}
+                    style={{ '--activity-color': activity?.color ?? ACCENT } as CSSProperties}
                   >
                     <button
                       className="goal-card-main"
@@ -78,15 +101,19 @@ export function Goals({
                       onClick={() => edit(goal)}
                     >
                       <h3>
-                        <ActivityIcon name={activity.name} size={18} />
+                        {activity ? (
+                          <ActivityIcon name={activity.name} size={18} />
+                        ) : goal.kind === 'tasks' ? (
+                          <ListChecks size={18} />
+                        ) : (
+                          <CircleCheck size={18} />
+                        )}
                         <span>{goal.name}</span>
-                        {status.met && <Check size={15} />}
+                        {current.met && <Check size={15} />}
                       </h3>
                       <div className="goal-card-status">
-                        <span>{statusText(goal, status.progress, status.settled, status.met)}</span>
-                        <strong>
-                          {formatDuration(status.progress * 60000)} / {goalTargetText(goal, true)}
-                        </strong>
+                        <span>{statusText(goal, current)}</span>
+                        <strong>{amountText(goal, current, date)}</strong>
                       </div>
                       <div className="progress-track">
                         <span style={{ width: `${percent}%` }} />
@@ -106,6 +133,16 @@ export function Goals({
                         ))}
                       </ol>
                     </button>
+                    {goal.kind === 'manual' && (
+                      <button
+                        className="goal-check"
+                        aria-pressed={!!manualCheck?.done}
+                        aria-label={`${manualCheck?.done ? '取消勾选' : '勾选'}${periodName(goal)} ${goal.name}`}
+                        onClick={() => check(goal, !manualCheck?.done)}
+                      >
+                        <Check size={15} />
+                      </button>
+                    )}
                     <details className="goal-menu">
                       <summary aria-label={`目标操作 ${goal.name}`}>
                         <MoreHorizontal size={16} />
@@ -132,7 +169,7 @@ export function Goals({
         </div>
       )}
       <p className="section-note">
-        按已保存记录计算；周期结束后才判定是否达成，结束前可以修正记录。每周从周一开始。
+        周期结束后才判定是否达成，结束前可以修正记录或勾选。每周从周一开始。
       </p>
     </div>
   );

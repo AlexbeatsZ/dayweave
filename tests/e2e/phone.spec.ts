@@ -146,6 +146,7 @@ test('compact shared tabs swipe both ways, goals group densely, and all add butt
           },
           {
             id: 'weekly-goal',
+            group: '学习与阅读',
             name: '一周学习9小时',
             activityId: 'study',
             minutes: 540,
@@ -156,6 +157,7 @@ test('compact shared tabs swipe both ways, goals group densely, and all add butt
           },
           {
             id: 'weekly-read',
+            group: '学习与阅读',
             name: '一周阅读2小时',
             activityId: 'reading',
             minutes: 120,

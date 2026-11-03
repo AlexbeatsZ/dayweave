@@ -48,6 +48,7 @@
             "type": "array",
             "items": { "type": "string", "minLength": 1, "maxLength": 40 }
           },
+          "planGroupId": { "type": "string", "minLength": 1, "maxLength": 100 },
           "subtasks": {
             "maxItems": 200,
             "type": "array",
@@ -122,6 +123,47 @@
           "order": { "type": "number" }
         },
         "required": ["id", "name", "color", "order"],
+        "additionalProperties": false
+      },
+      "PlanGroup": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "minLength": 1, "maxLength": 100 },
+          "date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+          "title": { "type": "string", "minLength": 1, "maxLength": 60 },
+          "minutes": { "nullable": true, "type": "integer", "minimum": 1, "maximum": 1440 },
+          "until": { "nullable": true, "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" },
+          "note": { "type": "string", "maxLength": 2000 },
+          "order": { "type": "number" },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "deletedAt": {
+            "nullable": true,
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": [
+          "id",
+          "date",
+          "title",
+          "minutes",
+          "until",
+          "note",
+          "order",
+          "createdAt",
+          "updatedAt",
+          "deletedAt"
+        ],
         "additionalProperties": false
       },
       "State": {
@@ -364,6 +406,7 @@
                   "type": "array",
                   "items": { "type": "string", "minLength": 1, "maxLength": 40 }
                 },
+                "planGroupId": { "type": "string", "minLength": 1, "maxLength": 100 },
                 "subtasks": {
                   "maxItems": 200,
                   "type": "array",
@@ -439,6 +482,56 @@
               "additionalProperties": false
             }
           },
+          "planGroups": {
+            "default": [],
+            "maxItems": 20000,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string", "minLength": 1, "maxLength": 100 },
+                "date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+                "title": { "type": "string", "minLength": 1, "maxLength": 60 },
+                "minutes": { "nullable": true, "type": "integer", "minimum": 1, "maximum": 1440 },
+                "until": {
+                  "nullable": true,
+                  "type": "string",
+                  "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                },
+                "note": { "type": "string", "maxLength": 2000 },
+                "order": { "type": "number" },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                },
+                "deletedAt": {
+                  "nullable": true,
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                }
+              },
+              "required": [
+                "id",
+                "date",
+                "title",
+                "minutes",
+                "until",
+                "note",
+                "order",
+                "createdAt",
+                "updatedAt",
+                "deletedAt"
+              ],
+              "additionalProperties": false
+            }
+          },
           "sessions": {
             "maxItems": 100000,
             "type": "array",
@@ -479,6 +572,7 @@
             "properties": {
               "theme": { "type": "string", "enum": ["light", "dark", "system"] },
               "timeZone": { "default": "Asia/Shanghai", "type": "string", "maxLength": 100 },
+              "dayStartsAt": { "type": "string", "pattern": "^0[0-6]:[0-5]\\d$" },
               "focusMinutes": { "type": "integer", "minimum": 1, "maximum": 180 },
               "breakMinutes": { "type": "integer", "minimum": 1, "maximum": 60 },
               "showCompleted": { "type": "boolean" }
@@ -494,6 +588,7 @@
           "lists",
           "tagColors",
           "tasks",
+          "planGroups",
           "sessions",
           "timer",
           "settings"
@@ -630,7 +725,7 @@
     },
     "/context": {
       "get": {
-        "summary": "AI 决策上下文：今天任务、活动计时、当前和下一节课以及未来七天课程",
+        "summary": "AI 决策上下文：业务日与日界线、今天任务和计划分组、目标的本期与上期状态、活动计时、当前和下一节课以及未来七天课程",
         "responses": {
           "200": {
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
@@ -1558,6 +1653,7 @@
                     "type": "array",
                     "items": { "type": "string", "minLength": 1, "maxLength": 40 }
                   },
+                  "planGroupId": { "type": "string", "minLength": 1, "maxLength": 100 },
                   "subtasks": {
                     "maxItems": 200,
                     "type": "array",
@@ -1672,6 +1768,12 @@
                     "maxItems": 30,
                     "type": "array",
                     "items": { "type": "string", "minLength": 1, "maxLength": 40 }
+                  },
+                  "planGroupId": {
+                    "nullable": true,
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
                   },
                   "subtasks": {
                     "maxItems": 200,
@@ -1814,6 +1916,168 @@
     "/tasks/{id}/restore": {
       "post": {
         "summary": "从回收站恢复任务",
+        "parameters": [
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } },
+          { "$ref": "#/components/parameters/IfMatch" }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "revision"],
+                  "properties": { "data": {}, "revision": { "type": "string" } }
+                }
+              }
+            },
+            "headers": {
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
+            }
+          },
+          "400": { "description": "参数或 JSON 无效" },
+          "401": { "description": "缺少或错误的 Bearer 令牌" },
+          "403": { "description": "拒绝跨站或非本机请求" },
+          "404": { "description": "未找到对象" },
+          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
+        }
+      }
+    },
+    "/plan-groups": {
+      "get": {
+        "summary": "列出某个业务日的计划分组（默认今天），按顺序",
+        "responses": {
+          "200": {
+            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "revision"],
+                  "properties": { "data": {}, "revision": { "type": "string" } }
+                }
+              }
+            },
+            "headers": {
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
+            }
+          },
+          "400": { "description": "参数或 JSON 无效" },
+          "401": { "description": "缺少或错误的 Bearer 令牌" },
+          "403": { "description": "拒绝跨站或非本机请求" },
+          "404": { "description": "未找到对象" },
+          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
+        },
+        "parameters": [
+          { "in": "query", "name": "date", "schema": { "type": "string", "format": "date" } }
+        ]
+      },
+      "post": {
+        "summary": "在某天的日计划中新建分组",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+                  "title": { "type": "string", "minLength": 1, "maxLength": 60 },
+                  "minutes": { "nullable": true, "type": "integer", "minimum": 1, "maximum": 1440 },
+                  "until": {
+                    "nullable": true,
+                    "type": "string",
+                    "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                  },
+                  "note": { "type": "string", "maxLength": 2000 },
+                  "order": { "type": "number" }
+                },
+                "required": ["date", "title"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "revision"],
+                  "properties": { "data": {}, "revision": { "type": "string" } }
+                }
+              }
+            },
+            "headers": {
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
+            }
+          },
+          "400": { "description": "参数或 JSON 无效" },
+          "401": { "description": "缺少或错误的 Bearer 令牌" },
+          "403": { "description": "拒绝跨站或非本机请求" },
+          "404": { "description": "未找到对象" },
+          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
+        },
+        "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
+      }
+    },
+    "/plan-groups/{id}": {
+      "patch": {
+        "summary": "修改分组标题、持续时间、截止时刻、备注或顺序",
+        "parameters": [
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } },
+          { "$ref": "#/components/parameters/IfMatch" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": { "type": "string", "minLength": 1, "maxLength": 60 },
+                  "minutes": { "nullable": true, "type": "integer", "minimum": 1, "maximum": 1440 },
+                  "until": {
+                    "nullable": true,
+                    "type": "string",
+                    "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                  },
+                  "note": { "type": "string", "maxLength": 2000 },
+                  "order": { "type": "number" }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "revision"],
+                  "properties": { "data": {}, "revision": { "type": "string" } }
+                }
+              }
+            },
+            "headers": {
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
+            }
+          },
+          "400": { "description": "参数或 JSON 无效" },
+          "401": { "description": "缺少或错误的 Bearer 令牌" },
+          "403": { "description": "拒绝跨站或非本机请求" },
+          "404": { "description": "未找到对象" },
+          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
+        }
+      },
+      "delete": {
+        "summary": "删除分组；其中任务保留在当天、变为未分组",
         "parameters": [
           { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } },
           { "$ref": "#/components/parameters/IfMatch" }
@@ -2037,6 +2301,7 @@
                 "properties": {
                   "theme": { "type": "string", "enum": ["light", "dark", "system"] },
                   "timeZone": { "default": "Asia/Shanghai", "type": "string", "maxLength": 100 },
+                  "dayStartsAt": { "type": "string", "pattern": "^0[0-6]:[0-5]\\d$" },
                   "showCompleted": { "type": "boolean" }
                 },
                 "additionalProperties": false
@@ -2377,6 +2642,7 @@
                           "type": "array",
                           "items": { "type": "string", "minLength": 1, "maxLength": 40 }
                         },
+                        "planGroupId": { "type": "string", "minLength": 1, "maxLength": 100 },
                         "subtasks": {
                           "maxItems": 200,
                           "type": "array",
@@ -2455,6 +2721,61 @@
                       "additionalProperties": false
                     }
                   },
+                  "planGroups": {
+                    "default": [],
+                    "maxItems": 20000,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string", "minLength": 1, "maxLength": 100 },
+                        "date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+                        "title": { "type": "string", "minLength": 1, "maxLength": 60 },
+                        "minutes": {
+                          "nullable": true,
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 1440
+                        },
+                        "until": {
+                          "nullable": true,
+                          "type": "string",
+                          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                        },
+                        "note": { "type": "string", "maxLength": 2000 },
+                        "order": { "type": "number" },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        "deletedAt": {
+                          "nullable": true,
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "date",
+                        "title",
+                        "minutes",
+                        "until",
+                        "note",
+                        "order",
+                        "createdAt",
+                        "updatedAt",
+                        "deletedAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
                   "sessions": {
                     "maxItems": 100000,
                     "type": "array",
@@ -2509,6 +2830,7 @@
                         "type": "string",
                         "maxLength": 100
                       },
+                      "dayStartsAt": { "type": "string", "pattern": "^0[0-6]:[0-5]\\d$" },
                       "focusMinutes": { "type": "integer", "minimum": 1, "maximum": 180 },
                       "breakMinutes": { "type": "integer", "minimum": 1, "maximum": 60 },
                       "showCompleted": { "type": "boolean" }
@@ -2530,6 +2852,7 @@
                   "lists",
                   "tagColors",
                   "tasks",
+                  "planGroups",
                   "sessions",
                   "timer",
                   "settings"

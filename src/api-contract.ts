@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { extraPaths } from './extra-contract.js';
-import { taskSchema, listSchema, stateSchema } from './model.js';
+import { taskSchema, listSchema, planGroupSchema, stateSchema } from './model.js';
 
 export const taskInputSchema = taskSchema
   .pick({
@@ -12,6 +12,7 @@ export const taskInputSchema = taskSchema
     due: true,
     quadrant: true,
     tags: true,
+    planGroupId: true,
     subtasks: true,
     repeat: true,
     pinned: true,
@@ -20,7 +21,17 @@ export const taskInputSchema = taskSchema
   .partial()
   .required({ title: true })
   .strict();
-export const taskPatchSchema = taskInputSchema.partial().strict();
+export const taskPatchSchema = taskInputSchema
+  .partial()
+  // null leaves the plan section; changing `due` alone also leaves it.
+  .extend({ planGroupId: taskSchema.shape.planGroupId.unwrap().nullable().optional() })
+  .strict();
+export const planGroupInputSchema = planGroupSchema
+  .pick({ date: true, title: true, minutes: true, until: true, note: true, order: true })
+  .partial()
+  .required({ date: true, title: true })
+  .strict();
+export const planGroupPatchSchema = planGroupInputSchema.omit({ date: true }).partial().strict();
 export const listInputSchema = listSchema
   .omit({ id: true })
   .partial()
@@ -99,6 +110,7 @@ export const openapi = {
     schemas: {
       Task: json(taskSchema),
       List: json(listSchema),
+      PlanGroup: json(planGroupSchema),
       State: json(stateSchema),
     },
   },
@@ -140,6 +152,17 @@ export const openapi = {
     },
     '/tasks/{id}/reopen': { post: operation('重新打开已完成任务', undefined, true) },
     '/tasks/{id}/restore': { post: operation('从回收站恢复任务', undefined, true) },
+    '/plan-groups': {
+      get: {
+        ...operation('列出某个业务日的计划分组（默认今天），按顺序'),
+        parameters: [{ in: 'query', name: 'date', schema: { type: 'string', format: 'date' } }],
+      },
+      post: operation('在某天的日计划中新建分组', planGroupInputSchema),
+    },
+    '/plan-groups/{id}': {
+      patch: operation('修改分组标题、持续时间、截止时刻、备注或顺序', planGroupPatchSchema, true),
+      delete: operation('删除分组；其中任务保留在当天、变为未分组', undefined, true),
+    },
     '/lists': { get: operation('列出清单'), post: operation('创建清单', listInputSchema) },
     '/lists/{id}': {
       patch: operation('更新清单名称、颜色与排序', listInputSchema.partial(), true),

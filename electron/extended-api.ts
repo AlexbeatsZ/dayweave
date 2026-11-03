@@ -1,7 +1,14 @@
 import { startTaskTimer } from '../src/model.js';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { z } from 'zod';
-import { type AppState, uid, selectTasks, dateKey } from '../src/model.js';
+import {
+  type AppState,
+  uid,
+  selectTasks,
+  dateKey,
+  dayPlanGroups,
+  shiftDate,
+} from '../src/model.js';
 import {
   scheduleSchema,
   coursePeriodsSchema,
@@ -19,6 +26,8 @@ import {
   liveSpans,
   duration,
   activeActivity,
+  goalPeriodKey,
+  goalStatus,
 } from '../src/timelog/domain.js';
 import { toDocument } from '../src/sync/document.js';
 import type { StateService, StateSnapshot } from './state-service.js';
@@ -45,14 +54,36 @@ function activityId(state: AppState, requested?: string) {
   if (!activity) return fail(400, '请选择可用的活动');
   return activity.id;
 }
+/** Each goal with its running period and the one that just ended, which is what a settlement reads. */
+function goalContext(state: AppState, today: string, now: number) {
+  return state.timelog.goals
+    .filter((goal) => !goal.archived)
+    .map((goal) => {
+      const period = (key: string) => {
+        const status = goalStatus(state.timelog, goal, key, now, state.tasks);
+        return { period: goalPeriodKey(goal, key), ...status };
+      };
+      return {
+        ...goal,
+        kind: goal.kind ?? 'time',
+        current: period(today),
+        previous: period(shiftDate(today, goal.period === 'week' ? -7 : -1)),
+      };
+    });
+}
 export function decisionContext(state: AppState, now = Date.now()) {
+  const today = dateKey(new Date(now));
   return {
     now: new Date(now).toISOString(),
     epochMs: now,
     timeZone: state.settings.timeZone,
     courseTimeZone: state.schedule.timeZone,
-    today: dateKey(new Date(now)),
+    /** Business day: before dayStartsAt the previous date is still today. */
+    dayStartsAt: state.settings.dayStartsAt ?? '00:00',
+    today,
     tasks: selectTasks(state, 'today'),
+    planGroups: dayPlanGroups(state, today),
+    goals: goalContext(state, today, now),
     timeTimer: state.timelog.timer,
     simultaneousTimers: state.timelog.conflictedTimers ?? [],
     timeElapsedMs: state.timelog.timer ? duration(liveSpans(state.timelog.timer, now)) : 0,
@@ -191,6 +222,7 @@ export async function handleExtendedRoute(c: Context): Promise<boolean> {
       },
       {
         readState: async () => (await c.service.snapshot()).state.timelog,
+        readTasks: async () => (await c.service.snapshot()).state.tasks,
         mutateState: async (fn) => {
           snapshot = await mutate((s) => ({ ...s, timelog: fn(s.timelog) }));
           return snapshot.state.timelog;
