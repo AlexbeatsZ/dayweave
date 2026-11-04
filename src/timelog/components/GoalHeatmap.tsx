@@ -9,8 +9,10 @@ import {
   sortGoals,
   type Goal,
   type GoalTask,
+  type ScriptOutcome,
   type State,
 } from '../domain';
+import { outcomeOf, useScriptResults } from '../script-runner';
 import { weekday } from '../../timezone';
 
 /** Daily goals show eight calendar weeks; weekly goals fourteen weeks. Seven cells per row. */
@@ -20,6 +22,7 @@ type Status = ReturnType<typeof goalStatus>;
 
 /** 0 is gray and 1 the theme blue; stages split the range evenly. */
 export function goalShade(goal: Goal, status: Status) {
+  if (goal.kind === 'script') return status.progress;
   if (goal.kind === undefined && !goal.stages?.length && goal.comparison === 'atLeast')
     return Math.min(1, status.progress / status.target);
   if (goal.kind === 'tasks') return status.target ? status.progress / status.target : 0;
@@ -32,7 +35,7 @@ function label(goal: Goal, key: string, status: Status) {
       ? ` 阶段 ${status.reached}/${status.levels}`
       : '';
   if (!status.settled) return `${name} 进行中${stage}`;
-  return `${name}${stage} ${status.met ? '达成' : '未达成'}`;
+  return `${name}${stage} ${status.met === null ? '无法判定' : status.met ? '达成' : '未达成'}`;
 }
 
 /** Statistics › 记录 › 目标: one completion heatmap per goal, ending at `date`. */
@@ -45,19 +48,14 @@ export function GoalHeatmaps({
   tasks: GoalTask[];
   date: string;
 }) {
-  const rows = useMemo(() => {
-    const now = Date.now();
+  // Which periods each goal shows; computing them first lets script goals request results.
+  const layout = useMemo(() => {
     // Periods that ended before the first saved record have no data, not a result: an
     // "at most" goal would otherwise look fully met for every day before tracking began.
     const firstRecord = Math.min(
       ...state.records.filter((row) => !row.deletedAt).map((row) => row.spans[0].start),
     );
     return sortGoals(state.goals.filter((goal) => !goal.archived)).map((goal) => {
-      // Time goals only read matching records; filtering once keeps every cell cheap.
-      const scoped =
-        goal.kind === undefined
-          ? { ...state, records: state.records.filter((row) => matchesRules(goal.rules, row)) }
-          : state;
       const last = goalPeriodKey(goal, date);
       const count = CELLS[goal.period];
       const step = goal.period === 'week' ? 7 : 1;
@@ -66,24 +64,58 @@ export function GoalHeatmaps({
         goal.period === 'week'
           ? shiftDay(last, -7 * (count - 1))
           : shiftDay(date, 1 - weekday(date) - 7 * (count / 7 - 1));
-      const cells = Array.from({ length: count }, (_, index) => {
+      const keys = Array.from({ length: count }, (_, index) => {
         const key = shiftDay(first, index * step);
-        if (key > last) return { key, shade: null, current: false, label: `${key} 尚未到来` };
-        if (goalRange(goal, key).end <= firstRecord)
-          return { key, shade: null, current: false, label: `${key} 无记录` };
-        const status = goalStatus(scoped, goal, key, now, tasks);
         return {
           key,
-          shade: goalShade(goal, status),
-          current: !status.settled,
-          label: label(goal, key, status),
+          empty:
+            key > last
+              ? `${key} 尚未到来`
+              : goalRange(goal, key).end <= firstRecord
+                ? `${key} 无记录`
+                : '',
         };
       });
-      const settled = cells.filter((cell) => cell.shade !== null && !cell.current);
-      const full = settled.filter((cell) => cell.shade === 1).length;
-      return { goal, cells, summary: `${full}/${settled.length} 期全部完成` };
+      return { goal, keys };
     });
-  }, [state, tasks, date]);
+  }, [state, date]);
+  const scriptResult = useScriptResults(
+    layout.flatMap(({ goal, keys }) =>
+      goal.kind === 'script'
+        ? keys.filter((cell) => !cell.empty).map((cell) => ({ goal, key: cell.key }))
+        : [],
+    ),
+  );
+  const now = Date.now();
+  const rows = layout.map(({ goal, keys }) => {
+    // Time goals only read matching records; filtering once keeps every cell cheap.
+    const scoped =
+      goal.kind === undefined
+        ? { ...state, records: state.records.filter((row) => matchesRules(goal.rules, row)) }
+        : state;
+    const cells = keys.map(({ key, empty }) => {
+      if (empty) return { key, shade: null, current: false, label: empty };
+      const outcome: ScriptOutcome | undefined =
+        goal.kind === 'script' ? outcomeOf(scriptResult(goal, key)) : undefined;
+      if (goal.kind === 'script' && (!outcome || outcome.error))
+        return {
+          key,
+          shade: null,
+          current: false,
+          label: `${key} ${outcome?.error ? `脚本出错：${outcome.error}` : '判定中'}`,
+        };
+      const status = goalStatus(scoped, goal, key, now, tasks, outcome);
+      return {
+        key,
+        shade: goalShade(goal, status),
+        current: !status.settled,
+        label: label(goal, key, status) + (outcome?.note ? ` · ${outcome.note}` : ''),
+      };
+    });
+    const settled = cells.filter((cell) => cell.shade !== null && !cell.current);
+    const full = settled.filter((cell) => cell.shade === 1).length;
+    return { goal, cells, summary: `${full}/${settled.length} 期全部完成` };
+  });
   if (!rows.length)
     return (
       <div className="empty-state">

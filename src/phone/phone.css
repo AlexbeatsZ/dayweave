@@ -1623,3 +1623,105 @@
 .quick-chips button:not(:disabled) {
   color: var(--text);
 }
+
+/* Goal scripts: library picker, parameters and the script editor. */
+.goal-scripts {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 12px 12px;
+  min-width: 0;
+}
+.goal-scripts legend {
+  padding: 0 4px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.script-list {
+  display: grid;
+  gap: 6px;
+}
+.goal-scripts .script-option {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+.script-option > svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--accent);
+}
+.script-option span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.script-option small {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.script-option small.script-error {
+  color: var(--red);
+}
+.goal-scripts .script-option[aria-checked='true'] {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.script-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.script-actions button,
+.script-editor .dialog-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.goal-scripts label.script-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.goal-scripts label small {
+  font-weight: normal;
+}
+.script-code {
+  width: 100%;
+  min-height: 300px;
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 12.5px;
+  line-height: 1.5;
+  tab-size: 2;
+  white-space: pre;
+  overflow: auto;
+}
+.script-run {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--muted) 10%, transparent);
+}
+.script-run p {
+  margin: 0;
+}
+.script-run pre {
+  margin: 0;
+  max-height: 160px;
+  overflow: auto;
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+.script-editor .dialog-actions .danger {
+  margin-right: auto;
+}

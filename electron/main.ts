@@ -208,7 +208,9 @@ else {
       const result = await dialog.showOpenDialog(window!, {
         title: '选择课程表或备份',
         properties: ['openFile'],
-        filters: [{ name: '课程表 / 备份', extensions: ['csv', 'ics', 'json'] }],
+        filters: [
+          { name: '课程表 / 备份 / 目标脚本', extensions: ['csv', 'ics', 'json', 'js', 'mjs'] },
+        ],
       });
       if (result.canceled) return null;
       if ((await stat(result.filePaths[0])).size > 10 * 1024 * 1024)

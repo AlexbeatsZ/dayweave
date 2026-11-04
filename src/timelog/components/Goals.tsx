@@ -1,5 +1,5 @@
 import { useMemo, type CSSProperties } from 'react';
-import { Check, ListChecks, MoreHorizontal, Target, Timer } from 'lucide-react';
+import { Check, FileCode2, ListChecks, MoreHorizontal, Target, Timer } from 'lucide-react';
 import {
   formatDuration,
   goalPeriodKey,
@@ -10,8 +10,10 @@ import {
   describeRules,
   type Goal,
   type GoalTask,
+  type ScriptOutcome,
   type State,
 } from '../domain';
+import { outcomeOf, useScriptResults } from '../script-runner';
 import { useSortDrag } from '../../phone/useSortDrag';
 import '../../phone/sort.css';
 
@@ -21,7 +23,22 @@ type Status = ReturnType<typeof goalStatus>;
 function gapText(minutes: number) {
   return formatDuration(Math.ceil(Math.abs(minutes)) * 60000);
 }
-function statusText(goal: Goal, status: Status) {
+function statusText(goal: Goal, status: Status, outcome?: ScriptOutcome) {
+  if (goal.kind === 'script') {
+    if (outcome?.error) return `脚本出错：${outcome.error}`;
+    if (!outcome) return '判定中…';
+    const verdict = status.settled
+      ? status.met === null
+        ? '无法判定'
+        : status.met
+          ? '已达成'
+          : '未达成'
+      : '';
+    return (
+      [verdict, outcome.note].filter(Boolean).join(' · ') ||
+      (status.within ? '目前满足' : '目前未满足')
+    );
+  }
   const staged = goal.kind === undefined && !!goal.stages?.length;
   if (status.settled) {
     if (status.met) return '已达成';
@@ -46,7 +63,9 @@ function statusText(goal: Goal, status: Status) {
     ? `阶段 ${status.levels}/${status.levels} · 已到目标`
     : `阶段 ${status.reached}/${status.levels} · 下一阶段还需 ${gapText(next - status.progress)}`;
 }
-function amountText(goal: Goal, status: Status, date: string) {
+function amountText(goal: Goal, status: Status, date: string, state: State) {
+  if (goal.kind === 'script')
+    return state.scripts?.find((row) => row.id === goal.scriptId)?.name ?? '脚本已删除';
   if (goal.kind === 'tasks') return `#${goal.taskTag}`;
   if (goal.kind === 'manual')
     return goal.checks[goalPeriodKey(goal, date)]?.by === 'ai' ? 'AI 判定' : '手动勾选';
@@ -71,15 +90,34 @@ export function Goals({
   move: (visible: string[], source: string, target: string) => void;
 }) {
   const active = useMemo(() => sortGoals(state.goals.filter((goal) => !goal.archived)), [state]);
-  // Statuses only read saved records, so they change with state/tasks/date, not every clock tick.
-  const cards = useMemo(() => {
-    const now = Date.now();
-    return active.map((goal) => ({
+  const previousKey = (goal: Goal) => shiftDay(date, -periodLength(goal));
+  // Script goals run in a worker; their results arrive asynchronously per period.
+  const scriptResult = useScriptResults(
+    active.flatMap((goal) =>
+      goal.kind === 'script'
+        ? [
+            { goal, key: date },
+            { goal, key: previousKey(goal) },
+          ]
+        : [],
+    ),
+  );
+  const outcome = (goal: Goal, key: string) =>
+    goal.kind === 'script' ? outcomeOf(scriptResult(goal, key)) : undefined;
+  const now = Date.now();
+  const cards = active.map((goal) => ({
+    goal,
+    outcome: outcome(goal, date),
+    status: goalStatus(state, goal, date, now, tasks, outcome(goal, date)),
+    previous: goalStatus(
+      state,
       goal,
-      status: goalStatus(state, goal, date, now, tasks),
-      previous: goalStatus(state, goal, shiftDay(date, -periodLength(goal)), now, tasks),
-    }));
-  }, [active, state, tasks, date]);
+      previousKey(goal),
+      now,
+      tasks,
+      outcome(goal, previousKey(goal)),
+    ),
+  }));
   const groups = [...new Set(active.map((goal) => goal.group ?? ''))];
   return (
     <div className="goal-groups">
@@ -133,6 +171,7 @@ export function Goals({
 
 function GoalCard({
   goal,
+  outcome,
   status: current,
   state,
   date,
@@ -143,6 +182,7 @@ function GoalCard({
   move,
 }: {
   goal: Goal;
+  outcome?: ScriptOutcome;
   status: Status;
   state: State;
   date: string;
@@ -181,6 +221,8 @@ function GoalCard({
         <h3>
           {goal.kind === undefined ? (
             <Timer size={18} aria-hidden />
+          ) : goal.kind === 'script' ? (
+            <FileCode2 size={18} aria-hidden />
           ) : goal.kind === 'tasks' ? (
             <ListChecks size={18} aria-hidden />
           ) : (
@@ -194,8 +236,8 @@ function GoalCard({
           <p className="goal-match">{describeRules(goal.rules, state.activities)}</p>
         )}
         <div className="goal-card-status">
-          <span>{statusText(goal, current)}</span>
-          <strong>{amountText(goal, current, date)}</strong>
+          <span>{statusText(goal, current, outcome)}</span>
+          <strong>{amountText(goal, current, date, state)}</strong>
         </div>
         <div className="progress-track">
           <span style={{ width: `${percent}%` }} />

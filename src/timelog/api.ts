@@ -201,6 +201,10 @@ export async function handleApi(
             kind: goal.kind ?? 'time',
             periodKey: goalPeriodKey(goal, date),
             ...(goal.kind === undefined ? { progressMinutes: status.progress } : {}),
+            // Script results are computed on each device and never stored, so met stays null here.
+            ...(goal.kind === 'script'
+              ? { scriptName: state.scripts?.find((row) => row.id === goal.scriptId)?.name ?? null }
+              : {}),
             progress: status.progress,
             target: status.target,
             settled: status.settled,
@@ -451,7 +455,23 @@ export async function handleApi(
           };
         else if (kind === 'manual')
           item = { ...base, kind, checks: old?.kind === 'manual' ? old.checks : {} };
-        else if (kind === 'time') {
+        else if (kind === 'script') {
+          // Scripts live in the app's library; the API only points a goal at one.
+          const scriptId = text(body.scriptId, old?.kind === 'script' ? old.scriptId : '');
+          if (!state.scripts?.some((row) => row.id === scriptId))
+            return fail(400, 'scriptId must name a script in the library');
+          item = {
+            ...base,
+            kind,
+            scriptId,
+            params:
+              body.params === undefined
+                ? old?.kind === 'script'
+                  ? old.params
+                  : {}
+                : (object(body.params) as Extract<Goal, { kind: 'script' }>['params']),
+          };
+        } else if (kind === 'time') {
           const timeGoal = old?.kind === undefined ? old : undefined;
           // "target" accepts the editor text (">9h", "<2h", "8-16h", "<1-3h"), which also
           // sets the stages; otherwise minutes/comparison keep the stored stages.
@@ -500,7 +520,7 @@ export async function handleApi(
             ...target,
             ...(stages.length ? { stages } : {}),
           };
-        } else return fail(400, 'kind must be time, tasks or manual');
+        } else return fail(400, 'kind must be time, tasks, manual or script');
         result = item;
         return {
           ...state,

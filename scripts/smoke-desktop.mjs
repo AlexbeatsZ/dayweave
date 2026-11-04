@@ -45,6 +45,17 @@ try {
     true,
   );
   assert.equal(await page.evaluate(() => typeof window.require), 'undefined');
+  // Goal scripts run in a blob worker; the file:// page and its CSP must allow it.
+  await page.getByRole('button', { name: '记录', exact: true }).click();
+  await page.getByRole('tab', { name: '目标', exact: true }).click();
+  await page.getByRole('button', { name: '添加目标', exact: true }).first().click();
+  await page.getByRole('combobox', { name: '判定方式' }).selectOption('script');
+  await page.getByRole('button', { name: '新建脚本', exact: true }).click();
+  await page.getByRole('button', { name: '试运行', exact: true }).click();
+  await expect(page.locator('.script-run')).toContainText('今天：未达成 · 已计时 0 分钟');
+  await page.getByRole('button', { name: '关闭对话框' }).last().click();
+  await page.getByRole('button', { name: '关闭对话框' }).last().click();
+  await page.getByRole('button', { name: '待办', exact: true }).click();
   await page.getByRole('button', { name: '新建任务', exact: true }).click();
   await page.getByLabel('新任务标题').fill('桌面持久化检查');
   await page.getByRole('button', { name: '添加任务', exact: true }).click();

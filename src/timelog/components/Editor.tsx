@@ -16,10 +16,12 @@ import {
   type State,
   type TimeRecord,
   type Nature,
+  type ScriptParam,
 } from '../domain';
 import { lastRecordEnd } from '../timeline';
 import { Dialog } from './Dialog';
 import { GoalRules } from './GoalRules';
+import { GoalScripts } from './GoalScripts';
 import { TagToggles } from './TagChips';
 import { usePhone } from '../../phone/usePhone';
 import { useStore } from '../../store';
@@ -43,8 +45,19 @@ export function Editor({
   const phone = usePhone();
   const { data } = useStore();
   const tagColors = data.tagColors.records;
-  const [goalKind, setGoalKind] = useState<'time' | 'tasks' | 'manual'>(
+  const [goalKind, setGoalKind] = useState<'time' | 'tasks' | 'manual' | 'script'>(
     target.kind === 'goal' ? (target.goal?.kind ?? 'time') : 'time',
+  );
+  const editedScriptGoal =
+    target.kind === 'goal' && target.goal?.kind === 'script' ? target.goal : undefined;
+  const [scriptId, setScriptId] = useState(
+    editedScriptGoal?.scriptId ?? state.scripts?.[0]?.id ?? '',
+  );
+  const [scriptParams, setScriptParams] = useState<Record<string, ScriptParam>>(
+    editedScriptGoal?.params ?? {},
+  );
+  const [goalPeriod, setGoalPeriod] = useState<Goal['period']>(
+    target.kind === 'goal' ? (target.goal?.period ?? 'day') : 'day',
   );
   const goalGroups = [...new Set(state.goals.flatMap((goal) => (goal.group ? [goal.group] : [])))];
   const taskTags = [
@@ -190,19 +203,30 @@ export function Editor({
             updatedAt: timestamp(existing?.updatedAt),
           };
           const next: Goal =
-            goalKind === 'tasks'
-              ? { ...base, kind: 'tasks', taskTag: text('taskTag').replace(/^#+/, '') }
-              : goalKind === 'manual'
-                ? {
-                    ...base,
-                    kind: 'manual',
-                    checks: existing?.kind === 'manual' ? existing.checks : {},
-                  }
-                : {
-                    ...base,
-                    rules,
-                    ...goalTarget!,
-                  };
+            goalKind === 'script'
+              ? {
+                  ...base,
+                  kind: 'script',
+                  scriptId: current.scripts?.some((row) => row.id === scriptId)
+                    ? scriptId
+                    : (() => {
+                        throw new Error('请选择或新建一个脚本。');
+                      })(),
+                  params: scriptParams,
+                }
+              : goalKind === 'tasks'
+                ? { ...base, kind: 'tasks', taskTag: text('taskTag').replace(/^#+/, '') }
+                : goalKind === 'manual'
+                  ? {
+                      ...base,
+                      kind: 'manual',
+                      checks: existing?.kind === 'manual' ? existing.checks : {},
+                    }
+                  : {
+                      ...base,
+                      rules,
+                      ...goalTarget!,
+                    };
           return {
             ...current,
             goals: previous
@@ -442,7 +466,11 @@ export function Editor({
               </label>
               <label>
                 周期
-                <select name="period" defaultValue={target.goal?.period || 'day'}>
+                <select
+                  name="period"
+                  value={goalPeriod}
+                  onChange={(event) => setGoalPeriod(event.target.value as Goal['period'])}
+                >
                   <option value="day">每日</option>
                   <option value="week">每周</option>
                 </select>
@@ -457,6 +485,7 @@ export function Editor({
                 <option value="time">自动：按计时</option>
                 <option value="tasks">绑定待办标签</option>
                 <option value="manual">手动勾选</option>
+                <option value="script">自动化脚本</option>
               </select>
             </label>
             {goalKind === 'time' && (
@@ -508,6 +537,20 @@ export function Editor({
                   周期内带这个标签的待办全部完成才算达成；没有这类待办时算未达成。
                 </p>
               </>
+            )}
+            {goalKind === 'script' && (
+              <GoalScripts
+                state={state}
+                commit={commit}
+                period={goalPeriod}
+                scriptId={scriptId}
+                onScript={(id) => {
+                  if (id !== scriptId) setScriptParams({});
+                  setScriptId(id);
+                }}
+                params={scriptParams}
+                onParams={setScriptParams}
+              />
             )}
             {goalKind === 'manual' && (
               <p className="muted">在目标卡片上勾选；AI 也可以代为勾选。</p>

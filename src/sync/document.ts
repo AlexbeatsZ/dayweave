@@ -27,7 +27,7 @@ export function stable(value: unknown): string {
 }
 const entityKey = (collection: string, id: string) => collection + '/' + encodeURIComponent(id);
 const ROOT_COLLECTIONS = ['tasks', 'lists', 'sessions', 'planGroups'] as const;
-const TIMELOG_COLLECTIONS = ['activities', 'goals'] as const;
+const TIMELOG_COLLECTIONS = ['activities', 'goals', 'scripts'] as const;
 const SCHEDULE_COLLECTIONS = ['courses', 'events'] as const;
 /** Removed collections older clients may still carry in a base; accepted and ignored. */
 const LEGACY_COLLECTIONS = ['rewards', 'redemptions'];
@@ -57,7 +57,8 @@ export function toDocument(state: AppState): SyncDocument {
   for (const collection of ROOT_COLLECTIONS)
     for (const row of state[collection]) doc[entityKey(collection, row.id)] = { ...row };
   for (const collection of TIMELOG_COLLECTIONS)
-    for (const row of state.timelog[collection]) doc[entityKey(collection, row.id)] = { ...row };
+    for (const row of state.timelog[collection] ?? [])
+      doc[entityKey(collection, row.id)] = { ...row };
   for (const collection of SCHEDULE_COLLECTIONS)
     for (const row of state.schedule[collection]) doc[entityKey(collection, row.id)] = { ...row };
   for (const row of state.timelog.records)
@@ -169,6 +170,7 @@ export function fromDocument(doc: SyncDocument, local: AppState): AppState {
     activities: rows('activities'),
     // rewards/* and redemptions/* from older devices are ignored; points were removed.
     goals: rows('goals'),
+    scripts: rows('scripts'),
     records,
     timer: timers[0] ?? null,
     settings: {

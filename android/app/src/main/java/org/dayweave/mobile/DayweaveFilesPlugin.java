@@ -272,7 +272,7 @@ public class DayweaveFilesPlugin extends Plugin {
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
         intent.setType("*/*");
-        intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{"application/json", "text/plain", "text/calendar", "text/csv", "application/octet-stream"});
+        intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{"application/json", "text/plain", "text/calendar", "text/csv", "text/javascript", "application/javascript", "application/octet-stream"});
         startActivityForResult(call, intent, "backupPicked");
     }
 

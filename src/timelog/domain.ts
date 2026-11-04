@@ -106,7 +106,34 @@ export type TimeGoal = GoalCommon & {
 export type TaskGoal = GoalCommon & { kind: 'tasks'; taskTag: string };
 /** Checked by the user or the AI, keyed by period (day or the week's Monday). */
 export type ManualGoal = GoalCommon & { kind: 'manual'; checks: Record<string, GoalCheck> };
-export type Goal = TimeGoal | TaskGoal | ManualGoal;
+/** A value a script declares under `params` and each goal fills in. */
+export type ScriptParam = string | number | boolean | string[];
+/**
+ * Judged by a user script from the library (see docs/goal-scripts.md). Results are computed
+ * on each device and never stored, so two devices cannot conflict over them.
+ */
+export type ScriptGoal = GoalCommon & {
+  kind: 'script';
+  scriptId: string;
+  params: Record<string, ScriptParam>;
+};
+export type Goal = TimeGoal | TaskGoal | ManualGoal | ScriptGoal;
+/** One JavaScript module in the synced script library. */
+export type GoalScript = {
+  id: string;
+  name: string;
+  code: string;
+  order?: number;
+  updatedAt: number;
+};
+/** What one script run returned for one period; `progress` (0–1) shades the heatmap. */
+export type ScriptOutcome = {
+  met: boolean | null;
+  progress: number;
+  note: string;
+  error?: string;
+};
+export const MAX_SCRIPT_LENGTH = 200000;
 /** The task fields a task-bound goal reads; tasks live outside the timelog module. */
 export type GoalTask = {
   due: string | null;
@@ -118,6 +145,8 @@ export type State = {
   activities: Activity[];
   records: TimeRecord[];
   goals: Goal[];
+  /** Goal script library; omitted while empty. */
+  scripts?: GoalScript[];
   timer: Timer | null;
   conflictedTimers?: Timer[];
   settings: { weekStartsOn: 1; updatedAt: number; timerPresets?: number[] };
@@ -475,9 +504,26 @@ export function goalStatus(
   key: string,
   now = Date.now(),
   tasks: GoalTask[] = [],
+  /** Script goals only: the device's latest run for this period; missing means not yet run. */
+  outcome?: ScriptOutcome,
 ) {
   const settled = now >= goalRange(goal, key).end;
   let progress: number, target: number, within: boolean;
+  if (goal.kind === 'script') {
+    progress = outcome && !outcome.error ? outcome.progress : 0;
+    target = 1;
+    within = outcome?.met === true;
+    return {
+      progress,
+      target,
+      settled,
+      // A script that has not answered yet, failed or returned null is undecided, not missed.
+      met: settled && outcome && !outcome.error && outcome.met !== null ? within : null,
+      within,
+      reached: Number(within),
+      levels: 1,
+    };
+  }
   if (goal.kind === 'tasks') {
     const first = goalPeriodKey(goal, key),
       last = goal.period === 'week' ? shiftDay(first, 6) : first;
@@ -833,6 +879,25 @@ export function validateState(value: unknown): State {
           ),
         };
       }
+      if (o.kind === 'script') {
+        const params = obj(o.params ?? {}, '脚本参数');
+        if (Object.keys(params).length > 50) throw new Error('脚本参数过多。');
+        return {
+          ...common,
+          kind: 'script',
+          scriptId: id(o.scriptId),
+          params: Object.fromEntries(
+            Object.entries(params).map(([key, value]): [string, ScriptParam] => {
+              if (!/^[A-Za-z_$][\w$]{0,39}$/.test(key)) throw new Error('脚本参数名无效。');
+              if (Array.isArray(value))
+                return [key, list(value, '脚本参数', 200, (item) => str(item, '脚本参数', 500))];
+              if (typeof value === 'number') return [key, num(value, '脚本参数', -1e12, 1e12)];
+              if (typeof value === 'boolean') return [key, value];
+              return [key, str(value, '脚本参数', 2000)];
+            }),
+          ),
+        };
+      }
       if (o.kind !== undefined) throw new Error('目标类型错误。');
       const target = {
         minutes: num(o.minutes, '目标分钟', 1, 1000000),
@@ -892,6 +957,18 @@ export function validateState(value: unknown): State {
       throw new Error('计时片段顺序错误。');
     return timer;
   };
+  const scripts = unique(
+    list(root.scripts ?? [], '脚本', 200, (value): GoalScript => {
+      const o = obj(value, '脚本');
+      return {
+        id: id(o.id),
+        name: name(o.name),
+        code: str(o.code, '脚本代码', MAX_SCRIPT_LENGTH),
+        ...orderField(o.order),
+        updatedAt: num(o.updatedAt, '更新时间'),
+      };
+    }),
+  ).sort(byOrder);
   const timer = root.timer === null ? null : parseTimer(root.timer);
   const conflictedTimers = unique(list(root.conflictedTimers ?? [], '同时计时', 100, parseTimer));
   if (conflictedTimers.some((item) => item.id === timer?.id)) throw new Error('计时 ID 重复。');
@@ -901,6 +978,7 @@ export function validateState(value: unknown): State {
     activities,
     records,
     goals,
+    ...(scripts.length ? { scripts } : {}),
     timer,
     ...(conflictedTimers.length ? { conflictedTimers } : {}),
     settings: {
@@ -964,6 +1042,7 @@ export function mergeBackup(local: State, incoming: State): State {
     activities: mergeList(local.activities, incoming.activities),
     records: mergeList(local.records, incoming.records),
     goals: mergeList(local.goals, incoming.goals),
+    scripts: mergeList(local.scripts ?? [], incoming.scripts ?? []),
     timer: null,
     settings:
       incoming.settings.updatedAt > local.settings.updatedAt ? incoming.settings : local.settings,
