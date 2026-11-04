@@ -92,7 +92,7 @@ for (const phone of [true, false]) {
       await expect(parent.locator('.task-meta')).toContainText('2/3');
       await expect(main).not.toBeChecked();
       await expect(page.getByRole('dialog')).toHaveCount(0);
-      await expect(page.locator('body')).not.toHaveClass(/task-sort-active/);
+      await expect(page.locator('body')).not.toHaveClass(/sort-active/);
       expect((await saved(page)).timelog.timer).toBeNull();
       expect((await saved(page)).tasks.find((task) => task.id === 'parent')?.subtasks[0].done).toBe(
         true,
@@ -118,12 +118,9 @@ for (const phone of [true, false]) {
         await expect(child).toBeVisible();
         await expect(child).toBeChecked();
       }
-      await page.getByRole('button', { name: '四象限', exact: true }).click();
-      await expect(child).toBeVisible();
       await child.click();
       await expect(child).not.toBeChecked();
       await expect(parent.locator('.task-meta')).toContainText('1/3');
-      await page.getByRole('button', { name: '列表', exact: true }).click();
       await page.reload();
       await expect(child).not.toBeChecked();
       if (phone) await page.getByRole('button', { name: '打开导航', exact: true }).click();

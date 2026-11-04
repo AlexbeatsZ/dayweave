@@ -133,7 +133,7 @@ test('task-bound and manual goals are judged after their period with the same ru
   assert.equal(goalStatus(state, english, day, after, []).met, false, 'no task is not met');
   assert.deepEqual(
     goalStatus(state, english, day, after - 1, [task(['英语'], done), task(['英语'], null)]),
-    { progress: 1, target: 2, settled: false, met: null, within: false },
+    { progress: 1, target: 2, settled: false, met: null, within: false, reached: 0, levels: 1 },
   );
   assert.equal(
     goalStatus(state, english, day, after, [

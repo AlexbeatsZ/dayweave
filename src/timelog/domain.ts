@@ -6,6 +6,7 @@ import {
   zoneClock,
   dateTimeInput,
 } from '../timezone.js';
+import { byOrder, moveOrder } from '../order.js';
 export type Nature = 'positive' | 'neutral' | 'negative';
 export type Span = { start: number; end: number };
 export type Activity = {
@@ -15,6 +16,8 @@ export type Activity = {
   color: string;
   nature: Nature;
   archived: boolean;
+  /** Manual drag order; rows without one follow ordered rows. */
+  order?: number;
   updatedAt: number;
 };
 export type TimeRecord = {
@@ -49,15 +52,58 @@ type GoalCommon = {
   taskId?: string;
   period: 'day' | 'week';
   archived: boolean;
+  /** Manual drag order inside the goals page; rows without one follow ordered rows. */
+  order?: number;
   updatedAt: number;
 };
-/** Judged automatically from saved records of one activity. `kind` is omitted for these. */
+/**
+ * One way a record can count toward a time goal: any of `activities` (empty = any activity),
+ * carrying every tag in `tags` and none in `excludeTags`. A goal's rules are alternatives,
+ * so "#a or #b" is two rules; a rule with nothing chosen counts every record.
+ */
+export type RecordRule = { activities: string[]; tags: string[]; excludeTags: string[] };
+export const emptyRule = (): RecordRule => ({ activities: [], tags: [], excludeTags: [] });
+export function matchesRule(rule: RecordRule, record: Pick<TimeRecord, 'activityId' | 'tags'>) {
+  return (
+    (!rule.activities.length || rule.activities.includes(record.activityId)) &&
+    rule.tags.every((tag) => record.tags.includes(tag)) &&
+    !rule.excludeTags.some((tag) => record.tags.includes(tag))
+  );
+}
+export const matchesRules = (
+  rules: RecordRule[],
+  record: Pick<TimeRecord, 'activityId' | 'tags'>,
+) => rules.some((rule) => matchesRule(rule, record));
+/** "学习或阅读，带 #英语，不带 #摸鱼"; activity names come from `activities`. */
+export function describeRule(rule: RecordRule, activities: Pick<Activity, 'id' | 'name'>[]) {
+  const parts = [
+    rule.activities.length
+      ? rule.activities
+          .map((id) => activities.find((item) => item.id === id)?.name ?? '已删除活动')
+          .join('或')
+      : '任意活动',
+    rule.tags.length && `带 ${rule.tags.map((tag) => `#${tag}`).join(' 和 ')}`,
+    rule.excludeTags.length && `不带 ${rule.excludeTags.map((tag) => `#${tag}`).join('、')}`,
+  ];
+  return parts.filter(Boolean).join('，');
+}
+export const describeRules = (rules: RecordRule[], activities: Pick<Activity, 'id' | 'name'>[]) =>
+  rules.map((rule) => describeRule(rule, activities)).join('；或 ');
+/** The one activity a goal is about, when it has exactly one (for its icon and color). */
+export const rulesActivity = (rules: RecordRule[]) =>
+  rules.length === 1 && rules[0].activities.length === 1 ? rules[0].activities[0] : undefined;
+/** Judged automatically from saved records matching any rule. `kind` is omitted for these. */
 export type TimeGoal = GoalCommon & {
   kind?: undefined;
-  activityId: string;
+  rules: RecordRule[];
   minutes: number;
   /** A ceiling ("at most") or a floor ("at least"); judged only once the period has ended. */
   comparison: 'atLeast' | 'atMost';
+  /**
+   * Optional intermediate thresholds in minutes, ascending and excluding `minutes`. Each one
+   * reached counts as a level (e.g. 8h, 9h, … below a 16h floor; 3h, 2.5h above a 2h ceiling).
+   */
+  stages?: number[];
 };
 /** Met when every task with the tag that is due in the period is completed. */
 export type TaskGoal = GoalCommon & { kind: 'tasks'; taskTag: string };
@@ -321,7 +367,17 @@ export function deleteActivity(state: State, id: string, at = Date.now()): State
   const referenced = state.records.some((record) => record.activityId === id);
   return {
     ...state,
-    goals: state.goals.filter((goal) => goal.kind !== undefined || goal.activityId !== id),
+    goals: state.goals.flatMap((goal): Goal[] => {
+      if (goal.kind !== undefined || !goal.rules.some((rule) => rule.activities.includes(id)))
+        return [goal];
+      // A rule that named only this activity is dropped instead of widening to every
+      // activity; a goal left without rules goes with the activity, as before.
+      const rules = goal.rules.flatMap((rule) => {
+        const activities = rule.activities.filter((item) => item !== id);
+        return rule.activities.length && !activities.length ? [] : [{ ...rule, activities }];
+      });
+      return rules.length ? [{ ...goal, rules, updatedAt: timestamp(goal.updatedAt) }] : [];
+    }),
     activities: referenced
       ? state.activities.map((activity) =>
           activity.id === id
@@ -387,16 +443,18 @@ export const goalRange = (goal: Pick<Goal, 'period'>, key: string) =>
 /** The day, or the week's Monday, that names the period containing `key`. */
 export const goalPeriodKey = (goal: Pick<Goal, 'period'>, key: string) =>
   goal.period === 'week' ? shiftDay(key, 1 - weekday(key)) : key;
-export function goalProgress(state: State, goal: TimeGoal, key: string): number {
-  const range = goalRange(goal, key);
+/** Minutes covered by matching records in `range`; overlapping records count once. */
+export function matchedMinutes(state: State, rules: RecordRule[], range: Span): number {
   return (
     unionDuration(
       recordsIn(state, range)
-        .filter((item) => item.activityId === goal.activityId)
+        .filter((item) => matchesRules(rules, item))
         .flatMap((item) => clipped(item.spans, range)),
     ) / 60000
   );
 }
+export const goalProgress = (state: State, goal: TimeGoal, key: string) =>
+  matchedMinutes(state, goal.rules, goalRange(goal, key));
 export const formatDuration = (ms: number) => {
   const minutes = Math.floor(Math.max(0, ms) / 60000);
   return minutes < 60
@@ -446,7 +504,137 @@ export function goalStatus(
     target = goal.minutes;
     within = goal.comparison === 'atMost' ? progress <= goal.minutes : progress >= goal.minutes;
   }
-  return { progress, target, settled, met: settled ? within : null, within };
+  // Stages only grade time goals; the final target alone decides `met`.
+  const thresholds = goal.kind === undefined ? [...(goal.stages ?? []), goal.minutes] : [target];
+  const reached =
+    goal.kind === undefined
+      ? thresholds.filter((value) =>
+          goal.comparison === 'atMost' ? progress <= value : progress >= value,
+        ).length
+      : Number(within);
+  return {
+    progress,
+    target,
+    settled,
+    met: settled ? within : null,
+    within,
+    reached,
+    levels: thresholds.length,
+  };
+}
+const MAX_STAGES = 50;
+/** Sorted, deduplicated stage minutes on the correct side of the final target. */
+export function goalStages(
+  values: number[],
+  goal: Pick<TimeGoal, 'minutes' | 'comparison'>,
+): number[] {
+  const stages = [...new Set(values.map((value) => Math.round(value)))]
+    .filter((value) => value !== goal.minutes)
+    .sort((a, b) => a - b);
+  if (stages.length > MAX_STAGES) throw new Error(`阶段最多 ${MAX_STAGES} 个。`);
+  for (const value of stages) {
+    if (!Number.isFinite(value) || value < 1 || value > 1000000) throw new Error('阶段时间无效。');
+    if (goal.comparison === 'atLeast' ? value > goal.minutes : value < goal.minutes)
+      throw new Error(
+        goal.comparison === 'atLeast'
+          ? '阶段须小于目标时间。'
+          : '「不超过」目标的阶段须大于目标时间。',
+      );
+  }
+  return stages;
+}
+/** Bare stage numbers use hours when the target is at least an hour, otherwise minutes. */
+const stageUnit = (goal: Pick<TimeGoal, 'minutes'>) => (goal.minutes >= 60 ? 60 : 1);
+/** "8, 9, 10", "8-15" (one stage per unit) or explicit "8h30m"; empty means no stages. */
+export function parseGoalStages(
+  text: string,
+  goal: Pick<TimeGoal, 'minutes' | 'comparison'>,
+): number[] {
+  const unit = stageUnit(goal);
+  const values: number[] = [];
+  for (const part of text.split(/[,，、;；\s]+/).filter(Boolean)) {
+    const range = part.match(/^(\d+(?:\.\d+)?)[-~–—](\d+(?:\.\d+)?)$/);
+    if (range) {
+      const [low, high] = [Number(range[1]), Number(range[2])].sort((a, b) => a - b);
+      if (high - low >= MAX_STAGES) throw new Error(`阶段最多 ${MAX_STAGES} 个。`);
+      for (let value = low; value <= high + 1e-9; value++) values.push(value * unit);
+    } else if (/^\d+(?:\.\d+)?$/.test(part)) values.push(Number(part) * unit);
+    else if (/^[<>≤≥=]/.test(part)) throw new Error('阶段只写时间，例如 8,9,10 或 8-15。');
+    else
+      try {
+        values.push(parseGoalTarget(part).minutes);
+      } catch {
+        throw new Error('阶段示例：8,9,10、8-15、1h30m。');
+      }
+  }
+  return goalStages(values, goal);
+}
+/** Editable stage text; runs of three or more consecutive units collapse into "8-15". */
+export function goalStagesText(goal: Pick<TimeGoal, 'minutes' | 'stages'>): string {
+  const unit = stageUnit(goal);
+  const parts: string[] = [];
+  const stages = goal.stages ?? [];
+  for (let index = 0; index < stages.length;) {
+    const value = stages[index];
+    if (value % unit) {
+      parts.push(`${Math.floor(value / 60)}h${value % 60}m`);
+      index++;
+      continue;
+    }
+    let end = index;
+    while (end + 1 < stages.length && stages[end + 1] === stages[end] + unit) end++;
+    parts.push(
+      end - index >= 2
+        ? `${value / unit}-${stages[end] / unit}`
+        : stages
+            .slice(index, end + 1)
+            .map((item) => String(item / unit))
+            .join(', '),
+    );
+    index = end + 1;
+  }
+  return parts.join(', ');
+}
+/** Moves one row among `visible` ids and writes `order` to every row of `rows`. */
+export function reorderRows<T extends { id: string; order?: number; updatedAt: number }>(
+  rows: T[],
+  visible: string[],
+  source: string,
+  target: string,
+): T[] {
+  const order = moveOrder(
+    rows.map((row) => row.id),
+    visible,
+    source,
+    target,
+  );
+  if (!order) return rows;
+  return rows
+    .map((row) =>
+      row.order === order.get(row.id)
+        ? row
+        : { ...row, order: order.get(row.id)!, updatedAt: timestamp(row.updatedAt) },
+    )
+    .sort(byOrder);
+}
+/**
+ * Goals as the page shows them: user groups in first-seen order, manual order inside each
+ * group. Goals never ordered by hand keep the older rule of daily before weekly.
+ */
+export function sortGoals<T extends Goal>(goals: T[]): T[] {
+  const sorted = goals
+    .map((goal, index) => ({ goal, index }))
+    .sort(
+      (a, b) =>
+        byOrder(a.goal, b.goal) ||
+        (a.goal.order === undefined
+          ? Number(a.goal.period === 'week') - Number(b.goal.period === 'week')
+          : 0) ||
+        a.index - b.index,
+    )
+    .map((item) => item.goal);
+  const groups = [...new Set(sorted.map((goal) => goal.group ?? ''))];
+  return groups.flatMap((group) => sorted.filter((goal) => (goal.group ?? '') === group));
 }
 /** "9h", ">90", "<2h", "1h30m", "≤ 45分钟"; a bare number is minutes and means at least. */
 export function parseGoalTarget(text: string): Pick<TimeGoal, 'minutes' | 'comparison'> {
@@ -511,6 +699,8 @@ const nature = (value: unknown): Nature => {
     throw new Error('活动性质无效。');
   return value;
 };
+const orderField = (value: unknown) =>
+  value === undefined ? {} : { order: num(value, '排序', -1e9, 1e9) };
 function list<T>(value: unknown, label: string, max: number, parse: (item: unknown) => T): T[] {
   if (!Array.isArray(value) || value.length > max) throw new Error(`${label} 列表无效或过大。`);
   return value.map(parse);
@@ -551,10 +741,11 @@ export function validateState(value: unknown): State {
         nature: nature(o.nature),
         archived: bool(o.archived),
         ...(o.deletedAt === undefined ? {} : { deletedAt: num(o.deletedAt, '删除时间') }),
+        ...orderField(o.order),
         updatedAt: num(o.updatedAt, '更新时间'),
       };
     }),
-  );
+  ).sort(byOrder);
   const activityIds = new Set(activities.map((item) => item.id));
   const activityId = (value: unknown) => {
     const result = id(value);
@@ -562,6 +753,24 @@ export function validateState(value: unknown): State {
     return result;
   };
   const tags = (value: unknown) => list(value, '标签', 16, (item) => str(item, '标签', 40));
+  const atLeastOne = (rules: RecordRule[]) => {
+    if (!rules.length) throw new Error('计时目标至少需要一条计入规则。');
+    return rules;
+  };
+  const recordRule = (value: unknown): RecordRule => {
+    const o = obj(value, '计入规则');
+    const names = (item: unknown) => [
+      ...new Set(list(item, '标签', 50, (tag) => str(tag, '标签', 40).trim()).filter(Boolean)),
+    ];
+    const rule: RecordRule = {
+      activities: [...new Set(list(o.activities ?? [], '活动', 200, activityId))],
+      tags: names(o.tags ?? []),
+      excludeTags: names(o.excludeTags ?? []),
+    };
+    if (rule.tags.some((tag) => rule.excludeTags.includes(tag)))
+      throw new Error('同一标签不能既包含又排除。');
+    return rule;
+  };
   const records = unique(
     list(root.records, '记录', 100000, (value): TimeRecord => {
       const o = obj(value, '记录');
@@ -589,6 +798,7 @@ export function validateState(value: unknown): State {
         ...(o.taskId === undefined ? {} : { taskId: id(o.taskId) }),
         period: o.period,
         archived: bool(o.archived),
+        ...orderField(o.order),
         updatedAt: num(o.updatedAt, '更新时间'),
       } as const;
       if (o.kind === 'tasks') {
@@ -613,15 +823,30 @@ export function validateState(value: unknown): State {
         };
       }
       if (o.kind !== undefined) throw new Error('目标类型错误。');
-      return {
-        ...common,
-        activityId: activityId(o.activityId),
+      const target = {
         minutes: num(o.minutes, '目标分钟', 1, 1000000),
         // Goals saved before the comparison existed were all floors.
         comparison: o.comparison === 'atMost' ? 'atMost' : 'atLeast',
+      } as const;
+      const stages =
+        o.stages === undefined
+          ? []
+          : goalStages(
+              list(o.stages, '阶段', MAX_STAGES, (value) => num(value, '阶段分钟', 1, 1000000)),
+              target,
+            );
+      return {
+        ...common,
+        // Goals saved before rules existed counted exactly one activity.
+        rules:
+          o.rules === undefined
+            ? [{ ...emptyRule(), activities: [activityId(o.activityId)] }]
+            : atLeastOne(list(o.rules, '计入规则', 20, recordRule)),
+        ...target,
+        ...(stages.length ? { stages } : {}),
       };
     }),
-  );
+  ).sort(byOrder);
   // Points, rewards and redemptions were removed; older data carrying them is read and dropped.
   const parseTimer = (value: unknown): Timer => {
     const o = obj(value, '计时');

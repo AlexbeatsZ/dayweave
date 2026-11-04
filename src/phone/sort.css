@@ -1,35 +1,41 @@
-.task-sort-active,
-.task-sort-active * {
+.sort-active,
+.sort-active * {
   user-select: none;
   -webkit-user-select: none;
   cursor: grabbing !important;
 }
 
-.task-row.task-sort-source {
+.sort-source {
   opacity: 0.3;
   outline: 1px dashed var(--accent);
   outline-offset: -1px;
+}
+
+.task-row.sort-source {
   background: var(--bg);
 }
 
-.task-sort-overlay {
+.sort-overlay {
   display: contents;
 }
 
-.task-row.task-sort-ghost {
-  position: fixed;
+.sort-ghost {
+  position: fixed !important;
   z-index: 10000;
   margin: 0;
   pointer-events: none;
-  border-radius: 12px;
   background: var(--bg);
   box-shadow: 0 12px 30px #0006;
   outline: 1px solid var(--accent);
   transform: scale(1.015);
 }
 
+.task-row.sort-ghost {
+  border-radius: 12px;
+}
+
 @media (max-width: 700px) {
-  .task-row[data-task-sortable='true'] .task-body {
+  [data-sort-group] [data-sort-handle] {
     -webkit-touch-callout: none;
     -webkit-user-select: none;
     user-select: none;
@@ -37,7 +43,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .task-row.task-sort-ghost {
+  .sort-ghost {
     transform: none;
   }
 }

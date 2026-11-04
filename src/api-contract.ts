@@ -10,7 +10,6 @@ export const taskInputSchema = taskSchema
     actualMinutes: true,
     listId: true,
     due: true,
-    quadrant: true,
     tags: true,
     planGroupId: true,
     subtasks: true,

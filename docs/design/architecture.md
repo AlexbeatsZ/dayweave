@@ -35,7 +35,8 @@
 | `phone/DateNavigator.tsx`                           | 日计划、周计划、时间线和每日统计共用日期控件                    | `DateNavigator` / `calendarWeek`                              |
 | `phone/Sidebar.tsx`                                 | 按当前模块显示清单/标签或活动/标签及设置入口                    | 同一个分类组件在手机抽屉、PC 常驻侧栏内呈现                   |
 | `phone/TaskComposer.tsx`                            | 新建和编辑任务的同一个草稿与显式保存流程                        | `TaskComposer`，可传已有 task                                 |
-| `components/TaskRow.tsx` / `phone/useTaskDrag.ts`   | 共用任务行、清单色确认框、紧急竖线、视图序号与长按排序手势      | 行操作及排序回调                                              |
+| `components/TaskRow.tsx`                            | 共用任务行、清单色确认框、视图序号                              | 行操作及排序回调                                              |
+| `phone/useSortDrag.ts` / `order.ts`                 | 任务、活动、目标共用的长按拖动排序手势与 `moveOrder` 重编号     | `data-sort-id`/`data-sort-group`；`moveOrder` / `byOrder`     |
 | `components/ColorPicker.tsx`                        | 清单、课程和两类标签共用颜色选择；活动沿用原生颜色输入          | `ColorPicker`                                                 |
 | `components/Modal.tsx`                              | 原生 modal 生命周期、焦点、最顶层 Android 返回                  | `Modal` 的普通/底部/侧栏呈现                                  |
 | `phone/Statistics.tsx`                              | 每日任务与记录汇总、全部待办/记录统计入口                       | `PhoneStatistics`                                             |
@@ -43,7 +44,9 @@
 | `timelog/components/TimerPanel.tsx`                 | 一个计时面板：活动选择/长按编辑、运行控制、预设、关联、下一活动 | 已保存 state 与共用 commit 回调                               |
 | `phone/useTimelineDays.ts`                          | 历史窗口锚点、追加天数、跳转与可见日投影                        | `list` / `dates` / `jump`                                     |
 | `timelog/components/TimelineEntries.tsx`            | 手机和桌面共用时间边界、空档与运行记录                          | entries、明确日期、编辑回调                                   |
-| `timelog/components/Goals.tsx`                      | 当前日/周分组、目标卡片与进度展示                               | state、date、edit、remove                                     |
+| `timelog/components/Goals.tsx`                      | 当前日/周分组、目标卡片、阶段进度与组内拖动排序                 | state、date、edit、remove、move                               |
+| `timelog/components/GoalRules.tsx` / `TagChips.tsx` | 计时目标的计入规则编辑；记录/计时/规则共用标签块与新增输入      | `GoalRules`；`TagToggles` / `TagAdder`                        |
+| `timelog/components/GoalHeatmap.tsx`                | 统计 › 记录 › 目标的完成热力图                                  | state、tasks、date                                            |
 | `timelog/domain.ts` / `timeline.ts` / `timezone.ts` | 片段、截止、目标、并集、空档和日程日期的唯一计算                | 共用领域函数                                                  |
 | `sync/document.ts`                                  | 统一实体与未结束记录的同步表示、三方合并                        | `toDocument` / `fromDocument` / `mergeDocuments`              |
 
@@ -55,8 +58,8 @@ Workspace 直接使用统一 store，不建立 `readState → setState → subsc
 
 - 新建和编辑任务都使用 `TaskComposer`，以同一字段解析和保存，不并存另一套手机详情表单。编辑检查打开时的 `updatedAt`，不通过逐字段自动保存掩盖并发覆盖。
 - 日计划分组 `planGroups` 是某一业务日计划的分段，任务仍由 `due` 决定属于哪天；`withTaskDay` 是改日期离开原分组的唯一规则，删除分组只让任务变为未分组。分组只在日计划列表视图出现，详见 planning-goals.md。
-- 待办箱是 `due=null` 的任务范围，与所属清单独立；默认清单 ID `inbox` 仅保留兼容含义“未分组”。日计划、自然周、四象限和统计都从原任务派生，不复制计划实体；四象限读任务的 `quadrant` 属性。月历显示当天全部未删除任务，已完成的变暗排在后面，格子放不下时“还有 N 件”跳到该日日计划；月历下方不再单独列当天计划。
-- 任务序号由当前可见未完成任务顺序计算，不持久化另一份编号。长按拖动只更新任务顺序；完成项只在日/周计划以灰色勾选沉底，其他范围隐藏。
+- 待办箱是 `due=null` 的任务范围，与所属清单独立；默认清单 ID `inbox` 仅保留兼容含义“未分组”。日计划、自然周和统计都从原任务派生，不复制计划实体；四象限已撤回，读取时丢弃旧 `quadrant` 字段。月历显示当天全部未删除任务，已完成的变暗排在后面，格子放不下时“还有 N 件”跳到该日日计划；月历下方不再单独列当天计划。
+- 任务序号由当前可见未完成任务顺序计算，不持久化另一份编号。长按拖动只更新任务顺序；活动与目标拖动写各自可选 `order`（`validateState` 按它排序数组，未排过的保持在后），同一个 `useSortDrag` 与 `moveOrder` 负责三处排序，不另写拖动逻辑。拖动影子包在原祖先的 class 链（display: contents）里，所以作用域样式无需复制；完成项只在日/周计划以灰色勾选沉底，其他范围隐藏。
 - `components/TaskCheck.tsx` 统一父任务、列表子任务和编辑草稿的完成控件及无障碍语义。`TaskRow` 展示原有子任务并在统一 store 事务中更新最新任务；`TaskComposer` 只改本地草稿，沿用显式保存和并发检查。不复制子任务状态，不另建子任务持久化路径；输入框样式只匹配实际文本输入。
 - 清单活动映射放入清单的 `activityId`，任务 UI 与 AI API 都调用 `startTaskTimer`，不再各写一段按清单名选择活动的逻辑。
 - 清单和活动复用各自已有 `color`；标签字符串仍存于任务/记录中，颜色元数据集中在 `tagColors.tasks/records`。其增量保存、备份和同步都属于统一状态，不创建独立标签数据库。

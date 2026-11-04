@@ -133,7 +133,7 @@ test('activity deletion removes goals and choices but preserves historical refer
   state.goals.push({
     id: 'study-goal',
     name: '学习',
-    activityId: 'study',
+    rules: [{ activities: ['study'], tags: [], excludeTags: [] }],
     minutes: 30,
     period: 'day',
     comparison: 'atLeast',

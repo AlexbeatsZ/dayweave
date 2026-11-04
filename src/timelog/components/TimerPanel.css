@@ -254,6 +254,10 @@
   background: var(--accent-tint);
   color: var(--accent);
 }
+.timelog-module .timer-times {
+  display: grid;
+  gap: 10px;
+}
 .timelog-module .timer-time-summary {
   display: grid;
   grid-template-columns: 1fr 1fr auto;
@@ -300,12 +304,8 @@
   font-size: 12px;
   font-weight: 500;
 }
-.timelog-module .timer-section-title .icon-button {
-  background: var(--input);
-  border-radius: 50%;
-  min-width: 30px;
-  width: 30px;
-  height: 30px;
+.timelog-module .timer-section-title + .phone-tag-chips {
+  margin-top: 10px;
 }
 .timelog-module .timer-plan {
   display: grid;
@@ -387,11 +387,6 @@
 .timelog-module .timer-footer-actions .timer-cancel {
   color: var(--muted);
 }
-.timer-start-shortcuts {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
 .preset-edit-list {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -424,6 +419,10 @@
   }
   .timelog-module .timer-presets {
     margin-bottom: 12px;
+  }
+  .timelog-module .timer-times {
+    display: grid;
+    gap: 10px;
   }
   .timelog-module .timer-time-summary {
     padding: 10px 12px;

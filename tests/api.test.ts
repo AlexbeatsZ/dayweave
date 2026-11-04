@@ -245,7 +245,8 @@ test('ETag protects stale API writes and field deltas merge disjoint UI edits', 
       200,
     );
     assert.equal(
-      (await request('PATCH', `/tasks/${task.id}`, { quadrant: 2 }, { 'If-Match': etag })).status,
+      (await request('PATCH', `/tasks/${task.id}`, { estimatedMinutes: 20 }, { 'If-Match': etag }))
+        .status,
       409,
     );
     await service.patch(diffState(base, local));

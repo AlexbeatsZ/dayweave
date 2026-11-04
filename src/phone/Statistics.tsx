@@ -24,6 +24,7 @@ export function PhoneStatistics({
     return (
       <RecordStatistics
         state={data.timelog}
+        tasks={data.tasks}
         date={date}
         setDate={setDate}
         onTimeline={onTimeline}

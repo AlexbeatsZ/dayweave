@@ -16,13 +16,17 @@ import {
   timestamp,
   toggleTimer,
   natureLabels,
+  reorderRows,
   type Activity,
   type Nature,
   type State,
 } from '../domain';
 import { lastRecordEnd } from '../timeline';
+import { TagToggles } from './TagChips';
 import { Dialog } from './Dialog';
 import { ActivityIcon } from '../../phone/ActivityIcon';
+import { SORT_HOLD_MS, useSortDrag } from '../../phone/useSortDrag';
+import '../../phone/sort.css';
 import type { Commit } from './Editor';
 
 export function TimerPanel({
@@ -48,13 +52,12 @@ export function TimerPanel({
   useLayoutEffect(() => {
     panel.current?.closest('.phone-content')?.scrollTo(0, 0);
   }, [timer?.id]);
-  const [editing, setEditing] = useState<'times' | 'presets' | 'tags' | 'next' | null>(null);
+  const [editing, setEditing] = useState<'times' | 'presets' | 'next' | null>(null);
   const [start, setStart] = useState(''),
     [end, setEnd] = useState('');
   const [exactStart, setExactStart] = useState<number | null>(null);
   const [customMinutes, setCustomMinutes] = useState('');
-  const [tags, setTags] = useState(''),
-    [error, setError] = useState('');
+  const [error, setError] = useState('');
   const presets = state.settings.timerPresets ?? [5, 30, 45, 60];
   const todaysTasks = tasks.filter(
     (task) => !task.deletedAt && !task.completedAt && task.due === dateKey(),
@@ -67,6 +70,7 @@ export function TimerPanel({
     ]),
   ];
   const elapsed = timer ? duration(liveSpans(timer, now)) : 0;
+  const previousEnd = timer ? lastRecordEnd(state, now) : 0;
   const countdown = timer?.plannedEndAt != null;
   const clock = timer ? (countdown ? countdownRemaining(timer, now) : elapsed) : 0;
   const progress =
@@ -220,41 +224,57 @@ export function TimerPanel({
                 <Plus size={17} />
               </button>
             </div>
-            <button className="timer-time-summary" aria-label="调整起止时间" onClick={openTimes}>
-              <span>
-                <small>开始</small>
-                <strong>{zoneClock(timer.startedAt)}</strong>
-              </span>
-              <span>
-                <small>结束</small>
-                <strong>{timer.plannedEndAt ? zoneClock(timer.plannedEndAt) : '未设置'}</strong>
-              </span>
-              <ChevronRight size={16} />
-            </button>
+            <div className="timer-times">
+              <button className="timer-time-summary" aria-label="调整起止时间" onClick={openTimes}>
+                <span>
+                  <small>开始</small>
+                  <strong>{zoneClock(timer.startedAt)}</strong>
+                </span>
+                <span>
+                  <small>结束</small>
+                  <strong>{timer.plannedEndAt ? zoneClock(timer.plannedEndAt) : '未设置'}</strong>
+                </span>
+                <ChevronRight size={16} />
+              </button>
+              {/* Starting from where the previous record ended is the common correction. */}
+              {previousEnd > 0 && previousEnd !== timer.startedAt && (
+                <div className="quick-chips">
+                  <button
+                    onClick={() =>
+                      void commit(
+                        (current) =>
+                          current.timer?.id === timer.id
+                            ? adjustTimerStart(current, previousEnd, Date.now())
+                            : current,
+                        '已从上条记录结束开始',
+                      )
+                    }
+                  >
+                    接上条记录 {zoneClock(previousEnd)}
+                  </button>
+                </div>
+              )}
+            </div>
           </section>
           <section className="timer-related">
             <div className="timer-section-title">
               <h3>相关标签</h3>
-              <button
-                className="icon-button"
-                aria-label="编辑活动标签"
-                onClick={() => {
-                  setTags(timer.tags.join(', '));
-                  setEditing('tags');
-                }}
-              >
-                <Plus size={18} />
-              </button>
             </div>
-            {!!timer.tags.length && (
-              <div className="phone-tag-chips">
-                {timer.tags.map((tag) => (
-                  <span key={tag} style={{ color: tagColors[tag] }}>
-                    #{tag}
-                  </span>
-                ))}
-              </div>
-            )}
+            <TagToggles
+              label="计时标签"
+              options={tagOptions}
+              selected={timer.tags}
+              colors={tagColors}
+              onChange={(values) =>
+                void commit(
+                  (current) =>
+                    current.timer?.id === timer.id
+                      ? { ...current, timer: { ...current.timer, tags: values } }
+                      : current,
+                  '',
+                )
+              }
+            />
             <label className="timer-plan">
               <span>相关计划</span>
               <select
@@ -357,13 +377,25 @@ export function TimerPanel({
           <header className="activity-library-heading">
             <div>
               <h2>选择活动</h2>
-              <p className="activity-touch-hint">点按开始计时，长按编辑活动</p>
-              <p className="activity-pointer-hint">点击开始计时，点击铅笔编辑活动</p>
+              <p className="activity-touch-hint">点按开始计时，长按编辑，按住后拖动排序</p>
+              <p className="activity-pointer-hint">点击开始计时，点击铅笔编辑，按住拖动排序</p>
             </div>
           </header>
           <div className="activity-groups">
             {(['positive', 'neutral', 'negative'] as const).map((nature) => {
               const group = activities.filter((activity) => activity.nature === nature);
+              const visible = group.map((activity) => activity.id);
+              const move =
+                group.length > 1
+                  ? (source: string, target: string) =>
+                      void commit(
+                        (current) => ({
+                          ...current,
+                          activities: reorderRows(current.activities, visible, source, target),
+                        }),
+                        '',
+                      )
+                  : undefined;
               return (
                 <section
                   className="activity-group"
@@ -381,6 +413,8 @@ export function TimerPanel({
                         activity={activity}
                         select={() => void begin(activity.id)}
                         edit={() => editActivity(activity)}
+                        sortGroup={`activity:${nature}`}
+                        move={move}
                       />
                     ))}
                     <button
@@ -405,9 +439,7 @@ export function TimerPanel({
               ? '调整起止时间'
               : editing === 'presets'
                 ? '倒计时预设'
-                : editing === 'next'
-                  ? '下一个活动'
-                  : '相关标签'
+                : '下一个活动'
           }
           close={close}
         >
@@ -425,17 +457,18 @@ export function TimerPanel({
                   }}
                 />
               </label>
-              <div className="timer-start-shortcuts">
-                <button className="secondary" onClick={() => chooseStart(Date.now())}>
-                  当前时间
-                </button>
-                <button
-                  className="secondary"
-                  disabled={!lastRecordEnd(state, Date.now())}
-                  onClick={() => chooseStart(lastRecordEnd(state, Date.now()))}
-                >
-                  上一条记录末尾
-                </button>
+              <div className="quick-chips" aria-label="快速设置开始">
+                {previousEnd > 0 && (
+                  <button onClick={() => chooseStart(previousEnd)}>
+                    接上条记录 {zoneClock(previousEnd)}
+                  </button>
+                )}
+                {[5, 15, 30].map((minutes) => (
+                  <button key={minutes} onClick={() => chooseStart(Date.now() - minutes * 60000)}>
+                    {minutes} 分钟前
+                  </button>
+                ))}
+                <button onClick={() => chooseStart(Date.now())}>现在</button>
               </div>
               <label>
                 结束时间（可选）
@@ -446,9 +479,11 @@ export function TimerPanel({
                   onChange={(event) => setEnd(event.target.value)}
                 />
               </label>
-              <button className="text-button" onClick={() => setEnd('')}>
-                清除结束时间，使用正计时
-              </button>
+              <div className="quick-chips" aria-label="快速设置结束">
+                <button aria-pressed={!end} onClick={() => setEnd('')}>
+                  不设结束（正计时）
+                </button>
+              </div>
               <p className="footnote">
                 晚于现在的结束时间会进入倒计时；早于现在会保存为已结束记录。时间按日程时区计算。
               </p>
@@ -533,66 +568,6 @@ export function TimerPanel({
               </button>
             </div>
           )}
-          {editing === 'tags' && (
-            <div className="editor">
-              <label>
-                相关标签
-                <input
-                  aria-label="计时标签"
-                  value={tags}
-                  placeholder="用逗号分隔"
-                  onChange={(event) => setTags(event.target.value)}
-                />
-              </label>
-              <div className="phone-tag-chips">
-                {tagOptions.map((tag) => (
-                  <button
-                    style={{ color: tagColors[tag] }}
-                    key={tag}
-                    onClick={() =>
-                      setTags(
-                        [
-                          ...new Set([
-                            ...tags
-                              .split(/[,，]/)
-                              .map((value) => value.trim())
-                              .filter(Boolean),
-                            tag,
-                          ]),
-                        ].join(', '),
-                      )
-                    }
-                  >
-                    #{tag}
-                  </button>
-                ))}
-              </div>
-              <button
-                className="primary"
-                onClick={() => {
-                  const values = [
-                    ...new Set(
-                      tags
-                        .split(/[,，]/)
-                        .map((tag) => tag.trim().replace(/^#/, ''))
-                        .filter(Boolean),
-                    ),
-                  ];
-                  void commit(
-                    (current) =>
-                      current.timer?.id === timer?.id
-                        ? { ...current, timer: { ...current.timer!, tags: values } }
-                        : current,
-                    '标签已更新',
-                  ).then((saved) => {
-                    if (saved) close();
-                  });
-                }}
-              >
-                保存标签
-              </button>
-            </div>
-          )}
           {editing === 'next' && (
             <>
               <p className="section-note">选择下一项后，当前活动会记录并在同一时刻衔接下一项。</p>
@@ -618,16 +593,27 @@ export function TimerPanel({
   );
 }
 
-/** Touch hold opens immediately; mouse editing uses a visible action or context menu. */
+/**
+ * Touch hold opens the editor before release; mouse editing uses a visible action or
+ * context menu. Sortable tiles lift for dragging at SORT_HOLD_MS and open the editor
+ * only if the finger is still stationary at EDIT_HOLD_SORTABLE_MS.
+ */
+const EDIT_HOLD_MS = 450;
+const EDIT_HOLD_SORTABLE_MS = SORT_HOLD_MS + 300;
 function ActivityTile({
   activity,
   select,
   edit,
+  sortGroup = '',
+  move,
 }: {
   activity: Activity;
   select: () => void;
   edit?: () => void;
+  sortGroup?: string;
+  move?: (source: string, target: string) => void;
 }) {
+  const drag = useSortDrag(activity.id, sortGroup, move, !edit);
   const hold = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pointer = useRef<{ x: number; y: number } | null>(null);
   const consumed = useRef(false);
@@ -645,9 +631,16 @@ function ActivityTile({
     [],
   );
   return (
-    <div className="activity-tile-wrap">
+    <div
+      ref={drag.ref as React.RefObject<HTMLDivElement>}
+      className={`activity-tile-wrap ${drag.dragging ? 'sort-source' : ''}`}
+      data-sort-id={move && edit ? activity.id : undefined}
+      data-sort-group={move && edit ? sortGroup : undefined}
+      onClickCapture={drag.onClickCapture}
+    >
       <button
         className="activity-tile"
+        data-sort-handle
         style={{ '--activity-color': activity.color } as CSSProperties}
         aria-label={`开始 ${activity.name}`}
         aria-description={edit ? '触屏长按，或使用编辑按钮、右键、F2 编辑活动' : undefined}
@@ -657,38 +650,42 @@ function ActivityTile({
           if (!edit || event.button !== 0 || event.pointerType === 'mouse') return;
           const pointerId = event.pointerId;
           pointer.current = { x: event.clientX, y: event.clientY };
-          hold.current = setTimeout(() => {
-            consumed.current = true;
-            hold.current = null;
-            // showModal makes this tile inert and releases pointer capture. Guard
-            // the rest of this gesture before it can reach the new modal/backdrop.
-            const dispose = () => {
-              document.removeEventListener('pointerup', stopRelease, true);
-              document.removeEventListener('click', stopClick, true);
-              document.removeEventListener('pointerdown', dispose, true);
-              releaseGuard.current = null;
-            };
-            const stopRelease = (event: PointerEvent) => {
-              if (event.pointerId !== pointerId) return;
-              event.preventDefault();
-              event.stopImmediatePropagation();
-              clear();
-            };
-            const stopClick = (event: MouseEvent) => {
-              if (event instanceof PointerEvent && event.pointerId !== pointerId) return;
-              event.preventDefault();
-              event.stopImmediatePropagation();
-              dispose();
-            };
-            releaseGuard.current?.();
-            releaseGuard.current = dispose;
-            document.addEventListener('pointerup', stopRelease, true);
-            document.addEventListener('click', stopClick, true);
-            // Some browsers suppress the compatibility click. The next genuine
-            // pointer gesture ends the guard before interacting with the editor.
-            document.addEventListener('pointerdown', dispose, true);
-            edit();
-          }, 450);
+          hold.current = setTimeout(
+            () => {
+              consumed.current = true;
+              hold.current = null;
+              // showModal makes this tile inert and releases pointer capture. Guard
+              // the rest of this gesture before it can reach the new modal/backdrop.
+              const dispose = () => {
+                document.removeEventListener('pointerup', stopRelease, true);
+                document.removeEventListener('click', stopClick, true);
+                document.removeEventListener('pointerdown', dispose, true);
+                releaseGuard.current = null;
+              };
+              const stopRelease = (event: PointerEvent) => {
+                if (event.pointerId !== pointerId) return;
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                clear();
+              };
+              const stopClick = (event: MouseEvent) => {
+                if (event instanceof PointerEvent && event.pointerId !== pointerId) return;
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                dispose();
+              };
+              releaseGuard.current?.();
+              releaseGuard.current = dispose;
+              document.addEventListener('pointerup', stopRelease, true);
+              document.addEventListener('click', stopClick, true);
+              // Some browsers suppress the compatibility click. The next genuine
+              // pointer gesture ends the guard before interacting with the editor.
+              document.addEventListener('pointerdown', dispose, true);
+              drag.cancel();
+              edit();
+            },
+            move ? EDIT_HOLD_SORTABLE_MS : EDIT_HOLD_MS,
+          );
         }}
         onPointerMove={(event) => {
           if (

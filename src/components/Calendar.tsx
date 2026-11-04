@@ -87,7 +87,7 @@ export function Calendar({
                 {dayTasks.slice(0, 3).map((task) => (
                   <button
                     key={task.id}
-                    className={`calendar-event quadrant-${task.quadrant ?? 0} ${task.completedAt ? 'event-done' : ''}`}
+                    className={`calendar-event ${task.completedAt ? 'event-done' : ''}`}
                     draggable
                     onDragStart={(e) =>
                       e.dataTransfer.setData('application/clearlist-task', task.id)

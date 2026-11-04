@@ -898,21 +898,6 @@ dialog.wide-dialog {
   width: 64px;
   height: 35px;
 }
-.time-shortcuts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: center;
-}
-.chip {
-  background: var(--soft);
-  padding: 5px 10px;
-  color: var(--text);
-  font-size: 11px;
-}
-.time-shortcuts .text-button {
-  font-size: 11px;
-}
 .dialog-actions {
   display: flex;
   flex-wrap: wrap;

@@ -433,26 +433,6 @@
 .timelog-module .goal-card.missed .goal-card-status > span {
   color: var(--red);
 }
-.timelog-module .goal-history {
-  display: flex;
-  gap: 4px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.timelog-module .goal-history li {
-  display: grid;
-  place-items: center;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  color: var(--muted);
-  background: var(--soft);
-}
-.timelog-module .goal-history li.met {
-  color: var(--surface);
-  background: var(--activity-color);
-}
 .timelog-module .goal-card-main {
   display: flex;
   flex-direction: column;
@@ -476,6 +456,13 @@
 .timelog-module .goal-card h3 > span {
   overflow-wrap: anywhere;
 }
+.timelog-module .goal-match {
+  margin: -4px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
 .timelog-module .goal-card-status {
   display: flex;
   justify-content: space-between;
@@ -488,10 +475,21 @@
   font-weight: 500;
 }
 .timelog-module .progress-track {
+  position: relative;
+  flex: none;
   background: var(--soft);
   height: 3px;
   border-radius: 5px;
   overflow: hidden;
+}
+/* Stage marks; the last one is the final target. */
+.timelog-module .progress-track > i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--surface);
 }
 .timelog-module .progress-track > span {
   display: block;
@@ -708,20 +706,10 @@
   width: 64px;
   height: 35px;
 }
-.timelog-module .time-shortcuts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: center;
-}
-.timelog-module .chip {
-  background: var(--soft);
-  padding: 5px 10px;
-  color: var(--text);
-  font-size: 11px;
-}
-.timelog-module .time-shortcuts .text-button {
-  font-size: 11px;
+.timelog-module .form-field {
+  display: grid;
+  gap: 8px;
+  font-size: 12px;
 }
 .timelog-module .dialog-actions {
   display: flex;
@@ -1070,4 +1058,58 @@
 }
 .timelog-module .goal-card:has(.goal-check) h3 {
   padding-right: 52px;
+}
+
+/* Time goal rules: OR'ed cards; activity chips toggle, tag chips cycle 不限 → 包含 → 排除. */
+.timelog-module .goal-rules {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 10px 12px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  min-width: 0;
+}
+.timelog-module .goal-rules legend {
+  padding: 0 4px;
+  font-size: 13px;
+}
+.timelog-module .goal-rules > .muted {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.timelog-module .goal-rule {
+  display: grid;
+  gap: 6px;
+  padding: 8px 10px 10px;
+  border-radius: 10px;
+  background: var(--soft);
+  min-width: 0;
+}
+.timelog-module .goal-rule > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 28px;
+  font-size: 12px;
+}
+.timelog-module .goal-rule-add {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.timelog-module .match-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.timelog-module .match-summary {
+  margin: 2px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
 }

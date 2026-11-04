@@ -253,7 +253,10 @@ test('deleting activities and goals removes usable entities while retaining hist
     assert.equal((await request('GET', `/timelog/activities/${activity.id}`)).status, 404);
     const state = (await service.snapshot()).state.timelog;
     assert.equal(
-      state.goals.some((row) => row.kind === undefined && row.activityId === activity.id),
+      state.goals.some(
+        (row) =>
+          row.kind === undefined && row.rules.some((rule) => rule.activities.includes(activity.id)),
+      ),
       false,
     );
     assert.ok(state.records.find((row) => row.id === record.id));

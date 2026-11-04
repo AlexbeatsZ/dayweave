@@ -8,6 +8,10 @@ import {
   finishTimer,
   goalStatus,
   parseGoalTarget,
+  parseGoalStages,
+  goalStages,
+  emptyRule,
+  type RecordRule,
   liveSpans,
   duration,
   makeBackup,
@@ -202,6 +206,9 @@ export async function handleApi(
             target: status.target,
             settled: status.settled,
             met: status.met,
+            // Thresholds reached out of stages + final target (1 level for unstaged goals).
+            reached: status.reached,
+            levels: status.levels,
           };
         });
         const item = itemId && items.find((row) => row.id === itemId);
@@ -314,6 +321,7 @@ export async function handleApi(
           color: text(body.color, previous?.color || '#357a9e'),
           nature,
           archived: false,
+          ...(previous?.order === undefined ? {} : { order: previous.order }),
           updatedAt: timestamp(previous?.updatedAt),
         };
         result = item;
@@ -432,6 +440,7 @@ export async function handleApi(
           ...(group ? { group } : {}),
           period: text(body.period, old?.period || 'day') as Goal['period'],
           archived: false,
+          ...(old?.order === undefined ? {} : { order: old.order }),
           updatedAt: timestamp(previous?.updatedAt),
         };
         let item: Goal;
@@ -461,7 +470,40 @@ export async function handleApi(
           }
           if (target.comparison !== 'atLeast' && target.comparison !== 'atMost')
             fail(400, 'comparison must be atLeast or atMost');
-          item = { ...base, activityId: text(body.activityId, timeGoal?.activityId), ...target };
+          // "stages" takes minutes ([480, 540]) or editor text ("8-15"); null clears them.
+          let stages: number[];
+          try {
+            stages =
+              body.stages === undefined
+                ? goalStages(timeGoal?.stages ?? [], target)
+                : body.stages === null
+                  ? []
+                  : typeof body.stages === 'string'
+                    ? parseGoalStages(body.stages, target)
+                    : Array.isArray(body.stages) &&
+                        body.stages.every((value) => typeof value === 'number')
+                      ? goalStages(body.stages as number[], target)
+                      : fail(400, 'stages must be minutes, text or null');
+          } catch (error) {
+            if (error instanceof ApiError) throw error;
+            return fail(400, error instanceof Error ? error.message : String(error));
+          }
+          // "rules" replaces every rule (missing keys mean "any"); a bare activityId is the
+          // older single-activity form. validateState checks ids and contradictions.
+          const rules: RecordRule[] =
+            body.rules !== undefined
+              ? Array.isArray(body.rules)
+                ? body.rules.map((rule) => ({ ...emptyRule(), ...object(rule) }) as RecordRule)
+                : fail(400, 'rules must be an array')
+              : body.activityId !== undefined
+                ? [{ ...emptyRule(), activities: [text(body.activityId)] }]
+                : (timeGoal?.rules ?? fail(400, 'rules or activityId is required'));
+          item = {
+            ...base,
+            rules,
+            ...target,
+            ...(stages.length ? { stages } : {}),
+          };
         } else return fail(400, 'kind must be time, tasks or manual');
         result = item;
         return {

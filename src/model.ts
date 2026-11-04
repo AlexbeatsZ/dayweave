@@ -9,6 +9,7 @@ import {
   newId,
   duration,
 } from './timelog/domain.js';
+import { moveOrder } from './order.js';
 import { scheduleSchema, emptySchedule, mergeSchedule, zoneSchema } from './schedule.js';
 import {
   businessDateKey,
@@ -52,11 +53,6 @@ export const taskSchema = z
     actualMinutes: z.number().finite().nonnegative().nullable().optional(),
     listId: idSchema,
     due: dateSchema.nullable(),
-    /** Eisenhower quadrant chosen by the user or the AI; never derived from dates. */
-    quadrant: z
-      .union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)])
-      .nullable()
-      .optional(),
     tags: z.array(z.string().trim().min(1).max(40)).max(30),
     /** Section of the daily plan; only meaningful while it names a live group of the same day. */
     planGroupId: idSchema.optional(),
@@ -117,10 +113,14 @@ export const timerSchema = z
     endAt: z.number().finite().nonnegative().nullable(),
   })
   .strict();
-/** Priority was replaced by estimated minutes and an explicit quadrant; older data drops it. */
+/**
+ * Priority and the Eisenhower quadrant were removed: estimated minutes give the size and the
+ * manual order is the priority. Older data carrying either field is read and drops it.
+ */
 function withoutLegacyTaskFields(value: unknown) {
-  if (!value || typeof value !== 'object' || !('priority' in value)) return value;
-  const { priority: _priority, ...task } = value as Record<string, unknown>;
+  if (!value || typeof value !== 'object' || !('priority' in value || 'quadrant' in value))
+    return value;
+  const { priority: _priority, quadrant: _quadrant, ...task } = value as Record<string, unknown>;
   return task;
 }
 export const stateSchema = z
@@ -209,7 +209,6 @@ export type View =
   | 'upcoming'
   | 'all'
   | 'inbox'
-  | 'quadrants'
   | 'calendar'
   | 'focus'
   | 'stats'
@@ -217,13 +216,6 @@ export type View =
   | 'trash'
   | `list:${string}`
   | `tag:${string}`;
-export const quadrantLabels = {
-  1: '重要且紧急',
-  2: '重要不紧急',
-  3: '紧急不重要',
-  4: '不重要不紧急',
-} as const;
-export type Quadrant = keyof typeof quadrantLabels;
 /** Task size shown in lists, derived only from the estimate. */
 export function effortTier(minutes: number | null | undefined): '小' | '中' | '大' | null {
   if (minutes == null || minutes <= 0) return null;
@@ -288,21 +280,17 @@ export function reorderTasks(
   const ids = visibleIds.filter((id) =>
     state.tasks.some((task) => task.id === id && !task.deletedAt && !task.completedAt),
   );
-  const from = ids.indexOf(source),
-    to = ids.indexOf(target);
-  if (from < 0 || to < 0 || from === to) return state;
+  const order = moveOrder(
+    [...state.tasks].sort((a, b) => a.order - b.order).map((task) => task.id),
+    ids,
+    source,
+    target,
+  );
+  if (!order) return state;
   // A drop across the pinned boundary moves into the target group. Keeping the
   // old flag would make selectTasks immediately put the source back again.
   const targetTask = state.tasks.find((task) => task.id === target)!;
   const targetPinned = targetTask.pinned;
-  ids.splice(from, 1);
-  ids.splice(to, 0, source);
-  const selected = new Set(ids),
-    rows = [...state.tasks].sort((a, b) => a.order - b.order);
-  let position = 0;
-  const order = new Map(
-    rows.map((task, index) => [selected.has(task.id) ? ids[position++] : task.id, index + 1]),
-  );
   return {
     ...state,
     tasks: state.tasks.map((task) => {
@@ -480,7 +468,6 @@ export function toggleTask(state: AppState, id: string): AppState {
       ...(task.estimatedMinutes === undefined ? {} : { estimatedMinutes: task.estimatedMinutes }),
       listId: task.listId,
       due: nextRepeatDate(task),
-      ...(task.quadrant == null ? {} : { quadrant: task.quadrant }),
       tags: [...task.tags],
       subtasks: task.subtasks.map((s) => ({ ...s, id: uid(), done: false })),
       repeat: task.repeat,

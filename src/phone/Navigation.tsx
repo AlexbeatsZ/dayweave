@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, type ReactNode, type RefObject } from 'react';
 import { Plus } from 'lucide-react';
-import './drag.css';
+import './sort.css';
 
 export type PhoneTab<T extends string = string> = { id: T; label: string; count?: number };
 
@@ -27,7 +27,7 @@ export function useSwipeTabs<T extends string>(
     onTouchEnd(event: React.TouchEvent) {
       const previous = start.current;
       start.current = null;
-      if (event.defaultPrevented || document.body.classList.contains('task-sort-active')) return;
+      if (event.defaultPrevented || document.body.classList.contains('sort-active')) return;
       if (!previous || !event.changedTouches.length) return;
       const touch = event.changedTouches[0],
         dx = touch.clientX - previous.x,

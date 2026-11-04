@@ -20,7 +20,6 @@ import {
   startTaskTimer,
   formatDate,
   now,
-  quadrantLabels,
   reorderTasks,
   selectTasks,
   type PlanGroup,
@@ -54,10 +53,7 @@ const titles: Record<string, string> = {
   calendar: '任务日历',
   timetable: '安排',
   stats: '统计',
-  quadrants: '四象限',
 };
-
-const QUADRANT_GROUPS = [1, 2, 3, 4, 0] as const;
 /** "约 90 分钟 · 15:00 前 · 任务约 70 分钟", whatever of it is known. */
 function planGroupMeta(group: PlanGroup, rows: Task[]) {
   const estimated = rows.reduce((sum, task) => sum + (task.estimatedMinutes ?? 0), 0);
@@ -91,14 +87,11 @@ export function MobileApp() {
   const [statisticsPage, setStatisticsPage] = useState<StatisticsPage>('daily');
   const [statisticsDate, setStatisticsDate] = useState(dateKey());
   const [recordDate, setRecordDate] = useState<string>();
-  const [quadrants, setQuadrants] = useState(false);
   const [toast, setToast] = useState<{ text: string; undo?: () => void } | null>(null);
   const scroll = useRef<HTMLElement>(null);
   const today = dateKey(new Date(clock));
   const timeView = view === 'timelog';
-  const taskView = !['timetable', 'timelog', 'calendar', 'focus', 'stats', 'quadrants'].includes(
-    view,
-  );
+  const taskView = !['timetable', 'timelog', 'calendar', 'focus', 'stats'].includes(view);
   const live = data.tasks.filter((task) => !task.completedAt && !task.deletedAt);
   const title =
     view === 'timelog'
@@ -117,7 +110,7 @@ export function MobileApp() {
   );
   const unfinished = tasks.filter((task) => !task.completedAt);
   // Sections of the day's plan; overdue tasks from earlier days fall outside them.
-  const planGroups = view === 'today' && !quadrants ? dayPlanGroups(data, day) : [];
+  const planGroups = view === 'today' ? dayPlanGroups(data, day) : [];
   const sectionOf = (task: Task) =>
     planGroups.length && task.due === day ? (taskPlanGroup(data, task)?.id ?? '') : '';
   const sections = planGroups.length
@@ -128,13 +121,9 @@ export function MobileApp() {
     : [];
   const ordered = sections.length
     ? sections.flatMap((section) => section.rows)
-    : quadrants && (view === 'today' || view === 'all')
-      ? QUADRANT_GROUPS.flatMap((group) =>
-          unfinished.filter((task) => (task.quadrant ?? 0) === group),
-        )
-      : view === 'upcoming'
-        ? week.flatMap((date) => unfinished.filter((task) => task.due === date))
-        : unfinished;
+    : view === 'upcoming'
+      ? week.flatMap((date) => unfinished.filter((task) => task.due === date))
+      : unfinished;
   const ordinal = new Map(ordered.map((task, index) => [task.id, index + 1]));
   const completed = tasks.filter((task) => task.completedAt);
   function moveTask(source: string, target: string) {
@@ -143,14 +132,6 @@ export function MobileApp() {
     if (!from || !to) return;
     if (view === 'upcoming' && from.due !== to.due) {
       notice('周计划按日期分组，请在同一天内调整顺序');
-      return;
-    }
-    if (
-      quadrants &&
-      (view === 'today' || view === 'all') &&
-      (from.quadrant ?? 0) !== (to.quadrant ?? 0)
-    ) {
-      notice('请在同一象限内调整顺序');
       return;
     }
     void store
@@ -462,21 +443,11 @@ export function MobileApp() {
                   ? `${formatDate(day)} · ${tasks.length} 件`
                   : `${title} · ${tasks.length}`}
               </h2>
-              {view === 'today' && !quadrants && (
+              {view === 'today' && (
                 <button className="text-button" onClick={() => setPlanGroup({})}>
                   <Plus size={15} />
-                  分组
+                  时段
                 </button>
-              )}
-              {(view === 'today' || view === 'all') && (
-                <div className="phone-layout-switch" role="group" aria-label="待办显示方式">
-                  <button aria-pressed={!quadrants} onClick={() => setQuadrants(false)}>
-                    列表
-                  </button>
-                  <button aria-pressed={quadrants} onClick={() => setQuadrants(true)}>
-                    四象限
-                  </button>
-                </div>
               )}
               <label>
                 <span className="visually-hidden">任务排序</span>
@@ -492,23 +463,7 @@ export function MobileApp() {
               </label>
             </div>
             {tasks.length ? (
-              quadrants && (view === 'today' || view === 'all') ? (
-                <div className="phone-quadrants">
-                  {QUADRANT_GROUPS.map((group) => {
-                    const rows = tasks.filter(
-                      (task) => !task.completedAt && (task.quadrant ?? 0) === group,
-                    );
-                    // Unassigned tasks only get a box when there are some.
-                    if (!group && !rows.length) return null;
-                    return (
-                      <section key={group}>
-                        <h2>{group ? quadrantLabels[group] : '未分象限'}</h2>
-                        {rows.map(row)}
-                      </section>
-                    );
-                  })}
-                </div>
-              ) : view === 'upcoming' ? (
+              view === 'upcoming' ? (
                 <div className="weekly-plan-grid">
                   {week.map((date) => (
                     <section className="phone-plan-day" key={date}>
@@ -524,13 +479,18 @@ export function MobileApp() {
                 <div className="plan-groups">
                   {sections.map(({ group, rows }) =>
                     group ? (
-                      <section className="plan-group" key={group.id} aria-label={group.title}>
+                      <section
+                        className="plan-group"
+                        key={group.id}
+                        aria-label={`时段 ${group.title}`}
+                      >
                         <header>
+                          <Clock3 size={15} aria-hidden />
                           <h3>{group.title}</h3>
                           <span>{planGroupMeta(group, rows)}</span>
                           <button
                             className="icon-button"
-                            aria-label={`编辑分组 ${group.title}`}
+                            aria-label={`编辑时段 ${group.title}`}
                             onClick={() => setPlanGroup({ group })}
                           >
                             <Pencil size={15} />
@@ -541,9 +501,9 @@ export function MobileApp() {
                       </section>
                     ) : (
                       rows.length > 0 && (
-                        <section className="plan-group" key="" aria-label="其他">
+                        <section className="plan-group unscheduled" key="" aria-label="未定时段">
                           <header>
-                            <h3>其他</h3>
+                            <h3>未定时段</h3>
                           </header>
                           {rows.map(row)}
                         </section>

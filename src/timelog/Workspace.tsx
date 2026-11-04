@@ -11,6 +11,8 @@ import {
   formatDuration,
   formatTime,
   goalPeriodKey,
+  reorderRows,
+  sortGoals,
   liveSpans,
   natureLabels,
   timestamp,
@@ -393,6 +395,15 @@ export default function Workspace({
                   );
                 }}
                 edit={(goal) => setEditor({ kind: 'goal', goal })}
+                move={(visible, source, target) => {
+                  void commit(
+                    (current) => ({
+                      ...current,
+                      goals: reorderRows(sortGoals(current.goals), visible, source, target),
+                    }),
+                    '',
+                  );
+                }}
                 remove={(goal) => {
                   void commit(
                     (current) => ({

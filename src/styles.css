@@ -263,15 +263,6 @@ input[type='date'] {
 .task-row {
   border-left: 3px solid transparent;
 }
-.task-row[data-quadrant='1'] {
-  border-left-color: #ee7878;
-}
-.task-row[data-quadrant='2'] {
-  border-left-color: #e4bc67;
-}
-.task-row[data-quadrant='3'] {
-  border-left-color: #6f9fd8;
-}
 .task-row > .task-check {
   align-self: flex-start;
   margin: 6px 0 0 2px;
@@ -546,15 +537,6 @@ input[type='date'] {
   flex-shrink: 0;
   width: 2px;
   background: var(--accent);
-}
-.calendar-event.quadrant-1 > i {
-  background: var(--red);
-}
-.calendar-event.quadrant-2 > i {
-  background: var(--orange);
-}
-.calendar-event.quadrant-3 > i {
-  background: var(--blue);
 }
 .calendar-event.event-done {
   opacity: 0.5;

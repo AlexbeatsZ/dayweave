@@ -75,7 +75,7 @@ async function seed(page: Page) {
   state.timelog.goals = [
     {
       id: 'study-day',
-      activityId: 'study',
+      rules: [{ activities: ['study'], tags: [], excludeTags: [] }],
       name: '每日学习一小时',
       period: 'day',
       comparison: 'atLeast',
@@ -85,7 +85,7 @@ async function seed(page: Page) {
     },
     {
       id: 'exercise-day',
-      activityId: 'exercise',
+      rules: [{ activities: ['exercise'], tags: [], excludeTags: [] }],
       name: '每天运动三十分钟',
       period: 'day',
       comparison: 'atLeast',
@@ -95,7 +95,7 @@ async function seed(page: Page) {
     },
     {
       id: 'study-week',
-      activityId: 'study',
+      rules: [{ activities: ['study'], tags: [], excludeTags: [] }],
       name: '本周学习九小时',
       period: 'week',
       comparison: 'atLeast',
@@ -282,7 +282,7 @@ test('mouse long press reorders visible task priority numbers and completion sin
   await page.mouse.move(first.x + first.width / 2, first.y + first.height / 2);
   await page.mouse.down();
   await page.waitForTimeout(500);
-  await expect(page.locator('.task-sort-ghost')).toBeVisible();
+  await expect(page.locator('.sort-ghost')).toBeVisible();
   await page.mouse.move(last.x + last.width / 2, last.y + last.height / 2 + 3, { steps: 8 });
   await page.mouse.up();
   await expect(rows.locator('.task-title')).toHaveText([

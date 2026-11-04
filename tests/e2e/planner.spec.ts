@@ -118,8 +118,8 @@ async function longDrag(page: Page, source: Locator, target: Locator) {
     await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [start] });
     // Intentional hold exercises the real long-press gesture, not an HTML drag shortcut.
     await page.waitForTimeout(500);
-    await expect(page.locator('body')).toHaveClass(/\btask-sort-active\b/);
-    await expect(page.locator('.task-sort-ghost')).toBeVisible();
+    await expect(page.locator('body')).toHaveClass(/\bsort-active\b/);
+    await expect(page.locator('.sort-ghost')).toBeVisible();
     for (let step = 1; step <= 8; step++) {
       await session.send('Input.dispatchTouchEvent', {
         type: 'touchMove',

@@ -147,7 +147,7 @@ test('start / future end, daily plan, labels and description survive seamless ne
 }) => {
   test.setTimeout(60000);
   await seed(page);
-  await expect(page.getByRole('button', { name: '上一条记录末尾', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^接上条记录/ })).toHaveCount(0);
   await page.locator('.activity-tile').filter({ hasText: '学习' }).tap();
   await page.getByRole('button', { name: '调整起止时间', exact: true }).tap();
   const times = page.getByRole('dialog', { name: '调整起止时间', exact: true });
@@ -175,11 +175,18 @@ test('start / future end, daily plan, labels and description survive seamless ne
     '复习量子化学',
   ]);
   await page.getByLabel('相关计划').selectOption('today-plan');
-  await page.getByRole('button', { name: '编辑活动标签', exact: true }).tap();
-  const tags = page.getByRole('dialog', { name: '相关标签', exact: true });
+  const tags = page.getByRole('group', { name: '计时标签', exact: true });
   await tags.getByRole('button', { name: '#化学', exact: true }).tap();
-  await tags.getByLabel('计时标签').fill('化学，#复习，复习');
-  await tags.getByRole('button', { name: '保存标签', exact: true }).tap();
+  await expect(tags.getByRole('button', { name: '#化学', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await tags.getByLabel('计时标签：新标签').fill('#复习');
+  await tags.getByLabel('计时标签：新标签').press('Enter');
+  await expect(tags.getByRole('button', { name: '#复习', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
   await page.getByLabel('计时描述').fill('先复习，再处理实验结果');
   // Clicking immediately after typing must retain the description's blur write.
   await page.getByRole('button', { name: '下一个活动', exact: true }).tap();
@@ -246,7 +253,7 @@ test('previous-record shortcut preserves seconds and milliseconds and untouched 
   await page.locator('.activity-tile').filter({ hasText: '学习' }).tap();
   await page.getByRole('button', { name: '调整起止时间', exact: true }).tap();
   const times = page.getByRole('dialog', { name: '调整起止时间', exact: true });
-  await times.getByRole('button', { name: '上一条记录末尾', exact: true }).tap();
+  await times.getByRole('button', { name: /^接上条记录/ }).tap();
   await expect(times.getByLabel('活动开始时间')).toHaveValue(dateTimeInput(PREVIOUS_END));
   await times.getByLabel('活动结束时间').fill(dateTimeInput(NOW + 300000));
   await times.getByRole('button', { name: '保存起止时间', exact: true }).tap();
@@ -257,7 +264,7 @@ test('previous-record shortcut preserves seconds and milliseconds and untouched 
   await times.getByRole('button', { name: '保存起止时间', exact: true }).tap();
   expect((await stored(page)).timelog.timer?.startedAt).toBe(PREVIOUS_END);
   await page.getByRole('button', { name: '调整起止时间', exact: true }).tap();
-  await times.getByRole('button', { name: '清除结束时间，使用正计时', exact: true }).tap();
+  await times.getByRole('button', { name: '不设结束（正计时）', exact: true }).tap();
   await times.getByRole('button', { name: '保存起止时间', exact: true }).tap();
   await expect(page.locator('.timer-detail-header')).toContainText('正计时');
   expect((await stored(page)).timelog.timer?.plannedEndAt ?? null).toBeNull();
@@ -265,6 +272,42 @@ test('previous-record shortcut preserves seconds and milliseconds and untouched 
   const saved = (await stored(page)).timelog.records.find((record) => record.id === timer.id)!;
   expect(saved.spans[0].start).toBe(PREVIOUS_END);
   expect(saved.spans.at(-1)!.end).toBe(NOW);
+});
+
+test('previous record end is one tap on the running timer; held activity tiles drag to reorder', async ({
+  page,
+}) => {
+  await seed(page);
+  const tile = (name: string) => page.getByRole('button', { name: `开始 ${name}`, exact: true });
+  const from = (await tile('阅读').boundingBox())!,
+    to = (await tile('学习').boundingBox())!;
+  const touch = await page.context().newCDPSession(page);
+  const point = (box: typeof from, dx = 0) => ({
+    x: box.x + box.width / 2 + dx,
+    y: box.y + box.height / 2,
+  });
+  await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [point(from)] });
+  await page.waitForTimeout(450);
+  for (let step = 1; step <= 6; step++)
+    await touch.send('Input.dispatchTouchEvent', {
+      type: 'touchMove',
+      touchPoints: [
+        {
+          x: from.x + from.width / 2 + ((to.x - from.x - 12) * step) / 6,
+          y: from.y + from.height / 2 + ((to.y - from.y) * step) / 6,
+        },
+      ],
+    });
+  await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await expect(page.getByRole('dialog', { name: '编辑活动', exact: true })).toHaveCount(0);
+  const order = (await stored(page)).timelog.activities.map((row) => row.id);
+  expect(order.indexOf('reading')).toBeLessThan(order.indexOf('study'));
+  expect((await stored(page)).timelog.timer).toBeNull();
+
+  await tile('学习').tap();
+  await page.getByRole('button', { name: /^接上条记录/ }).tap();
+  await expect(page.getByRole('button', { name: /^接上条记录/ })).toHaveCount(0);
+  expect((await stored(page)).timelog.timer?.startedAt).toBe(PREVIOUS_END);
 });
 
 test('each activity group can create with its nature; touch hold opens before release and preserves the editor after release', async ({
@@ -286,7 +329,8 @@ test('each activity group can create with its nature; touch hold opens before re
     type: 'touchStart',
     touchPoints: [{ x: box.x + box.width / 2, y: box.y + box.height / 2 }],
   });
-  await page.waitForTimeout(550);
+  // Sortable tiles lift for dragging first and open the editor once the finger stays still.
+  await page.waitForTimeout(750);
   const edit = page.getByRole('dialog', { name: '编辑活动', exact: true });
   // The editor must already be open while the finger is still held down.
   await expect(edit).toBeVisible();

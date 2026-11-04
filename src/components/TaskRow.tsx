@@ -5,14 +5,13 @@ import {
   formatDate,
   formatTaskMinutes,
   now,
-  quadrantLabels,
   toggleTask,
   type Task,
 } from '../model';
 import { store, useStore } from '../store';
-import { useTaskDrag } from '../phone/useTaskDrag';
+import { useSortDrag } from '../phone/useSortDrag';
 import { TaskCheck } from './TaskCheck';
-import '../phone/drag.css';
+import '../phone/sort.css';
 
 type Props = {
   task: Task;
@@ -25,18 +24,18 @@ type Props = {
 };
 export function TaskRow({ task, index, selected, onSelect, onDelete, onMove, onTrack }: Props) {
   const { data } = useStore();
-  const drag = useTaskDrag(task.id, onMove, !!task.deletedAt || !!task.completedAt);
+  const sortable = !!onMove && !task.deletedAt && !task.completedAt;
+  const drag = useSortDrag(task.id, 'task', onMove, !sortable);
   const list = data.lists.find((l) => l.id === task.listId);
   const completed = task.subtasks.filter((s) => s.done).length;
   return (
     <article
       ref={drag.ref}
-      className={`task-row ${selected ? 'selected' : ''} ${task.completedAt ? 'done' : ''} ${drag.dragging ? 'task-sort-source' : ''}`}
+      className={`task-row ${selected ? 'selected' : ''} ${task.completedAt ? 'done' : ''} ${drag.dragging ? 'sort-source' : ''}`}
       data-testid="task-row"
       data-task-id={task.id}
-      data-task-sortable={!!onMove && !task.deletedAt && !task.completedAt}
-      data-quadrant={task.quadrant ?? undefined}
-      title={task.quadrant ? quadrantLabels[task.quadrant] : undefined}
+      data-sort-id={sortable ? task.id : undefined}
+      data-sort-group={sortable ? 'task' : undefined}
       style={{ '--task-color': list?.color ?? '#7e8b8b' } as React.CSSProperties}
       onClickCapture={drag.onClickCapture}
       draggable={!task.deletedAt && !onTrack}
@@ -75,6 +74,7 @@ export function TaskRow({ task, index, selected, onSelect, onDelete, onMove, onT
       <div className="task-content">
         <button
           className="task-body"
+          data-sort-handle
           aria-label={`编辑 ${task.title}`}
           onClick={() => onSelect(task.id)}
         >

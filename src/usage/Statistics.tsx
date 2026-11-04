@@ -1,5 +1,13 @@
 import { useMemo, useState } from 'react';
-import { dayRange, formatDuration, shiftDay, stats, type State } from '../timelog/domain';
+import {
+  dayRange,
+  formatDuration,
+  shiftDay,
+  stats,
+  type GoalTask,
+  type State,
+} from '../timelog/domain';
+import { GoalHeatmaps } from '../timelog/components/GoalHeatmap';
 import { DateNavigator } from '../phone/DateNavigator';
 import { PhoneAnalysis } from '../phone/Analysis';
 import { useUsage } from './client';
@@ -8,22 +16,27 @@ import './usage.css';
 
 export function RecordStatistics({
   state,
+  tasks,
   date,
   setDate,
   onTimeline,
 }: {
   state: State;
+  /** For task-bound goals in the goal heatmaps. */
+  tasks: GoalTask[];
   date: string;
   setDate: (date: string) => void;
   onTimeline: (date: string) => void;
 }) {
-  const [mode, setMode] = useState<'manual' | 'automatic' | 'compare'>('manual'),
+  const [mode, setMode] = useState<'manual' | 'automatic' | 'compare' | 'goals'>('manual'),
     [days, setDays] = useState(1),
     [deviceId, setDeviceId] = useState('');
   const range = { start: dayRange(shiftDay(date, 1 - days)).start, end: dayRange(date).end };
   const result = useUsage(
-    mode === 'manual' ? undefined : { ...range, deviceId: deviceId || undefined },
-    mode !== 'manual',
+    mode === 'automatic' || mode === 'compare'
+      ? { ...range, deviceId: deviceId || undefined }
+      : undefined,
+    mode === 'automatic' || mode === 'compare',
   );
   const summary = useMemo(
     () => usageSummary(result.events, range),
@@ -32,18 +45,23 @@ export function RecordStatistics({
   return (
     <div className="usage-statistics">
       <div className="phone-segments" aria-label="记录统计来源">
-        {(['manual', 'automatic', 'compare'] as const).map((value) => (
+        {(['manual', 'automatic', 'compare', 'goals'] as const).map((value) => (
           <button
             type="button"
             key={value}
             aria-pressed={mode === value}
             onClick={() => setMode(value)}
           >
-            {{ manual: '手动', automatic: '自动', compare: '对照' }[value]}
+            {{ manual: '手动', automatic: '自动', compare: '对照', goals: '目标' }[value]}
           </button>
         ))}
       </div>
-      {mode === 'manual' ? (
+      {mode === 'goals' ? (
+        <>
+          <DateNavigator date={date} onDate={setDate} label="目标统计日期" />
+          <GoalHeatmaps state={state} tasks={tasks} date={date} />
+        </>
+      ) : mode === 'manual' ? (
         <PhoneAnalysis
           state={state}
           date={date}

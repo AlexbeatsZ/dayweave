@@ -4,8 +4,12 @@ import {
   colors,
   duration,
   formatDuration,
+  goalStagesText,
+  emptyRule,
+  type RecordRule,
   goalTargetText,
   newId,
+  parseGoalStages,
   parseGoalTarget,
   timestamp,
   type Activity,
@@ -17,6 +21,8 @@ import {
 } from '../domain';
 import { lastRecordEnd } from '../timeline';
 import { Dialog } from './Dialog';
+import { GoalRules } from './GoalRules';
+import { TagToggles } from './TagChips';
 import { usePhone } from '../../phone/usePhone';
 import { useStore } from '../../store';
 export type EditTarget =
@@ -61,6 +67,20 @@ export function Editor({
       '',
   );
   const [tags, setTags] = useState(record?.tags || []);
+  // A new time goal starts from the first active activity, the most common case.
+  const [rules, setRules] = useState<RecordRule[]>(() =>
+    target.kind === 'goal' && target.goal?.kind === undefined && target.goal
+      ? target.goal.rules
+      : [
+          {
+            ...emptyRule(),
+            activities: state.activities
+              .filter((row) => !row.archived && !row.deletedAt)
+              .slice(0, 1)
+              .map((row) => row.id),
+          },
+        ],
+  );
   const tagOptions = [
     ...new Set([...Object.keys(tagColors), ...state.records.flatMap((row) => row.tags)]),
   ].sort();
@@ -107,10 +127,7 @@ export function Editor({
             ...(record?.taskId ? { taskId: record.taskId } : {}),
             activityId: activity.id,
             note: text('note'),
-            tags: text('tags')
-              .split(/[,，]/)
-              .map((tag) => tag.trim().replace(/^#/, ''))
-              .filter(Boolean),
+            tags: [...new Set(tags.map((tag) => tag.trim()).filter(Boolean))],
             spans,
             nature: same ? record.nature : activity.nature,
             deletedAt: null,
@@ -138,6 +155,7 @@ export function Editor({
             color: text('color'),
             nature,
             archived: false,
+            ...(existing?.order === undefined ? {} : { order: existing.order }),
             updatedAt: timestamp(existing?.updatedAt),
           };
           if (
@@ -159,6 +177,7 @@ export function Editor({
       } else {
         const previous = target.goal;
         const goalTarget = goalKind === 'time' ? parseGoalTarget(text('target')) : null;
+        const stages = goalTarget ? parseGoalStages(text('stages'), goalTarget) : [];
         const saved = await commit((current) => {
           const existing = previous && current.goals.find((row) => row.id === previous.id);
           if (previous && existing?.updatedAt !== previous.updatedAt)
@@ -170,6 +189,7 @@ export function Editor({
             ...(group ? { group } : {}),
             period: text('period') as Goal['period'],
             archived: false,
+            ...(existing?.order === undefined ? {} : { order: existing.order }),
             updatedAt: timestamp(existing?.updatedAt),
           };
           const next: Goal =
@@ -181,7 +201,12 @@ export function Editor({
                     kind: 'manual',
                     checks: existing?.kind === 'manual' ? existing.checks : {},
                   }
-                : { ...base, activityId: text('activityId'), ...goalTarget! };
+                : {
+                    ...base,
+                    rules,
+                    ...goalTarget!,
+                    ...(stages.length ? { stages } : {}),
+                  };
           return {
             ...current,
             goals: previous
@@ -312,11 +337,19 @@ export function Editor({
               </div>
             ))}
             {!record && (
-              <div className="time-shortcuts">
+              <div className="quick-chips" aria-label="快速设置时间">
+                <button
+                  type="button"
+                  disabled={!lastRecordEnd(state, spans[0].end - 1)}
+                  onClick={() =>
+                    setSpans([{ start: lastRecordEnd(state, spans[0].end - 1), end: spans[0].end }])
+                  }
+                >
+                  接上条记录
+                </button>
                 {[15, 30, 60].map((minutes) => (
                   <button
                     type="button"
-                    className="chip"
                     key={minutes}
                     onClick={() =>
                       setSpans([
@@ -327,25 +360,11 @@ export function Editor({
                       ])
                     }
                   >
-                    {minutes} 分钟
+                    最近 {minutes} 分钟
                   </button>
                 ))}
-                <button
-                  type="button"
-                  className="text-button"
-                  disabled={!lastRecordEnd(state, spans[0].end - 1)}
-                  onClick={() =>
-                    setSpans([{ start: lastRecordEnd(state, spans[0].end - 1), end: spans[0].end }])
-                  }
-                >
-                  以上条记录结尾为开始
-                </button>
                 {target.range && (
-                  <button
-                    type="button"
-                    className="text-button"
-                    onClick={() => setSpans([target.range!])}
-                  >
+                  <button type="button" onClick={() => setSpans([target.range!])}>
                     填满此段
                   </button>
                 )}
@@ -362,41 +381,16 @@ export function Editor({
                 placeholder="这段时间做了什么？"
               />
             </label>
-            <label>
-              标签
-              <input
-                name="tags"
-                value={tags.join(', ')}
-                onChange={(event) =>
-                  setTags(
-                    event.target.value.split(/[,，]/).map((tag) => tag.trim().replace(/^#/, '')),
-                  )
-                }
-                maxLength={600}
-                placeholder="用逗号分隔"
+            <div className="form-field">
+              <span>标签</span>
+              <TagToggles
+                label="记录标签"
+                options={tagOptions}
+                selected={tags}
+                colors={tagColors}
+                onChange={setTags}
               />
-            </label>
-            {phone && tagOptions.length > 0 && (
-              <div className="phone-tag-chips" aria-label="选择记录标签">
-                {tagOptions.map((tag) => (
-                  <button
-                    key={tag}
-                    type="button"
-                    style={{ color: tagColors[tag] }}
-                    aria-pressed={tags.includes(tag)}
-                    onClick={() =>
-                      setTags(
-                        tags.includes(tag)
-                          ? tags.filter((value) => value !== tag)
-                          : [...tags.filter(Boolean), tag],
-                      )
-                    }
-                  >
-                    #{tag}
-                  </button>
-                ))}
-              </div>
-            )}
+            </div>
           </>
         )}
         {target.kind === 'activity' && (
@@ -471,21 +465,12 @@ export function Editor({
             </label>
             {goalKind === 'time' && (
               <>
-                <label>
-                  关联活动
-                  <select
-                    name="activityId"
-                    defaultValue={
-                      (target.goal?.kind === undefined && target.goal?.activityId) ||
-                      state.activities.find((row) => !row.archived && !row.deletedAt)?.id
-                    }
-                    required
-                  >
-                    {activityOptions(
-                      target.goal?.kind === undefined ? target.goal?.activityId : undefined,
-                    )}
-                  </select>
-                </label>
+                <GoalRules
+                  state={state}
+                  tagOptions={tagOptions}
+                  rules={rules}
+                  onChange={setRules}
+                />
                 <label>
                   目标时间
                   <input
@@ -501,6 +486,23 @@ export function Editor({
                   />
                 </label>
                 <p className="muted">纯数字按分钟、表示至少；写 &lt; 表示不超过。</p>
+                <label>
+                  阶段（可选）
+                  <input
+                    name="stages"
+                    defaultValue={
+                      target.goal?.kind === undefined && target.goal
+                        ? goalStagesText(target.goal)
+                        : ''
+                    }
+                    placeholder="例如 8-15 或 2, 3"
+                    maxLength={200}
+                  />
+                </label>
+                <p className="muted">
+                  例：8-15 表示 8 到 15 小时每小时一个阶段。纯数字单位跟随目标（满 1
+                  小时按小时）；「不超过」目标写更宽的上限，如 2, 3。
+                </p>
               </>
             )}
             {goalKind === 'tasks' && (

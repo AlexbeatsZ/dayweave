@@ -32,7 +32,6 @@ test('create a list, explicitly edit a recurring task, complete, undo deletion a
   await page.getByRole('button', { name: '编辑 阅读论文', exact: true }).click();
   const editor = page.getByRole('dialog', { name: '编辑任务', exact: true });
   await editor.getByLabel('任务备注').fill('先看摘要和方法');
-  await editor.getByLabel('任务四象限').selectOption('1');
   await editor.getByLabel('添加子任务').fill('阅读摘要');
   await editor.getByLabel('添加子任务').press('Enter');
   await editor.getByRole('checkbox', { name: '子任务 阅读摘要', exact: true }).click();
@@ -141,8 +140,6 @@ test('shared destinations render without errors; theme persists and compact view
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await createTask(page, '阅读图表');
-  await page.getByRole('button', { name: '四象限', exact: true }).click();
-  await expect(page.locator('.phone-quadrants')).toBeVisible();
   const nav = page.getByRole('navigation', { name: '主导航' });
   for (const name of ['记录', '安排', '统计', '待办'])
     await nav.getByRole('button', { name, exact: true }).click();

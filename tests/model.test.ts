@@ -102,16 +102,14 @@ test('search covers notes, tags and subtasks across the current filtered view', 
   for (const query of ['ALPHA', '#science', 'Beta'])
     assert.equal(selectTasks(s, 'today', query).length, 1);
 });
-test('quadrant is an explicit optional attribute and legacy priority is dropped on load', () => {
-  assert.equal(newTask('A').quadrant, undefined);
-  assert.equal(newTask('B', { quadrant: 2 }).quadrant, 2);
+test('legacy priority and quadrant are dropped on load', () => {
   const legacy = {
     ...emptyState(),
-    tasks: [{ ...newTask('C', { due: '2026-10-18' }), priority: 1 }],
+    tasks: [{ ...newTask('C', { due: '2026-10-18' }), priority: 1, quadrant: 2 }],
   };
   const [task] = stateSchema.parse(legacy).tasks;
   assert.equal('priority' in task, false);
-  assert.equal(task.quadrant, undefined);
+  assert.equal('quadrant' in task, false);
 });
 test('task size tier comes only from the estimate', () => {
   assert.deepEqual(

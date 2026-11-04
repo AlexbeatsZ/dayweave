@@ -1,12 +1,11 @@
 import { useState, type CSSProperties, type FormEvent } from 'react';
-import { CalendarDays, Flag, ListChecks, Plus, Repeat2, X } from 'lucide-react';
+import { CalendarDays, ListChecks, Plus, Repeat2, X } from 'lucide-react';
 import {
   dayPlanGroups,
   formatTaskMinutes,
   newTask,
   taskPlanGroup,
   withTaskDay,
-  quadrantLabels,
   recordedTaskMinutes,
   shiftDate,
   uid,
@@ -14,6 +13,7 @@ import {
 } from '../model';
 import { store, useStore } from '../store';
 import { Modal } from '../components/Modal';
+import { PlanGroupModal } from '../components/PlanGroupModal';
 import { TaskCheck } from '../components/TaskCheck';
 import { usePhone } from './usePhone';
 
@@ -43,8 +43,8 @@ export function TaskComposer({
     [notes, setNotes] = useState(task?.notes ?? '');
   const [date, setDate] = useState(task?.due ?? due),
     [list, setList] = useState(task?.listId ?? listId);
-  const [quadrant, setQuadrant] = useState<Task['quadrant']>(task?.quadrant ?? null);
   const [planGroup, setPlanGroup] = useState(task ? (taskPlanGroup(data, task)?.id ?? '') : '');
+  const [creatingGroup, setCreatingGroup] = useState(false);
   const planGroups = date ? dayPlanGroups(data, date) : [];
   // A section belongs to one day; picking another day silently leaves it.
   const chosenGroup = planGroups.some((group) => group.id === planGroup) ? planGroup : '';
@@ -74,7 +74,6 @@ export function TaskComposer({
         notes,
         estimatedMinutes: estimatedMinutes.trim() === '' ? null : Number(estimatedMinutes),
         actualMinutes: actualMinutes.trim() === '' ? null : Number(actualMinutes),
-        quadrant,
         ...(chosenGroup ? { planGroupId: chosenGroup } : {}),
         repeat: date ? repeat : 'none',
         tags: [
@@ -95,7 +94,7 @@ export function TaskComposer({
         if (!state.lists.some((item) => item.id === list))
           throw new Error('清单已变化，请重新选择。');
         if (chosenGroup && !dayPlanGroups(state, date).some((group) => group.id === chosenGroup))
-          throw new Error('计划分组已变化，请重新选择。');
+          throw new Error('时段已变化，请重新选择。');
         if (task) {
           const latest = state.tasks.find((item) => item.id === task.id);
           if (!latest || latest.deletedAt || latest.updatedAt !== revision)
@@ -111,7 +110,6 @@ export function TaskComposer({
                     estimatedMinutes: created.estimatedMinutes,
                     actualMinutes: created.actualMinutes,
                     listId: list,
-                    quadrant,
                     repeat: created.repeat,
                     repeatDay: date && date !== item.due ? Number(date.slice(-2)) : item.repeatDay,
                     tags: created.tags,
@@ -200,9 +198,9 @@ export function TaskComposer({
             />
           </label>
         </div>
-        {planGroups.length > 0 && (
-          <div className="date-chips" aria-label="计划分组">
-            {[{ id: '', title: '不分组' }, ...planGroups].map((group) => (
+        {date && (
+          <div className="date-chips plan-group-chips" aria-label="时段">
+            {[{ id: '', title: '不定时段' }, ...planGroups].map((group) => (
               <button
                 type="button"
                 key={group.id}
@@ -212,6 +210,15 @@ export function TaskComposer({
                 {group.title}
               </button>
             ))}
+            <button
+              type="button"
+              className="plan-group-add"
+              aria-label="新建时段"
+              title="新建时段"
+              onClick={() => setCreatingGroup(true)}
+            >
+              <Plus size={15} />
+            </button>
           </div>
         )}
         <div
@@ -311,23 +318,6 @@ export function TaskComposer({
         </label>
         <div className="phone-form-options">
           <label>
-            <Flag size={17} />
-            <select
-              aria-label={task ? '任务四象限' : '新任务四象限'}
-              value={quadrant ?? ''}
-              onChange={(e) =>
-                setQuadrant(e.target.value ? (Number(e.target.value) as Task['quadrant']) : null)
-              }
-            >
-              <option value="">不分象限</option>
-              {Object.entries(quadrantLabels).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
             <Repeat2 size={17} />
             <select
               aria-label={task ? '重复频率' : '新任务重复'}
@@ -414,6 +404,15 @@ export function TaskComposer({
           </button>
         </footer>
       </form>
+      {creatingGroup && (
+        <PlanGroupModal
+          date={date}
+          onClose={() => setCreatingGroup(false)}
+          onSaved={(_message, created) => {
+            if (created) setPlanGroup(created.id);
+          }}
+        />
+      )}
     </Modal>
   );
 }

@@ -40,7 +40,7 @@ async function seed(page: Page) {
   state.timelog.goals = [
     {
       id: 'goal',
-      activityId: 'study',
+      rules: [{ activities: ['study'], tags: [], excludeTags: [] }],
       name: '每天读一点',
       period: 'day',
       comparison: 'atLeast',
@@ -266,7 +266,6 @@ test('week, task sheet, subtasks and no-date placement persist in the unified st
   await sheet.getByLabel('新任务子任务').fill('读完第一节');
   await sheet.getByRole('button', { name: '加入子任务' }).tap();
   await sheet.getByRole('button', { name: '无日期', exact: true }).tap();
-  await sheet.getByLabel('新任务四象限').selectOption('2');
   await page.screenshot({ path: info.outputPath('phone-task-sheet.png') });
   await sheet.getByRole('button', { name: '添加任务', exact: true }).tap();
   await expect(sheet).not.toBeVisible();
@@ -274,7 +273,6 @@ test('week, task sheet, subtasks and no-date placement persist in the unified st
   await page.getByRole('button', { name: '编辑 手机上安排下一步', exact: true }).tap();
   const detail = page.getByRole('dialog', { name: '编辑任务' });
   await expect(detail.getByLabel('任务备注')).toHaveValue('写下明确的行动');
-  await expect(detail.getByLabel('任务四象限')).toHaveValue('2');
   await expect(detail.getByRole('checkbox', { name: '子任务 读完第一节' })).toBeVisible();
   expect((await detail.boundingBox())!.width).toBeLessThanOrEqual(390);
   await page.evaluate(() =>
