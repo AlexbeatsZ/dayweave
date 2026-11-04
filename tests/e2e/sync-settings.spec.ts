@@ -7,6 +7,8 @@ test('sync settings edits ordered address lines without disconnecting or droppin
   await page.addInitScript((state) => {
     let endpoint = 'http://192.168.31.32:49732';
     let delivery = 'local-error';
+    let connected = false;
+    let error = '同步中心返回 500';
     Object.assign(window, {
       clearlist: {
         load: async () => ({ state, path: 'test', recovered: false }),
@@ -19,7 +21,8 @@ test('sync settings edits ordered address lines without disconnecting or droppin
             name: 'Test',
             endpoint,
             endpoints: endpoint.split('\n'),
-            connected: false,
+            connected,
+            error,
             delivery,
             pendingChanges: true,
             conflicts: [],
@@ -34,6 +37,8 @@ test('sync settings edits ordered address lines without disconnecting or droppin
           },
           now: async () => {
             delivery = 'synced';
+            connected = true;
+            error = '';
           },
         },
       },
@@ -46,6 +51,8 @@ test('sync settings edits ordered address lines without disconnecting or droppin
     .getByRole('button', { name: '设备同步', exact: true })
     .click();
   await expect(page.getByText('本地保存失败 · 暂停同步', { exact: true })).toBeVisible();
+  // A failing exchange shows its reason instead of only "离线 / 正在同步".
+  await expect(page.getByText('上次失败：同步中心返回 500', { exact: true })).toBeVisible();
   await page.getByText('更换同步地址（保留配对）', { exact: true }).click();
   await expect(page.getByLabel('新的同步中心地址')).toHaveValue('http://192.168.31.32:49732');
   const addresses = 'https://sync.example.com/dayweave\n192.168.31.32:49732\n100.106.169.46:49732';
@@ -55,4 +62,5 @@ test('sync settings edits ordered address lines without disconnecting or droppin
   expect(await page.evaluate(() => localStorage.getItem('new-sync-endpoint'))).toBe(addresses);
   await page.getByRole('button', { name: '立即同步', exact: true }).click();
   await expect(page.getByText('已同步', { exact: true })).toBeVisible();
+  await expect(page.getByText(/^上次失败/)).toHaveCount(0);
 });

@@ -103,6 +103,12 @@ export function SyncSettings() {
                   }
                 </small>
               )}
+              {/* Without the reason, a retry loop only reads as "离线 / 正在同步". */}
+              {status.mode === 'client' && !status.connected && status.error && (
+                <small className="sync-error" role="status">
+                  上次失败：{status.error}
+                </small>
+              )}
             </div>
           )}
           {status?.mode === 'hub' ? (

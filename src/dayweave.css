@@ -193,6 +193,10 @@
 .sync-status small {
   color: var(--muted);
 }
+.sync-status .sync-error {
+  flex-basis: 100%;
+  color: var(--red);
+}
 .sync-peer {
   display: flex;
   justify-content: space-between;
