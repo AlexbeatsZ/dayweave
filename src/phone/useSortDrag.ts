@@ -9,6 +9,8 @@ type Gesture = {
   pointerId: number | null;
   touchId: number | null;
   active: boolean;
+  /** Moved past the 9px threshold after lifting, i.e. an actual drag. */
+  moved: boolean;
   hold: ReturnType<typeof setTimeout>;
   frame?: number;
   ghost?: HTMLElement;
@@ -68,7 +70,9 @@ export function useSortDrag(id: string, group: string, onMove?: Move, disabled =
       if (gesture.frame !== undefined) cancelAnimationFrame(gesture.frame);
       gesture.overlay?.remove();
       if (gesture.active) {
-        if (suppressClick) suppressClickUntil.current = performance.now() + 500;
+        // A hold that never moved stays an ordinary click (e.g. a long mouse press still
+        // starts an activity); only a real drag swallows the click that follows it.
+        if (suppressClick && gesture.moved) suppressClickUntil.current = performance.now() + 500;
         setDragging(false);
         document.body.classList.remove('sort-active');
       }
@@ -185,6 +189,7 @@ export function useSortDrag(id: string, group: string, onMove?: Move, disabled =
         pointerId,
         touchId,
         active: false,
+        moved: false,
         hold: setTimeout(activate, SORT_HOLD_MS),
         offsetX: 0,
         offsetY: 0,
@@ -209,6 +214,7 @@ export function useSortDrag(id: string, group: string, onMove?: Move, disabled =
         return;
       }
       if (event.cancelable) event.preventDefault();
+      if (Math.hypot(x - current.startX, y - current.startY) > 9) current.moved = true;
       updateGhost(current);
     }
 

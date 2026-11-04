@@ -36,8 +36,6 @@ try {
   await page.getByRole('button', { name: '编辑 复习量子化学', exact: true }).click();
   await page.screenshot({ path: 'docs/images/detail.png' });
   await page.getByRole('button', { name: '保存任务', exact: true }).click();
-  await page.getByRole('button', { name: '四象限', exact: true }).click();
-  await page.screenshot({ path: 'docs/images/quadrants.png' });
   await page.getByRole('button', { name: '安排', exact: true }).click();
   await page.screenshot({ path: 'docs/images/calendar.png' });
   await page.getByRole('button', { name: '待办', exact: true }).click();
