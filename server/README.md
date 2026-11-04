@@ -1,6 +1,6 @@
 # 时织 / Dayweave Server
 
-独立版本 `0.1.4`，共享客户端 `0.4.13` 的业务、计时、同步及 SQLite 所有者。需要 **Node 24.14.1 或更高的 24.x**，本版在 Windows Node 24.14.1 上验证。包已含 JavaScript 依赖，不需要 npm install、编译、Electron、React、Rust 或本机采集程序。Node 运行时由运行机器提供。
+独立版本 `0.1.4`，共享客户端 `0.4.13`/`0.4.14` 的业务、计时、同步及 SQLite 所有者。需要 **Node 24.14.1 或更高的 24.x**，本版在 Windows Node 24.14.1 上验证。包已含 JavaScript 依赖，不需要 npm install、编译、Electron、React、Rust 或本机采集程序。Node 运行时由运行机器提供。
 
 0.1.4采用0.4.13结构：计时目标改为计入规则 `rules`（旧 `activityId` 读取时迁移，API 仍接受其作单活动简写）、可选阶段 `stages`，活动与目标可选拖动顺序 `order`；任务的四象限 `quadrant` 已移除，读取时丢弃。沿用0.1.3的日界线、计划时段（`planGroups`）、目标分组与三种判定。与客户端同批升级，旧严格客户端在新字段被使用后不能读取。
 
