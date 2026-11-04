@@ -113,12 +113,16 @@ export function MobileApp() {
   const planGroups = view === 'today' ? dayPlanGroups(data, day) : [];
   const sectionOf = (task: Task) =>
     planGroups.length && task.due === day ? (taskPlanGroup(data, task)?.id ?? '') : '';
-  const sections = planGroups.length
-    ? [...planGroups.map((group) => group.id), ''].map((id) => ({
-        group: planGroups.find((group) => group.id === id),
-        rows: unfinished.filter((task) => sectionOf(task) === id),
-      }))
-    : [];
+  // Only time slots that still hold unfinished tasks are shown (user 2026-11-04); an empty
+  // slot remains selectable in the task editor.
+  const filled = [...planGroups.map((group) => group.id), '']
+    .map((id) => ({
+      group: planGroups.find((group) => group.id === id),
+      rows: unfinished.filter((task) => sectionOf(task) === id),
+    }))
+    .filter((section) => section.rows.length);
+  // With no slot in use the day is a plain list, without a lone "未定时段" heading.
+  const sections = filled.some((section) => section.group) ? filled : [];
   const ordered = sections.length
     ? sections.flatMap((section) => section.rows)
     : view === 'upcoming'
@@ -497,17 +501,15 @@ export function MobileApp() {
                           </button>
                         </header>
                         {group.note && <p className="plan-group-note">{group.note}</p>}
-                        {rows.length ? rows.map(row) : <p className="muted">暂无任务</p>}
+                        {rows.map(row)}
                       </section>
                     ) : (
-                      rows.length > 0 && (
-                        <section className="plan-group unscheduled" key="" aria-label="未定时段">
-                          <header>
-                            <h3>未定时段</h3>
-                          </header>
-                          {rows.map(row)}
-                        </section>
-                      )
+                      <section className="plan-group unscheduled" key="" aria-label="未定时段">
+                        <header>
+                          <h3>未定时段</h3>
+                        </header>
+                        {rows.map(row)}
+                      </section>
                     ),
                   )}
                 </div>

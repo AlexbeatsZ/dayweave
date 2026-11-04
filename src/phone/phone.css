@@ -1562,10 +1562,6 @@
   color: var(--muted);
   font-size: 12px;
 }
-.plan-group > .muted {
-  margin: 4px 0 10px;
-  font-size: 13px;
-}
 
 /* Statistics › 记录 › 目标: gray at 0, theme blue at 100%, evenly mixed per stage. */
 .goal-heatmaps {
