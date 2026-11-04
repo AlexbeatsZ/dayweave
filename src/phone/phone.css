@@ -1516,28 +1516,24 @@
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
-/* A time slot of the day's plan is a tinted card so its boundary reads at a glance. */
+/* A time slot of the day's plan: only its title bar is tinted so the boundary reads at a
+   glance while task rows keep the plain list look (user 2026-11-04). */
 .plan-group {
-  margin: 12px 0;
-  padding: 4px 8px 6px 10px;
-  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
-  border-left: 4px solid var(--accent);
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--accent) 8%, var(--bg));
-}
-.plan-group.unscheduled {
-  border-color: var(--line);
-  border-left-color: var(--muted);
-  background: transparent;
-}
-.plan-group .task-row {
-  background: transparent;
+  margin: 14px 0;
 }
 .plan-group > header {
   display: flex;
   align-items: center;
   gap: 6px;
-  min-height: 34px;
+  min-height: 38px;
+  padding: 2px 6px 2px 10px;
+  border-left: 4px solid var(--accent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg));
+}
+.plan-group.unscheduled > header {
+  border-left-color: var(--muted);
+  background: var(--input);
 }
 .plan-group > header > svg {
   flex-shrink: 0;
