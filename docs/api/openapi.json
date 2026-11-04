@@ -34,15 +34,6 @@
           "actualMinutes": { "nullable": true, "type": "number", "minimum": 0 },
           "listId": { "type": "string", "minLength": 1, "maxLength": 100 },
           "due": { "nullable": true, "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
-          "quadrant": {
-            "nullable": true,
-            "anyOf": [
-              { "type": "number", "enum": [1] },
-              { "type": "number", "enum": [2] },
-              { "type": "number", "enum": [3] },
-              { "type": "number", "enum": [4] }
-            ]
-          },
           "tags": {
             "maxItems": 30,
             "type": "array",
@@ -392,15 +383,6 @@
                 "actualMinutes": { "nullable": true, "type": "number", "minimum": 0 },
                 "listId": { "type": "string", "minLength": 1, "maxLength": 100 },
                 "due": { "nullable": true, "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
-                "quadrant": {
-                  "nullable": true,
-                  "anyOf": [
-                    { "type": "number", "enum": [1] },
-                    { "type": "number", "enum": [2] },
-                    { "type": "number", "enum": [3] },
-                    { "type": "number", "enum": [4] }
-                  ]
-                },
                 "tags": {
                   "maxItems": 30,
                   "type": "array",
@@ -1639,15 +1621,6 @@
                     "type": "string",
                     "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
                   },
-                  "quadrant": {
-                    "nullable": true,
-                    "anyOf": [
-                      { "type": "number", "enum": [1] },
-                      { "type": "number", "enum": [2] },
-                      { "type": "number", "enum": [3] },
-                      { "type": "number", "enum": [4] }
-                    ]
-                  },
                   "tags": {
                     "maxItems": 30,
                     "type": "array",
@@ -1754,15 +1727,6 @@
                     "nullable": true,
                     "type": "string",
                     "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-                  },
-                  "quadrant": {
-                    "nullable": true,
-                    "anyOf": [
-                      { "type": "number", "enum": [1] },
-                      { "type": "number", "enum": [2] },
-                      { "type": "number", "enum": [3] },
-                      { "type": "number", "enum": [4] }
-                    ]
                   },
                   "tags": {
                     "maxItems": 30,
@@ -2627,15 +2591,6 @@
                           "nullable": true,
                           "type": "string",
                           "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-                        },
-                        "quadrant": {
-                          "nullable": true,
-                          "anyOf": [
-                            { "type": "number", "enum": [1] },
-                            { "type": "number", "enum": [2] },
-                            { "type": "number", "enum": [3] },
-                            { "type": "number", "enum": [4] }
-                          ]
                         },
                         "tags": {
                           "maxItems": 30,
