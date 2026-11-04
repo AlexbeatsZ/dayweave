@@ -89,9 +89,6 @@ export function describeRule(rule: RecordRule, activities: Pick<Activity, 'id' |
 }
 export const describeRules = (rules: RecordRule[], activities: Pick<Activity, 'id' | 'name'>[]) =>
   rules.map((rule) => describeRule(rule, activities)).join('；或 ');
-/** The one activity a goal is about, when it has exactly one (for its icon and color). */
-export const rulesActivity = (rules: RecordRule[]) =>
-  rules.length === 1 && rules[0].activities.length === 1 ? rules[0].activities[0] : undefined;
 /** Judged automatically from saved records matching any rule. `kind` is omitted for these. */
 export type TimeGoal = GoalCommon & {
   kind?: undefined;

@@ -1040,14 +1040,20 @@
   margin: 0;
   padding: 0;
 }
+.timelog-module .goal-icon-slot {
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+/* Manual goals: the check takes the icon's place (top-left of the card). */
 .timelog-module .goal-check {
   position: absolute;
-  top: 3px;
-  right: 32px;
+  top: 11px;
+  left: 10px;
   display: grid;
   place-items: center;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   border: 1.5px solid var(--activity-color);
   border-radius: 50%;
   color: transparent;
@@ -1055,9 +1061,6 @@
 .timelog-module .goal-card .goal-check[aria-pressed='true'] {
   color: var(--surface);
   background: var(--activity-color);
-}
-.timelog-module .goal-card:has(.goal-check) h3 {
-  padding-right: 52px;
 }
 
 /* Time goal rules: OR'ed cards; activity chips toggle, tag chips cycle 不限 → 包含 → 排除. */

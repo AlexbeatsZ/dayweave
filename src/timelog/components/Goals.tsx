@@ -1,5 +1,5 @@
 import { useMemo, type CSSProperties } from 'react';
-import { Check, CircleCheck, ListChecks, MoreHorizontal, Target, Timer } from 'lucide-react';
+import { Check, ListChecks, MoreHorizontal, Target, Timer } from 'lucide-react';
 import {
   formatDuration,
   goalPeriodKey,
@@ -8,16 +8,13 @@ import {
   shiftDay,
   sortGoals,
   describeRules,
-  rulesActivity,
   type Goal,
   type GoalTask,
   type State,
 } from '../domain';
-import { ActivityIcon } from '../../phone/ActivityIcon';
 import { useSortDrag } from '../../phone/useSortDrag';
 import '../../phone/sort.css';
 
-const ACCENT = '#76b9ed';
 const periodLength = (goal: Goal) => (goal.period === 'week' ? 7 : 1);
 const periodName = (goal: Goal) => (goal.period === 'week' ? '本周' : '今天');
 type Status = ReturnType<typeof goalStatus>;
@@ -156,8 +153,9 @@ function GoalCard({
   move?: (source: string, target: string) => void;
 }) {
   const drag = useSortDrag(goal.id, sortGroup, move);
-  const single = goal.kind === undefined ? rulesActivity(goal.rules) : undefined;
-  const activity = single ? state.activities.find((item) => item.id === single) : undefined;
+  // One icon language for every goal: a blue stopwatch for "at least", a red one for
+  // "at most", a checklist for task-bound goals and the check itself for manual goals.
+  const ceiling = goal.kind === undefined && goal.comparison === 'atMost';
   // Staged goals scale the bar to the loosest threshold and mark every stage on it.
   const thresholds = goal.kind === undefined ? [...(goal.stages ?? []), goal.minutes] : [];
   const scale = Math.max(current.target, ...thresholds);
@@ -170,7 +168,8 @@ function GoalCard({
       className={`goal-card ${current.met ? 'achieved' : ''} ${current.met === false || over ? 'missed' : ''} ${drag.dragging ? 'sort-source' : ''}`}
       data-sort-id={move ? goal.id : undefined}
       data-sort-group={move ? sortGroup : undefined}
-      style={{ '--activity-color': activity?.color ?? ACCENT } as CSSProperties}
+      data-kind={goal.kind ?? (ceiling ? 'ceiling' : 'time')}
+      style={{ '--activity-color': ceiling ? 'var(--red)' : 'var(--accent)' } as CSSProperties}
       onClickCapture={drag.onClickCapture}
     >
       <button
@@ -180,19 +179,18 @@ function GoalCard({
         onClick={() => edit(goal)}
       >
         <h3>
-          {activity ? (
-            <ActivityIcon name={activity.name} size={18} />
-          ) : goal.kind === undefined ? (
-            <Timer size={18} />
+          {goal.kind === undefined ? (
+            <Timer size={18} aria-hidden />
           ) : goal.kind === 'tasks' ? (
-            <ListChecks size={18} />
+            <ListChecks size={18} aria-hidden />
           ) : (
-            <CircleCheck size={18} />
+            // The check button sits over this slot; it cannot nest inside the edit button.
+            <span className="goal-icon-slot" aria-hidden />
           )}
           <span>{goal.name}</span>
           {current.met && <Check size={15} />}
         </h3>
-        {goal.kind === undefined && !activity && (
+        {goal.kind === undefined && (
           <p className="goal-match">{describeRules(goal.rules, state.activities)}</p>
         )}
         <div className="goal-card-status">
@@ -214,7 +212,7 @@ function GoalCard({
           aria-label={`${manualCheck?.done ? '取消勾选' : '勾选'}${periodName(goal)} ${goal.name}`}
           onClick={() => check(goal, !manualCheck?.done)}
         >
-          <Check size={15} />
+          <Check size={13} strokeWidth={3} />
         </button>
       )}
       <details className="goal-menu">
