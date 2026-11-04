@@ -1048,12 +1048,13 @@
 /* Manual goals: the check takes the icon's place (top-left of the card). */
 .timelog-module .goal-check {
   position: absolute;
-  top: 11px;
-  left: 10px;
+  /* 16px drawn circle centred on the 18px icon slot, matching the stopwatch's body. */
+  top: 14px;
+  left: 13px;
   display: grid;
   place-items: center;
-  width: 22px;
-  height: 22px;
+  width: 16px;
+  height: 16px;
   border: 1.5px solid var(--activity-color);
   border-radius: 50%;
   color: transparent;

@@ -212,7 +212,7 @@ function GoalCard({
           aria-label={`${manualCheck?.done ? '取消勾选' : '勾选'}${periodName(goal)} ${goal.name}`}
           onClick={() => check(goal, !manualCheck?.done)}
         >
-          <Check size={13} strokeWidth={3} />
+          <Check size={10} strokeWidth={3.5} />
         </button>
       )}
       <details className="goal-menu">
