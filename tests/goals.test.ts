@@ -2,11 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   dayRange,
-  goalStagesText,
   goalStatus,
   goalTargetText,
   initialState,
-  parseGoalStages,
   parseGoalTarget,
   deleteActivity,
   describeRules,
@@ -102,24 +100,43 @@ test('older data without comparison or with points still loads', () => {
   assert.equal('rewards' in state, false);
 });
 
-test('goal stages parse in the target unit and grade each period', () => {
-  const floor = parseGoalTarget('16h');
-  assert.deepEqual(
-    parseGoalStages('8-15', floor),
-    [8, 9, 10, 11, 12, 13, 14, 15].map((hours) => hours * 60),
+test('a range in the target time sets one stage per unit and grades each period', () => {
+  const hours = (...values: number[]) => values.map((value) => value * 60);
+  const floor = parseGoalTarget('8-16h');
+  assert.deepEqual(floor, {
+    minutes: 960,
+    comparison: 'atLeast',
+    stages: hours(8, 9, 10, 11, 12, 13, 14, 15),
+  });
+  const ceiling = parseGoalTarget('<1-3h');
+  assert.deepEqual(ceiling, { minutes: 60, comparison: 'atMost', stages: hours(2, 3) });
+  assert.deepEqual(parseGoalTarget('≤ 1h - 3h'), ceiling);
+  assert.deepEqual(parseGoalTarget('8到16小时'), floor);
+  assert.deepEqual(parseGoalTarget('8,10,16h'), {
+    minutes: 960,
+    comparison: 'atLeast',
+    stages: hours(8, 10),
+  });
+  assert.deepEqual(parseGoalTarget('30-33'), {
+    minutes: 33,
+    comparison: 'atLeast',
+    stages: [30, 31, 32],
+  });
+  assert.deepEqual(parseGoalTarget('0.5-2h'), {
+    minutes: 120,
+    comparison: 'atLeast',
+    stages: [30, 90],
+  });
+  assert.throws(() => parseGoalTarget('1-100h'), /阶段最多/);
+  assert.throws(() => parseGoalTarget('8-16x'));
+  // The editable text round-trips, collapsing unit runs back into a range.
+  for (const text of ['8-16h', '<1-3h', '8,10,16h', '30-33', '<2,3h'])
+    assert.equal(goalTargetText(parseGoalTarget(text)), text);
+  assert.equal(goalTargetText(parseGoalTarget('<1,2,3h')), '<1-3h');
+  assert.equal(
+    goalTargetText({ minutes: 960, comparison: 'atLeast', stages: [480, 750] }),
+    '480,750,960',
   );
-  assert.deepEqual(parseGoalStages('8, 9，10、16', floor), [480, 540, 600]);
-  assert.deepEqual(parseGoalStages('1h30m 2', floor), [90, 120]);
-  assert.deepEqual(parseGoalStages('', floor), []);
-  assert.throws(() => parseGoalStages('17', floor), /小于目标/);
-  assert.deepEqual(parseGoalStages('10-30', parseGoalTarget('45')), [
-    ...Array.from({ length: 21 }, (_, index) => 10 + index),
-  ]);
-  const ceiling = parseGoalTarget('<1h');
-  assert.deepEqual(parseGoalStages('3, 2', ceiling), [120, 180]);
-  assert.throws(() => parseGoalStages('0.5', ceiling), /大于目标/);
-  assert.equal(goalStagesText({ ...floor, stages: [480, 540, 600, 660, 750] }), '8-11, 12h30m');
-  assert.equal(goalStagesText({ ...floor, stages: [480, 600] }), '8, 10');
 
   const state: State = initialState();
   const day = '2026-11-02';
@@ -139,7 +156,6 @@ test('goal stages parse in the target unit and grade each period', () => {
     name: '学习',
     rules: [{ activities: ['study'], tags: [], excludeTags: [] }],
     ...floor,
-    stages: parseGoalStages('8-15', floor),
     period: 'day',
     archived: false,
     updatedAt: 1,

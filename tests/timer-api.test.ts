@@ -230,8 +230,35 @@ test('deleting activities and goals removes usable entities while retaining hist
       }),
       201,
     );
+    // A range in the target text sets the stages; a plain target clears them again.
+    const staged = await data(
+      await request('PATCH', `/timelog/goals/${goal.id}`, {
+        expectedUpdatedAt: goal.updatedAt,
+        target: '<1-3h',
+      }),
+    );
+    assert.deepEqual(
+      [staged.minutes, staged.comparison, staged.stages],
+      [60, 'atMost', [120, 180]],
+    );
+    const plain = await data(
+      await request('PATCH', `/timelog/goals/${goal.id}`, {
+        expectedUpdatedAt: staged.updatedAt,
+        target: '9h',
+      }),
+    );
+    assert.equal(plain.stages, undefined);
+    assert.equal(
+      (
+        await request('PATCH', `/timelog/goals/${goal.id}`, {
+          expectedUpdatedAt: plain.updatedAt,
+          stages: '8-15',
+        })
+      ).status,
+      400,
+    );
     await data(
-      await request('DELETE', `/timelog/goals/${goal.id}`, { expectedUpdatedAt: goal.updatedAt }),
+      await request('DELETE', `/timelog/goals/${goal.id}`, { expectedUpdatedAt: plain.updatedAt }),
     );
     assert.equal(
       (await service.snapshot()).state.timelog.goals.some((row) => row.id === goal.id),

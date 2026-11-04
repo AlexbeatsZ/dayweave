@@ -4,12 +4,10 @@ import {
   colors,
   duration,
   formatDuration,
-  goalStagesText,
   emptyRule,
   type RecordRule,
   goalTargetText,
   newId,
-  parseGoalStages,
   parseGoalTarget,
   timestamp,
   type Activity,
@@ -177,7 +175,6 @@ export function Editor({
       } else {
         const previous = target.goal;
         const goalTarget = goalKind === 'time' ? parseGoalTarget(text('target')) : null;
-        const stages = goalTarget ? parseGoalStages(text('stages'), goalTarget) : [];
         const saved = await commit((current) => {
           const existing = previous && current.goals.find((row) => row.id === previous.id);
           if (previous && existing?.updatedAt !== previous.updatedAt)
@@ -205,7 +202,6 @@ export function Editor({
                     ...base,
                     rules,
                     ...goalTarget!,
-                    ...(stages.length ? { stages } : {}),
                   };
           return {
             ...current,
@@ -480,28 +476,14 @@ export function Editor({
                         ? goalTargetText(target.goal)
                         : '30'
                     }
-                    placeholder="9h、>90、<2h"
-                    maxLength={20}
+                    placeholder="9h、<2h、8-16h、<1-3h"
+                    maxLength={200}
                     required
                   />
                 </label>
-                <p className="muted">纯数字按分钟、表示至少；写 &lt; 表示不超过。</p>
-                <label>
-                  阶段（可选）
-                  <input
-                    name="stages"
-                    defaultValue={
-                      target.goal?.kind === undefined && target.goal
-                        ? goalStagesText(target.goal)
-                        : ''
-                    }
-                    placeholder="例如 8-15 或 2, 3"
-                    maxLength={200}
-                  />
-                </label>
                 <p className="muted">
-                  例：8-15 表示 8 到 15 小时每小时一个阶段。纯数字单位跟随目标（满 1
-                  小时按小时）；「不超过」目标写更宽的上限，如 2, 3。
+                  纯数字按分钟、表示至少；&lt; 表示不超过。写范围即分阶段：8-16h 为 8 到 16
+                  小时每小时一阶，&lt;1-3h 为 ≤1h、≤2h、≤3h。
                 </p>
               </>
             )}

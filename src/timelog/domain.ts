@@ -540,58 +540,6 @@ export function goalStages(
   }
   return stages;
 }
-/** Bare stage numbers use hours when the target is at least an hour, otherwise minutes. */
-const stageUnit = (goal: Pick<TimeGoal, 'minutes'>) => (goal.minutes >= 60 ? 60 : 1);
-/** "8, 9, 10", "8-15" (one stage per unit) or explicit "8h30m"; empty means no stages. */
-export function parseGoalStages(
-  text: string,
-  goal: Pick<TimeGoal, 'minutes' | 'comparison'>,
-): number[] {
-  const unit = stageUnit(goal);
-  const values: number[] = [];
-  for (const part of text.split(/[,，、;；\s]+/).filter(Boolean)) {
-    const range = part.match(/^(\d+(?:\.\d+)?)[-~–—](\d+(?:\.\d+)?)$/);
-    if (range) {
-      const [low, high] = [Number(range[1]), Number(range[2])].sort((a, b) => a - b);
-      if (high - low >= MAX_STAGES) throw new Error(`阶段最多 ${MAX_STAGES} 个。`);
-      for (let value = low; value <= high + 1e-9; value++) values.push(value * unit);
-    } else if (/^\d+(?:\.\d+)?$/.test(part)) values.push(Number(part) * unit);
-    else if (/^[<>≤≥=]/.test(part)) throw new Error('阶段只写时间，例如 8,9,10 或 8-15。');
-    else
-      try {
-        values.push(parseGoalTarget(part).minutes);
-      } catch {
-        throw new Error('阶段示例：8,9,10、8-15、1h30m。');
-      }
-  }
-  return goalStages(values, goal);
-}
-/** Editable stage text; runs of three or more consecutive units collapse into "8-15". */
-export function goalStagesText(goal: Pick<TimeGoal, 'minutes' | 'stages'>): string {
-  const unit = stageUnit(goal);
-  const parts: string[] = [];
-  const stages = goal.stages ?? [];
-  for (let index = 0; index < stages.length;) {
-    const value = stages[index];
-    if (value % unit) {
-      parts.push(`${Math.floor(value / 60)}h${value % 60}m`);
-      index++;
-      continue;
-    }
-    let end = index;
-    while (end + 1 < stages.length && stages[end + 1] === stages[end] + unit) end++;
-    parts.push(
-      end - index >= 2
-        ? `${value / unit}-${stages[end] / unit}`
-        : stages
-            .slice(index, end + 1)
-            .map((item) => String(item / unit))
-            .join(', '),
-    );
-    index = end + 1;
-  }
-  return parts.join(', ');
-}
 /** Moves one row among `visible` ids and writes `order` to every row of `rows`. */
 export function reorderRows<T extends { id: string; order?: number; updatedAt: number }>(
   rows: T[],
@@ -633,32 +581,98 @@ export function sortGoals<T extends Goal>(goals: T[]): T[] {
   const groups = [...new Set(sorted.map((goal) => goal.group ?? ''))];
   return groups.flatMap((group) => sorted.filter((goal) => (goal.group ?? '') === group));
 }
-/** "9h", ">90", "<2h", "1h30m", "≤ 45分钟"; a bare number is minutes and means at least. */
-export function parseGoalTarget(text: string): Pick<TimeGoal, 'minutes' | 'comparison'> {
-  const match = text
-    .trim()
+const HOUR_UNIT = /^(?:h|小时|时)$/;
+const AMOUNT = /^(?:(\d+(?:\.\d+)?)(?:h|小时|时))?(?:(\d+(?:\.\d+)?)(?:m|min|分钟|分)?)?$/;
+const TARGET_HINT = '目标时间示例：9h、<2h、1h30m、8-16h、<1-3h（纯数字按分钟）。';
+/**
+ * Target time with optional stages in one field: "9h" is a single target; "8-16h" means
+ * ≥8h, ≥9h … ≥16h and "<1-3h" ≤1h, ≤2h, ≤3h (one stage per unit). Lists like "8,10,16h"
+ * name thresholds directly. The strictest threshold is the goal; the rest become stages.
+ * A trailing unit applies to bare numbers; without one they are minutes.
+ */
+export function parseGoalTarget(text: string): Pick<TimeGoal, 'minutes' | 'comparison' | 'stages'> {
+  const normalized = text.trim().toLowerCase();
+  const prefix = normalized.match(/^(>=|<=|≥|≤|>|<)?\s*/)!;
+  const comparison: TimeGoal['comparison'] = /[<≤]/.test(prefix[1] ?? '') ? 'atMost' : 'atLeast';
+  const parts = normalized
+    .slice(prefix[0].length)
     .replace(/\s+/g, '')
-    .toLowerCase()
-    .match(
-      /^(>=|<=|≥|≤|>|<)?(?:(\d+(?:\.\d+)?)(?:h|小时|时))?(?:(\d+(?:\.\d+)?)(?:m|min|分钟|分)?)?$/,
-    );
-  const minutes =
-    match && (match[2] || match[3]) ? Number(match[2] ?? 0) * 60 + Number(match[3] ?? 0) : NaN;
-  if (!Number.isFinite(minutes) || minutes < 1 || minutes > 1000000)
-    throw new Error('目标时间示例：9h、>90、<2h、1h30m（纯数字按分钟）。');
-  return {
-    minutes: Math.round(minutes),
-    comparison: /[<≤]/.test(match![1] ?? '') ? 'atMost' : 'atLeast',
+    .split(/[,，、;；]+/)
+    .filter(Boolean);
+  const unitOf = (part: string) => part.match(/(h|小时|时|m|min|分钟|分)$/)?.[1];
+  const tail = parts.length ? unitOf(parts[parts.length - 1]) : undefined;
+  const defaultUnit = tail && HOUR_UNIT.test(tail) ? 60 : 1;
+  const amount = (value: string) => {
+    if (/^\d+(?:\.\d+)?$/.test(value)) return Number(value) * defaultUnit;
+    const match = value.match(AMOUNT);
+    if (!match || !(match[1] || match[2])) throw new Error(TARGET_HINT);
+    return Number(match[1] ?? 0) * 60 + Number(match[2] ?? 0);
   };
+  const values: number[] = [];
+  for (const part of parts) {
+    const range = part.match(
+      /^(\d+(?:\.\d+)?)([a-z\u4e00-\u9fff]*)[-~–—到至](\d+(?:\.\d+)?)([a-z\u4e00-\u9fff]*)$/,
+    );
+    if (!range) {
+      values.push(amount(part));
+      continue;
+    }
+    // "8-16h": the unit after the range applies to both ends and sets the step.
+    const unitScale = (unit: string) => {
+      if (!unit) return defaultUnit;
+      if (HOUR_UNIT.test(unit)) return 60;
+      if (/^(?:m|min|分钟|分)$/.test(unit)) return 1;
+      throw new Error(TARGET_HINT);
+    };
+    const step = unitScale(range[4] || range[2]);
+    const [low, high] = [
+      Number(range[1]) * unitScale(range[2] || range[4]),
+      Number(range[3]) * step,
+    ].sort((a, b) => a - b);
+    if ((high - low) / step > MAX_STAGES) throw new Error(`阶段最多 ${MAX_STAGES} 个。`);
+    for (let value = low; value < high - 1e-9; value += step) values.push(value);
+    values.push(high);
+  }
+  const thresholds = [...new Set(values.map((value) => Math.round(value)))].sort((a, b) => a - b);
+  if (
+    !thresholds.length ||
+    thresholds.some((value) => !Number.isFinite(value) || value < 1 || value > 1000000)
+  )
+    throw new Error(TARGET_HINT);
+  const minutes = comparison === 'atMost' ? thresholds[0] : thresholds[thresholds.length - 1];
+  const stages = goalStages(thresholds, { minutes, comparison });
+  return { minutes, comparison, ...(stages.length ? { stages } : {}) };
 }
-/** Editable form ("<1h30m") or display form ("≤ 1 小时 30 分钟"). */
-export function goalTargetText(goal: Pick<TimeGoal, 'minutes' | 'comparison'>, display = false) {
-  const hours = Math.floor(goal.minutes / 60),
-    minutes = goal.minutes % 60;
+/** Editable form ("<1-3h", "8,10,16h") or display form ("≤ 1 小时 30 分钟"). */
+export function goalTargetText(
+  goal: Pick<TimeGoal, 'minutes' | 'comparison' | 'stages'>,
+  display = false,
+) {
   if (display)
     return (goal.comparison === 'atMost' ? '≤ ' : '≥ ') + formatDuration(goal.minutes * 60000);
-  const amount = hours ? `${hours}h${minutes ? `${minutes}m` : ''}` : String(minutes);
-  return (goal.comparison === 'atMost' ? '<' : '') + amount;
+  const sign = goal.comparison === 'atMost' ? '<' : '';
+  const thresholds = [...(goal.stages ?? []), goal.minutes].sort((a, b) => a - b);
+  if (thresholds.length === 1) {
+    const hours = Math.floor(goal.minutes / 60),
+      minutes = goal.minutes % 60;
+    return sign + (hours ? `${hours}h${minutes ? `${minutes}m` : ''}` : String(minutes));
+  }
+  const unit = thresholds.every((value) => value % 60 === 0) ? 60 : 1;
+  const parts: string[] = [];
+  for (let index = 0; index < thresholds.length;) {
+    let end = index;
+    while (end + 1 < thresholds.length && thresholds[end + 1] === thresholds[end] + unit) end++;
+    parts.push(
+      end - index >= 2
+        ? `${thresholds[index] / unit}-${thresholds[end] / unit}`
+        : thresholds
+            .slice(index, end + 1)
+            .map((value) => String(value / unit))
+            .join(','),
+    );
+    index = end + 1;
+  }
+  return sign + parts.join(',') + (unit === 60 ? 'h' : '');
 }
 export const localDateTime = (at: number) => dateTimeInput(at);
 

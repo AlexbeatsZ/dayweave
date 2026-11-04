@@ -8,7 +8,6 @@ import {
   finishTimer,
   goalStatus,
   parseGoalTarget,
-  parseGoalStages,
   goalStages,
   emptyRule,
   type RecordRule,
@@ -454,36 +453,33 @@ export async function handleApi(
           item = { ...base, kind, checks: old?.kind === 'manual' ? old.checks : {} };
         else if (kind === 'time') {
           const timeGoal = old?.kind === undefined ? old : undefined;
-          // "target" accepts the same text as the editor (">9h", "<2h", "90"); otherwise minutes/comparison.
+          // "target" accepts the editor text (">9h", "<2h", "8-16h", "<1-3h"), which also
+          // sets the stages; otherwise minutes/comparison keep the stored stages.
           let target: Pick<Extract<Goal, { kind?: undefined }>, 'minutes' | 'comparison'>;
+          let stages: number[];
           try {
-            target =
+            const parsed =
               body.target !== undefined
                 ? parseGoalTarget(text(body.target))
                 : {
                     minutes: number(body.minutes, timeGoal?.minutes ?? 30),
                     comparison: text(body.comparison, timeGoal?.comparison || 'atLeast') as
                       'atLeast' | 'atMost',
+                    stages: timeGoal?.stages,
                   };
-          } catch (error) {
-            return fail(400, error instanceof Error ? error.message : String(error));
-          }
-          if (target.comparison !== 'atLeast' && target.comparison !== 'atMost')
-            fail(400, 'comparison must be atLeast or atMost');
-          // "stages" takes minutes ([480, 540]) or editor text ("8-15"); null clears them.
-          let stages: number[];
-          try {
+            target = { minutes: parsed.minutes, comparison: parsed.comparison };
+            if (target.comparison !== 'atLeast' && target.comparison !== 'atMost')
+              fail(400, 'comparison must be atLeast or atMost');
+            // An explicit "stages" (minutes, or null to clear) overrides the target text.
             stages =
               body.stages === undefined
-                ? goalStages(timeGoal?.stages ?? [], target)
+                ? goalStages(parsed.stages ?? [], target)
                 : body.stages === null
                   ? []
-                  : typeof body.stages === 'string'
-                    ? parseGoalStages(body.stages, target)
-                    : Array.isArray(body.stages) &&
-                        body.stages.every((value) => typeof value === 'number')
-                      ? goalStages(body.stages as number[], target)
-                      : fail(400, 'stages must be minutes, text or null');
+                  : Array.isArray(body.stages) &&
+                      body.stages.every((value) => typeof value === 'number')
+                    ? goalStages(body.stages as number[], target)
+                    : fail(400, 'stages must be an array of minutes or null');
           } catch (error) {
             if (error instanceof ApiError) throw error;
             return fail(400, error instanceof Error ? error.message : String(error));
