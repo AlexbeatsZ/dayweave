@@ -3,13 +3,14 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm, mkdir } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { emptyState, newTask, type AppState } from '../src/model.js';
+import { emptyState, newPlanGroup, newTask, type AppState } from '../src/model.js';
 import { startTimer, finishTimer, toggleTimer } from '../src/timelog/domain.js';
 import {
   toDocument,
   fromDocument,
   mergeDocuments,
   overlayNewEdits,
+  isDocumentKey,
   stable,
 } from '../src/sync/document.js';
 import { seal, openEnvelope, randomKey, localEndpoint, type Envelope } from '../src/sync/crypto.js';
@@ -297,6 +298,63 @@ test('real encrypted hub with two clients: pairing, offline merge, cross-device 
     await hub.revoke(a.client.config.deviceId);
     await a.client.now();
     assert.equal(a.client.connected, false);
+  } finally {
+    await hub.close();
+    await service.flush();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('hub accepts every key toDocument produces, including daily-plan time slots', async () => {
+  const state = emptyState();
+  const day = '2026-11-04';
+  const group = newPlanGroup(day, { title: '午饭前' });
+  state.planGroups = [group];
+  state.tasks = [newTask('带时段', { due: day, planGroupId: group.id })];
+  state.timelog = startTimer(state.timelog, 'study', '', Date.now() - 60000);
+  for (const key of Object.keys(toDocument(state))) assert.ok(isDocumentKey(key), key);
+  assert.ok(isDocumentKey('rewards/old'), 'legacy collections from old bases are tolerated');
+  for (const key of ['secrets/x', 'tasks', 'tasks/a/b', 'tasks/', '/x'])
+    assert.equal(isDocumentKey(key), false, key);
+
+  // Regression: once the hub held a plan group, every client upload carrying a base was refused
+  // with HTTP 500, so devices with local edits stayed "offline" forever.
+  const temp = path.join(os.tmpdir(), '.agents');
+  await mkdir(temp, { recursive: true });
+  const directory = await mkdtemp(path.join(temp, 'dayweave-sync-groups-'));
+  const service = new StateService(new FileStore(directory));
+  const hub = await new DesktopSync(service, directory, false).initialize();
+  hub.client.config.hub = { port: 0, clients: {} };
+  await hub.enableHub();
+  try {
+    await service.mutate((current) => ({ ...current, planGroups: [group] }));
+    let raw: string | null = null;
+    let local = emptyState();
+    const client = new SyncClient(
+      {
+        read: async () => raw,
+        write: async (text) => {
+          raw = text;
+        },
+      },
+      {
+        snapshot: async () => ({ state: structuredClone(local) }),
+        mutate: async (fn) => {
+          local = fn(local);
+        },
+      },
+      fetchEnvelope,
+      '手机',
+    );
+    await client.load();
+    await client.pair(await hub.invite(), 'http://127.0.0.1:' + hub.client.config.hub.port);
+    await client.now();
+    assert.equal(client.connected, true, client.error);
+    assert.ok(client.config.base?.['planGroups/' + group.id], 'base now names the time slot');
+    local.tasks.push(newTask('手机离线修改'));
+    await client.now();
+    assert.equal(client.connected, true, client.error);
+    assert.ok((await service.snapshot()).state.tasks.some((task) => task.title === '手机离线修改'));
   } finally {
     await hub.close();
     await service.flush();

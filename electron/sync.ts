@@ -6,7 +6,7 @@ import Bonjour from 'bonjour-service';
 import { SyncClient, fetchEnvelope } from '../src/sync/client.js';
 import { SyncScheduler } from '../src/sync/scheduler.js';
 import { localEndpoint, openEnvelope, randomKey, seal, type Envelope } from '../src/sync/crypto.js';
-import { fromDocument, mergeDocuments, toDocument } from '../src/sync/document.js';
+import { fromDocument, isDocumentKey, mergeDocuments, toDocument } from '../src/sync/document.js';
 import { stateSchema } from '../src/model.js';
 import type { Peer, SyncBridge, SyncRequest, SyncStatus } from '../src/sync/types.js';
 import type { StateService } from './state-service.js';
@@ -250,12 +250,7 @@ export class DesktopSync implements SyncBridge {
                     if (!base || typeof base !== 'object' || Array.isArray(base))
                       throw new Error('基础文档无效');
                     for (const key of Object.keys(base))
-                      if (
-                        !/^(tasks|lists|sessions|activities|goals|rewards|redemptions|courses|events|records)\/[^/]+$|^(schedule|preferences|focus)$/.test(
-                          key,
-                        )
-                      )
-                        throw new Error('基础文档字段无效');
+                      if (!isDocumentKey(key)) throw new Error('基础文档字段无效');
                     const merged = mergeDocuments(base, incoming, toDocument(current));
                     conflicts = merged.conflicts;
                     return fromDocument(merged.doc, current);

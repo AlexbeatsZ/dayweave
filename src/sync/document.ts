@@ -26,13 +26,39 @@ export function stable(value: unknown): string {
   );
 }
 const entityKey = (collection: string, id: string) => collection + '/' + encodeURIComponent(id);
+const ROOT_COLLECTIONS = ['tasks', 'lists', 'sessions', 'planGroups'] as const;
+const TIMELOG_COLLECTIONS = ['activities', 'goals'] as const;
+const SCHEDULE_COLLECTIONS = ['courses', 'events'] as const;
+/** Removed collections older clients may still carry in a base; accepted and ignored. */
+const LEGACY_COLLECTIONS = ['rewards', 'redemptions'];
+const BASE_COLLECTIONS = new Set<string>([
+  ...ROOT_COLLECTIONS,
+  ...TIMELOG_COLLECTIONS,
+  ...SCHEDULE_COLLECTIONS,
+  'records',
+  ...LEGACY_COLLECTIONS,
+]);
+/**
+ * Keys a client's base document may contain: exactly what toDocument produces. Derived from
+ * the same collection lists, so a new synced collection cannot be rejected by the hub.
+ */
+export function isDocumentKey(key: string): boolean {
+  if (key === 'schedule' || key === 'preferences' || key === 'focus') return true;
+  const slash = key.indexOf('/');
+  return (
+    slash > 0 &&
+    key.indexOf('/', slash + 1) < 0 &&
+    slash < key.length - 1 &&
+    BASE_COLLECTIONS.has(key.slice(0, slash))
+  );
+}
 export function toDocument(state: AppState): SyncDocument {
   const doc: SyncDocument = {};
-  for (const collection of ['tasks', 'lists', 'sessions', 'planGroups'] as const)
+  for (const collection of ROOT_COLLECTIONS)
     for (const row of state[collection]) doc[entityKey(collection, row.id)] = { ...row };
-  for (const collection of ['activities', 'goals'] as const)
+  for (const collection of TIMELOG_COLLECTIONS)
     for (const row of state.timelog[collection]) doc[entityKey(collection, row.id)] = { ...row };
-  for (const collection of ['courses', 'events'] as const)
+  for (const collection of SCHEDULE_COLLECTIONS)
     for (const row of state.schedule[collection]) doc[entityKey(collection, row.id)] = { ...row };
   for (const row of state.timelog.records)
     doc[entityKey('records', row.id)] = {
