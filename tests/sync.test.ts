@@ -53,6 +53,7 @@ test('coalesced in-flight exchange preserves later edits and uses one outgoing s
       }
       return seal(
         {
+          protocol: 2,
           seq: request.seq,
           hubId: 'hub',
           revision: String(posts),
@@ -107,7 +108,7 @@ test('open records round-trip without ticks; closed timing wins over stale pause
   assert.equal(merged.timelog.records[0].id, id);
   assert.equal(merged.timelog.records[0].note, '手机补充');
 });
-test('offline task fields merge independently, same-field conflicts retain both candidates', () => {
+test('offline task fields merge independently and task conflicts accept the later hub operation', () => {
   const a = emptyState();
   a.tasks = [newTask('原始')];
   const b = structuredClone(a),
@@ -121,9 +122,8 @@ test('offline task fields merge independently, same-field conflicts retain both 
   assert.equal(state.tasks[0].notes, '手机备注');
   c.tasks[0].title = '平板标题';
   merged = mergeDocuments(toDocument(a), toDocument(b), toDocument(c));
-  assert.equal(merged.conflicts.length, 1);
-  assert.equal(merged.conflicts[0].local, '电脑标题');
-  assert.equal(fromDocument(merged.doc, a).tasks[0].title, '平板标题');
+  assert.equal(merged.conflicts.length, 0);
+  assert.equal(fromDocument(merged.doc, a).tasks[0].title, '电脑标题');
 });
 test('simultaneous offline starts preserve both timer IDs and old schemas still load', () => {
   const a = emptyState(),
@@ -310,7 +310,7 @@ test('hub accepts every key toDocument produces, including daily-plan time slots
   const day = '2026-11-04';
   const group = newPlanGroup(day, { title: '午饭前' });
   state.planGroups = [group];
-  state.tasks = [newTask('带时段', { due: day, planGroupId: group.id })];
+  state.tasks = [newTask('带时段', { dates: { [day]: group.id } })];
   state.timelog = startTimer(state.timelog, 'study', '', Date.now() - 60000);
   for (const key of Object.keys(toDocument(state))) assert.ok(isDocumentKey(key), key);
   assert.ok(isDocumentKey('rewards/old'), 'legacy collections from old bases are tolerated');

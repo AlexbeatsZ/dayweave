@@ -1,3 +1,4 @@
+import { taskCompleted } from '../../model';
 import './TimerPanel.css';
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { ArrowRight, ChevronRight, Pause, Pencil, Play, Plus, X } from 'lucide-react';
@@ -60,7 +61,7 @@ export function TimerPanel({
   const [error, setError] = useState('');
   const presets = state.settings.timerPresets ?? [5, 30, 45, 60];
   const todaysTasks = tasks.filter(
-    (task) => !task.deletedAt && !task.completedAt && task.due === dateKey(),
+    (task) => !task.deletedAt && !taskCompleted(task) && Object.hasOwn(task.dates, dateKey()),
   );
   const tagOptions = [
     ...new Set([

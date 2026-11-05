@@ -1,4 +1,28 @@
 import { z } from 'zod';
+import { mergeTaskEntity } from './task-merge.js';
+import { migrateTaskState } from './task-migration.js';
+import { validateCron } from './task-cron.js';
+import {
+  activeTask,
+  finiteTaskDates,
+  normalizeTask,
+  setTaskDone,
+  taskCompleted,
+  taskCompletedOnDay,
+} from './task-domain.js';
+export {
+  taskPrefix,
+  taskSequence,
+  finiteTaskDates,
+  activeTask,
+  changeSubtask,
+  taskDaySubtasks,
+  subtaskDay,
+  taskCompleted,
+  taskDoneOn,
+  taskCompletedOnDay,
+  taskDateLabel,
+} from './task-domain.js';
 import {
   initialState,
   validateState,
@@ -44,6 +68,26 @@ export const listSchema = z
     order: z.number().finite(),
   })
   .strict();
+export const completionEventSchema = z
+  .object({ id: idSchema, at: instant, done: z.boolean() })
+  .strict();
+export const completionHistorySchema = z
+  .array(completionEventSchema)
+  .max(100000)
+  .default(() => []);
+export const subtaskSchema = z
+  .object({
+    id: idSchema,
+    title: z.string().trim().min(1).max(500),
+    done: z.boolean(),
+    completedAt: instant.nullable().default(null),
+    deletedAt: instant.nullable().default(null),
+    history: completionHistorySchema,
+  })
+  .strict();
+export const datesSchema = z
+  .record(z.union([dateSchema, z.literal('∞')]), idSchema.nullable())
+  .refine((dates) => !('∞' in dates) || dates['∞'] === null, '∞ 不能设置时段');
 export const taskSchema = z
   .object({
     id: idSchema,
@@ -51,33 +95,58 @@ export const taskSchema = z
     notes: z.string().max(50000),
     estimatedMinutes: z.number().finite().nonnegative().nullable().optional(),
     actualMinutes: z.number().finite().nonnegative().nullable().optional(),
-    /** Manually chosen workload; when absent the size is derived from `estimatedMinutes`. */
-    effort: z.enum(['small', 'medium', 'large']).nullable().optional(),
+    difficulty: z.enum(['easy', 'medium', 'hard']).default('easy'),
     listId: idSchema,
-    due: dateSchema.nullable(),
+    dates: datesSchema,
     tags: z.array(z.string().trim().min(1).max(40)).max(30),
-    /** Section of the daily plan; only meaningful while it names a live group of the same day. */
-    planGroupId: idSchema.optional(),
-    subtasks: z
-      .array(
-        z
-          .object({ id: idSchema, title: z.string().trim().min(1).max(500), done: z.boolean() })
-          .strict(),
-      )
-      .max(200),
-    repeat: z.enum(['none', 'daily', 'weekly', 'monthly']),
-    repeatDay: z.number().int().min(1).max(31),
-    spawnedId: idSchema.nullable(),
-    parentId: idSchema.nullable(),
+    subtasks: z.array(subtaskSchema).max(200),
     pinned: z.boolean(),
     order: z.number().finite(),
     createdAt: instant,
     updatedAt: instant,
     completedAt: instant.nullable(),
     deletedAt: instant.nullable(),
+    history: completionHistorySchema,
   })
   .strict();
-/** A section of one day's plan, such as "午饭前"; tasks still belong to the day through `due`. */
+export const taskTemplateSchema = taskSchema.pick({
+  title: true,
+  notes: true,
+  estimatedMinutes: true,
+  difficulty: true,
+  listId: true,
+  tags: true,
+  subtasks: true,
+  pinned: true,
+  order: true,
+});
+export const repeatRuleSchema = z
+  .object({
+    prefix: idSchema,
+    cron: z
+      .string()
+      .trim()
+      .min(9)
+      .max(120)
+      .refine((value) => {
+        try {
+          validateCron(value);
+          return true;
+        } catch {
+          return false;
+        }
+      }, 'Cron 无效，请使用五字段表达式'),
+    dateOffsets: z.array(z.number().int().min(0).max(365)).min(1).max(366),
+    template: taskTemplateSchema,
+    startAt: instant,
+    generatedThrough: instant.nullable(),
+    occurrences: z.record(z.string().max(40), idSchema),
+    enabled: z.boolean(),
+    createdAt: instant,
+    updatedAt: instant,
+  })
+  .strict();
+/** A section of one day's plan, such as "午饭前"; each task date maps to its own section. */
 export const planGroupSchema = z
   .object({
     id: idSchema,
@@ -115,19 +184,9 @@ export const timerSchema = z
     endAt: z.number().finite().nonnegative().nullable(),
   })
   .strict();
-/**
- * Priority and the Eisenhower quadrant were removed: estimated minutes give the size and the
- * manual order is the priority. Older data carrying either field is read and drops it.
- */
-function withoutLegacyTaskFields(value: unknown) {
-  if (!value || typeof value !== 'object' || !('priority' in value || 'quadrant' in value))
-    return value;
-  const { priority: _priority, quadrant: _quadrant, ...task } = value as Record<string, unknown>;
-  return task;
-}
-export const stateSchema = z
+export const stateFields = z
   .object({
-    version: z.literal(1),
+    version: z.literal(2),
     timelog: z
       .unknown()
       .default(initialState)
@@ -141,7 +200,11 @@ export const stateSchema = z
       })
       .strict()
       .default(() => ({ tasks: {}, records: {} })),
-    tasks: z.array(z.preprocess(withoutLegacyTaskFields, taskSchema)).max(50000),
+    tasks: z.array(taskSchema).max(50000),
+    repeatRules: z
+      .array(repeatRuleSchema)
+      .max(5000)
+      .default(() => []),
     planGroups: z
       .array(planGroupSchema)
       .max(20000)
@@ -179,6 +242,10 @@ export const stateSchema = z
       'tasks',
     );
     unique(
+      state.repeatRules.map((row) => row.prefix),
+      'repeatRules',
+    );
+    unique(
       state.sessions.map((x) => x.id),
       'sessions',
     );
@@ -199,6 +266,27 @@ export const stateSchema = z
     }
   });
 
+/** Invalid/deleted cross-day slots lose only the reference, never the date. */
+export const stateSchema = z.preprocess(migrateTaskState, stateFields).transform((state) => {
+  const groups = new Map(
+    state.planGroups.filter((row) => !row.deletedAt).map((row) => [row.id, row]),
+  );
+  return {
+    ...state,
+    tasks: state.tasks.map((task) =>
+      normalizeTask({
+        ...task,
+        dates: Object.fromEntries(
+          Object.entries(task.dates).map(([day, group]) => [
+            day,
+            group && groups.get(group)?.date === day ? group : null,
+          ]),
+        ),
+      }),
+    ),
+  };
+});
+export type RepeatRule = z.infer<typeof repeatRuleSchema>;
 export type AppState = z.infer<typeof stateSchema>;
 export type Task = z.infer<typeof taskSchema>;
 export type TaskList = z.infer<typeof listSchema>;
@@ -218,16 +306,9 @@ export type View =
   | 'trash'
   | `list:${string}`
   | `tag:${string}`;
-export const effortLabels = { small: '小', medium: '中', large: '大' } as const;
-export type TaskEffort = keyof typeof effortLabels;
-/** Task workload: the manual choice, otherwise derived from the estimate (≤30 小, ≤120 中). */
-export function taskEffort(task: Pick<Task, 'effort' | 'estimatedMinutes'>): TaskEffort | null {
-  if (task.effort) return task.effort;
-  const minutes = task.estimatedMinutes;
-  if (minutes == null || minutes <= 0) return null;
-  return minutes <= 30 ? 'small' : minutes <= 120 ? 'medium' : 'large';
-}
-const effortRank = { small: 1, medium: 2, large: 3 } as const;
+export const difficultyLabels = { easy: '简单', medium: '中等', hard: '困难' } as const;
+export type TaskDifficulty = keyof typeof difficultyLabels;
+const difficultyRank = { easy: 0, medium: 1, hard: 2 } as const;
 export const colors = ['#326559', '#5274a3', '#ad6a48', '#9671a5', '#b18a32', '#bb6475'];
 export const uid = () => globalThis.crypto.randomUUID();
 export const now = () => new Date().toISOString();
@@ -256,12 +337,13 @@ export function formatDate(key: string | null): string {
 }
 export function emptyState(): AppState {
   return {
-    version: 1,
+    version: 2,
     timelog: initialState(),
     schedule: emptySchedule(),
     lists: [{ id: 'inbox', name: '未分组', color: '#7e8b8b', order: 0 }],
     tagColors: { tasks: {}, records: {} },
     tasks: [],
+    repeatRules: [],
     planGroups: [],
     sessions: [],
     timer: null,
@@ -282,10 +364,10 @@ export function reorderTasks(
   visibleIds: string[],
   source: string,
   target: string,
-  adoptPlanGroup = false,
+  planDate?: string,
 ): AppState {
-  const ids = visibleIds.filter((id) =>
-    state.tasks.some((task) => task.id === id && !task.deletedAt && !task.completedAt),
+  const ids = [...new Set(visibleIds)].filter((id) =>
+    state.tasks.some((task) => task.id === id && !task.deletedAt && !taskCompleted(task)),
   );
   const order = moveOrder(
     [...state.tasks].sort((a, b) => a.order - b.order).map((task) => task.id),
@@ -302,23 +384,13 @@ export function reorderTasks(
     ...state,
     tasks: state.tasks.map((task) => {
       const pinned = task.id === source ? targetPinned : task.pinned;
-      // In the daily plan a drop next to a task of another section moves into that section.
-      const planGroupId =
-        adoptPlanGroup && task.id === source ? targetTask.planGroupId : task.planGroupId;
-      if (
-        task.order === order.get(task.id) &&
-        task.pinned === pinned &&
-        task.planGroupId === planGroupId
-      )
+      const dates =
+        planDate && task.id === source
+          ? { ...task.dates, [planDate]: targetTask.dates[planDate] ?? null }
+          : task.dates;
+      if (task.order === order.get(task.id) && task.pinned === pinned && dates === task.dates)
         return task;
-      const { planGroupId: _previous, ...rest } = task;
-      return {
-        ...rest,
-        ...(planGroupId ? { planGroupId } : {}),
-        order: order.get(task.id)!,
-        pinned,
-        updatedAt: now(),
-      };
+      return { ...task, dates, order: order.get(task.id)!, pinned, updatedAt: now() };
     }),
   };
 }
@@ -328,20 +400,16 @@ export function dayPlanGroups(state: Pick<AppState, 'planGroups'>, date: string)
     .filter((group) => !group.deletedAt && group.date === date)
     .sort((a, b) => a.order - b.order || a.createdAt.localeCompare(b.createdAt));
 }
-/** A task is in a section only while that section is live and on the task's own day. */
-export function taskPlanGroup(state: Pick<AppState, 'planGroups'>, task: Task): PlanGroup | null {
-  if (!task.planGroupId || !task.due) return null;
+/** A slot belongs to exactly the requested business date. */
+export function taskPlanGroup(
+  state: Pick<AppState, 'planGroups'>,
+  task: Task,
+  date: string,
+): PlanGroup | null {
+  const id = task.dates[date];
   return (
-    state.planGroups.find(
-      (group) => group.id === task.planGroupId && !group.deletedAt && group.date === task.due,
-    ) ?? null
+    state.planGroups.find((row) => row.id === id && !row.deletedAt && row.date === date) ?? null
   );
-}
-/** Changing a task's day leaves its old section; every editor and the API use this. */
-export function withTaskDay(task: Task, due: string | null, planGroupId?: string | null): Task {
-  const { planGroupId: previous, ...rest } = task;
-  const group = planGroupId === undefined ? (due === task.due ? previous : undefined) : planGroupId;
-  return { ...rest, due, ...(group ? { planGroupId: group } : {}) };
 }
 export function newPlanGroup(
   date: string,
@@ -372,7 +440,15 @@ export function deletePlanGroup(state: AppState, id: string): AppState {
       row.id === id ? { ...row, deletedAt: at, updatedAt: at } : row,
     ),
     tasks: state.tasks.map((task) =>
-      task.planGroupId === id ? { ...withTaskDay(task, task.due, null), updatedAt: at } : task,
+      Object.values(task.dates).includes(id)
+        ? {
+            ...task,
+            dates: Object.fromEntries(
+              Object.entries(task.dates).map(([day, group]) => [day, group === id ? null : group]),
+            ),
+            updatedAt: at,
+          }
+        : task,
     ),
   };
 }
@@ -383,7 +459,7 @@ export function startTaskTimer(
   activityId?: string,
 ): AppState {
   const task = state.tasks.find(
-    (task) => task.id === taskId && !task.deletedAt && !task.completedAt,
+    (task) => task.id === taskId && !task.deletedAt && !taskCompleted(task),
   );
   if (!task) throw new Error('未找到进行中的任务。');
   const list = state.lists.find((list) => list.id === task.listId);
@@ -414,19 +490,16 @@ export function startTaskTimer(
     timelog: startTimer(timelog, activity.id, task.title, at, { taskId: task.id, tags: task.tags }),
   };
 }
-export function newTask(title: string, partial: Partial<Task> = {}): Task {
+export function newTask(title: string, partial: Partial<z.input<typeof taskSchema>> = {}): Task {
   return taskSchema.parse({
-    id: uid(),
+    id: `${uid()}-0`,
     title: title.trim(),
     notes: '',
     listId: 'inbox',
-    due: null,
+    dates: {},
+    difficulty: 'easy',
     tags: [],
     subtasks: [],
-    repeat: 'none',
-    repeatDay: Number((partial.due ?? dateKey()).slice(-2)),
-    spawnedId: null,
-    parentId: null,
     pinned: false,
     order: Date.now(),
     createdAt: now(),
@@ -434,6 +507,22 @@ export function newTask(title: string, partial: Partial<Task> = {}): Task {
     completedAt: null,
     deletedAt: null,
     ...partial,
+  });
+}
+/** A copy has a fresh series identity and no completion or repetition metadata. */
+export function copyTask(task: Task): Task {
+  return newTask(task.title, {
+    notes: task.notes,
+    dates: { ...task.dates },
+    listId: task.listId,
+    tags: [...task.tags],
+    difficulty: task.difficulty,
+    estimatedMinutes: task.estimatedMinutes,
+    actualMinutes: null,
+    pinned: task.pinned,
+    subtasks: task.subtasks
+      .filter((row) => !row.deletedAt)
+      .map((row) => ({ id: uid(), title: row.title, done: false })),
   });
 }
 
@@ -449,61 +538,27 @@ export function recordedTaskMinutes(state: Pick<AppState, 'timelog'>, taskId: st
 }
 
 export const formatTaskMinutes = (minutes: number) => `${Number(minutes.toFixed(1))} 分钟`;
-export function nextRepeatDate(task: Pick<Task, 'due' | 'repeat' | 'repeatDay'>): string {
-  const due = task.due ?? dateKey();
-  if (task.repeat === 'daily') return shiftDate(due, 1);
-  if (task.repeat === 'weekly') return shiftDate(due, 7);
-  const date = fromDateKey(due);
-  const target = new Date(date.getFullYear(), date.getMonth() + 1, 1, 12);
-  const last = new Date(target.getFullYear(), target.getMonth() + 1, 0, 12).getDate();
-  target.setDate(Math.min(task.repeatDay, last));
-  return civilDateKey(target);
-}
 export function toggleTask(state: AppState, id: string): AppState {
-  const task = state.tasks.find((t) => t.id === id);
-  if (!task || task.deletedAt) return state;
-  const completedAt = task.completedAt ? null : now();
-  let spawned: Task | null = null;
-  if (
-    completedAt &&
-    task.repeat !== 'none' &&
-    !task.spawnedId &&
-    !state.tasks.some((t) => t.parentId === id)
-  ) {
-    spawned = newTask(task.title, {
-      notes: task.notes,
-      ...(task.estimatedMinutes === undefined ? {} : { estimatedMinutes: task.estimatedMinutes }),
-      ...(task.effort ? { effort: task.effort } : {}),
-      listId: task.listId,
-      due: nextRepeatDate(task),
-      tags: [...task.tags],
-      subtasks: task.subtasks.map((s) => ({ ...s, id: uid(), done: false })),
-      repeat: task.repeat,
-      repeatDay: task.repeatDay,
-      pinned: task.pinned,
-      parentId: id,
-    });
-  }
+  const task = state.tasks.find((row) => row.id === id && !row.deletedAt);
+  if (!task) return state;
   return {
     ...state,
-    tasks: [
-      ...state.tasks.map((t) =>
-        t.id === id
-          ? { ...t, completedAt, updatedAt: now(), spawnedId: spawned?.id ?? t.spawnedId }
-          : t,
-      ),
-      ...(spawned ? [spawned] : []),
-    ],
+    tasks: state.tasks.map((row) => (row.id === id ? setTaskDone(row, !taskCompleted(row)) : row)),
   };
 }
-export function isUrgent(task: Task, today = dateKey()): boolean {
-  return !!task.due && task.due <= today;
+/** New task drafts and edits use the same transition logic as API writes. */
+export function normalizeTaskChanges(next: AppState, previous: AppState): AppState {
+  const old = new Map(previous.tasks.map((row) => [row.id, row]));
+  return {
+    ...next,
+    tasks: next.tasks.map((row) => normalizeTask(row, old.get(row.id), now(), true)),
+  };
 }
 export function selectTasks(
   state: AppState,
   view: View,
   query = '',
-  sort: 'manual' | 'date' | 'effort' = 'manual',
+  sort: 'manual' | 'date' | 'difficulty' = 'manual',
   today = dateKey(),
 ): Task[] {
   const search = query.trim().toLocaleLowerCase();
@@ -518,38 +573,32 @@ export function selectTasks(
         return false;
       if (view === 'trash') return !!t.deletedAt;
       if (t.deletedAt) return false;
-      if (view === 'completed') return !!t.completedAt;
-      if (t.completedAt && view !== 'today' && view !== 'upcoming') return false;
+      if (view === 'completed') return taskCompleted(t);
       if (search) return true;
-      if (view === 'today') return !!t.due && t.due <= today && (!t.completedAt || t.due === today);
+      if (taskCompleted(t) && view !== 'today' && view !== 'upcoming') return false;
+      if (view === 'today') return Object.hasOwn(t.dates, today);
       if (view === 'upcoming') {
         const monday = shiftDate(today, 1 - weekday(today));
-        return !!t.due && t.due >= monday && t.due <= shiftDate(monday, 6);
+        return finiteTaskDates(t).some((date) => date >= monday && date <= shiftDate(monday, 6));
       }
-      if (view === 'inbox') return !t.due;
+      if (view === 'inbox') return Object.keys(t.dates).length === 0;
       if (view.startsWith('list:')) return t.listId === view.slice(5);
       if (view.startsWith('tag:')) return t.tags.includes(view.slice(4));
-      return true;
+      return activeTask(t, today);
     })
     .sort((a, b) => {
       if (view === 'completed') return (b.completedAt ?? '').localeCompare(a.completedAt ?? '');
       if (view === 'trash') return (b.deletedAt ?? '').localeCompare(a.deletedAt ?? '');
-      const complete = Number(!!a.completedAt) - Number(!!b.completedAt);
+      const complete = Number(taskCompleted(a)) - Number(taskCompleted(b));
       if (complete) return complete;
       if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
       if (sort === 'date' || view === 'upcoming')
-        return (a.due ?? '9999').localeCompare(b.due ?? '9999') || a.order - b.order;
-      if (sort === 'effort') {
-        const rank = (task: Task) => {
-          const effort = taskEffort(task);
-          return effort ? effortRank[effort] : 0;
-        };
         return (
-          rank(b) - rank(a) ||
-          (b.estimatedMinutes ?? -1) - (a.estimatedMinutes ?? -1) ||
+          (finiteTaskDates(a)[0] ?? '9999').localeCompare(finiteTaskDates(b)[0] ?? '9999') ||
           a.order - b.order
         );
-      }
+      if (sort === 'difficulty')
+        return difficultyRank[b.difficulty] - difficultyRank[a.difficulty] || a.order - b.order;
       return a.order - b.order;
     });
 }
@@ -581,9 +630,19 @@ export function mergeImport(local: AppState, incoming: unknown): AppState {
   const lists = new Map(local.lists.map((x) => [x.id, x]));
   for (const list of imported.lists) if (!lists.has(list.id)) lists.set(list.id, list);
   const tasks = new Map(local.tasks.map((x) => [x.id, x]));
-  for (const task of imported.tasks)
-    if (!tasks.has(task.id) || tasks.get(task.id)!.updatedAt < task.updatedAt)
-      tasks.set(task.id, task);
+  for (const task of imported.tasks) {
+    const current = tasks.get(task.id);
+    tasks.set(
+      task.id,
+      !current
+        ? task
+        : (mergeTaskEntity(
+            undefined,
+            current.updatedAt < task.updatedAt ? task : current,
+            current.updatedAt < task.updatedAt ? current : task,
+          ) as Task),
+    );
+  }
   const planGroups = new Map(local.planGroups.map((x) => [x.id, x]));
   for (const group of imported.planGroups)
     if (!planGroups.has(group.id) || planGroups.get(group.id)!.updatedAt < group.updatedAt)
@@ -591,6 +650,30 @@ export function mergeImport(local: AppState, incoming: unknown): AppState {
   const sessions = new Map(local.sessions.map((x) => [x.id, x]));
   for (const session of imported.sessions)
     if (!sessions.has(session.id)) sessions.set(session.id, session);
+  const repeatRules = new Map(local.repeatRules.map((rule) => [rule.prefix, rule]));
+  for (const rule of imported.repeatRules) {
+    const current = repeatRules.get(rule.prefix);
+    if (!current) {
+      repeatRules.set(rule.prefix, rule);
+      continue;
+    }
+    const preferred = current.updatedAt < rule.updatedAt ? rule : current;
+    const other = preferred === rule ? current : rule;
+    const sameSchedule =
+      preferred.cron === other.cron &&
+      preferred.startAt === other.startAt &&
+      JSON.stringify(preferred.dateOffsets) === JSON.stringify(other.dateOffsets);
+    repeatRules.set(rule.prefix, {
+      ...preferred,
+      occurrences: { ...other.occurrences, ...preferred.occurrences },
+      generatedThrough: sameSchedule
+        ? ([preferred.generatedThrough, other.generatedThrough]
+            .filter((value) => value !== null)
+            .sort()
+            .at(-1) ?? null)
+        : preferred.generatedThrough,
+    });
+  }
   return stateSchema.parse({
     ...local,
     timelog:
@@ -609,6 +692,7 @@ export function mergeImport(local: AppState, incoming: unknown): AppState {
     tasks: [...tasks.values()],
     planGroups: [...planGroups.values()],
     sessions: [...sessions.values()],
+    repeatRules: [...repeatRules.values()],
   });
 }
 export function statistics(state: AppState, today = dateKey()) {
@@ -617,7 +701,7 @@ export function statistics(state: AppState, today = dateKey()) {
   const completionDay = (value: string) => dateKey(new Date(value));
   return days.map((day) => ({
     day,
-    completed: live.filter((t) => t.completedAt && completionDay(t.completedAt) === day).length,
+    completed: live.filter((t) => taskCompletedOnDay(t, day)).length,
     minutes: state.sessions
       .filter((s) => completionDay(s.completedAt) === day)
       .reduce((sum, s) => sum + s.minutes, 0),

@@ -42,7 +42,7 @@ for (const phone of [true, false]) {
       state.tasks = [
         newTask(title, {
           id: 'parent',
-          due: dateKey(),
+          dates: { [dateKey()]: null },
           listId: 'study-list',
           order: 1,
           notes: '先核对成员，再提交名单。子任务在列表中直接处理。',
@@ -57,7 +57,12 @@ for (const phone of [true, false]) {
             },
           ],
         }),
-        newTask('准备课堂材料', { id: 'second', due: dateKey(), listId: 'study-list', order: 2 }),
+        newTask('准备课堂材料', {
+          id: 'second',
+          dates: { [dateKey()]: null },
+          listId: 'study-list',
+          order: 2,
+        }),
         newTask('未排期的小组想法', {
           id: 'undated',
           listId: 'study-list',
@@ -133,13 +138,19 @@ for (const phone of [true, false]) {
       await expect(child).toBeChecked();
 
       // Preview both the ordinary view and the editor using only synthetic data.
-      const directory = 'release/subtasks-preview';
+      const directory = '.local/preview/task-system/subtasks';
       await mkdir(directory, { recursive: true });
       await page.screenshot({ path: `${directory}/${phone ? 'phone' : 'desktop'}-list.png` });
       await parent.getByRole('button', { name: `编辑 ${title}`, exact: true }).click();
       await editor.getByRole('checkbox', { name: '子任务 提交最终名单', exact: true }).click();
       await page.screenshot({ path: `${directory}/${phone ? 'phone' : 'desktop'}-editor.png` });
       await editor.getByRole('button', { name: '保存任务', exact: true }).click();
+      await expect(parent).toHaveCount(0);
+      const completed = (await saved(page)).tasks.find((task) => task.id === 'parent')!;
+      expect(completed.completedAt).toBeTruthy();
+      expect(completed.subtasks.every((subtask) => subtask.done)).toBe(true);
+      await page.getByRole('button', { name: phone ? '手机待办' : '待办', exact: true }).click();
+      await page.getByRole('tab', { name: /^日计划/ }).click();
       await expect(
         parent.getByRole('checkbox', { name: '子任务 提交最终名单', exact: true }),
       ).toBeChecked();
@@ -158,10 +169,13 @@ for (const phone of [true, false]) {
       });
       await expect(undated).toBeVisible();
       await undated.click();
-      await expect(undated).toBeChecked();
+      await expect(row(page, 'undated')).toHaveCount(0);
+      const completedInbox = (await saved(page)).tasks.find((task) => task.id === 'undated')!;
+      expect(completedInbox.completedAt).toBeTruthy();
+      expect(completedInbox.subtasks[0].done).toBe(true);
       await page.reload();
       await page.getByRole('tab', { name: /^待办箱/ }).click();
-      await expect(undated).toBeChecked();
+      await expect(row(page, 'undated')).toHaveCount(0);
     });
   });
 }

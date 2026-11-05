@@ -1,20 +1,20 @@
 import { CheckCheck, CalendarDays, ListTodo, TrendingUp } from 'lucide-react';
-import { dateKey, fromDateKey, shiftDate } from '../model';
+import { dateKey, fromDateKey, shiftDate, taskCompleted, taskCompletedOnDay } from '../model';
 import { useStore } from '../store';
 
 export function Statistics() {
   const { data } = useStore();
 
   const live = data.tasks.filter((t) => !t.deletedAt);
-  const completed = live.filter((t) => t.completedAt).length;
-  const planned = live.filter((task) => task.due).length;
+  const completed = live.filter(taskCompleted).length;
+  const planned = live.filter((task) =>
+    Object.keys(task.dates).some((date) => date !== '∞'),
+  ).length;
   const days = Array.from({ length: 7 }, (_, index) => {
     const day = shiftDate(dateKey(), index - 6);
     return {
       day,
-      completed: live.filter(
-        (task) => task.completedAt && dateKey(new Date(task.completedAt)) === day,
-      ).length,
+      completed: live.filter((task) => taskCompletedOnDay(task, day)).length,
       created: live.filter((task) => dateKey(new Date(task.createdAt)) === day).length,
     };
   });
@@ -83,7 +83,7 @@ export function Statistics() {
         </header>
         {data.lists.map((list) => {
           const tasks = live.filter((t) => t.listId === list.id);
-          const done = tasks.filter((t) => t.completedAt).length;
+          const done = tasks.filter(taskCompleted).length;
           return (
             <div className="distribution-row" key={list.id}>
               <span>

@@ -66,13 +66,13 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Active Work
 
-- 2026-11-05 unreleased on main: task modal UI fix (9658060, pushed) and manual task `effort` (小/中/大). `effort` is a new strict-schema task field: deploy server (hub) first, then all clients, before anyone picks a manual workload. Not yet built/deployed.
+- 2026-11-05 source refactor (unreleased): Task + `dates` + hub Cron is implemented in schema/protocol 2. `difficulty` is manual easy/medium/hard; v1 tasks migrate to easy with no emphasis (user replaced workload; no automatic tier). Task history and per-ID/per-date merges preserve independent edits. Read docs/design/task-system.md before further changes. Node186, build, Android22 and19 related browser flows pass; AI Decision668/Ruff and real isolated API integration pass. Both repos have local source commits; no release/push/deployment, installed devices remain v1/0.4.15. Original raw data/sync checkpoints and offline identity-map tools are part of the coordinated migration. Previews: .local/preview/task-system/.
 - 2026-11-05 follow-up: Pad/phone 0.4.15 not yet foreground after install; confirm 已连接 when next opened. OMEN app installed but closed. Phone and Pad use Clash (cn.meta.clashmobile) with 100.64.0.0/10 on its TAILNET outbound — keep it there (no Tailscale app; DIRECT breaks Sefirah and all tailnet access). Script goals (docs/goal-scripts.md) are deployed but no script goal exists yet; Android WebView QuickJS/CSP and the hub's first real script results are not yet verified on a device. Electron smoke-desktop opens a visible window that steals the user's focus on this Mac; prefer headless checks and CI. AI Decision subtask-splitting prompt not started (ai-decision repo).
 - Observe AI Decision's next natural04:30 manual-goal settlement and08:00 plan-group creation (UTC+8). APIs, read-only production snapshots and installation are verified; actual model-created groups/checks and the user's installed new UI are not yet accepted.
 - Phone/Pad foreground sync and new layout, Android background/cold boot, and physical gestures remain user acceptance. OMEN is installed0.4.12 but remains closed; it syncs when next opened. Do not reset existing conflict candidates or identities.
 - Mac native capture still needs the user's Accessibility/browser-capture/Automation approval; do not grant permissions or refresh system icon caches automatically. Historical Work Review observations do not prove the new collector is accepted.
 - Real installed-app Fudan capture, long-term ROG Server performance/whole-machine reboot without login, and physical multi-network/mDNS behavior remain separate acceptance. Existing campus sessions and gateway dependencies stay preserved.
-- Current source and all five devices have the0.4.12 schema. Future features require UI preview/review and explicit build/deploy authorization; source and profile recovery copies are retained. Completed delivery history is in docs/log/.
+- Current source uses task schema/protocol2; installed0.4.15 devices still use schema1. UI review, coordinated hub-first/client upgrade and AI Decision identity/old-repeat migration are required before production writes. Local verification build was explicitly requested in this task; packaging, publishing, deployment and push-triggered CI still await UI review. Original identities must be mapped in the AI controller/Node copies before refreshing production snapshots; see both repos’ Dayweave design documents.
 
 # Build / Run / Test
 
@@ -122,6 +122,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 - For sideloaded builds, omit Xiaomi-market miuiWidget/miuiWidgetVersion markers: the standard Android picker then exposes both variants on the tested Pad 6 Pro. A successful requestPinAppWidget result does not prove Xiaomi showed a confirmation; keep manual picker instructions.
 
 # Docs Index
+
+- docs/design/task-system.md: Task field inventory, dates/difficulty/history, hub Cron, fine-grained LWW, v1 identity/reference migration, protocol2 and coordinated rollback.
 
 - docs/design/goal-scripts.md and docs/goal-scripts.md: goal script library, QuickJS sandbox, `ctx` data interface, hub-computed results.
 

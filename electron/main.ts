@@ -265,6 +265,7 @@ else {
       'pair',
       'now',
       'disconnect',
+      'ensureTasks',
       'setEndpoint',
       'enableHub',
       'invite',

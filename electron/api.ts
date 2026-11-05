@@ -6,6 +6,7 @@ import path from 'node:path';
 import { z } from 'zod';
 import {
   newTask,
+  taskCompleted,
   now,
   uid,
   toggleTask,
@@ -16,12 +17,17 @@ import {
   dateKey,
   deletePlanGroup,
   newPlanGroup,
-  withTaskDay,
+  changeSubtask,
+  subtaskSchema,
+  dateSchema,
+  taskPrefix,
   type AppState,
   type Task,
   type View,
 } from '../src/model.js';
 import {
+  repeatInputSchema,
+  subtaskInputSchema,
   taskInputSchema,
   taskPatchSchema,
   listInputSchema,
@@ -30,6 +36,7 @@ import {
   settingsPatchSchema,
   openapi,
 } from '../src/api-contract.js';
+import { configureRepeat } from '../src/task-repeat.js';
 import { StateConflict } from '../src/state-delta.js';
 import { StateService, type StateSnapshot } from './state-service.js';
 import type { SyncBridge } from '../src/sync/types.js';
@@ -51,10 +58,11 @@ function fail(status: number, message: string): never {
 }
 /** A task may name only a live section of its own day. */
 function planGroupFits(state: AppState, task: Task) {
-  if (!task.planGroupId) return;
-  const group = state.planGroups.find((g) => g.id === task.planGroupId && !g.deletedAt);
-  if (!group) fail(400, 'Plan group not found');
-  if (group!.date !== task.due) fail(400, 'Task due date must equal the plan group date');
+  for (const [date, id] of Object.entries(task.dates)) {
+    if (!id) continue;
+    if (!state.planGroups.some((row) => row.id === id && row.date === date && !row.deletedAt))
+      fail(400, 'Plan group must be live and belong to this business date');
+  }
 }
 function taskAt(state: AppState, id: string) {
   const task = state.tasks.find((t) => t.id === id);
@@ -237,6 +245,9 @@ export async function startApi(
           view as View,
           url.searchParams.get('q') ?? '',
           'date',
+          ['today', 'upcoming'].includes(view)
+            ? dateSchema.parse(url.searchParams.get('date') ?? dateKey())
+            : dateKey(),
         );
         return send(
           { items: tasks.slice(offset, offset + limit), total: tasks.length, offset, limit },
@@ -254,6 +265,71 @@ export async function startApi(
         });
         return send(taskAt(snapshot.state, id), snapshot);
       }
+      if (route === '/repeat-rules' && method === 'GET')
+        return send(snapshot.state.repeatRules, snapshot);
+      if (route === '/repeat-rules/generate' && method === 'POST') {
+        const input = z
+          .object({ through: dateSchema })
+          .strict()
+          .parse(await body(request));
+        const sync = getSync?.();
+        if (!sync?.ensureTasks) fail(503, '同步中心尚未连接');
+        const status = await sync!.ensureTasks!(input.through);
+        if (!status.connected) fail(503, status.error || '同步中心尚未连接');
+        return send(status, await service.snapshot());
+      }
+      const repeatMatch = route.match(/^\/tasks\/([^/]+)\/repeat$/);
+      if (repeatMatch && ['PUT', 'DELETE'].includes(method)) {
+        const id = decodeURIComponent(repeatMatch[1]);
+        const input = method === 'PUT' ? repeatInputSchema.parse(await body(request)) : null;
+        const sync = await getSync?.()?.status();
+        if (!sync?.connected) fail(503, '重复任务需要连接同步中心');
+        snapshot = await mutate((state) => {
+          const task = taskAt(state, id);
+          if (task.deletedAt) fail(409, 'Restore task before editing');
+          return configureRepeat(state, task, input?.cron ?? null, input?.dateOffsets);
+        });
+        return send(
+          snapshot.state.repeatRules.find((row) => row.prefix === taskPrefix(id)) ?? null,
+          snapshot,
+        );
+      }
+      const subMatch = route.match(/^\/tasks\/([^/]+)\/subtasks(?:\/([^/]+))?$/);
+      if (subMatch && ['POST', 'PATCH', 'DELETE'].includes(method)) {
+        const id = decodeURIComponent(subMatch[1]),
+          subId = subMatch[2] && decodeURIComponent(subMatch[2]);
+        if ((method === 'POST') === !!subId) fail(405, 'Invalid subtask action');
+        const input =
+          method === 'DELETE'
+            ? null
+            : (method === 'POST'
+                ? subtaskInputSchema
+                : subtaskInputSchema.omit({ id: true })
+              ).parse(await body(request));
+        snapshot = await mutate((state) => {
+          const task = taskAt(state, id),
+            at = now();
+          if (task.deletedAt) fail(409, 'Restore task before editing');
+          let next: Task;
+          if (method === 'POST') {
+            if (!input?.title) fail(400, 'Subtask title required');
+            const row = subtaskSchema.parse({
+              id: (input as { id?: string }).id ?? uid(),
+              title: input!.title,
+              done: input!.done ?? false,
+            });
+            if (task.subtasks.some((old) => old.id === row.id))
+              fail(409, 'Subtask ID already exists');
+            next = { ...task, subtasks: [...task.subtasks, row], updatedAt: at };
+          } else {
+            if (!task.subtasks.some((row) => row.id === subId && !row.deletedAt))
+              fail(404, 'Subtask not found');
+            next = changeSubtask(task, subId!, input ?? { deletedAt: at }, at);
+          }
+          return { ...state, tasks: state.tasks.map((row) => (row.id === id ? next : row)) };
+        });
+        return send(taskAt(snapshot.state, id), snapshot);
+      }
       const taskMatch = route.match(/^\/tasks\/([^/]+)(?:\/(complete|reopen|restore))?$/);
       if (taskMatch) {
         const id = decodeURIComponent(taskMatch[1]),
@@ -264,15 +340,18 @@ export async function startApi(
           snapshot = await mutate((s) => {
             const task = taskAt(s, id);
             if (task.deletedAt) fail(409, 'Restore task before editing');
-            const { due, planGroupId, ...fields } = input;
-            // Moving to another day leaves the old section unless a new one is named.
-            const next = {
-              ...withTaskDay(
-                { ...task, ...fields },
-                due === undefined ? task.due : due,
-                planGroupId,
-              ),
-              ...(due ? { repeatDay: Number(due.slice(-2)) } : {}),
+            const { subtasks, ...fields } = input;
+            const next: Task = {
+              ...task,
+              ...fields,
+              subtasks: subtasks
+                ? subtasks.map((row) =>
+                    subtaskSchema.parse({
+                      ...task.subtasks.find((old) => old.id === row.id),
+                      ...row,
+                    }),
+                  )
+                : task.subtasks,
               updatedAt: now(),
             };
             planGroupFits(s, next);
@@ -300,8 +379,8 @@ export async function startApi(
                 ),
               };
             if (task.deletedAt) fail(409, 'Restore task before changing completion');
-            return (action === 'complete' && !task.completedAt) ||
-              (action === 'reopen' && task.completedAt)
+            return (action === 'complete' && !taskCompleted(task)) ||
+              (action === 'reopen' && taskCompleted(task))
               ? toggleTask(s, id)
               : s;
           });
@@ -379,8 +458,9 @@ export async function startApi(
         return send(
           {
             days: statistics(snapshot.state),
-            activeTasks: snapshot.state.tasks.filter((t) => !t.deletedAt && !t.completedAt).length,
-            completedTasks: snapshot.state.tasks.filter((t) => !t.deletedAt && t.completedAt)
+            activeTasks: snapshot.state.tasks.filter((t) => !t.deletedAt && !taskCompleted(t))
+              .length,
+            completedTasks: snapshot.state.tasks.filter((t) => !t.deletedAt && taskCompleted(t))
               .length,
             focusMinutes: snapshot.state.sessions.reduce((n, s) => n + s.minutes, 0),
           },

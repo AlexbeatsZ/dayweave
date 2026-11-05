@@ -74,8 +74,12 @@ function fixture(): AppState {
     record('night', 'study', '02:00', '03:00'),
   ];
   state.tasks = [
-    newTask('背单词', { id: 't1', due: DAY, tags: ['英语'] }),
-    newTask('写报告', { id: 't2', due: DAY, completedAt: new Date(at('15:00')).toISOString() }),
+    newTask('背单词', { id: 't1', dates: { [DAY]: null }, tags: ['英语'] }),
+    newTask('写报告', {
+      id: 't2',
+      dates: { [DAY]: null },
+      completedAt: new Date(at('15:00')).toISOString(),
+    }),
   ];
   state.planGroups = [
     {

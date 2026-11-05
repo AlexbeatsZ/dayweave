@@ -40,16 +40,16 @@ test('task effort is optional in legacy data and accepts separate nullable, nonn
   }
 });
 
-test('manual workload is optional, nullable and limited to small / medium / large', () => {
-  for (const value of ['small', 'medium', 'large', null]) {
-    assert.equal(taskInputSchema.parse({ title: '新任务', effort: value }).effort, value);
-    assert.equal(taskPatchSchema.parse({ effort: value }).effort, value);
+test('difficulty is easy, medium or hard and PATCH omission preserves it', () => {
+  for (const value of ['easy', 'medium', 'hard']) {
+    assert.equal(taskInputSchema.parse({ title: '新任务', difficulty: value }).difficulty, value);
+    assert.equal(taskPatchSchema.parse({ difficulty: value }).difficulty, value);
   }
-  for (const value of ['huge', 1, '小', true]) {
-    assert.equal(taskInputSchema.safeParse({ title: '新任务', effort: value }).success, false);
-    assert.equal(taskPatchSchema.safeParse({ effort: value }).success, false);
+  for (const value of ['auto', null, 1, '小', true]) {
+    assert.equal(taskInputSchema.safeParse({ title: '新任务', difficulty: value }).success, false);
+    assert.equal(taskPatchSchema.safeParse({ difficulty: value }).success, false);
   }
-  assert.equal('effort' in taskPatchSchema.parse({ title: '改名' }), false);
+  assert.equal('difficulty' in taskPatchSchema.parse({ title: '改名' }), false);
 });
 
 test('saved linked records are read-only reference minutes and never fill an empty actual value', () => {
@@ -74,20 +74,6 @@ test('saved linked records are read-only reference minutes and never fill an emp
   assert.equal(recordedTaskMinutes(state, task.id), 3.5);
   assert.equal(state.tasks[0].actualMinutes, 12);
   assert.deepEqual(state.timelog, before.timelog);
-});
-
-test('repeated tasks inherit their estimate while each occurrence starts with no actual value', () => {
-  const task = newTask('每周整理', {
-    due: '2026-10-23',
-    repeat: 'weekly',
-    estimatedMinutes: 30,
-    actualMinutes: 42,
-  });
-  const completed = toggleTask({ ...emptyState(), tasks: [task] }, task.id);
-  assert.equal(completed.tasks[0].actualMinutes, 42);
-  const next = completed.tasks.find((item) => item.parentId === task.id)!;
-  assert.equal(next.estimatedMinutes, 30);
-  assert.equal(next.actualMinutes == null, true);
 });
 
 test('effort deltas add and clear values independently while retaining unrelated task edits', () => {

@@ -165,7 +165,8 @@ export function scriptResult(state: State, goal: ScriptGoal, key: string) {
 export const MAX_SCRIPT_LENGTH = 200000;
 /** The task fields a task-bound goal reads; tasks live outside the timelog module. */
 export type GoalTask = {
-  due: string | null;
+  dates: Record<string, string | null>;
+  history?: { at: string; done: boolean }[];
   tags: string[];
   completedAt: string | null;
   deletedAt: string | null;
@@ -560,12 +561,15 @@ export function goalStatus(
     const due = tasks.filter(
       (task) =>
         !task.deletedAt &&
-        !!task.due &&
-        task.due >= first &&
-        task.due <= last &&
+        Object.keys(task.dates).some((date) => date !== '∞' && date >= first && date <= last) &&
         task.tags.includes(goal.taskTag),
     );
-    progress = due.filter((task) => task.completedAt).length;
+    progress = due.filter((task) => {
+      const events = task.history?.filter((event) => dayKey(Date.parse(event.at)) <= last);
+      return (
+        events?.at(-1)?.done ?? (!!task.completedAt && dayKey(Date.parse(task.completedAt)) <= last)
+      );
+    }).length;
     target = due.length;
     within = target > 0 && progress === target;
   } else if (goal.kind === 'manual') {

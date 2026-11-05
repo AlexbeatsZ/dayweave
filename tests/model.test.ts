@@ -8,8 +8,6 @@ import {
   emptyState,
   mergeImport,
   newTask,
-  nextRepeatDate,
-  taskEffort,
   selectTasks,
   shiftDate,
   stateSchema,
@@ -26,38 +24,6 @@ test('calendar dates validate real days and retain local calendar dates', () => 
   assert.equal(shiftDate('2026-03-08', 1), '2026-03-09');
   assert.equal(shiftDate('2026-12-31', 1), '2027-01-01');
 });
-test('monthly repeats preserve the original anchor through short months', () => {
-  const task = newTask('Monthly', { due: '2026-01-31', repeat: 'monthly', repeatDay: 31 });
-  assert.equal(nextRepeatDate(task), '2026-02-28');
-  assert.equal(nextRepeatDate({ ...task, due: '2026-02-28' }), '2026-03-31');
-  assert.equal(nextRepeatDate({ ...task, due: '2028-01-31' }), '2028-02-29');
-});
-test('completing a recurring task once, undoing and re-completing does not duplicate the next occurrence', () => {
-  const task = newTask('Repeat', {
-    due: '2026-10-19',
-    repeat: 'weekly',
-    tags: ['test'],
-    subtasks: [{ id: 'sub', title: 'Step', done: true }],
-  });
-  const base = { ...emptyState(), tasks: [task] };
-  const done = toggleTask(base, task.id);
-  assert.equal(done.tasks.length, 2);
-  const child = done.tasks.find((t) => t.parentId === task.id)!;
-  assert.equal(child.due, '2026-10-26');
-  assert.equal(child.subtasks[0].done, false);
-  assert.notEqual(child.subtasks[0].id, 'sub');
-  assert.equal(done.tasks[0].spawnedId, child.id);
-  const undone = toggleTask(done, task.id);
-  assert.equal(undone.tasks[0].completedAt, null);
-  assert.equal(toggleTask(undone, task.id).tasks.length, 2);
-  const deletedNext = {
-    ...undone,
-    tasks: undone.tasks.map((t) =>
-      t.id === child.id ? { ...t, deletedAt: new Date().toISOString() } : t,
-    ),
-  };
-  assert.equal(toggleTask(deletedNext, task.id).tasks.length, 2);
-});
 test('non-recurring and deleted tasks do not spawn follow-ups', () => {
   const task = newTask('One time');
   const state = { ...emptyState(), tasks: [task] };
@@ -67,17 +33,17 @@ test('non-recurring and deleted tasks do not spawn follow-ups', () => {
 });
 test('filters distinguish unscheduled tasks, today including overdue, the natural calendar week, and trash', () => {
   const tasks = [
-    newTask('Overdue', { due: '2026-10-18' }),
-    newTask('Today', { due: '2026-10-19' }),
-    newTask('Later', { due: '2026-10-25' }),
-    newTask('Too far', { due: '2026-10-26' }),
+    newTask('Overdue', { dates: { ['2026-10-18']: null } }),
+    newTask('Today', { dates: { ['2026-10-19']: null } }),
+    newTask('Later', { dates: { ['2026-10-25']: null } }),
+    newTask('Too far', { dates: { ['2026-10-26']: null } }),
     newTask('Inbox'),
     newTask('Deleted', { deletedAt: new Date().toISOString() }),
   ];
   const s = { ...emptyState(), tasks };
   assert.deepEqual(
     selectTasks(s, 'today', '', 'manual', '2026-10-19').map((t) => t.title),
-    ['Overdue', 'Today'],
+    ['Today'],
   );
   assert.deepEqual(
     selectTasks(s, 'upcoming', '', 'manual', '2026-10-19').map((t) => t.title),
@@ -102,48 +68,10 @@ test('search covers notes, tags and subtasks across the current filtered view', 
   for (const query of ['ALPHA', '#science', 'Beta'])
     assert.equal(selectTasks(s, 'today', query).length, 1);
 });
-test('legacy priority and quadrant are dropped on load', () => {
-  const legacy = {
-    ...emptyState(),
-    tasks: [{ ...newTask('C', { due: '2026-10-18' }), priority: 1, quadrant: 2 }],
-  };
-  const [task] = stateSchema.parse(legacy).tasks;
-  assert.equal('priority' in task, false);
-  assert.equal('quadrant' in task, false);
-});
-test('task workload is the manual choice, otherwise derived from the estimate', () => {
-  assert.deepEqual(
-    [null, 0, 20, 30, 31, 120, 121].map((estimatedMinutes) => taskEffort({ estimatedMinutes })),
-    [null, null, 'small', 'small', 'medium', 'medium', 'large'],
-  );
-  assert.equal(taskEffort({ effort: 'large', estimatedMinutes: 10 }), 'large');
-  assert.equal(taskEffort({ effort: 'small' }), 'small');
-  assert.equal(taskEffort({ effort: null, estimatedMinutes: 200 }), 'large');
-  const legacy = newTask('旧任务');
-  assert.equal('effort' in legacy, false);
-  assert.equal(stateSchema.safeParse({ ...emptyState(), tasks: [legacy] }).success, true);
-  assert.equal(newTask('X', { effort: 'medium' }).effort, 'medium');
-  assert.throws(() => newTask('X', { effort: 'huge' as never }));
-});
-test('workload sort ranks manual and derived sizes, then estimate, then manual order', () => {
-  const state = emptyState();
-  state.tasks = [
-    newTask('none', { order: 1 }),
-    newTask('derived-large', { estimatedMinutes: 200, order: 2 }),
-    newTask('manual-large', { effort: 'large', estimatedMinutes: 10, order: 3 }),
-    newTask('manual-small', { effort: 'small', order: 4 }),
-    newTask('derived-medium', { estimatedMinutes: 60, order: 5 }),
-  ];
-  assert.deepEqual(
-    selectTasks(state, 'all', '', 'effort').map((task) => task.title),
-    ['derived-large', 'manual-large', 'derived-medium', 'manual-small', 'none'],
-  );
-});
-test('a repeating task carries its manual workload into the next occurrence', () => {
-  const state = emptyState();
-  state.tasks = [newTask('周报', { due: '2026-11-02', repeat: 'weekly', effort: 'large' })];
-  const next = toggleTask(state, state.tasks[0].id).tasks.find((task) => !task.completedAt);
-  assert.equal(next?.effort, 'large');
+test('difficulty is a manual choice independent of estimates', () => {
+  assert.equal(newTask('旧默认', { estimatedMinutes: 999 }).difficulty, 'easy');
+  assert.equal(newTask('手动', { estimatedMinutes: 1, difficulty: 'hard' }).difficulty, 'hard');
+  assert.throws(() => newTask('错误', { difficulty: 'auto' as never }));
 });
 test('import merges newer edits and tombstones without removing local tasks or settings', () => {
   const task = newTask('Original', { updatedAt: '2026-10-18T10:00:00.000Z' });
@@ -177,8 +105,8 @@ test('malformed imports reject duplicate IDs, orphan lists, unknown versions and
   for (const value of [
     { ...valid, tasks: [task, task] },
     { ...valid, lists: [{ id: 'other', name: 'Other', color: '#123456', order: 0 }] },
-    { ...valid, version: 2 },
-    { ...valid, tasks: [{ ...task, due: '2026-02-30' }] },
+    { ...valid, version: 3 },
+    { ...valid, tasks: [{ ...task, dates: { ['2026-02-30']: null } }] },
   ])
     assert.throws(() => mergeImport(emptyState(), value));
   assert.deepEqual(stateSchema.parse(valid), valid);
@@ -188,7 +116,7 @@ test('statistics use actual completion dates rather than due dates and exclude t
   const s = {
     ...emptyState(),
     tasks: [
-      newTask('Done', { due: '2026-10-10', completedAt: completed }),
+      newTask('Done', { dates: { ['2026-10-10']: null }, completedAt: completed }),
       newTask('Trash', { completedAt: completed, deletedAt: completed }),
     ],
     sessions: [{ id: 'focus', taskId: null, title: 'Focus', minutes: 25, completedAt: completed }],

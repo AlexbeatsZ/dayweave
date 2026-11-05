@@ -164,8 +164,13 @@ export function scriptTasks(data: ScriptData, _period: ScriptPeriod, query: Task
       (task) =>
         !task.deletedAt &&
         (!query.tag || task.tags.includes(query.tag)) &&
-        (!query.dueFrom || (!!task.due && task.due >= query.dueFrom)) &&
-        (!query.dueTo || (!!task.due && task.due <= query.dueTo)) &&
+        (!(query.dueFrom || query.dueTo) ||
+          Object.keys(task.dates).some(
+            (date) =>
+              date !== '∞' &&
+              (!query.dueFrom || date >= query.dueFrom) &&
+              (!query.dueTo || date <= query.dueTo),
+          )) &&
         (query.completed === undefined || !!task.completedAt === query.completed),
     )
     .map((task) => ({
@@ -174,12 +179,13 @@ export function scriptTasks(data: ScriptData, _period: ScriptPeriod, query: Task
       notes: task.notes,
       tags: [...task.tags],
       list: lists.get(task.listId) ?? '',
-      due: task.due,
-      slot: (task.planGroupId && slots.get(task.planGroupId)) || null,
+      dates: { ...task.dates },
+      slots: Object.fromEntries(
+        Object.entries(task.dates).map(([date, id]) => [date, id ? (slots.get(id) ?? null) : null]),
+      ),
       estimatedMinutes: task.estimatedMinutes ?? null,
       actualMinutes: task.actualMinutes ?? null,
-      effort: task.effort ?? null,
-      parentId: task.parentId,
+      difficulty: task.difficulty,
       subtasks: task.subtasks.map(({ title, done }) => ({ title, done })),
       createdAt: Date.parse(task.createdAt),
       completedAt: instant(task.completedAt),

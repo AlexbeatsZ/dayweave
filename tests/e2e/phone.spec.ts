@@ -19,7 +19,7 @@ async function seed(page: Page) {
   state.lists.push({ id: 'study-list', name: '学习', color: '#4264b2', order: 1 });
   state.tasks = [
     newTask('整理量子化学的课堂笔记', {
-      due: day,
+      dates: { [day]: null },
       listId: 'study-list',
       notes: '整理波函数归一化的推导，补上课后问题。',
     }),
@@ -280,7 +280,7 @@ test('week, task sheet, subtasks and no-date placement persist in the unified st
   );
   await expect(detail).not.toBeVisible();
   await page.reload();
-  await page.getByRole('tab', { name: /^全部/ }).tap();
+  await page.getByRole('tab', { name: /^待办箱/ }).tap();
   await expect(
     page.getByRole('button', { name: '编辑 手机上安排下一步', exact: true }),
   ).toBeVisible();

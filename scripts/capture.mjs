@@ -18,9 +18,13 @@ try {
   state.settings.theme = 'dark';
   state.lists.push({ id: 'study', name: '学习', color: '#76b9ed', order: 1 });
   state.tasks = [
-    newTask('复习量子化学', { due: dateKey(), listId: 'study', estimatedMinutes: 45 }),
+    newTask('复习量子化学', {
+      dates: { [dateKey()]: null },
+      listId: 'study',
+      estimatedMinutes: 45,
+    }),
     newTask('整理实验笔记', {
-      due: dateKey(),
+      dates: { [dateKey()]: null },
       listId: 'study',
       notes: '补齐图表和计算过程',
     }),

@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Dayweave AI API",
-    "version": "0.4.1",
+    "version": "2.0.0",
     "description": "时织 Windows/macOS 本机接口。应用运行时可用；实际地址与令牌见设置或用户数据目录 api.json。默认不对局域网开放。所有写入先持久化再通知界面；DELETE 任务为软删除。"
   },
   "servers": [
@@ -32,15 +32,22 @@
           "notes": { "type": "string", "maxLength": 50000 },
           "estimatedMinutes": { "nullable": true, "type": "number", "minimum": 0 },
           "actualMinutes": { "nullable": true, "type": "number", "minimum": 0 },
-          "effort": { "nullable": true, "type": "string", "enum": ["small", "medium", "large"] },
+          "difficulty": { "default": "easy", "type": "string", "enum": ["easy", "medium", "hard"] },
           "listId": { "type": "string", "minLength": 1, "maxLength": 100 },
-          "due": { "nullable": true, "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+          "dates": {
+            "type": "object",
+            "additionalProperties": {
+              "nullable": true,
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            }
+          },
           "tags": {
             "maxItems": 30,
             "type": "array",
             "items": { "type": "string", "minLength": 1, "maxLength": 40 }
           },
-          "planGroupId": { "type": "string", "minLength": 1, "maxLength": 100 },
           "subtasks": {
             "maxItems": 200,
             "type": "array",
@@ -49,16 +56,45 @@
               "properties": {
                 "id": { "type": "string", "minLength": 1, "maxLength": 100 },
                 "title": { "type": "string", "minLength": 1, "maxLength": 500 },
-                "done": { "type": "boolean" }
+                "done": { "type": "boolean" },
+                "completedAt": {
+                  "default": null,
+                  "nullable": true,
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                },
+                "deletedAt": {
+                  "default": null,
+                  "nullable": true,
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                },
+                "history": {
+                  "default": [],
+                  "maxItems": 100000,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": { "type": "string", "minLength": 1, "maxLength": 100 },
+                      "at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                      },
+                      "done": { "type": "boolean" }
+                    },
+                    "required": ["id", "at", "done"],
+                    "additionalProperties": false
+                  }
+                }
               },
-              "required": ["id", "title", "done"],
+              "required": ["id", "title", "done", "completedAt", "deletedAt", "history"],
               "additionalProperties": false
             }
           },
-          "repeat": { "type": "string", "enum": ["none", "daily", "weekly", "monthly"] },
-          "repeatDay": { "type": "integer", "minimum": 1, "maximum": 31 },
-          "spawnedId": { "nullable": true, "type": "string", "minLength": 1, "maxLength": 100 },
-          "parentId": { "nullable": true, "type": "string", "minLength": 1, "maxLength": 100 },
           "pinned": { "type": "boolean" },
           "order": { "type": "number" },
           "createdAt": {
@@ -82,26 +118,43 @@
             "type": "string",
             "format": "date-time",
             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "history": {
+            "default": [],
+            "maxItems": 100000,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string", "minLength": 1, "maxLength": 100 },
+                "at": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                },
+                "done": { "type": "boolean" }
+              },
+              "required": ["id", "at", "done"],
+              "additionalProperties": false
+            }
           }
         },
         "required": [
           "id",
           "title",
           "notes",
+          "difficulty",
           "listId",
-          "due",
+          "dates",
           "tags",
           "subtasks",
-          "repeat",
-          "repeatDay",
-          "spawnedId",
-          "parentId",
           "pinned",
           "order",
           "createdAt",
           "updatedAt",
           "completedAt",
-          "deletedAt"
+          "deletedAt",
+          "history"
         ],
         "additionalProperties": false
       },
@@ -161,7 +214,7 @@
       "State": {
         "type": "object",
         "properties": {
-          "version": { "type": "number", "enum": [1] },
+          "version": { "type": "number", "enum": [2] },
           "timelog": {},
           "schedule": {
             "default": {
@@ -382,19 +435,26 @@
                 "notes": { "type": "string", "maxLength": 50000 },
                 "estimatedMinutes": { "nullable": true, "type": "number", "minimum": 0 },
                 "actualMinutes": { "nullable": true, "type": "number", "minimum": 0 },
-                "effort": {
-                  "nullable": true,
+                "difficulty": {
+                  "default": "easy",
                   "type": "string",
-                  "enum": ["small", "medium", "large"]
+                  "enum": ["easy", "medium", "hard"]
                 },
                 "listId": { "type": "string", "minLength": 1, "maxLength": 100 },
-                "due": { "nullable": true, "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+                "dates": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "nullable": true,
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  }
+                },
                 "tags": {
                   "maxItems": 30,
                   "type": "array",
                   "items": { "type": "string", "minLength": 1, "maxLength": 40 }
                 },
-                "planGroupId": { "type": "string", "minLength": 1, "maxLength": 100 },
                 "subtasks": {
                   "maxItems": 200,
                   "type": "array",
@@ -403,25 +463,44 @@
                     "properties": {
                       "id": { "type": "string", "minLength": 1, "maxLength": 100 },
                       "title": { "type": "string", "minLength": 1, "maxLength": 500 },
-                      "done": { "type": "boolean" }
+                      "done": { "type": "boolean" },
+                      "completedAt": {
+                        "default": null,
+                        "nullable": true,
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                      },
+                      "deletedAt": {
+                        "default": null,
+                        "nullable": true,
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                      },
+                      "history": {
+                        "default": [],
+                        "maxItems": 100000,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "id": { "type": "string", "minLength": 1, "maxLength": 100 },
+                            "at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "done": { "type": "boolean" }
+                          },
+                          "required": ["id", "at", "done"],
+                          "additionalProperties": false
+                        }
+                      }
                     },
-                    "required": ["id", "title", "done"],
+                    "required": ["id", "title", "done", "completedAt", "deletedAt", "history"],
                     "additionalProperties": false
                   }
-                },
-                "repeat": { "type": "string", "enum": ["none", "daily", "weekly", "monthly"] },
-                "repeatDay": { "type": "integer", "minimum": 1, "maximum": 31 },
-                "spawnedId": {
-                  "nullable": true,
-                  "type": "string",
-                  "minLength": 1,
-                  "maxLength": 100
-                },
-                "parentId": {
-                  "nullable": true,
-                  "type": "string",
-                  "minLength": 1,
-                  "maxLength": 100
                 },
                 "pinned": { "type": "boolean" },
                 "order": { "type": "number" },
@@ -446,26 +525,179 @@
                   "type": "string",
                   "format": "date-time",
                   "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                },
+                "history": {
+                  "default": [],
+                  "maxItems": 100000,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": { "type": "string", "minLength": 1, "maxLength": 100 },
+                      "at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                      },
+                      "done": { "type": "boolean" }
+                    },
+                    "required": ["id", "at", "done"],
+                    "additionalProperties": false
+                  }
                 }
               },
               "required": [
                 "id",
                 "title",
                 "notes",
+                "difficulty",
                 "listId",
-                "due",
+                "dates",
                 "tags",
                 "subtasks",
-                "repeat",
-                "repeatDay",
-                "spawnedId",
-                "parentId",
                 "pinned",
                 "order",
                 "createdAt",
                 "updatedAt",
                 "completedAt",
-                "deletedAt"
+                "deletedAt",
+                "history"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "repeatRules": {
+            "default": [],
+            "maxItems": 5000,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "prefix": { "type": "string", "minLength": 1, "maxLength": 100 },
+                "cron": { "type": "string", "minLength": 9, "maxLength": 120 },
+                "dateOffsets": {
+                  "minItems": 1,
+                  "maxItems": 366,
+                  "type": "array",
+                  "items": { "type": "integer", "minimum": 0, "maximum": 365 }
+                },
+                "template": {
+                  "type": "object",
+                  "properties": {
+                    "title": { "type": "string", "minLength": 1, "maxLength": 500 },
+                    "notes": { "type": "string", "maxLength": 50000 },
+                    "estimatedMinutes": { "nullable": true, "type": "number", "minimum": 0 },
+                    "difficulty": {
+                      "default": "easy",
+                      "type": "string",
+                      "enum": ["easy", "medium", "hard"]
+                    },
+                    "listId": { "type": "string", "minLength": 1, "maxLength": 100 },
+                    "tags": {
+                      "maxItems": 30,
+                      "type": "array",
+                      "items": { "type": "string", "minLength": 1, "maxLength": 40 }
+                    },
+                    "subtasks": {
+                      "maxItems": 200,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "string", "minLength": 1, "maxLength": 100 },
+                          "title": { "type": "string", "minLength": 1, "maxLength": 500 },
+                          "done": { "type": "boolean" },
+                          "completedAt": {
+                            "default": null,
+                            "nullable": true,
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "deletedAt": {
+                            "default": null,
+                            "nullable": true,
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "history": {
+                            "default": [],
+                            "maxItems": 100000,
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": { "type": "string", "minLength": 1, "maxLength": 100 },
+                                "at": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                },
+                                "done": { "type": "boolean" }
+                              },
+                              "required": ["id", "at", "done"],
+                              "additionalProperties": false
+                            }
+                          }
+                        },
+                        "required": ["id", "title", "done", "completedAt", "deletedAt", "history"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "pinned": { "type": "boolean" },
+                    "order": { "type": "number" }
+                  },
+                  "required": [
+                    "title",
+                    "notes",
+                    "difficulty",
+                    "listId",
+                    "tags",
+                    "subtasks",
+                    "pinned",
+                    "order"
+                  ],
+                  "additionalProperties": false
+                },
+                "startAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                },
+                "generatedThrough": {
+                  "nullable": true,
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                },
+                "occurrences": {
+                  "type": "object",
+                  "additionalProperties": { "type": "string", "minLength": 1, "maxLength": 100 }
+                },
+                "enabled": { "type": "boolean" },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                }
+              },
+              "required": [
+                "prefix",
+                "cron",
+                "dateOffsets",
+                "template",
+                "startAt",
+                "generatedThrough",
+                "occurrences",
+                "enabled",
+                "createdAt",
+                "updatedAt"
               ],
               "additionalProperties": false
             }
@@ -576,6 +808,7 @@
           "lists",
           "tagColors",
           "tasks",
+          "repeatRules",
           "planGroups",
           "sessions",
           "timer",
@@ -1595,6 +1828,12 @@
               "description": "all/today/upcoming/inbox/completed/trash 或 list:<id>、tag:<tag>"
             }
           },
+          {
+            "in": "query",
+            "name": "date",
+            "schema": { "type": "string", "format": "date" },
+            "description": "精确业务日（today/upcoming）"
+          },
           { "in": "query", "name": "q", "schema": { "type": "string" } },
           {
             "in": "query",
@@ -1621,23 +1860,26 @@
                   "notes": { "type": "string", "maxLength": 50000 },
                   "estimatedMinutes": { "nullable": true, "type": "number", "minimum": 0 },
                   "actualMinutes": { "nullable": true, "type": "number", "minimum": 0 },
-                  "effort": {
-                    "nullable": true,
+                  "difficulty": {
+                    "default": "easy",
                     "type": "string",
-                    "enum": ["small", "medium", "large"]
+                    "enum": ["easy", "medium", "hard"]
                   },
                   "listId": { "type": "string", "minLength": 1, "maxLength": 100 },
-                  "due": {
-                    "nullable": true,
-                    "type": "string",
-                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  "dates": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "nullable": true,
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100
+                    }
                   },
                   "tags": {
                     "maxItems": 30,
                     "type": "array",
                     "items": { "type": "string", "minLength": 1, "maxLength": 40 }
                   },
-                  "planGroupId": { "type": "string", "minLength": 1, "maxLength": 100 },
                   "subtasks": {
                     "maxItems": 200,
                     "type": "array",
@@ -1652,7 +1894,6 @@
                       "additionalProperties": false
                     }
                   },
-                  "repeat": { "type": "string", "enum": ["none", "daily", "weekly", "monthly"] },
                   "pinned": { "type": "boolean" },
                   "order": { "type": "number" }
                 },
@@ -1733,27 +1974,21 @@
                   "notes": { "type": "string", "maxLength": 50000 },
                   "estimatedMinutes": { "nullable": true, "type": "number", "minimum": 0 },
                   "actualMinutes": { "nullable": true, "type": "number", "minimum": 0 },
-                  "effort": {
-                    "nullable": true,
-                    "type": "string",
-                    "enum": ["small", "medium", "large"]
-                  },
+                  "difficulty": { "type": "string", "enum": ["easy", "medium", "hard"] },
                   "listId": { "type": "string", "minLength": 1, "maxLength": 100 },
-                  "due": {
-                    "nullable": true,
-                    "type": "string",
-                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  "dates": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "nullable": true,
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100
+                    }
                   },
                   "tags": {
                     "maxItems": 30,
                     "type": "array",
                     "items": { "type": "string", "minLength": 1, "maxLength": 40 }
-                  },
-                  "planGroupId": {
-                    "nullable": true,
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 100
                   },
                   "subtasks": {
                     "maxItems": 200,
@@ -1769,7 +2004,6 @@
                       "additionalProperties": false
                     }
                   },
-                  "repeat": { "type": "string", "enum": ["none", "daily", "weekly", "monthly"] },
                   "pinned": { "type": "boolean" },
                   "order": { "type": "number" }
                 },
@@ -1833,7 +2067,7 @@
     },
     "/tasks/{id}/complete": {
       "post": {
-        "summary": "完成任务；重复任务只生成一次下一项",
+        "summary": "完成任务及其子任务",
         "parameters": [
           { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } },
           { "$ref": "#/components/parameters/IfMatch" }
@@ -1922,6 +2156,279 @@
           "404": { "description": "未找到对象" },
           "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
         }
+      }
+    },
+    "/tasks/{id}/repeat": {
+      "put": {
+        "summary": "配置该系列 Cron 与日期偏移；生成由同步中心负责",
+        "parameters": [
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } },
+          { "$ref": "#/components/parameters/IfMatch" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "cron": { "type": "string", "minLength": 9, "maxLength": 120 },
+                  "dateOffsets": {
+                    "minItems": 1,
+                    "maxItems": 366,
+                    "type": "array",
+                    "items": { "type": "integer", "minimum": 0, "maximum": 365 }
+                  }
+                },
+                "required": ["cron", "dateOffsets"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "revision"],
+                  "properties": { "data": {}, "revision": { "type": "string" } }
+                }
+              }
+            },
+            "headers": {
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
+            }
+          },
+          "400": { "description": "参数或 JSON 无效" },
+          "401": { "description": "缺少或错误的 Bearer 令牌" },
+          "403": { "description": "拒绝跨站或非本机请求" },
+          "404": { "description": "未找到对象" },
+          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
+        }
+      },
+      "delete": {
+        "summary": "停止以后生成，保留已有实例",
+        "parameters": [
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } },
+          { "$ref": "#/components/parameters/IfMatch" }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "revision"],
+                  "properties": { "data": {}, "revision": { "type": "string" } }
+                }
+              }
+            },
+            "headers": {
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
+            }
+          },
+          "400": { "description": "参数或 JSON 无效" },
+          "401": { "description": "缺少或错误的 Bearer 令牌" },
+          "403": { "description": "拒绝跨站或非本机请求" },
+          "404": { "description": "未找到对象" },
+          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
+        }
+      }
+    },
+    "/tasks/{id}/subtasks": {
+      "post": {
+        "summary": "按稳定 ID 增量新增子任务",
+        "parameters": [
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } },
+          { "$ref": "#/components/parameters/IfMatch" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": { "type": "string", "minLength": 1, "maxLength": 500 },
+                  "done": { "type": "boolean" },
+                  "id": { "type": "string", "minLength": 1, "maxLength": 100 }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "revision"],
+                  "properties": { "data": {}, "revision": { "type": "string" } }
+                }
+              }
+            },
+            "headers": {
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
+            }
+          },
+          "400": { "description": "参数或 JSON 无效" },
+          "401": { "description": "缺少或错误的 Bearer 令牌" },
+          "403": { "description": "拒绝跨站或非本机请求" },
+          "404": { "description": "未找到对象" },
+          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
+        }
+      }
+    },
+    "/tasks/{id}/subtasks/{subtaskId}": {
+      "patch": {
+        "summary": "增量修改子任务标题或完成状态",
+        "parameters": [
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } },
+          { "in": "path", "name": "subtaskId", "required": true, "schema": { "type": "string" } },
+          { "$ref": "#/components/parameters/IfMatch" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": { "type": "string", "minLength": 1, "maxLength": 500 },
+                  "done": { "type": "boolean" }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "revision"],
+                  "properties": { "data": {}, "revision": { "type": "string" } }
+                }
+              }
+            },
+            "headers": {
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
+            }
+          },
+          "400": { "description": "参数或 JSON 无效" },
+          "401": { "description": "缺少或错误的 Bearer 令牌" },
+          "403": { "description": "拒绝跨站或非本机请求" },
+          "404": { "description": "未找到对象" },
+          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
+        }
+      },
+      "delete": {
+        "summary": "软删除子任务",
+        "parameters": [
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } },
+          { "in": "path", "name": "subtaskId", "required": true, "schema": { "type": "string" } },
+          { "$ref": "#/components/parameters/IfMatch" }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "revision"],
+                  "properties": { "data": {}, "revision": { "type": "string" } }
+                }
+              }
+            },
+            "headers": {
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
+            }
+          },
+          "400": { "description": "参数或 JSON 无效" },
+          "401": { "description": "缺少或错误的 Bearer 令牌" },
+          "403": { "description": "拒绝跨站或非本机请求" },
+          "404": { "description": "未找到对象" },
+          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
+        }
+      }
+    },
+    "/repeat-rules": {
+      "get": {
+        "summary": "读取重复规则与触发实例对应关系",
+        "responses": {
+          "200": {
+            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "revision"],
+                  "properties": { "data": {}, "revision": { "type": "string" } }
+                }
+              }
+            },
+            "headers": {
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
+            }
+          },
+          "400": { "description": "参数或 JSON 无效" },
+          "401": { "description": "缺少或错误的 Bearer 令牌" },
+          "403": { "description": "拒绝跨站或非本机请求" },
+          "404": { "description": "未找到对象" },
+          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
+        }
+      }
+    },
+    "/repeat-rules/generate": {
+      "post": {
+        "summary": "请求中心扩展生成窗口",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": { "through": { "type": "string" } },
+                "required": ["through"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "revision"],
+                  "properties": { "data": {}, "revision": { "type": "string" } }
+                }
+              }
+            },
+            "headers": {
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
+            }
+          },
+          "400": { "description": "参数或 JSON 无效" },
+          "401": { "description": "缺少或错误的 Bearer 令牌" },
+          "403": { "description": "拒绝跨站或非本机请求" },
+          "404": { "description": "未找到对象" },
+          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
+        },
+        "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
       }
     },
     "/plan-groups": {
@@ -2343,7 +2850,7 @@
     },
     "/export": {
       "get": {
-        "summary": "导出完整 v1 JSON 数据（不含 API 令牌）",
+        "summary": "导出完整 v2 JSON 数据（不含 API 令牌）",
         "responses": {
           "200": {
             "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
@@ -2370,7 +2877,7 @@
     },
     "/import": {
       "post": {
-        "summary": "合并导入完整 v1 JSON 数据",
+        "summary": "合并导入 v2 或迁移 v1 JSON 数据",
         "requestBody": {
           "required": true,
           "content": {
@@ -2378,7 +2885,7 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "version": { "type": "number", "enum": [1] },
+                  "version": { "type": "number", "enum": [2] },
                   "timelog": {},
                   "schedule": {
                     "default": {
@@ -2602,23 +3109,26 @@
                         "notes": { "type": "string", "maxLength": 50000 },
                         "estimatedMinutes": { "nullable": true, "type": "number", "minimum": 0 },
                         "actualMinutes": { "nullable": true, "type": "number", "minimum": 0 },
-                        "effort": {
-                          "nullable": true,
+                        "difficulty": {
+                          "default": "easy",
                           "type": "string",
-                          "enum": ["small", "medium", "large"]
+                          "enum": ["easy", "medium", "hard"]
                         },
                         "listId": { "type": "string", "minLength": 1, "maxLength": 100 },
-                        "due": {
-                          "nullable": true,
-                          "type": "string",
-                          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                        "dates": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "nullable": true,
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 100
+                          }
                         },
                         "tags": {
                           "maxItems": 30,
                           "type": "array",
                           "items": { "type": "string", "minLength": 1, "maxLength": 40 }
                         },
-                        "planGroupId": { "type": "string", "minLength": 1, "maxLength": 100 },
                         "subtasks": {
                           "maxItems": 200,
                           "type": "array",
@@ -2627,28 +3137,51 @@
                             "properties": {
                               "id": { "type": "string", "minLength": 1, "maxLength": 100 },
                               "title": { "type": "string", "minLength": 1, "maxLength": 500 },
-                              "done": { "type": "boolean" }
+                              "done": { "type": "boolean" },
+                              "completedAt": {
+                                "default": null,
+                                "nullable": true,
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              "deletedAt": {
+                                "default": null,
+                                "nullable": true,
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              "history": {
+                                "default": [],
+                                "maxItems": 100000,
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": { "type": "string", "minLength": 1, "maxLength": 100 },
+                                    "at": {
+                                      "type": "string",
+                                      "format": "date-time",
+                                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                    },
+                                    "done": { "type": "boolean" }
+                                  },
+                                  "required": ["id", "at", "done"],
+                                  "additionalProperties": false
+                                }
+                              }
                             },
-                            "required": ["id", "title", "done"],
+                            "required": [
+                              "id",
+                              "title",
+                              "done",
+                              "completedAt",
+                              "deletedAt",
+                              "history"
+                            ],
                             "additionalProperties": false
                           }
-                        },
-                        "repeat": {
-                          "type": "string",
-                          "enum": ["none", "daily", "weekly", "monthly"]
-                        },
-                        "repeatDay": { "type": "integer", "minimum": 1, "maximum": 31 },
-                        "spawnedId": {
-                          "nullable": true,
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 100
-                        },
-                        "parentId": {
-                          "nullable": true,
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 100
                         },
                         "pinned": { "type": "boolean" },
                         "order": { "type": "number" },
@@ -2673,26 +3206,198 @@
                           "type": "string",
                           "format": "date-time",
                           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        "history": {
+                          "default": [],
+                          "maxItems": 100000,
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": { "type": "string", "minLength": 1, "maxLength": 100 },
+                              "at": {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              "done": { "type": "boolean" }
+                            },
+                            "required": ["id", "at", "done"],
+                            "additionalProperties": false
+                          }
                         }
                       },
                       "required": [
                         "id",
                         "title",
                         "notes",
+                        "difficulty",
                         "listId",
-                        "due",
+                        "dates",
                         "tags",
                         "subtasks",
-                        "repeat",
-                        "repeatDay",
-                        "spawnedId",
-                        "parentId",
                         "pinned",
                         "order",
                         "createdAt",
                         "updatedAt",
                         "completedAt",
-                        "deletedAt"
+                        "deletedAt",
+                        "history"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "repeatRules": {
+                    "default": [],
+                    "maxItems": 5000,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "prefix": { "type": "string", "minLength": 1, "maxLength": 100 },
+                        "cron": { "type": "string", "minLength": 9, "maxLength": 120 },
+                        "dateOffsets": {
+                          "minItems": 1,
+                          "maxItems": 366,
+                          "type": "array",
+                          "items": { "type": "integer", "minimum": 0, "maximum": 365 }
+                        },
+                        "template": {
+                          "type": "object",
+                          "properties": {
+                            "title": { "type": "string", "minLength": 1, "maxLength": 500 },
+                            "notes": { "type": "string", "maxLength": 50000 },
+                            "estimatedMinutes": {
+                              "nullable": true,
+                              "type": "number",
+                              "minimum": 0
+                            },
+                            "difficulty": {
+                              "default": "easy",
+                              "type": "string",
+                              "enum": ["easy", "medium", "hard"]
+                            },
+                            "listId": { "type": "string", "minLength": 1, "maxLength": 100 },
+                            "tags": {
+                              "maxItems": 30,
+                              "type": "array",
+                              "items": { "type": "string", "minLength": 1, "maxLength": 40 }
+                            },
+                            "subtasks": {
+                              "maxItems": 200,
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "id": { "type": "string", "minLength": 1, "maxLength": 100 },
+                                  "title": { "type": "string", "minLength": 1, "maxLength": 500 },
+                                  "done": { "type": "boolean" },
+                                  "completedAt": {
+                                    "default": null,
+                                    "nullable": true,
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                  },
+                                  "deletedAt": {
+                                    "default": null,
+                                    "nullable": true,
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                  },
+                                  "history": {
+                                    "default": [],
+                                    "maxItems": 100000,
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "id": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 100
+                                        },
+                                        "at": {
+                                          "type": "string",
+                                          "format": "date-time",
+                                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                        },
+                                        "done": { "type": "boolean" }
+                                      },
+                                      "required": ["id", "at", "done"],
+                                      "additionalProperties": false
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "title",
+                                  "done",
+                                  "completedAt",
+                                  "deletedAt",
+                                  "history"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "pinned": { "type": "boolean" },
+                            "order": { "type": "number" }
+                          },
+                          "required": [
+                            "title",
+                            "notes",
+                            "difficulty",
+                            "listId",
+                            "tags",
+                            "subtasks",
+                            "pinned",
+                            "order"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "startAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        "generatedThrough": {
+                          "nullable": true,
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        "occurrences": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 100
+                          }
+                        },
+                        "enabled": { "type": "boolean" },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        }
+                      },
+                      "required": [
+                        "prefix",
+                        "cron",
+                        "dateOffsets",
+                        "template",
+                        "startAt",
+                        "generatedThrough",
+                        "occurrences",
+                        "enabled",
+                        "createdAt",
+                        "updatedAt"
                       ],
                       "additionalProperties": false
                     }
@@ -2828,6 +3533,7 @@
                   "lists",
                   "tagColors",
                   "tasks",
+                  "repeatRules",
                   "planGroups",
                   "sessions",
                   "timer",

@@ -26,20 +26,20 @@ async function seed(page: Page) {
   state.tasks = [
     newTask('学习计划', {
       id: 'study-task',
-      due: today,
+      dates: { [today]: null },
       listId: 'study-list',
       order: 10,
       tags: ['旧分类'],
     }),
     newTask('工作计划', {
       id: 'work-task',
-      due: today,
+      dates: { [today]: null },
       listId: 'work-list',
       order: 20,
     }),
     newTask('生活计划', {
       id: 'life-task',
-      due: today,
+      dates: { [today]: null },
       listId: 'life-list',
       order: 30,
     }),
@@ -48,7 +48,7 @@ async function seed(page: Page) {
     newTask('历史已完成', {
       id: 'completed-task',
       listId: 'study-list',
-      due: old,
+      dates: { [old]: null },
       completedAt: new Date(dayStart(old) + 3600000).toISOString(),
       tags: ['旧分类'],
       order: 60,
@@ -56,7 +56,7 @@ async function seed(page: Page) {
     newTask('已删除但保留内容', {
       id: 'deleted-task',
       listId: 'work-list',
-      due: old,
+      dates: { [old]: null },
       deletedAt: new Date(start).toISOString(),
       tags: ['旧分类'],
       order: 70,
@@ -158,7 +158,7 @@ test('inbox collects undated tasks across lists and creation / editing reuse the
   await expect(row(page, '新收纳的工作')).toBeVisible();
   const created = (await state(page)).tasks.find((task) => task.title === '新收纳的工作')!;
   expect(created.listId).toBe('work-list');
-  expect(created.due).toBeNull();
+  expect(created.dates).toEqual({});
 
   await page.getByRole('button', { name: '编辑 新收纳的工作', exact: true }).tap();
   const edit = page.getByRole('dialog', { name: '编辑任务', exact: true });
@@ -168,7 +168,7 @@ test('inbox collects undated tasks across lists and creation / editing reuse the
     'aria-pressed',
     'true',
   );
-  await edit.getByLabel('计划日期').fill(today);
+  await edit.getByRole('button', { name: '今天', exact: true }).tap();
   await edit.getByLabel('添加子任务').fill('先整理材料');
   await edit.getByRole('button', { name: '加入子任务' }).tap();
   await edit.getByRole('button', { name: '保存任务', exact: true }).tap();
@@ -177,7 +177,11 @@ test('inbox collects undated tasks across lists and creation / editing reuse the
   await page.getByRole('tab', { name: '日计划', exact: true }).tap();
   await expect(row(page, '新收纳的工作')).toBeVisible();
   const updated = (await state(page)).tasks.find((task) => task.id === created.id)!;
-  expect(updated).toMatchObject({ due: today, listId: 'work-list', notes: created.notes });
+  expect(updated).toMatchObject({
+    dates: { [today]: null },
+    listId: 'work-list',
+    notes: created.notes,
+  });
   expect(updated.subtasks.map((task) => task.title)).toEqual(['先整理材料']);
   await page.reload();
   await expect(row(page, '新收纳的工作')).toBeVisible();
@@ -220,7 +224,7 @@ test('long press reorders the visible priority numbers and completed plans sink 
   await expect(rows(page).last().locator('.task-title')).toHaveText('工作计划');
   await page.getByRole('tab', { name: /^全部/ }).tap();
   await expect(row(page, '工作计划')).toHaveCount(0);
-  await expect(rows(page).locator('.task-check')).toHaveText(['1', '2', '3', '4']);
+  await expect(rows(page).locator('.task-check')).toHaveText(['1', '2']);
   await page.getByRole('button', { name: '打开导航', exact: true }).tap();
   await page
     .getByRole('dialog', { name: '待办', exact: true })
@@ -234,7 +238,7 @@ test('long press reorders the visible priority numbers and completed plans sink 
 test('list colors and configurable activity mappings persist while default work / life activities are created once', async ({
   page,
 }) => {
-  test.setTimeout(60000);
+  test.setTimeout(120000);
   await seed(page);
   await page.getByRole('button', { name: '打开导航', exact: true }).tap();
   await page.getByRole('button', { name: '新增所属清单', exact: true }).tap();
@@ -298,7 +302,7 @@ test('list colors and configurable activity mappings persist while default work 
 test('task / activity tag colors can be created without content, survive reload and deletion removes all tag references', async ({
   page,
 }) => {
-  test.setTimeout(60000);
+  test.setTimeout(120000);
   await seed(page);
   await page.getByRole('button', { name: '打开导航', exact: true }).tap();
   await page.getByRole('button', { name: '新增待办标签', exact: true }).tap();

@@ -15,6 +15,11 @@ export class JsonRepository {
     try {
       if (raw === null) throw new Error('Missing primary');
       state = stateSchema.parse(JSON.parse(raw));
+      if (
+        JSON.parse(raw).version === 1 &&
+        (await this.files.read('data.before-task-v2.json')) === null
+      )
+        await this.files.write('data.before-task-v2.json', raw);
       this.loaded = true;
       this.current = state;
       return { state, recovered: false };

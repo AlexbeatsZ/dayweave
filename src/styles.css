@@ -330,24 +330,6 @@ input[type='date'] {
 .task-meta .tag-label {
   color: var(--secondary);
 }
-.overdue {
-  color: var(--red) !important;
-}
-.due-today {
-  color: var(--accent);
-}
-.effort-tier {
-  display: inline-grid;
-  place-items: center;
-  min-width: 16px;
-  height: 16px;
-  margin-right: 4px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text);
-  background: var(--input);
-}
 .row-action {
   width: 24px;
   opacity: 0;
@@ -1121,4 +1103,107 @@ dialog::backdrop {
   background: #707075;
   border-color: #707075;
   color: var(--bg);
+}
+
+/* Difficulty is explicitly chosen. Easy keeps the ordinary task appearance. */
+.task-row.difficulty-medium {
+  box-shadow: inset 3px 0 #c49439;
+}
+.task-row.difficulty-hard {
+  box-shadow: inset 3px 0 #c76b76;
+}
+.difficulty-medium .difficulty-tier {
+  color: #c49439;
+}
+.difficulty-hard .difficulty-tier {
+  color: #c76b76;
+}
+.task-dates-editor {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.task-dates-editor legend {
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+.task-date-range {
+  display: flex;
+  gap: 8px;
+  align-items: end;
+  flex-wrap: wrap;
+  margin: 10px 0;
+}
+.task-date-range label {
+  flex: 1;
+  min-width: 120px;
+  display: grid;
+  gap: 5px;
+  font-size: 12px;
+}
+.task-date-range input {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  font: inherit;
+  font-size: 16px;
+  color: inherit;
+  background: var(--input);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px;
+}
+.task-date-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+}
+.task-date-line > span {
+  flex: 0 0 100px;
+  font-size: 13px;
+}
+.task-date-line select {
+  min-width: 0;
+  flex: 1;
+  min-height: 44px;
+}
+.task-repeat-options {
+  display: grid;
+  gap: 10px;
+}
+.task-series {
+  border-bottom: 1px solid var(--line);
+}
+.task-series summary {
+  cursor: pointer;
+  padding: 16px 10px;
+}
+.task-series summary span {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.task-history-note {
+  display: block;
+  color: var(--muted);
+  margin: 6px 0;
+}
+.task-search {
+  width: 100%;
+  margin-bottom: 12px;
+}
+
+.task-date-line select {
+  background: var(--input);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px;
+  font: inherit;
+}
+.task-date-line > .icon-button:last-child {
+  margin-left: auto;
 }

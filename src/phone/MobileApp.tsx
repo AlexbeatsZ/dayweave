@@ -14,6 +14,11 @@ import {
   X,
 } from 'lucide-react';
 import {
+  activeTask,
+  finiteTaskDates,
+  taskPrefix,
+  taskCompleted,
+  taskDoneOn,
   dateKey,
   dayPlanGroups,
   taskPlanGroup,
@@ -74,7 +79,8 @@ export function MobileApp() {
   const [timePage, setTimePage] = useState<TimePage>('timeline');
   const clock = useClock();
   const [day, setDay] = useState(dateKey());
-  const [sort, setSort] = useState<'manual' | 'date' | 'effort'>('manual');
+  const [query, setQuery] = useState('');
+  const [sort, setSort] = useState<'manual' | 'date' | 'difficulty'>('manual');
   const [drawer, setDrawer] = useState(false),
     [composer, setComposer] = useState(false),
     [settings, setSettings] = useState(false);
@@ -90,9 +96,15 @@ export function MobileApp() {
   const [toast, setToast] = useState<{ text: string; undo?: () => void } | null>(null);
   const scroll = useRef<HTMLElement>(null);
   const today = dateKey(new Date(clock));
+  const previousToday = useRef(today);
+  useEffect(() => {
+    const previous = previousToday.current;
+    if (previous !== today) setDay((day) => (day === previous ? today : day));
+    previousToday.current = today;
+  }, [today]);
   const timeView = view === 'timelog';
   const taskView = !['timetable', 'timelog', 'calendar', 'focus', 'stats'].includes(view);
-  const live = data.tasks.filter((task) => !task.completedAt && !task.deletedAt);
+  const live = data.tasks.filter((task) => !taskCompleted(task) && !task.deletedAt);
   const title =
     view === 'timelog'
       ? '记录'
@@ -102,17 +114,20 @@ export function MobileApp() {
           ? `#${view.slice(4)}`
           : titles[view] || '任务';
   const week = calendarWeek(day);
-  const tasks = selectTasks(data, view === 'timetable' ? 'all' : view, '', sort, day).filter(
-    (task) =>
-      view === 'timetable'
-        ? task.due === day
-        : view !== 'today' || day === today || task.due === day,
+  const tasks = selectTasks(
+    data,
+    view === 'timetable' ? 'today' : view,
+    query,
+    sort,
+    ['today', 'upcoming', 'timetable'].includes(view) ? day : today,
   );
-  const unfinished = tasks.filter((task) => !task.completedAt);
+  const doneForDay = (task: Task) =>
+    view === 'today' && day < today ? taskDoneOn(task, day) : taskCompleted(task);
+  const unfinished = tasks.filter((task) => !doneForDay(task));
   // Sections of the day's plan; overdue tasks from earlier days fall outside them.
   const planGroups = view === 'today' ? dayPlanGroups(data, day) : [];
   const sectionOf = (task: Task) =>
-    planGroups.length && task.due === day ? (taskPlanGroup(data, task)?.id ?? '') : '';
+    planGroups.length ? (taskPlanGroup(data, task, day)?.id ?? '') : '';
   // Only time slots that still hold unfinished tasks are shown (user 2026-11-04); an empty
   // slot remains selectable in the task editor.
   const filled = [...planGroups.map((group) => group.id), '']
@@ -126,15 +141,20 @@ export function MobileApp() {
   const ordered = sections.length
     ? sections.flatMap((section) => section.rows)
     : view === 'upcoming'
-      ? week.flatMap((date) => unfinished.filter((task) => task.due === date))
+      ? week.flatMap((date) => unfinished.filter((task) => Object.hasOwn(task.dates, date)))
       : unfinished;
-  const ordinal = new Map(ordered.map((task, index) => [task.id, index + 1]));
-  const completed = tasks.filter((task) => task.completedAt);
+  const ordinal = new Map(
+    [...new Set(ordered.map((task) => task.id))].map((id, index) => [id, index + 1]),
+  );
+  const completed = tasks.filter((task) => doneForDay(task));
   function moveTask(source: string, target: string) {
     const from = tasks.find((task) => task.id === source),
       to = tasks.find((task) => task.id === target);
     if (!from || !to) return;
-    if (view === 'upcoming' && from.due !== to.due) {
+    if (
+      view === 'upcoming' &&
+      !finiteTaskDates(from).some((date) => Object.hasOwn(to.dates, date))
+    ) {
       notice('周计划按日期分组，请在同一天内调整顺序');
       return;
     }
@@ -145,7 +165,7 @@ export function MobileApp() {
           ordered.map((task) => task.id),
           source,
           target,
-          sections.length > 0 && from.due === to.due,
+          sections.length > 0 ? day : undefined,
         ),
       )
       .catch((error) => notice(String(error)));
@@ -162,8 +182,18 @@ export function MobileApp() {
   const taskTabs = [
     { id: 'today' as const, label: '日计划' },
     { id: 'upcoming' as const, label: '周计划' },
-    { id: 'all' as const, label: '全部', count: live.length },
-    { id: 'inbox' as const, label: '待办箱', count: live.filter((task) => !task.due).length },
+    {
+      id: 'all' as const,
+      label: '全部',
+      count: new Set(
+        live.filter((task) => activeTask(task, today)).map((task) => taskPrefix(task.id)),
+      ).size,
+    },
+    {
+      id: 'inbox' as const,
+      label: '待办箱',
+      count: live.filter((task) => !Object.keys(task.dates).length).length,
+    },
   ];
   const recordTabs = [
     { id: 'timeline' as const, label: '时间线' },
@@ -210,6 +240,17 @@ export function MobileApp() {
     'stats:tasks',
     'stats:records',
   ]);
+  useEffect(() => {
+    if (!snapshot.loaded || !['today', 'upcoming', 'calendar', 'timetable'].includes(view)) return;
+    if (day >= today)
+      void window.clearlist?.sync
+        ?.ensureTasks?.(week.at(-1)!)
+        .then((status) => {
+          if (status.error && data.repeatRules.some((rule) => rule.enabled))
+            setToast({ text: status.error });
+        })
+        .catch((error) => setToast({ text: String(error) }));
+  }, [day, view, snapshot.loaded]);
   const changeTab = (id: string) => {
     if (showTaskTabs) navigate(id as View);
     else if (timeView) setTimePage(id as TimePage);
@@ -297,13 +338,14 @@ export function MobileApp() {
       undo: () => store.patchTask(task.id, { deletedAt: null }),
     });
   }
-  function row(task: Task) {
+  function row(task: Task, rowDay = view === 'today' ? day : undefined) {
     return (
       <TaskRow
-        key={task.id}
+        key={`${task.id}:${rowDay ?? ''}`}
         task={task}
+        day={rowDay}
         index={ordinal.get(task.id)}
-        onMove={task.completedAt ? undefined : moveTask}
+        onMove={taskCompleted(task) ? undefined : moveTask}
         selected={task.id === selected}
         onSelect={setSelected}
         onDelete={remove}
@@ -425,7 +467,7 @@ export function MobileApp() {
             onDate={setDay}
             label="待办日期"
             week={view === 'upcoming'}
-            taskDates={live.flatMap((task) => (task.due ? [task.due] : []))}
+            taskDates={live.flatMap(finiteTaskDates)}
           />
         )}
         {view === 'today' &&
@@ -441,6 +483,14 @@ export function MobileApp() {
           )}
         {taskView && (
           <section className="phone-tasks">
+            <input
+              className="text-input task-search"
+              type="search"
+              aria-label="搜索任务与历史"
+              placeholder="搜索任务与历史"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
             <div className="phone-section-heading">
               <h2>
                 {view === 'today'
@@ -462,7 +512,7 @@ export function MobileApp() {
                 >
                   <option value="manual">手动排序</option>
                   <option value="date">按日期</option>
-                  <option value="effort">按工作量</option>
+                  <option value="difficulty">按难度</option>
                 </select>
               </label>
             </div>
@@ -472,8 +522,10 @@ export function MobileApp() {
                   {week.map((date) => (
                     <section className="phone-plan-day" key={date}>
                       <h3>{formatDate(date)}</h3>
-                      {tasks.filter((task) => task.due === date && !task.completedAt).map(row)}
-                      {!tasks.some((task) => task.due === date) && (
+                      {tasks
+                        .filter((task) => Object.hasOwn(task.dates, date))
+                        .map((task) => row(task, date))}
+                      {!tasks.some((task) => Object.hasOwn(task.dates, date)) && (
                         <p className="muted">暂无计划</p>
                       )}
                     </section>
@@ -501,20 +553,41 @@ export function MobileApp() {
                           </button>
                         </header>
                         {group.note && <p className="plan-group-note">{group.note}</p>}
-                        {rows.map(row)}
+                        {rows.map((task) => row(task))}
                       </section>
                     ) : (
                       <section className="plan-group unscheduled" key="" aria-label="未定时段">
                         <header>
                           <h3>未定时段</h3>
                         </header>
-                        {rows.map(row)}
+                        {rows.map((task) => row(task))}
                       </section>
                     ),
                   )}
                 </div>
               ) : (
-                <>{tasks.filter((task) => !task.completedAt).map(row)}</>
+                <>
+                  {view === 'all' && !query.trim()
+                    ? [...new Set(tasks.map((task) => taskPrefix(task.id)))].map((prefix) => {
+                        const instances = tasks.filter((task) => taskPrefix(task.id) === prefix);
+                        const rule = data.repeatRules.find((item) => item.prefix === prefix);
+                        return instances.length > 1 || rule ? (
+                          <details className="task-series" key={prefix}>
+                            <summary>
+                              <strong>{rule?.template.title ?? instances[0].title}</strong>
+                              <span>
+                                {instances.length} 次安排 ·{' '}
+                                {instances.flatMap(finiteTaskDates).sort()[0]} 起
+                              </span>
+                            </summary>
+                            {instances.map((task) => row(task))}
+                          </details>
+                        ) : (
+                          row(instances[0])
+                        );
+                      })
+                    : tasks.filter((task) => !doneForDay(task)).map((task) => row(task))}
+                </>
               )
             ) : (
               <div className="phone-empty">
@@ -523,10 +596,10 @@ export function MobileApp() {
                 <p>点右下角 +，记下下一件事</p>
               </div>
             )}
-            {completed.length > 0 && (
+            {completed.length > 0 && view !== 'upcoming' && (
               <details className="completed-plans" open>
                 <summary>已完成 · {completed.length}</summary>
-                {completed.map(row)}
+                {completed.map((task) => row(task))}
               </details>
             )}
           </section>
@@ -560,7 +633,20 @@ export function MobileApp() {
                   navigate('today');
                 }}
                 onSelect={setSelected}
-                onDrop={(id, due) => store.patchTask(id, { due, repeatDay: Number(due.slice(-2)) })}
+                onWindow={(through) => {
+                  void window.clearlist?.sync
+                    ?.ensureTasks?.(through)
+                    .catch((error) => notice(String(error)));
+                }}
+                onDrop={(id, date, from) => {
+                  const task = store.get().tasks.find((row) => row.id === id);
+                  if (task) {
+                    const dates = { ...task.dates };
+                    if (from) delete dates[from];
+                    dates[date] = null;
+                    store.patchTask(id, { dates });
+                  }
+                }}
               />
             </div>
           ))}
@@ -570,7 +656,20 @@ export function MobileApp() {
             selectedDate={day}
             onDate={setDay}
             onSelect={setSelected}
-            onDrop={(id, due) => store.patchTask(id, { due, repeatDay: Number(due.slice(-2)) })}
+            onWindow={(through) => {
+              void window.clearlist?.sync
+                ?.ensureTasks?.(through)
+                .catch((error) => notice(String(error)));
+            }}
+            onDrop={(id, date, from) => {
+              const task = store.get().tasks.find((row) => row.id === id);
+              if (task) {
+                const dates = { ...task.dates };
+                if (from) delete dates[from];
+                dates[date] = null;
+                store.patchTask(id, { dates });
+              }
+            }}
           />
         )}
         {view === 'stats' && (
@@ -671,7 +770,7 @@ export function MobileApp() {
       </div>
       {composer && (
         <TaskComposer
-          due={['today', 'upcoming', 'calendar', 'timetable'].includes(view) ? day : ''}
+          initialDate={['today', 'upcoming', 'calendar', 'timetable'].includes(view) ? day : ''}
           listId={listId}
           today={today}
           close={() => setComposer(false)}
@@ -685,7 +784,7 @@ export function MobileApp() {
         <TaskComposer
           key={selected}
           task={data.tasks.find((task) => task.id === selected)}
-          due=""
+          initialDate=""
           listId="inbox"
           today={today}
           close={() => setSelected(null)}

@@ -28,17 +28,17 @@ async function seed(page: Page, configure?: (state: AppState) => void) {
     state = emptyState();
   state.settings.theme = 'dark';
   state.tasks = [
-    newTask('复习量子化学', { id: 'today-plan', due: day }),
-    newTask('明天的计划', { id: 'tomorrow-plan', due: shiftDay(day, 1) }),
-    newTask('未排期想法', { id: 'undated-plan', due: null }),
+    newTask('复习量子化学', { id: 'today-plan', dates: { [day]: null } }),
+    newTask('明天的计划', { id: 'tomorrow-plan', dates: { [shiftDay(day, 1)]: null } }),
+    newTask('未排期想法', { id: 'undated-plan', dates: {} }),
     newTask('已经完成的计划', {
       id: 'finished-plan',
-      due: day,
+      dates: { [day]: null },
       completedAt: new Date(NOW - 3600000).toISOString(),
     }),
     newTask('已删除的计划', {
       id: 'deleted-plan',
-      due: day,
+      dates: { [day]: null },
       deletedAt: new Date(NOW - 3600000).toISOString(),
     }),
   ];

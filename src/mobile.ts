@@ -82,6 +82,10 @@ export async function initializeMobile() {
     {
       read: async () => (await files.read({ name: 'sync.json' })).content,
       write: (content) => files.write({ name: 'sync.json', content }),
+      preserve: async (content) => {
+        if ((await files.read({ name: 'sync.before-task-v2.json' })).content === null)
+          await files.write({ name: 'sync.before-task-v2.json', content });
+      },
     },
     {
       snapshot: async () => {
@@ -113,6 +117,7 @@ export async function initializeMobile() {
         return status;
       },
       disconnect: () => client.disconnect(),
+      ensureTasks: (through) => client.ensureTasks(through),
       setEndpoint: async (endpoint) => {
         await client.setEndpoint(endpoint);
         return client.now();

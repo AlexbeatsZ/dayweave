@@ -1,3 +1,4 @@
+import { taskCompleted } from '../model';
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { FolderOpen, Hash, Pencil, Plus, Settings, Trash2 } from 'lucide-react';
 import { ColorPicker } from '../components/ColorPicker';
@@ -106,7 +107,7 @@ export function PhoneSidebar({
                         <span>{item.name}</span>
                         <small>
                           {
-                            tasks.filter((task) => !task.completedAt && task.listId === item.id)
+                            tasks.filter((task) => !taskCompleted(task) && task.listId === item.id)
                               .length
                           }
                         </small>

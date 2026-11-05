@@ -1,27 +1,26 @@
-import { useState, type CSSProperties, type FormEvent } from 'react';
+import { useEffect, useState, type CSSProperties, type FormEvent } from 'react';
 import { CalendarDays, ListChecks, Plus, Repeat2, Timer, Trash2, X } from 'lucide-react';
 import {
-  dayPlanGroups,
-  effortLabels,
+  difficultyLabels,
   formatTaskMinutes,
   newTask,
-  taskPlanGroup,
-  withTaskDay,
   recordedTaskMinutes,
-  shiftDate,
-  taskEffort,
+  taskPrefix,
+  copyTask,
   uid,
   type Task,
-  type TaskEffort,
+  type TaskDifficulty,
 } from '../model';
 import { store, useStore } from '../store';
 import { Modal } from '../components/Modal';
 import { PlanGroupModal } from '../components/PlanGroupModal';
+import { TaskDatesEditor } from '../components/TaskDatesEditor';
+import { configureRepeat } from '../task-repeat';
 import { TaskCheck } from '../components/TaskCheck';
 import { usePhone } from './usePhone';
 
 export function TaskComposer({
-  due,
+  initialDate,
   listId,
   today,
   close,
@@ -30,7 +29,7 @@ export function TaskComposer({
   onDelete,
   onTrack,
 }: {
-  due: string;
+  initialDate: string;
   listId: string;
   today: string;
   close: () => void;
@@ -44,14 +43,31 @@ export function TaskComposer({
   const [revision] = useState(task?.updatedAt);
   const [title, setTitle] = useState(task?.title ?? ''),
     [notes, setNotes] = useState(task?.notes ?? '');
-  const [date, setDate] = useState(task?.due ?? due),
-    [list, setList] = useState(task?.listId ?? listId);
-  const [planGroup, setPlanGroup] = useState(task ? (taskPlanGroup(data, task)?.id ?? '') : '');
-  const [creatingGroup, setCreatingGroup] = useState(false);
-  const planGroups = date ? dayPlanGroups(data, date) : [];
-  // A section belongs to one day; picking another day silently leaves it.
-  const chosenGroup = planGroups.some((group) => group.id === planGroup) ? planGroup : '';
-  const [repeat, setRepeat] = useState<Task['repeat']>(task?.repeat ?? 'none');
+  const [dates, setDates] = useState<Task['dates']>(
+    task?.dates ?? (initialDate ? { [initialDate]: null } : {}),
+  );
+  const [creatingGroup, setCreatingGroup] = useState<string>();
+  const [list, setList] = useState(task?.listId ?? listId);
+  const rule = task
+    ? data.repeatRules.find((row) => row.prefix === taskPrefix(task.id))
+    : undefined;
+  const [repeatBaseline] = useState({
+    at: rule?.updatedAt,
+    cron: rule?.enabled ? rule.cron : '',
+    offsets: rule?.dateOffsets.join(', ') ?? '0',
+  });
+  const [cron, setCron] = useState(rule?.enabled ? rule.cron : '');
+  const [offsetText, setOffsetText] = useState(rule?.dateOffsets.join(', ') ?? '0');
+  const [repeatAvailable, setRepeatAvailable] = useState(false);
+  useEffect(() => {
+    let live = true;
+    void window.clearlist?.sync?.status().then((status) => {
+      if (live) setRepeatAvailable(status.connected);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
   const [subtasks, setSubtasks] = useState<Task['subtasks']>(task?.subtasks ?? []),
     [subtask, setSubtask] = useState('');
   const [tagText, setTagText] = useState(task?.tags.join(', ') ?? '');
@@ -59,11 +75,7 @@ export function TaskComposer({
     task?.estimatedMinutes?.toString() ?? '',
   );
   const [actualMinutes, setActualMinutes] = useState(task?.actualMinutes?.toString() ?? '');
-  const [effort, setEffort] = useState<TaskEffort | ''>(task?.effort ?? '');
-  // "自动" shows the size the estimate currently gives.
-  const derivedEffort = taskEffort({
-    estimatedMinutes: estimatedMinutes.trim() === '' ? null : Number(estimatedMinutes),
-  });
+  const [difficulty, setDifficulty] = useState<TaskDifficulty>(task?.difficulty ?? 'easy');
   const recordedMinutes = task ? recordedTaskMinutes(data, task.id) : 0;
   const [busy, setBusy] = useState(false),
     [error, setError] = useState('');
@@ -77,14 +89,12 @@ export function TaskComposer({
         .map((match) => match[1])
         .filter((tag) => tag.length <= 40);
       const created = newTask(title.replace(/(?:^|\s)#[^\s#]+/g, '').trim() || title.trim(), {
-        due: date || null,
+        dates,
         listId: list,
         notes,
         estimatedMinutes: estimatedMinutes.trim() === '' ? null : Number(estimatedMinutes),
         actualMinutes: actualMinutes.trim() === '' ? null : Number(actualMinutes),
-        ...(effort ? { effort } : {}),
-        ...(chosenGroup ? { planGroupId: chosenGroup } : {}),
-        repeat: date ? repeat : 'none',
+        difficulty,
         tags: [
           ...new Set([
             ...tags,
@@ -96,33 +106,58 @@ export function TaskComposer({
         ].slice(0, 30),
         subtasks: [
           ...subtasks,
-          ...(subtask.trim() ? [{ id: uid(), title: subtask.trim(), done: false }] : []),
+          ...(subtask.trim()
+            ? [
+                {
+                  id: uid(),
+                  title: subtask.trim(),
+                  done: false,
+                  completedAt: null,
+                  deletedAt: null,
+                  history: [],
+                },
+              ]
+            : []),
         ],
       });
       await store.transact((state) => {
         if (!state.lists.some((item) => item.id === list))
           throw new Error('清单已变化，请重新选择。');
-        if (chosenGroup && !dayPlanGroups(state, date).some((group) => group.id === chosenGroup))
-          throw new Error('时段已变化，请重新选择。');
+        for (const [day, group] of Object.entries(dates))
+          if (
+            group &&
+            !state.planGroups.some((row) => row.id === group && !row.deletedAt && row.date === day)
+          )
+            throw new Error('时段已变化，请重新选择。');
+        const offsets = offsetText.split(/[,，]/).map((value) => Number(value.trim()));
+        const repeatChanged = cron !== repeatBaseline.cron || offsetText !== repeatBaseline.offsets;
+        if (!repeatAvailable && repeatChanged) throw new Error('修改重复规则需要连接同步中心');
+        if (
+          repeatChanged &&
+          task &&
+          state.repeatRules.find((row) => row.prefix === taskPrefix(task.id))?.updatedAt !==
+            repeatBaseline.at
+        )
+          throw new Error('重复规则已在其他位置修改，请重新打开后编辑。');
+        if (cron && offsets.some((value) => !Number.isInteger(value) || value < 0 || value > 365))
+          throw new Error('日期偏移须为 0–365 的整数');
         if (task) {
           const latest = state.tasks.find((item) => item.id === task.id);
           if (!latest || latest.deletedAt || latest.updatedAt !== revision)
             throw new Error('任务已在其他位置修改，请重新打开后编辑。');
-          return {
+          const next = {
             ...state,
             tasks: state.tasks.map((item) =>
               item.id === task.id
                 ? {
-                    // Auto leaves no field, so unchanged tasks stay readable by older peers.
-                    ...withoutEffort(withTaskDay(item, date || null, chosenGroup || null)),
-                    ...(effort ? { effort } : {}),
+                    ...item,
+                    dates,
+                    difficulty,
                     title: created.title,
                     notes: created.notes,
                     estimatedMinutes: created.estimatedMinutes,
                     actualMinutes: created.actualMinutes,
                     listId: list,
-                    repeat: created.repeat,
-                    repeatDay: date && date !== item.due ? Number(date.slice(-2)) : item.repeatDay,
                     tags: created.tags,
                     subtasks: created.subtasks,
                     updatedAt: new Date().toISOString(),
@@ -130,8 +165,21 @@ export function TaskComposer({
                 : item,
             ),
           };
+          return repeatChanged
+            ? configureRepeat(
+                next,
+                next.tasks.find((row) => row.id === task.id)!,
+                cron || null,
+                offsets,
+              )
+            : next;
         }
-        return { ...state, tasks: [...state.tasks, created] };
+        return configureRepeat(
+          { ...state, tasks: [...state.tasks, created] },
+          created,
+          cron || null,
+          offsets,
+        );
       });
       saved();
       return true;
@@ -177,89 +225,50 @@ export function TaskComposer({
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
         />
-        <div className="date-chips" aria-label="安排日期">
-          {[
-            { value: today, label: '今天' },
-            { value: shiftDate(today, 1), label: '明天' },
-            { value: '', label: '无日期' },
-          ].map((item) => (
-            <button
-              type="button"
-              key={item.label}
-              aria-pressed={date === item.value}
-              onClick={() => setDate(item.value)}
-            >
-              {item.label}
-            </button>
-          ))}
-          <label className="custom-date">
-            <CalendarDays size={16} />
-            <span>
-              {date && ![today, shiftDate(today, 1)].includes(date)
-                ? date.slice(5).replace('-', '/')
-                : '选日期'}
-            </span>
-            <input
-              type="date"
-              aria-label={task ? '计划日期' : '新任务日期'}
-              min="2000-01-01"
-              max="2200-12-31"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-            />
-          </label>
-        </div>
-        {date && (
-          <div className="date-chips plan-group-chips" aria-label="时段">
-            {[{ id: '', title: '不定时段' }, ...planGroups].map((group) => (
-              <button
-                type="button"
-                key={group.id}
-                aria-pressed={chosenGroup === group.id}
-                onClick={() => setPlanGroup(group.id)}
-              >
-                {group.title}
-              </button>
-            ))}
-            <button
-              type="button"
-              className="plan-group-add"
-              aria-label="新建时段"
-              title="新建时段"
-              onClick={() => setCreatingGroup(true)}
-            >
-              <Plus size={15} />
-            </button>
-          </div>
-        )}
+        <TaskDatesEditor
+          dates={dates}
+          onChange={setDates}
+          today={today}
+          onCreateGroup={setCreatingGroup}
+        />
         <div
           className="phone-subtasks"
           style={
             { '--task-color': data.lists.find((item) => item.id === list)?.color } as CSSProperties
           }
         >
-          {subtasks.map((item, index) => (
-            <div key={item.id} className={`task-subtask ${item.done ? 'subtask-done' : ''}`}>
-              <TaskCheck
-                label={`子任务 ${item.title}`}
-                checked={item.done}
-                onChange={() =>
-                  setSubtasks(
-                    subtasks.map((row) => (row.id === item.id ? { ...row, done: !row.done } : row)),
-                  )
-                }
-              />
-              <span>{item.title}</span>
-              <button
-                type="button"
-                className="icon-button"
-                aria-label={`移除子任务 ${item.title}`}
-                onClick={() => setSubtasks(subtasks.filter((_, i) => i !== index))}
-              >
-                <X size={16} />
-              </button>
-            </div>
-          ))}
+          {subtasks
+            .filter((item) => !item.deletedAt)
+            .map((item) => (
+              <div key={item.id} className={`task-subtask ${item.done ? 'subtask-done' : ''}`}>
+                <TaskCheck
+                  label={`子任务 ${item.title}`}
+                  checked={item.done}
+                  onChange={() =>
+                    setSubtasks(
+                      subtasks.map((row) =>
+                        row.id === item.id ? { ...row, done: !row.done } : row,
+                      ),
+                    )
+                  }
+                />
+                <span>{item.title}</span>
+                <button
+                  type="button"
+                  className="icon-button"
+                  aria-label={`移除子任务 ${item.title}`}
+                  onClick={() =>
+                    setSubtasks(
+                      subtasks.map((row) =>
+                        row.id === item.id ? { ...row, deletedAt: new Date().toISOString() } : row,
+                      ),
+                    )
+                  }
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            ))}
           <div>
             <ListChecks size={18} />
             <input
@@ -273,7 +282,17 @@ export function TaskComposer({
                 if (e.key === 'Enter') {
                   e.preventDefault();
                   if (subtask.trim()) {
-                    setSubtasks([...subtasks, { id: uid(), title: subtask.trim(), done: false }]);
+                    setSubtasks([
+                      ...subtasks,
+                      {
+                        id: uid(),
+                        title: subtask.trim(),
+                        done: false,
+                        completedAt: null,
+                        deletedAt: null,
+                        history: [],
+                      },
+                    ]);
                     setSubtask('');
                   }
                 }
@@ -285,7 +304,17 @@ export function TaskComposer({
               aria-label="加入子任务"
               disabled={!subtask.trim() || subtasks.length >= 199}
               onClick={() => {
-                setSubtasks([...subtasks, { id: uid(), title: subtask.trim(), done: false }]);
+                setSubtasks([
+                  ...subtasks,
+                  {
+                    id: uid(),
+                    title: subtask.trim(),
+                    done: false,
+                    completedAt: null,
+                    deletedAt: null,
+                    history: [],
+                  },
+                ]);
                 setSubtask('');
               }}
             >
@@ -327,32 +356,47 @@ export function TaskComposer({
             placeholder="用逗号分隔"
           />
         </label>
+        {task && (
+          <button
+            type="button"
+            className="button"
+            disabled={busy}
+            onClick={async () => {
+              try {
+                await store.transact((state) => ({
+                  ...state,
+                  tasks: [...state.tasks, copyTask(task)],
+                }));
+                saved();
+              } catch (error) {
+                setError(String(error));
+              }
+            }}
+          >
+            复制任务
+          </button>
+        )}
         <div className="phone-form-options">
           <label>
             <Repeat2 size={17} />
             <select
-              aria-label={task ? '重复频率' : '新任务重复'}
-              disabled={!date}
-              value={date ? repeat : 'none'}
-              onChange={(e) => setRepeat(e.target.value as Task['repeat'])}
+              aria-label="重复频率"
+              disabled={!repeatAvailable && !cron}
+              value={cron ? 'cron' : ''}
+              onChange={(event) => setCron(event.target.value ? '0 4 * * *' : '')}
             >
-              <option value="none">不重复</option>
-              <option value="daily">每天</option>
-              <option value="weekly">每周</option>
-              <option value="monthly">每月</option>
+              <option value="">不重复</option>
+              <option value="cron">Cron 重复</option>
             </select>
           </label>
           <label>
-            <span className="phone-form-option-name">工作量</span>
+            <span className="phone-form-option-name">任务难度</span>
             <select
-              aria-label="工作量"
-              value={effort}
-              onChange={(e) => setEffort(e.target.value as TaskEffort | '')}
+              aria-label="任务难度"
+              value={difficulty}
+              onChange={(event) => setDifficulty(event.target.value as TaskDifficulty)}
             >
-              <option value="">
-                自动{derivedEffort ? `（${effortLabels[derivedEffort]}）` : ''}
-              </option>
-              {Object.entries(effortLabels).map(([value, label]) => (
+              {Object.entries(difficultyLabels).map(([value, label]) => (
                 <option key={value} value={value}>
                   {label}
                 </option>
@@ -360,6 +404,34 @@ export function TaskComposer({
             </select>
           </label>
         </div>
+        {!repeatAvailable && <p className="muted">重复任务需要连接同步中心</p>}
+        {cron && (
+          <div className="task-repeat-options">
+            <label className="form-label">
+              Cron
+              <input
+                className="text-input"
+                aria-label="Cron"
+                value={cron}
+                onChange={(event) => setCron(event.target.value)}
+                placeholder="0 4 * * *"
+              />
+            </label>
+            <label className="form-label">
+              日期偏移
+              <input
+                className="text-input"
+                aria-label="日期偏移"
+                value={offsetText}
+                onChange={(event) => setOffsetText(event.target.value)}
+                placeholder="0, 1, 2"
+              />
+            </label>
+            <p className="muted">
+              按设置中的时区触发；0 表示触发业务日，1 表示次日。每次生成一个任务。
+            </p>
+          </div>
+        )}
         <div className="task-effort-fields">
           <label className="form-label">
             预计用时
@@ -438,18 +510,13 @@ export function TaskComposer({
       </form>
       {creatingGroup && (
         <PlanGroupModal
-          date={date}
-          onClose={() => setCreatingGroup(false)}
-          onSaved={(_message, created) => {
-            if (created) setPlanGroup(created.id);
+          date={creatingGroup}
+          onClose={() => setCreatingGroup(undefined)}
+          onSaved={(_message, group) => {
+            if (group) setDates((dates) => ({ ...dates, [creatingGroup]: group.id }));
           }}
         />
       )}
     </Modal>
   );
-}
-
-function withoutEffort(task: Task): Task {
-  const { effort: _effort, ...rest } = task;
-  return rest;
 }

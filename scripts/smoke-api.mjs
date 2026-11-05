@@ -49,7 +49,10 @@ try {
   const {
     data: { today },
   } = await request('GET', '/context');
-  const { data: task } = await request('POST', '/tasks', { title: 'AI 创建的任务', due: today });
+  const { data: task } = await request('POST', '/tasks', {
+    title: 'AI 创建的任务',
+    dates: { [today]: null },
+  });
   await page.getByRole('button', { name: '编辑 AI 创建的任务', exact: true }).click();
   await page.getByLabel('任务备注').fill('界面补充的备注');
   await request('PATCH', `/tasks/${task.id}`, { estimatedMinutes: 20 });

@@ -1,5 +1,13 @@
+import { stateSchema } from '../model.js';
 import { syncEndpoint, syncEndpoints, openEnvelope, seal, type Envelope } from './crypto.js';
-import { fromDocument, overlayNewEdits, stable, toDocument } from './document.js';
+import {
+  fromDocument,
+  overlayNewEdits,
+  stable,
+  toDocument,
+  migrateLegacyDocument,
+  migrateLegacyConflicts,
+} from './document.js';
 import { invitationText } from './invitation.js';
 import type { SyncConfig, SyncReply, SyncState, SyncStatus, SyncStorage } from './types.js';
 
@@ -9,6 +17,7 @@ export class SyncClient {
   lastSync?: number;
   connected = false;
   private activeEndpoint?: string;
+  private through?: string;
   private tail: Promise<unknown> = Promise.resolve();
   private inFlight?: Promise<SyncStatus>;
   constructor(
@@ -31,6 +40,27 @@ export class SyncClient {
       if (value.endpoints || value.endpoint) {
         value.endpoints = syncEndpoints(value.endpoints ?? [value.endpoint!]);
         value.endpoint = value.endpoints[0];
+      }
+      if (value.base) {
+        const old = value.base,
+          migrated = migrateLegacyDocument(old);
+        if (stable(old) !== stable(migrated)) {
+          await this.storage.preserve?.(raw);
+          value.conflicts = migrateLegacyConflicts(old, value.conflicts);
+          value.base = migrated;
+        }
+      }
+      if ((value.incoming?.reply.state as { version?: number } | undefined)?.version === 1) {
+        await this.storage.preserve?.(raw);
+        value.incoming!.sent = migrateLegacyDocument(value.incoming!.sent);
+        value.incoming!.reply.state = stateSchema.parse(value.incoming!.reply.state);
+        if (value.incoming!.reply.base) {
+          value.incoming!.reply.conflicts = migrateLegacyConflicts(
+            value.incoming!.reply.base,
+            value.incoming!.reply.conflicts ?? [],
+          );
+          value.incoming!.reply.base = migrateLegacyDocument(value.incoming!.reply.base);
+        }
       }
       this.config = value;
       this.lastSync = value.lastSync;
@@ -108,7 +138,7 @@ export class SyncClient {
       throw new Error('同步恢复日志无效');
     await this.save();
     const conflicts = structuredClone(config.conflicts);
-    const received = toDocument(reply.state);
+    const received = toDocument(stateSchema.parse(reply.state));
     await this.state.mutate((current) =>
       fromDocument(overlayNewEdits(sent, toDocument(current), received, conflicts), current),
     );
@@ -213,7 +243,10 @@ export class SyncClient {
         const snapshot = (await this.state.snapshot()).state;
         const sent = toDocument(snapshot);
         const dirty = !c.base || stable(sent) !== stable(c.base);
+        const through = this.through;
         const request = {
+          protocol: 2,
+          ...(through ? { through } : {}),
           name: c.name,
           revision: c.revision,
           ...(dirty ? { state: snapshot, base: c.base ?? {} } : {}),
@@ -229,6 +262,8 @@ export class SyncClient {
           },
           async (response) => {
             const value = await openEnvelope<SyncReply>(response, c.key!, '/sync:reply');
+            if (value.protocol !== 2)
+              throw new Error('任务模型版本不兼容，请先升级同步中心与所有客户端');
             if (response.clientId !== c.deviceId || value.hubId !== c.hubId || value.seq !== c.seq)
               throw new Error('同步响应身份或序号不符');
             return value;
@@ -238,6 +273,7 @@ export class SyncClient {
           c.incoming = { sent: document, reply };
           await this.applyIncoming();
         }
+        if (this.through === through) this.through = undefined;
         c.revision = reply.revision;
         c.lastSync = Date.now();
         await this.save();
@@ -250,6 +286,12 @@ export class SyncClient {
       }
       return this.status();
     });
+  }
+  async ensureTasks(through: string) {
+    this.through = !this.through || through > this.through ? through : this.through;
+    await this.now();
+    if (this.through && this.connected) await this.now();
+    return this.status();
   }
   disconnect() {
     return this.exclusive(async () => {
@@ -315,7 +357,11 @@ export async function fetchEnvelope(endpoint: string, path: string, body: Envelo
   });
   if (!response.ok)
     throw new Error(
-      response.status === 401 ? '配对已失效，请重新配对' : `同步中心返回 ${response.status}`,
+      response.status === 401
+        ? '配对已失效，请重新配对'
+        : response.status === 409
+          ? '任务模型版本不兼容，请升级同步中心与所有客户端'
+          : `同步中心返回 ${response.status}`,
     );
   const text = await response.text();
   if (text.length > 70 * 1024 * 1024) throw new Error('同步消息过大');

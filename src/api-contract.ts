@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { extraPaths } from './extra-contract.js';
-import { taskSchema, listSchema, planGroupSchema, stateSchema } from './model.js';
+import { taskSchema, listSchema, planGroupSchema, stateFields, subtaskSchema } from './model.js';
 
 export const taskInputSchema = taskSchema
   .pick({
@@ -8,23 +8,39 @@ export const taskInputSchema = taskSchema
     notes: true,
     estimatedMinutes: true,
     actualMinutes: true,
-    effort: true,
+    difficulty: true,
     listId: true,
-    due: true,
+    dates: true,
     tags: true,
-    planGroupId: true,
     subtasks: true,
-    repeat: true,
     pinned: true,
     order: true,
   })
   .partial()
   .required({ title: true })
+  .extend({
+    subtasks: z
+      .array(subtaskSchema.pick({ id: true, title: true, done: true }))
+      .max(200)
+      .optional(),
+  })
   .strict();
 export const taskPatchSchema = taskInputSchema
   .partial()
-  // null leaves the plan section; changing `due` alone also leaves it.
-  .extend({ planGroupId: taskSchema.shape.planGroupId.unwrap().nullable().optional() })
+  .extend({
+    difficulty: taskSchema.shape.difficulty.removeDefault().optional(),
+  })
+  .strict();
+export const repeatInputSchema = z
+  .object({
+    cron: z.string().min(9).max(120),
+    dateOffsets: z.array(z.number().int().min(0).max(365)).min(1).max(366),
+  })
+  .strict();
+export const subtaskInputSchema = subtaskSchema
+  .pick({ title: true, done: true })
+  .partial()
+  .extend({ id: z.string().min(1).max(100).optional() })
   .strict();
 export const planGroupInputSchema = planGroupSchema
   .pick({ date: true, title: true, minutes: true, until: true, note: true, order: true })
@@ -37,7 +53,7 @@ export const listInputSchema = listSchema
   .partial()
   .required({ name: true })
   .strict();
-export const settingsPatchSchema = stateSchema.shape.settings
+export const settingsPatchSchema = stateFields.shape.settings
   .omit({ focusMinutes: true, breakMinutes: true })
   .partial()
   .strict();
@@ -57,11 +73,18 @@ const response = {
   },
   headers: { ETag: { schema: { type: 'string' }, description: '当前会话中的状态版本' } },
 };
-function operation(summary: string, schema?: z.ZodType, pathId = false) {
+function operation(summary: string, schema?: z.ZodType, pathId: boolean | string[] = false) {
   return {
     summary,
     ...(pathId
-      ? { parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'string' } }] }
+      ? {
+          parameters: (pathId === true ? ['id'] : pathId).map((name) => ({
+            in: 'path',
+            name,
+            required: true,
+            schema: { type: 'string' },
+          })),
+        }
       : {}),
     ...(schema
       ? {
@@ -85,7 +108,7 @@ export const openapi = {
   openapi: '3.0.3',
   info: {
     title: 'Dayweave AI API',
-    version: '0.4.1',
+    version: '2.0.0',
     description:
       '时织 Windows/macOS 本机接口。应用运行时可用；实际地址与令牌见设置或用户数据目录 api.json。默认不对局域网开放。所有写入先持久化再通知界面；DELETE 任务为软删除。',
   },
@@ -111,7 +134,7 @@ export const openapi = {
       Task: json(taskSchema),
       List: json(listSchema),
       PlanGroup: json(planGroupSchema),
-      State: json(stateSchema),
+      State: json(stateFields),
     },
   },
   paths: {
@@ -131,6 +154,12 @@ export const openapi = {
               description: 'all/today/upcoming/inbox/completed/trash 或 list:<id>、tag:<tag>',
             },
           },
+          {
+            in: 'query',
+            name: 'date',
+            schema: { type: 'string', format: 'date' },
+            description: '精确业务日（today/upcoming）',
+          },
           { in: 'query', name: 'q', schema: { type: 'string' } },
           {
             in: 'query',
@@ -148,10 +177,28 @@ export const openapi = {
       delete: operation('将任务移入回收站', undefined, true),
     },
     '/tasks/{id}/complete': {
-      post: operation('完成任务；重复任务只生成一次下一项', undefined, true),
+      post: operation('完成任务及其子任务', undefined, true),
     },
     '/tasks/{id}/reopen': { post: operation('重新打开已完成任务', undefined, true) },
     '/tasks/{id}/restore': { post: operation('从回收站恢复任务', undefined, true) },
+    '/tasks/{id}/repeat': {
+      put: operation('配置该系列 Cron 与日期偏移；生成由同步中心负责', repeatInputSchema, true),
+      delete: operation('停止以后生成，保留已有实例', undefined, true),
+    },
+    '/tasks/{id}/subtasks': {
+      post: operation('按稳定 ID 增量新增子任务', subtaskInputSchema, true),
+    },
+    '/tasks/{id}/subtasks/{subtaskId}': {
+      patch: operation('增量修改子任务标题或完成状态', subtaskInputSchema.omit({ id: true }), [
+        'id',
+        'subtaskId',
+      ]),
+      delete: operation('软删除子任务', undefined, ['id', 'subtaskId']),
+    },
+    '/repeat-rules': { get: operation('读取重复规则与触发实例对应关系') },
+    '/repeat-rules/generate': {
+      post: operation('请求中心扩展生成窗口', z.object({ through: z.string() }).strict()),
+    },
     '/plan-groups': {
       get: {
         ...operation('列出某个业务日的计划分组（默认今天），按顺序'),
@@ -173,8 +220,8 @@ export const openapi = {
       patch: operation('更新外观与日程偏好', settingsPatchSchema),
     },
     '/stats': { get: operation('读取近七天统计与累计值') },
-    '/export': { get: operation('导出完整 v1 JSON 数据（不含 API 令牌）') },
-    '/import': { post: operation('合并导入完整 v1 JSON 数据', stateSchema) },
+    '/export': { get: operation('导出完整 v2 JSON 数据（不含 API 令牌）') },
+    '/import': { post: operation('合并导入 v2 或迁移 v1 JSON 数据', stateFields) },
   },
 };
 for (const path of Object.values(openapi.paths))

@@ -13,7 +13,6 @@ import {
   reorderTasks,
   stateSchema,
   taskPlanGroup,
-  withTaskDay,
 } from '../src/model';
 import { setDayStart, setTimeZone, zoneDateKey } from '../src/timezone';
 import {
@@ -72,30 +71,26 @@ test('plan sections belong to one day and never hold tasks of another day', () =
   const lunch = newPlanGroup('2026-11-03', { title: '午饭前', minutes: 180, order: 1 });
   const meeting = newPlanGroup('2026-11-03', { title: '开会前', until: '15:00', order: 2 });
   const other = newPlanGroup('2026-11-04', { title: '午饭前', order: 1 });
-  const a = newTask('物化作业', { due: '2026-11-03', planGroupId: lunch.id, estimatedMinutes: 60 });
-  const b = newTask('读论文', { due: '2026-11-03', planGroupId: meeting.id });
+  const a = newTask('物化作业', { dates: { ['2026-11-03']: lunch.id }, estimatedMinutes: 60 });
+  const b = newTask('读论文', { dates: { ['2026-11-03']: meeting.id } });
   state = stateSchema.parse({ ...state, planGroups: [meeting, lunch, other], tasks: [a, b] });
   assert.deepEqual(
     dayPlanGroups(state, '2026-11-03').map((group) => group.title),
     ['午饭前', '开会前'],
   );
-  assert.equal(taskPlanGroup(state, a)?.id, lunch.id);
+  assert.equal(taskPlanGroup(state, a, '2026-11-03')?.id, lunch.id);
   // Changing the day leaves the section; naming a section keeps it.
-  assert.equal(withTaskDay(a, '2026-11-04').planGroupId, undefined);
-  assert.equal(withTaskDay(a, '2026-11-03').planGroupId, lunch.id);
-  assert.equal(withTaskDay(a, '2026-11-04', other.id).planGroupId, other.id);
-  // A stale reference to another day's section is shown outside every section.
-  assert.equal(taskPlanGroup(state, { ...a, due: '2026-11-04' }), null);
-  // Dropping next to a task of another section moves into it, only when asked.
-  const moved = reorderTasks(state, [a.id, b.id], a.id, b.id, true);
-  assert.equal(moved.tasks.find((task) => task.id === a.id)!.planGroupId, meeting.id);
+  assert.equal(taskPlanGroup(state, a, '2026-11-03')?.id, lunch.id);
+  assert.equal(taskPlanGroup(state, a, '2026-11-04'), null);
+  const moved = reorderTasks(state, [a.id, b.id], a.id, b.id, '2026-11-03');
+  assert.equal(moved.tasks.find((task) => task.id === a.id)!.dates['2026-11-03'], meeting.id);
   const kept = reorderTasks(state, [a.id, b.id], a.id, b.id);
-  assert.equal(kept.tasks.find((task) => task.id === a.id)!.planGroupId, lunch.id);
+  assert.equal(kept.tasks.find((task) => task.id === a.id)!.dates['2026-11-03'], lunch.id);
   // Deleting a section keeps its tasks on the same day.
   const removed = deletePlanGroup(state, lunch.id);
   const task = removed.tasks.find((row) => row.id === a.id)!;
-  assert.equal(task.due, '2026-11-03');
-  assert.equal(task.planGroupId, undefined);
+  assert.deepEqual(Object.keys(task.dates), ['2026-11-03']);
+  assert.equal(task.dates['2026-11-03'], null);
   assert.ok(removed.planGroups.find((group) => group.id === lunch.id)!.deletedAt);
 });
 
@@ -123,8 +118,8 @@ test('task-bound and manual goals are judged after their period with the same ru
     archived: false,
     updatedAt: 1,
   };
-  const task = (tags: string[], completedAt: string | null, due = day): GoalTask => ({
-    due,
+  const task = (tags: string[], completedAt: string | null, date = day): GoalTask => ({
+    dates: { [date]: null },
     tags,
     completedAt,
     deletedAt: null,
@@ -204,8 +199,7 @@ test('AI API manages plan sections, task-bound goals and manual checks', async (
     const group = response.body.data;
     response = await request('POST', '/tasks', {
       title: '物化作业',
-      due: today,
-      planGroupId: group.id,
+      dates: { [today]: group.id },
     });
     assert.equal(response.status, 200);
     const task = response.body.data;
@@ -213,17 +207,16 @@ test('AI API manages plan sections, task-bound goals and manual checks', async (
       (
         await request('POST', '/tasks', {
           title: '错日期',
-          due: '2026-01-01',
-          planGroupId: group.id,
+          dates: { ['2026-01-01']: group.id },
         })
       ).status,
       400,
     );
     // Moving a task to another day leaves its section.
-    response = await request('PATCH', `/tasks/${task.id}`, { due: '2026-01-01' });
-    assert.equal(response.body.data.planGroupId, undefined);
-    response = await request('PATCH', `/tasks/${task.id}`, { due: today, planGroupId: group.id });
-    assert.equal(response.body.data.planGroupId, group.id);
+    response = await request('PATCH', `/tasks/${task.id}`, { dates: { ['2026-01-01']: null } });
+    assert.equal(Object.values(response.body.data.dates)[0], null);
+    response = await request('PATCH', `/tasks/${task.id}`, { dates: { [today]: group.id } });
+    assert.equal(response.body.data.dates[today], group.id);
     let context = (await request('GET', '/context')).body.data;
     assert.equal(context.dayStartsAt, '04:00');
     assert.deepEqual(
@@ -232,7 +225,7 @@ test('AI API manages plan sections, task-bound goals and manual checks', async (
     );
     response = await request('DELETE', `/plan-groups/${group.id}`);
     assert.equal(response.status, 200);
-    assert.equal((await request('GET', `/tasks/${task.id}`)).body.data.planGroupId, undefined);
+    assert.equal((await request('GET', `/tasks/${task.id}`)).body.data.dates[today], null);
 
     response = await request('POST', '/timelog/goals', {
       name: '背单词',

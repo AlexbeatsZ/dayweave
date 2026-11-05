@@ -1,14 +1,22 @@
 import { RotateCcw, Pin, Trash2, Repeat2, ListChecks, GripVertical, Timer } from 'lucide-react';
 import {
   dateKey,
-  effortLabels,
-  taskEffort,
+  difficultyLabels,
+  taskDateLabel,
+  changeSubtask,
+  taskDaySubtasks,
+  subtaskDay,
+  taskPrefix,
+  taskDoneOn,
+  taskCompletedOnDay,
   formatDate,
   formatTaskMinutes,
+  taskCompleted,
   now,
   toggleTask,
   type Task,
 } from '../model';
+import { businessDayStart, shiftDay, zoneClock } from '../timezone';
 import { store, useStore } from '../store';
 import { useSortDrag } from '../phone/useSortDrag';
 import { TaskCheck } from './TaskCheck';
@@ -16,6 +24,7 @@ import '../phone/sort.css';
 
 type Props = {
   task: Task;
+  day?: string;
   index?: number;
   selected: boolean;
   onSelect: (id: string) => void;
@@ -23,17 +32,47 @@ type Props = {
   onMove?: (source: string, target: string) => void;
   onTrack?: (id: string) => void;
 };
-export function TaskRow({ task, index, selected, onSelect, onDelete, onMove, onTrack }: Props) {
+export function TaskRow({
+  task,
+  day,
+  index,
+  selected,
+  onSelect,
+  onDelete,
+  onMove,
+  onTrack,
+}: Props) {
   const { data } = useStore();
-  const sortable = !!onMove && !task.deletedAt && !task.completedAt;
+  const sortable = !!onMove && !task.deletedAt && !taskCompleted(task);
   const drag = useSortDrag(task.id, 'task', onMove, !sortable);
   const list = data.lists.find((l) => l.id === task.listId);
-  const completed = task.subtasks.filter((s) => s.done).length;
-  const effort = taskEffort(task);
+  const allSubtasks = task.subtasks.filter((row) => !row.deletedAt);
+  const subtasks = day ? taskDaySubtasks(task, day, dateKey()) : allSubtasks;
+  const completed = allSubtasks.filter((row) => row.done).length;
+  const historical = !!day && day < dateKey();
+  const range = historical
+    ? { start: businessDayStart(day!), end: businessDayStart(shiftDay(day!, 1)) }
+    : null;
+  const records = range
+    ? data.timelog.records
+        .filter((row) => row.taskId === task.id && !row.deletedAt)
+        .map((row) => ({
+          ...row,
+          spans: row.spans
+            .map((span) => ({
+              start: Math.max(range.start, span.start),
+              end: Math.min(range.end, span.end),
+            }))
+            .filter((span) => span.end > span.start),
+        }))
+        .filter((row) => row.spans.length)
+    : [];
+  const shownDone = historical ? taskDoneOn(task, day!) : taskCompleted(task);
+  const rule = data.repeatRules.find((row) => row.prefix === taskPrefix(task.id));
   return (
     <article
       ref={drag.ref}
-      className={`task-row ${selected ? 'selected' : ''} ${task.completedAt ? 'done' : ''} ${drag.dragging ? 'sort-source' : ''}`}
+      className={`task-row ${selected ? 'selected' : ''} ${shownDone ? 'done' : ''} difficulty-${task.difficulty} ${drag.dragging ? 'sort-source' : ''}`}
       data-testid="task-row"
       data-task-id={task.id}
       data-sort-id={sortable ? task.id : undefined}
@@ -67,9 +106,10 @@ export function TaskRow({ task, index, selected, onSelect, onDelete, onMove, onT
         </button>
       ) : (
         <TaskCheck
-          checked={!!task.completedAt}
+          checked={shownDone}
           label={`完成 ${task.title}`}
           ordinal={index ?? 1}
+          disabled={historical}
           onChange={() => store.update((s) => toggleTask(s, task.id))}
         />
       )}
@@ -90,39 +130,23 @@ export function TaskRow({ task, index, selected, onSelect, onDelete, onMove, onT
               <i style={{ background: list?.color }} />
               {list?.id === 'inbox' ? '未分组' : list?.name}
             </span>
-            {task.due && (
-              <span
-                className={
-                  !task.completedAt && task.due < dateKey()
-                    ? 'overdue'
-                    : task.due === dateKey()
-                      ? 'due-today'
-                      : ''
-                }
-              >
-                {formatDate(task.due)}
-                {!task.completedAt && task.due < dateKey() && ' · 逾期'}
-              </span>
+            <span>{taskDateLabel(task, formatDate)}</span>
+            {rule && <Repeat2 size={12} aria-label="重复任务" />}
+            {task.difficulty !== 'easy' && (
+              <b className="difficulty-tier">{difficultyLabels[task.difficulty]}</b>
             )}
-            {task.repeat !== 'none' && <Repeat2 size={12} aria-label="重复任务" />}
-            {(effort || task.estimatedMinutes != null) && (
+            {task.estimatedMinutes != null && (
               <span className="task-effort-meta">
-                {effort && (
-                  <b className="effort-tier" title={`工作量：${effortLabels[effort]}`}>
-                    {effortLabels[effort]}
-                  </b>
-                )}
-                {task.estimatedMinutes != null &&
-                  `预计 ${formatTaskMinutes(task.estimatedMinutes)}`}
+                预计 {formatTaskMinutes(task.estimatedMinutes)}
               </span>
             )}
             {task.actualMinutes != null && (
               <span className="task-effort-meta">实际 {formatTaskMinutes(task.actualMinutes)}</span>
             )}
-            {!!task.subtasks.length && (
+            {!!allSubtasks.length && (
               <span>
                 <ListChecks size={12} />
-                {completed}/{task.subtasks.length}
+                {completed}/{allSubtasks.length}
               </span>
             )}
             {task.tags.slice(0, 2).map((tag) => (
@@ -132,39 +156,61 @@ export function TaskRow({ task, index, selected, onSelect, onDelete, onMove, onT
             ))}
           </span>
         </button>
-        {!!task.subtasks.length && (
+        {!!subtasks.length && (
           <ul className="task-subtasks" aria-label={`${task.title}的子任务`}>
-            {task.subtasks.map((item) => (
-              <li className={`task-subtask ${item.done ? 'subtask-done' : ''}`} key={item.id}>
+            {subtasks.map((item) => (
+              <li
+                className={`task-subtask ${(historical ? subtaskDay(item, day!) : item.done) ? 'subtask-done' : ''}`}
+                key={item.id}
+              >
                 <TaskCheck
-                  checked={item.done}
+                  checked={historical ? subtaskDay(item, day!) === true : item.done}
+                  disabled={historical}
                   label={`子任务 ${item.title}`}
                   onChange={() =>
                     store.update((state) => ({
                       ...state,
                       tasks: state.tasks.map((latest) =>
                         latest.id === task.id && !latest.deletedAt
-                          ? {
-                              ...latest,
-                              updatedAt: now(),
-                              subtasks: latest.subtasks.map((subtask) =>
-                                subtask.id === item.id
-                                  ? { ...subtask, done: !subtask.done }
-                                  : subtask,
-                              ),
-                            }
+                          ? changeSubtask(latest, item.id, {
+                              done: !latest.subtasks.find((row) => row.id === item.id)!.done,
+                            })
                           : latest,
                       ),
                     }))
                   }
                 />
-                <span>{item.title}</span>
+                <span>
+                  {item.title}
+                  {day === dateKey() && item.done && !item.completedAt && !item.history.length && (
+                    <small className="task-history-note">完成日期未知</small>
+                  )}
+                </span>
               </li>
             ))}
           </ul>
         )}
+        {historical && (
+          <small className="task-history-note">
+            {taskCompletedOnDay(task, day!) ? '当日完成' : '当日安排'}
+            {!subtasks.length && !shownDone ? ' · 无已知完成记录' : ''}
+            {records.length ? ` · ${records.length} 条执行记录` : ''}
+          </small>
+        )}
+        {records.map((record) => (
+          <small className="task-history-note" key={record.id}>
+            {record.spans
+              .map((span) => `${zoneClock(span.start)}–${zoneClock(span.end)}`)
+              .join('、')}{' '}
+            ·{' '}
+            {formatTaskMinutes(
+              record.spans.reduce((sum, span) => sum + span.end - span.start, 0) / 60000,
+            )}{' '}
+            {record.note}
+          </small>
+        ))}
       </div>
-      {onTrack && !task.deletedAt && !task.completedAt && (
+      {onTrack && !task.deletedAt && !taskCompleted(task) && (
         <button
           className="icon-button phone-task-track"
           aria-label={`计时 ${task.title}`}

@@ -31,16 +31,16 @@ test('inbox follows planned date across lists; natural week includes Monday and 
   state.tasks = [
     newTask('未分组无日期'),
     newTask('研究无日期', { listId: 'research' }),
-    newTask('周一', { due: '2026-10-19' }),
-    newTask('周日', { due: '2026-10-25', listId: 'research' }),
-    newTask('下周一', { due: '2026-10-26' }),
+    newTask('周一', { dates: { ['2026-10-19']: null } }),
+    newTask('周日', { dates: { ['2026-10-25']: null }, listId: 'research' }),
+    newTask('下周一', { dates: { ['2026-10-26']: null } }),
     newTask('已删除', { deletedAt: new Date(start).toISOString() }),
   ];
   assert.deepEqual(
     selectTasks(state, 'inbox').map((t) => t.title),
     ['未分组无日期', '研究无日期'],
   );
-  state.tasks[1].due = '2026-10-23';
+  state.tasks[1].dates = { '2026-10-23': null };
   assert.deepEqual(
     selectTasks(state, 'inbox').map((t) => t.title),
     ['未分组无日期'],
@@ -50,7 +50,7 @@ test('inbox follows planned date across lists; natural week includes Monday and 
     selectTasks(state, 'upcoming', '', 'date', '2026-10-23').map((t) => t.title),
     ['周一', '研究无日期', '周日'],
   );
-  state.tasks[1].due = null;
+  state.tasks[1].dates = {};
   assert.equal(selectTasks(state, 'inbox').length, 2);
 });
 
@@ -290,10 +290,10 @@ test('completed and deleted rows cannot become reorder targets or displace the c
   const state = emptyState();
   const completedAt = new Date(start).toISOString();
   state.tasks = [
-    newTask('第一项', { id: 'a', order: 10, due: '2026-10-23' }),
-    newTask('已完成', { id: 'done', order: 20, due: '2026-10-23', completedAt }),
+    newTask('第一项', { id: 'a', order: 10, dates: { ['2026-10-23']: null } }),
+    newTask('已完成', { id: 'done', order: 20, dates: { ['2026-10-23']: null }, completedAt }),
     newTask('已删除', { id: 'deleted', order: 30, deletedAt: completedAt }),
-    newTask('第二项', { id: 'b', order: 40, due: '2026-10-23' }),
+    newTask('第二项', { id: 'b', order: 40, dates: { ['2026-10-23']: null } }),
   ];
   const ids = ['a', 'done', 'deleted', 'b'];
   assert.equal(reorderTasks(state, ids, 'done', 'a'), state);
@@ -305,7 +305,7 @@ test('completed and deleted rows cannot become reorder targets or displace the c
     ['b', 'a', 'done'],
   );
   assert.deepEqual(
-    selectTasks(reordered, 'all', '', 'manual').map((task) => task.id),
+    selectTasks(reordered, 'all', '', 'manual', '2026-10-23').map((task) => task.id),
     ['b', 'a'],
   );
   assert.equal(reordered.tasks.find((task) => task.id === 'done')!.completedAt, completedAt);
@@ -340,7 +340,7 @@ test('dragging across a pinned boundary follows the chosen position without chan
       state.tasks.filter((task) => task.id !== source).map((task) => task.pinned),
     );
     assert.deepEqual(
-      selectTasks(reordered, 'all')
+      selectTasks(reordered, 'inbox')
         .filter((task) => task.id.startsWith('hidden'))
         .map((task) => task.id),
       ['hidden-b', 'hidden-a'],

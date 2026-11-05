@@ -1,6 +1,14 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
-import { civilDateKey, dateKey, fromDateKey, shiftDate, type Task } from '../model';
+import {
+  civilDateKey,
+  dateKey,
+  fromDateKey,
+  shiftDate,
+  taskCompleted,
+  taskDoneOn,
+  type Task,
+} from '../model';
 
 export function Calendar({
   tasks,
@@ -10,6 +18,7 @@ export function Calendar({
   onOpenDay,
   onSelect,
   onDrop,
+  onWindow,
 }: {
   tasks: Task[];
   selectedDate: string;
@@ -18,13 +27,17 @@ export function Calendar({
   /** Opens the whole day when its cell cannot show every task. */
   onOpenDay?: (date: string) => void;
   onSelect: (id: string) => void;
-  onDrop: (id: string, date: string) => void;
+  onDrop: (id: string, date: string, fromDate?: string) => void;
+  onWindow?: (through: string) => void;
 }) {
   const [month, setMonth] = useState(() => fromDateKey(dateKey().slice(0, 7) + '-01'));
   const first = civilDateKey(month);
   const mondayOffset = (month.getDay() + 6) % 7;
   const start = shiftDate(first, -mondayOffset);
   const days = Array.from({ length: 42 }, (_, i) => shiftDate(start, i));
+  useEffect(() => {
+    onWindow?.(shiftDate(start, 41));
+  }, [start]);
   const moveMonth = (offset: number) =>
     setMonth(new Date(month.getFullYear(), month.getMonth() + offset, 1, 12));
   return (
@@ -59,8 +72,13 @@ export function Calendar({
         {days.map((day) => {
           // Completed plans stay visible, dimmed, after the open ones.
           const dayTasks = tasks
-            .filter((t) => t.due === day && !t.deletedAt)
-            .sort((a, b) => Number(!!a.completedAt) - Number(!!b.completedAt) || a.order - b.order);
+            .filter((t) => Object.hasOwn(t.dates, day) && !t.deletedAt)
+            .sort(
+              (a, b) =>
+                Number(day < dateKey() ? taskDoneOn(a, day) : taskCompleted(a)) -
+                  Number(day < dateKey() ? taskDoneOn(b, day) : taskCompleted(b)) ||
+                a.order - b.order,
+            );
           const out = fromDateKey(day).getMonth() !== month.getMonth();
           return (
             <div
@@ -73,7 +91,12 @@ export function Calendar({
               onDrop={(e) => {
                 e.preventDefault();
                 const id = e.dataTransfer.getData('application/clearlist-task');
-                if (id) onDrop(id, day);
+                if (id)
+                  onDrop(
+                    id,
+                    day,
+                    e.dataTransfer.getData('application/dayweave-task-date') || undefined,
+                  );
               }}
             >
               <button
@@ -87,11 +110,12 @@ export function Calendar({
                 {dayTasks.slice(0, 3).map((task) => (
                   <button
                     key={task.id}
-                    className={`calendar-event ${task.completedAt ? 'event-done' : ''}`}
+                    className={`calendar-event ${(day < dateKey() ? taskDoneOn(task, day) : taskCompleted(task)) ? 'event-done' : ''}`}
                     draggable
-                    onDragStart={(e) =>
-                      e.dataTransfer.setData('application/clearlist-task', task.id)
-                    }
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData('application/clearlist-task', task.id);
+                      e.dataTransfer.setData('application/dayweave-task-date', day);
+                    }}
                     onClick={() => onSelect(task.id)}
                     title={task.title}
                   >

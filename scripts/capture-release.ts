@@ -31,9 +31,9 @@ try {
   const state = emptyState();
   state.settings.theme = 'light';
   state.tasks = [
-    newTask('整理量子化学课堂笔记', { due: '2026-09-07' }),
-    newTask('预习下一次实验', { due: '2026-09-07' }),
-    newTask('读完本周论文', { due: '2026-09-07' }),
+    newTask('整理量子化学课堂笔记', { dates: { '2026-09-07': null } }),
+    newTask('预习下一次实验', { dates: { '2026-09-07': null } }),
+    newTask('读完本周论文', { dates: { '2026-09-07': null } }),
   ];
   state.schedule = scheduleSchema.parse({
     ...state.schedule,

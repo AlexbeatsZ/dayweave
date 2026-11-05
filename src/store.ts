@@ -1,5 +1,13 @@
 import { useSyncExternalStore } from 'react';
-import { emptyState, mergeImport, now, stateSchema, type AppState, type Task } from './model';
+import {
+  emptyState,
+  mergeImport,
+  now,
+  normalizeTaskChanges,
+  stateSchema,
+  type AppState,
+  type Task,
+} from './model';
 import { applyDelta, diffState, type StateDelta } from './state-delta';
 
 import { setDayStart, setTimeZone } from './timezone';
@@ -135,6 +143,12 @@ export const store = {
           data: AppState;
         try {
           data = raw ? stateSchema.parse(JSON.parse(raw)) : emptyState();
+          if (
+            raw &&
+            JSON.parse(raw).version === 1 &&
+            localStorage.getItem(`${key}.before-task-v2`) === null
+          )
+            localStorage.setItem(`${key}.before-task-v2`, raw);
         } catch (error) {
           const backup = localStorage.getItem(`${key}.backup`);
           if (!backup) throw error;
@@ -162,7 +176,7 @@ export const store = {
     if (!snapshot.loaded || snapshot.error) throw new Error(snapshot.error || '数据尚未载入');
     // A rejected user operation is recoverable, unlike a failed disk write.
     // Validate before publishing so a short timer or stale edit cannot poison later saves.
-    enqueue(stateSchema.parse(transform(snapshot.data)));
+    enqueue(stateSchema.parse(normalizeTaskChanges(transform(snapshot.data), snapshot.data)));
     await store.flush();
     if (snapshot.error) throw new Error(snapshot.error);
     return snapshot.data;
@@ -171,7 +185,7 @@ export const store = {
     if (!snapshot.loaded || failed || recovering) return;
     let data: AppState;
     try {
-      data = stateSchema.parse(transform(snapshot.data));
+      data = stateSchema.parse(normalizeTaskChanges(transform(snapshot.data), snapshot.data));
     } catch (error) {
       emit({ errorKind: 'operation', error: `修改未应用：${message(error)}` });
       return;
@@ -242,7 +256,9 @@ export const store = {
       try {
         return stateSchema.parse(mergeImport(state, data));
       } catch (cause) {
-        throw new Error('请使用有效的时织 JSON 备份，版本需为 1。原有数据未改变。', { cause });
+        throw new Error('请使用有效的时织 JSON 备份，支持版本 2 及旧版 1 迁移。原有数据未改变。', {
+          cause,
+        });
       }
     });
   },

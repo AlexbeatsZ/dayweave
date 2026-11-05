@@ -41,6 +41,8 @@ export type SyncStatus = {
   conflicts: SyncConflict[];
 };
 export type SyncRequest = {
+  protocol?: 2;
+  through?: string;
   seq: number;
   name?: string;
   revision?: string;
@@ -48,6 +50,7 @@ export type SyncRequest = {
   base?: SyncDocument;
 };
 export type SyncReply = {
+  protocol?: 2;
   seq: number;
   hubId: string;
   revision: string;
@@ -58,6 +61,7 @@ export type SyncReply = {
 export interface SyncStorage {
   read(): Promise<string | null>;
   write(content: string): Promise<void>;
+  preserve?(content: string): Promise<void>;
 }
 export interface SyncState {
   snapshot(): Promise<{ state: AppState }>;
@@ -68,6 +72,7 @@ export type SyncBridge = {
   discover(): Promise<Peer[]>;
   pair(invitation: string, endpoint?: string): Promise<SyncStatus>;
   now(): Promise<SyncStatus>;
+  ensureTasks?(through: string): Promise<SyncStatus>;
   disconnect(): Promise<SyncStatus>;
   setEndpoint?(endpoint: string): Promise<SyncStatus>;
   enableHub?(): Promise<SyncStatus>;

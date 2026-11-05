@@ -22,7 +22,7 @@ async function createTask(page: Page, title: string, list?: string) {
   await expect(dialog).not.toBeVisible();
 }
 
-test('create a list, explicitly edit a recurring task, complete, undo deletion and retain state after reload', async ({
+test('create a list, edit a task, complete and reopen it, undo deletion and retain state after reload', async ({
   page,
 }) => {
   await page.getByRole('button', { name: '新增所属清单', exact: true }).click();
@@ -34,15 +34,15 @@ test('create a list, explicitly edit a recurring task, complete, undo deletion a
   await editor.getByLabel('任务备注').fill('先看摘要和方法');
   await editor.getByLabel('添加子任务').fill('阅读摘要');
   await editor.getByLabel('添加子任务').press('Enter');
-  await editor.getByRole('checkbox', { name: '子任务 阅读摘要', exact: true }).click();
-  await editor.getByLabel('重复频率').selectOption('daily');
+  await expect(editor.getByLabel('重复频率')).toBeDisabled();
   await editor.getByRole('button', { name: '保存任务', exact: true }).click();
   await page.getByRole('checkbox', { name: '完成 阅读论文', exact: true }).click();
   await expect(page.locator('.completed-plans .task-row')).toHaveCount(1);
+  await page.getByRole('checkbox', { name: '完成 阅读论文', exact: true }).click();
   await page.getByRole('tab', { name: /^全部/ }).click();
   await expect(page.getByRole('button', { name: '编辑 阅读论文', exact: true })).toHaveCount(1);
   await page.getByRole('button', { name: '编辑 阅读论文', exact: true }).click();
-  await expect(editor.getByLabel('计划日期')).toHaveValue(shiftDate(dateKey(), 1));
+  await expect(editor.getByLabel('计划日期')).toHaveValue(dateKey());
   await expect(editor.getByLabel('任务备注')).toHaveValue('先看摘要和方法');
   await expect(editor.getByLabel('任务标签')).toHaveValue('化学');
   await expect(

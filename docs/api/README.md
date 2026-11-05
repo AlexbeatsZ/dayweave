@@ -77,7 +77,7 @@ ssh -N -L 49733:127.0.0.1:49731 meta@192.168.31.214
 
 ## 任务范围与计时
 
-0.4.0 手机的日计划与周计划按所选日程时区计算，周计划为周一至周日；待办箱仅判断 `due=null`，与 `listId` 无关。默认清单 ID `inbox` 表示未分组。任务 `order` 保存用户拖动顺序，确认框中的序号由当前可见未完成任务推导，不是永久编号。
+0.4.0 手机的日计划与周计划按所选日程时区计算，周计划为周一至周日；待办箱仅判断 `dates={}`，与 `listId` 无关。默认清单 ID `inbox` 表示未分组。任务 `order` 保存用户拖动顺序，确认框中的序号由当前可见未完成任务推导，不是永久编号。
 
 清单 `activityId` 显式绑定优先；未配置时默认学习 → 学习、工作 → 实操、生活 → 日常。`POST /tasks/{id}/track` 与界面复用 `startTaskTimer`。清单/活动颜色与 `tagColors.tasks/records` 标签颜色进入完整状态和同步；新建、编辑任务使用同一 UI 保存流程，API 修改也受并发检查约束。
 
@@ -130,3 +130,13 @@ Android 不运行 HTTP 服务。ROG AI 调用中心 profile 的接口，修改�
 无界面中心在当前进程设置 `DAYWEAVE_SYNC_HUB=1` 后运行 `node headless.mjs`，LAN 同步默认 49732，AI 仍仅监听 loopback 49731。`GET /sync/status` 返回状态；`POST /sync/hub` 开启中心，`POST /sync/invite` 生成一次五分钟邀请，`POST /sync/now` 立即同步；启动时也可用 `node headless.mjs --invite`。邀请含配对密钥，私有 `sync.json` 不得作为业务备份传播。
 
 0.4.0 的 `plannedEndAt`、清单映射、标签颜色和预设要求 ROG 中心与手机/平板配套升级。旧 0.3 中心的严格 schema 不接受新增字段；新程序能读取旧 schema-1 备份，不代表旧程序能安全读取新状态。本轮物理设备更新和跨设备新功能验收尚未完成，发布包、源码测试与实际设备状态需分别记录。
+
+## 任务模型 v2（源代码，待协调交付）
+
+创建/编辑写 `dates: {"2026-11-05": "该日真实时段ID", "2026-11-06": null, "∞": null}`；没有键表示不安排该日，空映射表示待办箱。日期不是截止，只有过去日期的任务自然进入历史，不结转、不逾期警告。任务难度 `difficulty: "easy"|"medium"|"hard"` 为独立手动选择，默认简单无强调，预计/实际分钟照常独立。
+
+`POST /tasks/{id}/subtasks` 新增（可传稳定 id），`PATCH/DELETE /tasks/{id}/subtasks/{subtaskId}` 增量修改/软删除；父完成/撤销会联动所有子任务，子任务全部完成会完成父任务。历史事件由领域层记录。
+
+`PUT /tasks/{id}/repeat` 写 `{ "cron": "0 4 * * 1", "dateOffsets": [0,1,2] }`，每周生成一个含三天日期的普通任务；中心统一提前生成，取消用 DELETE 同一路由，不删实例。`GET /repeat-rules` 查看模板与触发账本，`POST /repeat-rules/generate` 的 `{through:"YYYY-MM-DD"}` 经中心扩展，未连接返回不可用。Task ID 前缀只用于系列展示，完整 ID 才是实体；复制产生新前缀。
+
+备份 state.version=2，支持 v1 迁移并改写全部任务引用。离线工具 `npx tsx scripts/migrate-task-state.ts <旧备份.json> <新输出目录>` 生成迁移状态和完整身份映射；它不改输入。中心、客户端及 AI Decision 必须协调升级并保留原始 checkpoint，见 ../design/task-system.md；禁止旧端混写。

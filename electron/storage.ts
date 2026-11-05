@@ -15,7 +15,27 @@ export class FileStore {
   private async read(file: string): Promise<AppState> {
     const info = await stat(file);
     if (info.size > 50 * 1024 * 1024) throw new Error('数据文件超过 50 MB 限制');
-    return stateSchema.parse(JSON.parse(await readFile(file, 'utf8')));
+    const raw = await readFile(file, 'utf8');
+    const input = JSON.parse(raw);
+    const state = stateSchema.parse(input);
+    if (input.version === 1) {
+      try {
+        const handle = await open(
+          path.join(this.directory, 'data.before-task-v2.json'),
+          'wx',
+          0o600,
+        );
+        try {
+          await handle.writeFile(raw, 'utf8');
+          await handle.sync();
+        } finally {
+          await handle.close();
+        }
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+      }
+    }
+    return state;
   }
   async load() {
     await mkdir(this.directory, { recursive: true });

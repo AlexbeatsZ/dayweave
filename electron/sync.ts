@@ -7,7 +7,8 @@ import { SyncClient, fetchEnvelope } from '../src/sync/client.js';
 import { SyncScheduler } from '../src/sync/scheduler.js';
 import { localEndpoint, openEnvelope, randomKey, seal, type Envelope } from '../src/sync/crypto.js';
 import { fromDocument, isDocumentKey, mergeDocuments, toDocument } from '../src/sync/document.js';
-import { stateSchema } from '../src/model.js';
+import { generateRepeatedTasks } from '../src/task-repeat.js';
+import { dateSchema, stateSchema } from '../src/model.js';
 import type { Peer, SyncBridge, SyncRequest, SyncStatus } from '../src/sync/types.js';
 import type { StateService } from './state-service.js';
 import type { UsageReplica, UsageExchange } from '../src/usage/sync.js';
@@ -15,6 +16,19 @@ import type { UsageReplica, UsageExchange } from '../src/usage/sync.js';
 export function syncFiles(directory: string) {
   const file = path.join(directory, 'sync.json');
   return {
+    async preserve(content: string) {
+      try {
+        const handle = await open(path.join(directory, 'sync.before-task-v2.json'), 'wx', 0o600);
+        try {
+          await handle.writeFile(content, 'utf8');
+          await handle.sync();
+        } finally {
+          await handle.close();
+        }
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+      }
+    },
     async read() {
       try {
         return await readFile(file, 'utf8');
@@ -67,6 +81,8 @@ export class DesktopSync implements SyncBridge {
   private publisher?: Bonjour;
   private readonly scheduler: SyncScheduler;
   private unsubscribe?: () => void;
+  private generating = false;
+  private repeatTimer?: ReturnType<typeof setInterval>;
   constructor(
     readonly service: StateService,
     readonly directory: string,
@@ -78,8 +94,34 @@ export class DesktopSync implements SyncBridge {
   async initialize() {
     await this.client.load();
     if (this.client.config.enabled && this.client.config.hub) await this.listen();
-    this.unsubscribe = this.service.subscribe(() => this.scheduler.request());
+    this.unsubscribe = this.service.subscribe(() => {
+      this.scheduler.request();
+      if (this.client.config.enabled && this.client.config.hub && !this.generating) {
+        this.generating = true;
+        void this.service
+          .mutate((state) => generateRepeatedTasks(state))
+          .catch((error) => {
+            this.client.error = String(error);
+          })
+          .finally(() => {
+            this.generating = false;
+          });
+      }
+    });
     this.scheduler.start();
+    {
+      if (this.client.config.hub)
+        await this.service.mutate((state) => generateRepeatedTasks(state));
+      this.repeatTimer = setInterval(() => {
+        if (this.client.config.enabled && this.client.config.hub)
+          void this.service
+            .mutate((state) => generateRepeatedTasks(state))
+            .catch((error) => {
+              this.client.error = String(error);
+            });
+      }, 60000);
+      this.repeatTimer.unref();
+    }
     return this;
   }
   async status(): Promise<SyncStatus> {
@@ -135,6 +177,13 @@ export class DesktopSync implements SyncBridge {
   }
   async now() {
     await Promise.all([this.client.now(), this.refreshUsage?.()]);
+    return this.status();
+  }
+  async ensureTasks(through: string) {
+    dateSchema.parse(through);
+    if (this.client.config.hub)
+      await this.service.mutate((state) => generateRepeatedTasks(state, through));
+    else await this.client.ensureTasks(through);
     return this.status();
   }
   async setEndpoint(endpoint: string) {
@@ -237,6 +286,11 @@ export class DesktopSync implements SyncBridge {
               const value = await openEnvelope<SyncRequest>(envelope, peer.key, route);
               if (!Number.isSafeInteger(value.seq) || value.seq <= peer.seq)
                 throw new Error('拒绝重放消息');
+              if (value.protocol !== 2) {
+                response.writeHead(409).end();
+                return;
+              }
+              if (value.through) dateSchema.parse(value.through);
               failureStatus = 500;
               peer.seq = value.seq;
               if (typeof value.name === 'string' && value.name.length <= 100)
@@ -253,12 +307,15 @@ export class DesktopSync implements SyncBridge {
                       if (!isDocumentKey(key)) throw new Error('基础文档字段无效');
                     const merged = mergeDocuments(base, incoming, toDocument(current));
                     conflicts = merged.conflicts;
-                    return fromDocument(merged.doc, current);
+                    return generateRepeatedTasks(fromDocument(merged.doc, current), value.through);
                   })
-                : await this.service.snapshot();
+                : await this.service
+                    .mutate((current) => generateRepeatedTasks(current, value.through))
+                    .then(() => this.service.snapshot());
               const changed = !!value.state || snapshot.revision !== value.revision;
               result = await seal(
                 {
+                  protocol: 2,
                   seq: value.seq,
                   hubId: c.deviceId,
                   revision: snapshot.revision,
@@ -320,6 +377,7 @@ export class DesktopSync implements SyncBridge {
   }
   async close() {
     this.scheduler.stop();
+    clearInterval(this.repeatTimer);
     this.unsubscribe?.();
     await this.stopServer();
     // Includes queued authenticated requests and an exchange already started by the scheduler.

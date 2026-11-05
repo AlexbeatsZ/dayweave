@@ -1,4 +1,4 @@
-import { dateKey } from '../model';
+import { taskCompletedOnDay, taskDoneOn } from '../model';
 import { useStore } from '../store';
 import { Statistics } from '../components/Statistics';
 import { dayRange, formatDuration, stats } from '../timelog/domain';
@@ -31,10 +31,8 @@ export function PhoneStatistics({
       />
     );
   const tasks = data.tasks.filter((task) => !task.deletedAt),
-    planned = tasks.filter((task) => task.due === date);
-  const completed = tasks.filter(
-    (task) => task.completedAt && dateKey(new Date(task.completedAt)) === date,
-  );
+    planned = tasks.filter((task) => Object.hasOwn(task.dates, date));
+  const completed = tasks.filter((task) => taskCompletedOnDay(task, date));
   const summary = stats(data.timelog, dayRange(date));
   return (
     <div className="phone-daily-statistics">
@@ -53,7 +51,7 @@ export function PhoneStatistics({
             <span>当天完成</span>
           </div>
           <div>
-            <strong>{planned.filter((task) => !task.completedAt).length}</strong>
+            <strong>{planned.filter((task) => !taskDoneOn(task, date)).length}</strong>
             <span>计划未完成</span>
           </div>
         </div>

@@ -1,6 +1,6 @@
 import { setDayStart, setTimeZone } from '../src/timezone.js';
 import { randomUUID } from 'node:crypto';
-import { stateSchema, type AppState } from '../src/model.js';
+import { stateSchema, normalizeTaskChanges, type AppState } from '../src/model.js';
 import { applyDelta, type StateDelta } from '../src/state-delta.js';
 import { finishDueTimer } from '../src/timelog/domain.js';
 import { FileStore } from './storage.js';
@@ -74,7 +74,10 @@ export class StateService {
         throw Object.assign(new Error('Revision does not match; reload before retrying'), {
           status: 409,
         });
-      const state = transform(structuredClone(snapshot.state));
+      const state = normalizeTaskChanges(
+        transform(structuredClone(snapshot.state)),
+        snapshot.state,
+      );
       const next = stateSchema.parse({ ...state, timelog: finishDueTimer(state.timelog) });
       if (JSON.stringify(next) === JSON.stringify(snapshot.state)) {
         this.scheduleDeadline();

@@ -6,11 +6,13 @@ export function TaskCheck({
   label,
   ordinal,
   onChange,
+  disabled,
 }: {
   checked: boolean;
   label: string;
   ordinal?: number;
   onChange: () => void;
+  disabled?: boolean;
 }) {
   return (
     <button
@@ -20,6 +22,7 @@ export function TaskCheck({
       aria-checked={checked}
       aria-label={label}
       onClick={onChange}
+      disabled={disabled}
     >
       {checked ? <Check size={13} strokeWidth={3} /> : ordinal}
     </button>

@@ -1,4 +1,5 @@
-import { stateSchema, type AppState } from '../model.js';
+import { mergeTaskEntity } from '../task-merge.js';
+import { stateSchema, emptyState, type AppState } from '../model.js';
 import { type Timer, type TimeRecord, validateState } from '../timelog/domain.js';
 
 export type Entity = Record<string, unknown>;
@@ -26,7 +27,7 @@ export function stable(value: unknown): string {
   );
 }
 const entityKey = (collection: string, id: string) => collection + '/' + encodeURIComponent(id);
-const ROOT_COLLECTIONS = ['tasks', 'lists', 'sessions', 'planGroups'] as const;
+const ROOT_COLLECTIONS = ['tasks', 'lists', 'sessions', 'planGroups', 'repeatRules'] as const;
 const TIMELOG_COLLECTIONS = ['activities', 'goals', 'scripts', 'goalResults'] as const;
 const SCHEDULE_COLLECTIONS = ['courses', 'events'] as const;
 /** Removed collections older clients may still carry in a base; accepted and ignored. */
@@ -55,7 +56,8 @@ export function isDocumentKey(key: string): boolean {
 export function toDocument(state: AppState): SyncDocument {
   const doc: SyncDocument = {};
   for (const collection of ROOT_COLLECTIONS)
-    for (const row of state[collection]) doc[entityKey(collection, row.id)] = { ...row };
+    for (const row of state[collection])
+      doc[entityKey(collection, 'prefix' in row ? row.prefix : row.id)] = { ...row };
   for (const collection of TIMELOG_COLLECTIONS)
     for (const row of state.timelog[collection] ?? [])
       doc[entityKey(collection, row.id)] = { ...row };
@@ -126,6 +128,7 @@ export function fromDocument(doc: SyncDocument, local: AppState): AppState {
   next.lists = rows('lists') as AppState['lists'];
   next.sessions = rows('sessions') as AppState['sessions'];
   next.planGroups = rows('planGroups') as AppState['planGroups'];
+  next.repeatRules = rows('repeatRules') as AppState['repeatRules'];
   if (!next.lists.some((x) => x.id === 'inbox'))
     next.lists.unshift({ id: 'inbox', name: '未分组', color: '#7e8b8b', order: 0 });
   for (const task of next.tasks)
@@ -218,6 +221,10 @@ export function mergeDocuments(base: SyncDocument, local: SyncDocument, remote: 
       current = remote[key];
     if (equal(before, after)) continue;
     if (equal(current, after)) continue;
+    if (key.startsWith('tasks/') && after && current) {
+      doc[key] = mergeTaskEntity(before, after, current);
+      continue;
+    }
     if (equal(current, before)) {
       if (after === undefined) delete doc[key];
       else doc[key] = structuredClone(after);
@@ -313,6 +320,10 @@ export function overlayNewEdits(
       result[key] = structuredClone(current[key]);
       continue;
     }
+    if (key.startsWith('tasks/') && result[key]) {
+      result[key] = mergeTaskEntity(sent[key], current[key], result[key]);
+      continue;
+    }
     for (const field of new Set([...Object.keys(sent[key]), ...Object.keys(current[key])]))
       if (!equal(sent[key][field], current[key][field])) {
         if (
@@ -327,4 +338,44 @@ export function overlayNewEdits(
       }
   }
   return result;
+}
+
+/** Upgrade a persisted v1 sync baseline with the same migration as its complete state. */
+export function migrateLegacyDocument(doc: SyncDocument): SyncDocument {
+  if (!Object.entries(doc).some(([key, row]) => key.startsWith('tasks/') && 'due' in row))
+    return doc;
+  // fromDocument runs the common state migration, including all linked records/timers.
+  const legacy = { ...emptyState(), version: 1 } as unknown as AppState;
+  return toDocument(fromDocument(doc, legacy));
+}
+
+export function migrateLegacyConflicts(
+  old: SyncDocument,
+  conflicts: SyncConflict[],
+): SyncConflict[] {
+  const migrated = migrateLegacyDocument(old);
+  if (stable(migrated) === stable(old)) return conflicts;
+  const previousTasks = Object.entries(old).filter(([key]) => key.startsWith('tasks/'));
+  const nextTasks = Object.entries(migrated).filter(([key]) => key.startsWith('tasks/'));
+  const identities = new Map(previousTasks.map(([key], index) => [key, nextTasks[index]?.[0]]));
+  return conflicts.map((conflict) => {
+    const key = identities.get(conflict.key);
+    if (!key) return conflict;
+    if (conflict.field === '*' && conflict.local === null) return { ...conflict, key };
+    const candidate = structuredClone(old);
+    candidate[conflict.key] =
+      conflict.field === '*'
+        ? (structuredClone(conflict.local) as Entity)
+        : { ...candidate[conflict.key], [conflict.field]: conflict.local };
+    if (conflict.localPresent === false && conflict.field !== '*')
+      delete candidate[conflict.key][conflict.field];
+    return {
+      ...conflict,
+      key,
+      field: '*',
+      local: migrateLegacyDocument(candidate)[key],
+      remote: migrated[key],
+      reason: `${conflict.reason}（旧任务模型候选已迁移）`,
+    };
+  });
 }

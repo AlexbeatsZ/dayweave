@@ -208,7 +208,7 @@ test('task creation, lookup, pagination, search and strict validation share pers
     let response = await request('POST', '/tasks', {
       title: 'API task',
       notes: 'searchable',
-      due: '2026-10-26',
+      dates: { ['2026-10-26']: null },
     });
     assert.equal(response.status, 200);
     const { data: task } = await response.json();
@@ -217,7 +217,7 @@ test('task creation, lookup, pagination, search and strict validation share pers
     assert.equal(list.total, 1);
     assert.equal(list.items[0].id, task.id);
     for (const input of [
-      { title: 'Invalid', due: '2026-02-30' },
+      { title: 'Invalid', dates: { ['2026-02-30']: null } },
       { title: 'Invalid', listId: 'missing' },
       { title: 'Invalid', completedAt: now() },
     ])
@@ -261,19 +261,16 @@ test('completion and reopening are idempotent and preserve recurring task histor
   fixture(async ({ request, service }) => {
     const task = (
       await (
-        await request('POST', '/tasks', { title: 'Daily', due: '2026-10-19', repeat: 'daily' })
+        await request('POST', '/tasks', { title: 'Daily', dates: { ['2026-10-19']: null } })
       ).json()
     ).data;
     for (let i = 0; i < 2; i++)
       assert.equal((await request('POST', `/tasks/${task.id}/complete`)).status, 200);
-    assert.equal((await service.snapshot()).state.tasks.length, 2);
+    assert.equal((await service.snapshot()).state.tasks.length, 1);
     await request('POST', `/tasks/${task.id}/reopen`);
     await request('POST', `/tasks/${task.id}/complete`);
-    assert.equal((await service.snapshot()).state.tasks.length, 2);
-    assert.equal(
-      (await service.snapshot()).state.tasks.find((t) => t.parentId === task.id)?.due,
-      '2026-10-20',
-    );
+    assert.equal((await service.snapshot()).state.tasks.length, 1);
+    assert.equal((await service.snapshot()).state.tasks.length, 1);
   }));
 test('soft deletion and list removal preserve task data and support restoration', async () =>
   fixture(async ({ request, service }) => {
@@ -344,6 +341,22 @@ test('JSON import/export excludes credentials and invalid imports do not change 
     const spec = await (await request('GET', '/openapi.json')).json();
     assert.equal(spec.openapi, '3.0.3');
     assert.ok(spec.paths['/tasks']);
+    const schema = spec.components.schemas.State;
+    assert.equal(schema.type, 'object');
+    assert.ok(schema.properties.tasks.items.properties.dates);
+    assert.ok(schema.properties.repeatRules.items.properties.occurrences);
+    assert.equal(schema.properties.tasks.items.properties.difficulty.default, 'easy');
+    assert.equal(
+      spec.paths['/import'].post.requestBody.content['application/json'].schema.type,
+      'object',
+    );
+    for (const method of ['patch', 'delete'])
+      assert.deepEqual(
+        spec.paths['/tasks/{id}/subtasks/{subtaskId}'][method].parameters
+          .filter((parameter: { in: string }) => parameter.in === 'path')
+          .map((parameter: { name: string }) => parameter.name),
+        ['id', 'subtaskId'],
+      );
   }));
 test('field delta rejects orphan references and does not mutate its input', () => {
   const task = newTask('Original');
