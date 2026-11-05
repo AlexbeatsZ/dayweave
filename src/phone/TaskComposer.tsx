@@ -1,5 +1,5 @@
 import { useState, type CSSProperties, type FormEvent } from 'react';
-import { CalendarDays, ListChecks, Plus, Repeat2, X } from 'lucide-react';
+import { CalendarDays, ListChecks, Plus, Repeat2, Timer, Trash2, X } from 'lucide-react';
 import {
   dayPlanGroups,
   formatTaskMinutes,
@@ -376,29 +376,33 @@ export function TaskComposer({
             {error}
           </p>
         )}
-        {task && (
-          <div className="phone-task-edit-actions">
-            <button
-              type="button"
-              className="secondary"
-              disabled={busy}
-              onClick={async () => {
-                if (await submit()) onTrack?.(task.id);
-              }}
-            >
-              开始记录时间
-            </button>
-            <button
-              type="button"
-              className="text-button danger"
-              disabled={busy}
-              onClick={() => onDelete?.(task)}
-            >
-              删除当前任务
-            </button>
-          </div>
-        )}
         <footer className="phone-sheet-actions">
+          {task && (
+            <>
+              <button
+                type="button"
+                className="button danger"
+                aria-label="删除当前任务"
+                disabled={busy}
+                onClick={() => onDelete?.(task)}
+              >
+                <Trash2 size={16} />
+                删除
+              </button>
+              <button
+                type="button"
+                className="button"
+                aria-label="开始记录时间"
+                disabled={busy}
+                onClick={async () => {
+                  if (await submit()) onTrack?.(task.id);
+                }}
+              >
+                <Timer size={16} />
+                开始记录
+              </button>
+            </>
+          )}
           <button type="submit" className="button primary" disabled={busy || !title.trim()}>
             {busy ? '正在保存…' : task ? '保存任务' : '添加任务'}
           </button>

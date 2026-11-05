@@ -133,7 +133,7 @@ export function PlanGroupModal({
         <footer className="list-modal-footer">
           {group && (
             <button
-              className="text-button danger"
+              className="button danger"
               type="button"
               onClick={async () => {
                 if (!deleting) {

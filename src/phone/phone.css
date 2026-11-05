@@ -578,6 +578,12 @@
   padding: 9px 0;
   border-bottom: 1px solid var(--line);
 }
+.phone-task-form > .phone-tag-chips:not(:empty) {
+  margin-top: 14px;
+}
+.phone-task-form > .form-label {
+  margin-top: 14px;
+}
 .phone-subtasks > div {
   display: flex;
   align-items: center;
@@ -613,16 +619,27 @@
   background: transparent;
   font-size: 13px;
 }
+/* One sticky action row: optional delete/secondary actions, then the primary filling the rest. */
 .phone-sheet-actions {
   position: sticky;
   bottom: calc(-12px - var(--safe-bottom));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
   padding: 12px 0 calc(12px + var(--safe-bottom));
+  border-top: 1px solid var(--line);
   background: var(--bg);
+  z-index: 2;
 }
 .phone-sheet-actions .button {
-  width: 100%;
   min-height: 48px;
-  border-radius: 16px;
+  padding: 0 14px;
+  border-radius: 14px;
+  font-size: 14px;
+}
+.phone-sheet-actions .primary {
+  flex: 1;
   font-size: 15px;
 }
 .phone-more-grid {
@@ -1456,9 +1473,11 @@
   position: relative;
   display: flex;
   align-items: center;
+  margin-top: 9px;
 }
 .task-effort-input input {
   width: 100%;
+  margin-top: 0;
   padding-right: 48px;
 }
 .task-effort-input > span {

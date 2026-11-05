@@ -387,6 +387,12 @@ input[type='date'] {
 .danger {
   color: var(--red);
 }
+.button.danger {
+  border-color: color-mix(in srgb, var(--red) 40%, var(--line));
+}
+.button.danger:hover {
+  background: color-mix(in srgb, var(--red) 10%, transparent);
+}
 .eyebrow {
   font:
     8px/1.6 'Cascadia Code',
@@ -784,6 +790,33 @@ input[type='date'] {
   padding: 0 28px 27px;
   overflow: auto;
 }
+/* Base for every Modal; sheets, drawers, settings and the timelog module refine it. */
+dialog {
+  width: min(560px, calc(100vw - 48px));
+  max-height: calc(100dvh - 48px);
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--bg);
+  color: var(--text);
+  box-shadow: var(--shadow);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+dialog::backdrop {
+  background: #00000080;
+}
+.dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 16px 8px 28px;
+}
+.dialog-header h2 {
+  margin: 0;
+  font-size: 17px;
+}
 .setting-description {
   color: var(--secondary);
   font-size: 11px;
@@ -918,7 +951,7 @@ input[type='date'] {
   align-items: center;
   gap: 12px;
 }
-.list-modal-footer .button {
+.list-modal-footer .primary {
   margin-left: auto;
 }
 .toast {
@@ -1064,13 +1097,6 @@ input[type='date'] {
 }
 .phone-task-form {
   max-width: 100%;
-}
-.phone-task-edit-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 0;
 }
 .completed-plans {
   margin-top: 20px;
