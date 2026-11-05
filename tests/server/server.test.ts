@@ -28,6 +28,7 @@ const exists = async (file: string) =>
     () => false,
   );
 const serverVersion = JSON.parse(await readFile('server/package.json', 'utf8')).version;
+const appVersion = JSON.parse(await readFile('package.json', 'utf8')).version;
 
 async function fixture(run: (root: string, pkg: string) => Promise<void>) {
   await mkdir(base, { recursive: true });
@@ -210,7 +211,7 @@ test(
         const status = await admin(pkg, config, 'status');
         assert.equal(status.mode, 'server');
         assert.equal(status.version, serverVersion);
-        assert.equal(status.appVersion, '0.4.15');
+        assert.equal(status.appVersion, appVersion);
         assert.equal(status.sync.hubId, 'original-hub');
         assert.deepEqual(status.sync.conflicts, [conflict]);
         assert.equal(status.recovered, true);
@@ -541,7 +542,7 @@ test(
       const api = await startApi(service, 0);
       try {
         const health = await request(api.info, 'GET', '/health');
-        assert.equal(health.version, '0.4.15');
+        assert.equal(health.version, appVersion);
         assert.equal(health.mode, undefined);
         assert.equal(
           (
