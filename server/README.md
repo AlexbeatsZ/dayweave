@@ -1,8 +1,8 @@
 # 时织 / Dayweave Server
 
-独立版本 `0.1.5`，共享客户端 `0.4.14` 的业务、计时、同步及 SQLite 所有者。需要 **Node 24.14.1 或更高的 24.x**，本版在 Windows Node 24.14.1 上验证。包已含 JavaScript 依赖，不需要 npm install、编译、Electron、React、Rust 或本机采集程序。Node 运行时由运行机器提供。
+独立版本 `0.1.6`，共享客户端 `0.4.15` 的业务、计时、同步及 SQLite 所有者。需要 **Node 24（24.14.1 或更高的 24.x）或 Node 26**，CI 在 Windows/Ubuntu 的 Node 24.14.1 与 26 上验证。包已含 JavaScript 依赖，不需要 npm install、编译、Electron、React、Rust 或本机采集程序。Node 运行时由运行机器提供。
 
-0.1.5修复中心拒绝含日计划时段（`planGroups`）基础文档的上传：带本地修改的设备在中心出现时段后一直收到 HTTP 500。结构与0.1.4相同。0.1.4采用0.4.13结构：计时目标改为计入规则 `rules`（旧 `activityId` 读取时迁移，API 仍接受其作单活动简写）、可选阶段 `stages`，活动与目标可选拖动顺序 `order`；任务的四象限 `quadrant` 已移除，读取时丢弃。沿用0.1.3的日界线、计划时段（`planGroups`）、目标分组与三种判定。与客户端同批升级，旧严格客户端在新字段被使用后不能读取。
+0.1.6采用0.4.15结构：新增同步的目标脚本库 `timelog.scripts` 与判定结果 `timelog.goalResults`，以及目标判定方式 `kind: 'script'`；脚本只由同步中心（或未配对的桌面/服务器）在 QuickJS 沙箱中运行，结果随同步分发（见 docs/goal-scripts.md）。必须先于或与全部客户端同批升级。0.1.5修复中心拒绝含日计划时段（`planGroups`）基础文档的上传：带本地修改的设备在中心出现时段后一直收到 HTTP 500。结构与0.1.4相同。0.1.4采用0.4.13结构：计时目标改为计入规则 `rules`（旧 `activityId` 读取时迁移，API 仍接受其作单活动简写）、可选阶段 `stages`，活动与目标可选拖动顺序 `order`；任务的四象限 `quadrant` 已移除，读取时丢弃。沿用0.1.3的日界线、计划时段（`planGroups`）、目标分组与三种判定。与客户端同批升级，旧严格客户端在新字段被使用后不能读取。
 
 ## 配置与启动
 

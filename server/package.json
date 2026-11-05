@@ -1,11 +1,11 @@
 {
   "name": "dayweave-server",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "private": true,
   "type": "module",
   "license": "MIT",
   "engines": {
-    "node": ">=24.14.1 <25"
+    "node": ">=24.14.1 <25 || >=26 <27"
   },
   "scripts": {
     "start": "node server.mjs --config server.json"

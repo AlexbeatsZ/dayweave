@@ -210,7 +210,7 @@ test(
         const status = await admin(pkg, config, 'status');
         assert.equal(status.mode, 'server');
         assert.equal(status.version, serverVersion);
-        assert.equal(status.appVersion, '0.4.14');
+        assert.equal(status.appVersion, '0.4.15');
         assert.equal(status.sync.hubId, 'original-hub');
         assert.deepEqual(status.sync.conflicts, [conflict]);
         assert.equal(status.recovered, true);
@@ -401,7 +401,7 @@ test(
         directory: profile,
         discovery: false,
         apiPort: 0,
-        server: { version: '0.1.0', appVersion: '0.4.14', sourceCommit: 'test' },
+        server: { version: '0.1.0', appVersion: '0.4.15', sourceCommit: 'test' },
       });
       let releaseWrite!: () => void, saveStarted!: () => void, releaseSync!: () => void;
       const entered = new Promise<void>((resolve) => {
@@ -466,13 +466,13 @@ test(
         enableHub: true,
         initialHubPort: 0,
         apiPort: 0,
-        server: { version: '0.1.0', appVersion: '0.4.14', sourceCommit: 'test' },
+        server: { version: '0.1.0', appVersion: '0.4.15', sourceCommit: 'test' },
       });
       const client = await startHeadless({
         directory: path.join(root, 'client'),
         discovery: false,
         apiPort: 0,
-        server: { version: '0.1.0', appVersion: '0.4.14', sourceCommit: 'test' },
+        server: { version: '0.1.0', appVersion: '0.4.15', sourceCommit: 'test' },
       });
       try {
         await client.sync.pair(
@@ -541,7 +541,7 @@ test(
       const api = await startApi(service, 0);
       try {
         const health = await request(api.info, 'GET', '/health');
-        assert.equal(health.version, '0.4.14');
+        assert.equal(health.version, '0.4.15');
         assert.equal(health.mode, undefined);
         assert.equal(
           (
@@ -558,7 +558,7 @@ test(
             directory: failProfile,
             discovery: false,
             apiPort: Number(new URL(api.info.url).port),
-            server: { version: '0.1.0', appVersion: '0.4.14', sourceCommit: 'test' },
+            server: { version: '0.1.0', appVersion: '0.4.15', sourceCommit: 'test' },
           }),
         );
         assert.equal(await exists(path.join(failProfile, 'owner.lock')), false);
@@ -566,7 +566,7 @@ test(
           directory: failProfile,
           discovery: false,
           apiPort: 0,
-          server: { version: '0.1.0', appVersion: '0.4.14', sourceCommit: 'test' },
+          server: { version: '0.1.0', appVersion: '0.4.15', sourceCommit: 'test' },
         });
         await runtime.close();
         const legacyLock = JSON.stringify({ pid: process.pid, nonce: 'older-desktop' });
@@ -576,7 +576,7 @@ test(
             directory: failProfile,
             discovery: false,
             apiPort: 0,
-            server: { version: '0.1.0', appVersion: '0.4.14', sourceCommit: 'test' },
+            server: { version: '0.1.0', appVersion: '0.4.15', sourceCommit: 'test' },
           }),
         );
         assert.equal(await readFile(path.join(failProfile, 'owner.lock'), 'utf8'), legacyLock);

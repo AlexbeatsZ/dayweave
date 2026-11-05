@@ -3,8 +3,9 @@ import path from 'node:path';
 
 export function checkNode() {
   const [major, minor, patch] = process.versions.node.split('.').map(Number);
-  if (major !== 24 || minor < 14 || (minor === 14 && patch < 1))
-    throw new Error('Dayweave Server requires Node >=24.14.1 <25; tested with 24.14.1');
+  const supported = (major === 24 && (minor > 14 || (minor === 14 && patch >= 1))) || major === 26;
+  if (!supported)
+    throw new Error('Dayweave Server requires Node 24 (>=24.14.1) or Node 26; tested with 24.14.1 and 26');
 }
 export async function loadConfig(file) {
   const location = path.resolve(file);
