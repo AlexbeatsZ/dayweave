@@ -118,7 +118,7 @@ for (const phone of [true, false]) {
       await expect(editor).not.toBeVisible();
       await expect(child).toBeChecked();
 
-      for (const tab of [/^周计划/, /^全部/, /^日计划/]) {
+      for (const tab of [/^总视图/, /^日视图/]) {
         await page.getByRole('tab', { name: tab }).click();
         await expect(child).toBeVisible();
         await expect(child).toBeChecked();
@@ -150,7 +150,7 @@ for (const phone of [true, false]) {
       expect(completed.completedAt).toBeTruthy();
       expect(completed.subtasks.every((subtask) => subtask.done)).toBe(true);
       await page.getByRole('button', { name: phone ? '手机待办' : '待办', exact: true }).click();
-      await page.getByRole('tab', { name: /^日计划/ }).click();
+      await page.getByRole('tab', { name: /^日视图/ }).click();
       await expect(
         parent.getByRole('checkbox', { name: '子任务 提交最终名单', exact: true }),
       ).toBeChecked();

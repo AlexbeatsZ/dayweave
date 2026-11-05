@@ -45,16 +45,15 @@ import { pendingPairingKey } from '../sync/invitation';
 import type { TimePage } from '../timelog/Workspace';
 import { TaskComposer } from './TaskComposer';
 import { FloatingAdd, PhoneTabs, PhoneTopbar, useSwipeTabs, useTabTransition } from './Navigation';
-import { DateNavigator, calendarWeek } from './DateNavigator';
+import { DateNavigator } from './DateNavigator';
 import { PhoneStatistics, type StatisticsPage } from './Statistics';
 import { PhoneSidebar, type RecordFilter } from './Sidebar';
 import { usePhone } from './usePhone';
 
 const titles: Record<string, string> = {
-  today: '日计划',
-  all: '全部任务',
+  today: '日视图',
+  all: '总视图',
   inbox: '待办箱',
-  upcoming: '周计划',
   calendar: '任务日历',
   timetable: '安排',
   stats: '统计',
@@ -79,7 +78,6 @@ export function MobileApp() {
   const [timePage, setTimePage] = useState<TimePage>('timeline');
   const clock = useClock();
   const [day, setDay] = useState(dateKey());
-  const [query, setQuery] = useState('');
   const [sort, setSort] = useState<'manual' | 'date' | 'difficulty'>('manual');
   const [drawer, setDrawer] = useState(false),
     [composer, setComposer] = useState(false),
@@ -113,13 +111,12 @@ export function MobileApp() {
         : view.startsWith('tag:')
           ? `#${view.slice(4)}`
           : titles[view] || '任务';
-  const week = calendarWeek(day);
   const tasks = selectTasks(
     data,
     view === 'timetable' ? 'today' : view,
-    query,
+    '',
     sort,
-    ['today', 'upcoming', 'timetable'].includes(view) ? day : today,
+    ['today', 'timetable'].includes(view) ? day : today,
   );
   const doneForDay = (task: Task) =>
     view === 'today' && day < today ? taskDoneOn(task, day) : taskCompleted(task);
@@ -138,11 +135,7 @@ export function MobileApp() {
     .filter((section) => section.rows.length);
   // With no slot in use the day is a plain list, without a lone "未定时段" heading.
   const sections = filled.some((section) => section.group) ? filled : [];
-  const ordered = sections.length
-    ? sections.flatMap((section) => section.rows)
-    : view === 'upcoming'
-      ? week.flatMap((date) => unfinished.filter((task) => Object.hasOwn(task.dates, date)))
-      : unfinished;
+  const ordered = sections.length ? sections.flatMap((section) => section.rows) : unfinished;
   const ordinal = new Map(
     [...new Set(ordered.map((task) => task.id))].map((id, index) => [id, index + 1]),
   );
@@ -151,13 +144,6 @@ export function MobileApp() {
     const from = tasks.find((task) => task.id === source),
       to = tasks.find((task) => task.id === target);
     if (!from || !to) return;
-    if (
-      view === 'upcoming' &&
-      !finiteTaskDates(from).some((date) => Object.hasOwn(to.dates, date))
-    ) {
-      notice('周计划按日期分组，请在同一天内调整顺序');
-      return;
-    }
     void store
       .transact((state) =>
         reorderTasks(
@@ -180,11 +166,10 @@ export function MobileApp() {
     scroll.current?.scrollTo(0, 0);
   }
   const taskTabs = [
-    { id: 'today' as const, label: '日计划' },
-    { id: 'upcoming' as const, label: '周计划' },
+    { id: 'today' as const, label: '日视图' },
     {
       id: 'all' as const,
-      label: '全部',
+      label: '总视图',
       count: new Set(
         live.filter((task) => activeTask(task, today)).map((task) => taskPrefix(task.id)),
       ).size,
@@ -228,7 +213,6 @@ export function MobileApp() {
         : statisticsPage;
   useTabTransition(scroll, showTaskTabs ? view : `${view}:${activeTab}`, [
     'today',
-    'upcoming',
     'all',
     'inbox',
     'timelog:timeline',
@@ -241,10 +225,10 @@ export function MobileApp() {
     'stats:records',
   ]);
   useEffect(() => {
-    if (!snapshot.loaded || !['today', 'upcoming', 'calendar', 'timetable'].includes(view)) return;
+    if (!snapshot.loaded || !['today', 'calendar', 'timetable'].includes(view)) return;
     if (day >= today)
       void window.clearlist?.sync
-        ?.ensureTasks?.(week.at(-1)!)
+        ?.ensureTasks?.(day)
         .then((status) => {
           if (status.error && data.repeatRules.some((rule) => rule.enabled))
             setToast({ text: status.error });
@@ -461,12 +445,11 @@ export function MobileApp() {
             </button>
           </div>
         )}
-        {(view === 'today' || view === 'upcoming') && (
+        {view === 'today' && (
           <DateNavigator
             date={day}
             onDate={setDay}
             label="待办日期"
-            week={view === 'upcoming'}
             taskDates={live.flatMap(finiteTaskDates)}
           />
         )}
@@ -483,14 +466,6 @@ export function MobileApp() {
           )}
         {taskView && (
           <section className="phone-tasks">
-            <input
-              className="text-input task-search"
-              type="search"
-              aria-label="搜索任务与历史"
-              placeholder="搜索任务与历史"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-            />
             <div className="phone-section-heading">
               <h2>
                 {view === 'today'
@@ -517,21 +492,7 @@ export function MobileApp() {
               </label>
             </div>
             {tasks.length ? (
-              view === 'upcoming' ? (
-                <div className="weekly-plan-grid">
-                  {week.map((date) => (
-                    <section className="phone-plan-day" key={date}>
-                      <h3>{formatDate(date)}</h3>
-                      {tasks
-                        .filter((task) => Object.hasOwn(task.dates, date))
-                        .map((task) => row(task, date))}
-                      {!tasks.some((task) => Object.hasOwn(task.dates, date)) && (
-                        <p className="muted">暂无计划</p>
-                      )}
-                    </section>
-                  ))}
-                </div>
-              ) : sections.length ? (
+              sections.length ? (
                 <div className="plan-groups">
                   {sections.map(({ group, rows }) =>
                     group ? (
@@ -567,7 +528,7 @@ export function MobileApp() {
                 </div>
               ) : (
                 <>
-                  {view === 'all' && !query.trim()
+                  {view === 'all'
                     ? [...new Set(tasks.map((task) => taskPrefix(task.id)))].map((prefix) => {
                         const instances = tasks.filter((task) => taskPrefix(task.id) === prefix);
                         const rule = data.repeatRules.find((item) => item.prefix === prefix);
@@ -596,7 +557,7 @@ export function MobileApp() {
                 <p>点右下角 +，记下下一件事</p>
               </div>
             )}
-            {completed.length > 0 && view !== 'upcoming' && (
+            {completed.length > 0 && (
               <details className="completed-plans" open>
                 <summary>已完成 · {completed.length}</summary>
                 {completed.map((task) => row(task))}
@@ -770,7 +731,7 @@ export function MobileApp() {
       </div>
       {composer && (
         <TaskComposer
-          initialDate={['today', 'upcoming', 'calendar', 'timetable'].includes(view) ? day : ''}
+          initialDate={['today', 'calendar', 'timetable'].includes(view) ? day : ''}
           listId={listId}
           today={today}
           close={() => setComposer(false)}

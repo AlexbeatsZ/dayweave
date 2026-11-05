@@ -196,7 +196,7 @@
     max-width: 1440px;
     margin-inline: auto;
   }
-  .desktop-shell[data-section='tasks']:not([data-view='upcoming']) .phone-content > * {
+  .desktop-shell[data-section='tasks'] .phone-content > * {
     max-width: 1080px;
   }
   .desktop-shell .phone-week {
@@ -241,28 +241,6 @@
   .desktop-shell .phone-tasks .task-row:focus-within .phone-task-track {
     opacity: 1;
   }
-  .desktop-shell .weekly-plan-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
-    align-items: start;
-    gap: 18px;
-  }
-  .desktop-shell .weekly-plan-grid .phone-plan-day {
-    margin: 0;
-    padding: 18px 14px 10px;
-    border: 1px solid var(--line);
-    border-radius: 16px;
-    background: var(--bg);
-    min-width: 0;
-    min-height: 135px;
-  }
-  .desktop-shell .phone-plan-day h3 {
-    padding-inline: 8px;
-    font-size: 13px;
-  }
-  .desktop-shell .weekly-plan-grid .task-row:last-child {
-    border-bottom: 0;
-  }
   .desktop-shell .phone-empty {
     padding: clamp(70px, 13vh, 150px) 20px;
   }
@@ -305,13 +283,7 @@
     gap: 24px;
     align-items: start;
   }
-  .desktop-shell .arrangement-calendar > .phone-plan-day {
-    margin: 0;
-    padding: 20px 16px;
-    border: 1px solid var(--line);
-    border-radius: 16px;
-    background: var(--bg);
-  }
+
   .desktop-shell .arrangement-calendar .task-row {
     padding-block: 14px;
   }

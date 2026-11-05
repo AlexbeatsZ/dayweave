@@ -174,7 +174,7 @@ test('inbox collects undated tasks across lists and creation / editing reuse the
   await edit.getByRole('button', { name: '保存任务', exact: true }).tap();
   await expect(edit).not.toBeVisible();
   await expect(row(page, '新收纳的工作')).toHaveCount(0);
-  await page.getByRole('tab', { name: '日计划', exact: true }).tap();
+  await page.getByRole('tab', { name: '日视图', exact: true }).tap();
   await expect(row(page, '新收纳的工作')).toBeVisible();
   const updated = (await state(page)).tasks.find((task) => task.id === created.id)!;
   expect(updated).toMatchObject({
@@ -187,7 +187,7 @@ test('inbox collects undated tasks across lists and creation / editing reuse the
   await expect(row(page, '新收纳的工作')).toBeVisible();
 });
 
-test('long press reorders the visible priority numbers and completed plans sink only in day / week views', async ({
+test('long press reorders the visible priority numbers and completed plans sink only in the day view', async ({
   page,
 }) => {
   await seed(page);
@@ -220,9 +220,7 @@ test('long press reorders the visible priority numbers and completed plans sink 
       .locator('.task-title')
       .evaluate((element) => getComputedStyle(element).color),
   );
-  await page.getByRole('tab', { name: '周计划', exact: true }).tap();
-  await expect(rows(page).last().locator('.task-title')).toHaveText('工作计划');
-  await page.getByRole('tab', { name: /^全部/ }).tap();
+  await page.getByRole('tab', { name: /^总视图/ }).tap();
   await expect(row(page, '工作计划')).toHaveCount(0);
   await expect(rows(page).locator('.task-check')).toHaveText(['1', '2']);
   await page.getByRole('button', { name: '打开导航', exact: true }).tap();

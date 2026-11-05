@@ -1128,31 +1128,90 @@ dialog::backdrop {
   font-size: 13px;
   margin-bottom: 8px;
 }
-.task-date-range {
-  display: flex;
-  gap: 8px;
-  align-items: end;
-  flex-wrap: wrap;
-  margin: 10px 0;
-}
-.task-date-range label {
-  flex: 1;
-  min-width: 120px;
+.date-chips.task-date-shortcuts {
   display: grid;
-  gap: 5px;
-  font-size: 12px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
 }
-.task-date-range input {
-  width: 100%;
+.task-date-shortcuts button {
+  padding-inline: 4px;
   min-width: 0;
   min-height: 44px;
+}
+.task-date-calendar {
+  --calendar-circle: 40px;
+  width: min(376px, calc(100vw - 24px));
+  padding: 16px;
+}
+.task-date-calendar section {
+  touch-action: pan-y;
+}
+.task-calendar-heading,
+.task-calendar-month {
+  display: flex;
+  align-items: center;
+}
+.task-calendar-heading {
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.task-calendar-month {
+  gap: 2px;
+}
+.task-calendar-month strong {
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+.task-calendar-month .icon-button {
+  width: 32px;
+}
+.task-calendar-weekdays,
+.task-calendar-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  justify-items: center;
+  gap: 6px 0;
+}
+.task-calendar-weekdays {
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 10px;
+}
+.task-date-calendar .task-calendar-circle {
+  width: var(--calendar-circle);
+  height: var(--calendar-circle);
+  min-width: var(--calendar-circle);
+  min-height: var(--calendar-circle);
+  border-radius: 50%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--text);
   font: inherit;
-  font-size: 16px;
-  color: inherit;
-  background: var(--input);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 6px;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.task-calendar-circle.outside {
+  color: var(--muted);
+  opacity: 0.5;
+}
+.task-calendar-circle[aria-current='date'] {
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.task-calendar-circle[aria-pressed='true'] {
+  background: var(--accent);
+  color: var(--on-accent);
+  opacity: 1;
+}
+.task-calendar-circle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.task-calendar-done {
+  display: block;
+  width: 100%;
+  margin-top: 16px;
 }
 .task-date-line {
   display: flex;
@@ -1190,10 +1249,6 @@ dialog::backdrop {
   display: block;
   color: var(--muted);
   margin: 6px 0;
-}
-.task-search {
-  width: 100%;
-  margin-bottom: 12px;
 }
 
 .task-date-line select {

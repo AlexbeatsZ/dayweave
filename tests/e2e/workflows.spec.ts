@@ -39,10 +39,10 @@ test('create a list, edit a task, complete and reopen it, undo deletion and reta
   await page.getByRole('checkbox', { name: '完成 阅读论文', exact: true }).click();
   await expect(page.locator('.completed-plans .task-row')).toHaveCount(1);
   await page.getByRole('checkbox', { name: '完成 阅读论文', exact: true }).click();
-  await page.getByRole('tab', { name: /^全部/ }).click();
+  await page.getByRole('tab', { name: /^总视图/ }).click();
   await expect(page.getByRole('button', { name: '编辑 阅读论文', exact: true })).toHaveCount(1);
   await page.getByRole('button', { name: '编辑 阅读论文', exact: true }).click();
-  await expect(editor.getByLabel('计划日期')).toHaveValue(dateKey());
+  await expect(editor.getByLabel(`${dateKey()} 时段`, { exact: true })).toBeVisible();
   await expect(editor.getByLabel('任务备注')).toHaveValue('先看摘要和方法');
   await expect(editor.getByLabel('任务标签')).toHaveValue('化学');
   await expect(
@@ -53,7 +53,7 @@ test('create a list, edit a task, complete and reopen it, undo deletion and reta
   await page.getByRole('button', { name: '撤销', exact: true }).click();
   await expect(page.getByRole('button', { name: '编辑 阅读论文', exact: true })).toBeVisible();
   await page.reload();
-  await page.getByRole('tab', { name: /^全部/ }).click();
+  await page.getByRole('tab', { name: /^总视图/ }).click();
   await expect(page.getByRole('button', { name: '编辑 阅读论文', exact: true })).toHaveCount(1);
   await expect(page.getByRole('button', { name: '编辑清单 研究', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: '搜索任务', exact: true })).toHaveCount(0);
@@ -114,7 +114,7 @@ test('calendar drag reschedules tasks; deleting a list preserves its tasks and d
   const targetDate = shiftDate(dateKey(), 1);
   await source.dragTo(page.locator(`[data-date="${targetDate}"]`));
   await page.getByRole('button', { name: '把最重要的一件事留在今天', exact: true }).click();
-  await expect(page.getByLabel('计划日期')).toHaveValue(targetDate);
+  await expect(page.getByLabel(`${targetDate} 时段`, { exact: true })).toBeVisible();
   await page.getByRole('button', { name: '保存任务', exact: true }).click();
   await page
     .getByRole('navigation', { name: '主导航' })
@@ -123,7 +123,7 @@ test('calendar drag reschedules tasks; deleting a list preserves its tasks and d
   await page.getByRole('button', { name: '编辑清单 学习与创造', exact: true }).click();
   await page.getByRole('button', { name: '删除清单', exact: true }).click();
   await page.getByRole('button', { name: '确认删除清单', exact: true }).click();
-  await page.getByRole('tab', { name: /^全部/ }).click();
+  await page.getByRole('tab', { name: /^总视图/ }).click();
   await expect(page.getByTestId('task-row')).toHaveCount(1);
   await page.getByRole('button', { name: '编辑 把最重要的一件事留在今天', exact: true }).click();
   const editor = page.getByRole('dialog', { name: '编辑任务', exact: true });
@@ -131,7 +131,7 @@ test('calendar drag reschedules tasks; deleting a list preserves its tasks and d
     'aria-pressed',
     'true',
   );
-  await expect(editor.getByLabel('计划日期')).toHaveValue(targetDate);
+  await expect(editor.getByLabel(`${targetDate} 时段`, { exact: true })).toBeVisible();
 });
 
 test('shared destinations render without errors; theme persists and compact viewport has no overflow', async ({

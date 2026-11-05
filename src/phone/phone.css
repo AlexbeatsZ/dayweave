@@ -1417,15 +1417,6 @@
   touch-action: pan-y;
 }
 
-.phone-plan-day {
-  margin: 12px 0;
-  padding: 8px 0;
-}
-.phone-plan-day h3 {
-  color: var(--muted);
-  font-size: 13px;
-  margin: 0 0 8px;
-}
 .phone-summary-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

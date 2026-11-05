@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { Plus, X } from 'lucide-react';
-import { datesSchema, dayPlanGroups, shiftDate, type Task } from '../model';
+import { ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
+import { civilDateKey, dayPlanGroups, fromDateKey, shiftDate, type Task } from '../model';
 import { useStore } from '../store';
+import { useSwipeTabs } from '../phone/Navigation';
+import { Modal } from './Modal';
 
 /** One date map draft, shared by new/edit on every screen size. */
 export function TaskDatesEditor({
@@ -20,53 +22,46 @@ export function TaskDatesEditor({
     Object.keys(dates)
       .filter((day) => day !== '∞')
       .sort()[0] ?? today;
-  const [from, setFrom] = useState(initial),
-    [to, setTo] = useState(initial);
-  const [error, setError] = useState('');
-  const add = (start: string, end = start) => {
-    try {
-      if (!start || !end || end < start) throw new Error('请选择有效的起止日期');
-      const next = { ...dates };
-      let day = start,
-        count = 0;
-      while (day <= end) {
-        if (++count > 366) throw new Error('一次最多添加 366 天');
-        if (!Object.hasOwn(next, day)) next[day] = null;
-        day = shiftDate(day, 1);
-      }
-      onChange(datesSchema.parse(next));
-      setError('');
-    } catch (error) {
-      setError(String(error instanceof Error ? error.message : error));
-    }
+  const [calendar, setCalendar] = useState(false);
+  const [month, setMonth] = useState(initial.slice(0, 7));
+  const monthDate = fromDateKey(`${month}-01`);
+  const moveMonth = (offset: number) =>
+    civilDateKey(new Date(monthDate.getFullYear(), monthDate.getMonth() + offset, 1, 12)).slice(
+      0,
+      7,
+    );
+  const monthTabs = [-1, 0, 1]
+    .map((offset) => ({ id: moveMonth(offset), label: '' }))
+    .filter(({ id }) => id >= '2000-01' && id <= '2200-12');
+  const swipe = useSwipeTabs(monthTabs, month, setMonth, true);
+  const first = shiftDate(`${month}-01`, -((monthDate.getDay() + 6) % 7));
+  const days = Array.from({ length: 42 }, (_, index) => shiftDate(first, index));
+  const toggle = (day: string) => {
+    const next = { ...dates };
+    if (Object.hasOwn(next, day)) delete next[day];
+    else next[day] = null;
+    onChange(next);
   };
   return (
     <fieldset className="task-dates-editor">
       <legend>安排日期</legend>
-      <div className="date-chips">
-        <button type="button" aria-pressed={Object.hasOwn(dates, today)} onClick={() => add(today)}>
+      <div className="date-chips task-date-shortcuts">
+        <button
+          type="button"
+          aria-pressed={Object.hasOwn(dates, today)}
+          onClick={() => toggle(today)}
+        >
           今天
         </button>
         <button
           type="button"
           aria-pressed={Object.hasOwn(dates, shiftDate(today, 1))}
-          onClick={() => add(shiftDate(today, 1))}
+          onClick={() => toggle(shiftDate(today, 1))}
         >
           明天
         </button>
-        <button
-          type="button"
-          aria-label="∞ 总视图保留"
-          title="总视图持续保留"
-          aria-pressed={'∞' in dates}
-          onClick={() => {
-            const next = { ...dates };
-            if ('∞' in next) delete next['∞'];
-            else next['∞'] = null;
-            onChange(next);
-          }}
-        >
-          ∞
+        <button type="button" aria-pressed={'∞' in dates} onClick={() => toggle('∞')}>
+          待定
         </button>
         <button
           type="button"
@@ -75,42 +70,15 @@ export function TaskDatesEditor({
         >
           无日期
         </button>
-      </div>
-      <div className="task-date-range">
-        <label>
-          开始日期
-          <input
-            type="date"
-            aria-label="计划日期"
-            value={from}
-            min="2000-01-01"
-            max="2200-12-31"
-            onChange={(event) => {
-              setFrom(event.target.value);
-              if (to < event.target.value) setTo(event.target.value);
-            }}
-          />
-        </label>
-        <label>
-          结束日期
-          <input
-            type="date"
-            aria-label="结束日期"
-            value={to}
-            min={from || '2000-01-01'}
-            max="2200-12-31"
-            onChange={(event) => setTo(event.target.value)}
-          />
-        </label>
-        <button type="button" className="button" onClick={() => add(from, to)}>
-          添加日期
+        <button type="button" aria-expanded={calendar} onClick={() => setCalendar(true)}>
+          更多
         </button>
       </div>
       {Object.keys(dates)
         .sort()
         .map((day) => (
           <div className="task-date-line" key={day}>
-            <span>{day === '∞' ? '∞' : day}</span>
+            <span>{day === '∞' ? '待定' : day}</span>
             {day !== '∞' && (
               <>
                 <select
@@ -149,10 +117,78 @@ export function TaskDatesEditor({
             </button>
           </div>
         ))}
-      {error && (
-        <p role="alert" className="form-error">
-          {error}
-        </p>
+      {calendar && (
+        <Modal
+          title="选择安排日期"
+          close={() => setCalendar(false)}
+          className="task-date-calendar"
+          hideHeader
+        >
+          <section aria-label="安排日期月历" {...swipe}>
+            <header className="task-calendar-heading">
+              <div className="task-calendar-month">
+                <button
+                  type="button"
+                  className="icon-button"
+                  aria-label="上个月"
+                  disabled={month === '2000-01'}
+                  onClick={() => setMonth(moveMonth(-1))}
+                >
+                  <ChevronLeft size={18} />
+                </button>
+                <strong aria-live="polite">
+                  {month.slice(0, 4)}年{Number(month.slice(5))}月
+                </strong>
+                <button
+                  type="button"
+                  className="icon-button"
+                  aria-label="下个月"
+                  disabled={month === '2200-12'}
+                  onClick={() => setMonth(moveMonth(1))}
+                >
+                  <ChevronRight size={18} />
+                </button>
+              </div>
+              <button
+                type="button"
+                className="task-calendar-circle"
+                aria-label="待定"
+                aria-pressed={'∞' in dates}
+                onClick={() => toggle('∞')}
+              >
+                ∞
+              </button>
+            </header>
+            <div className="task-calendar-weekdays" aria-hidden="true">
+              {['一', '二', '三', '四', '五', '六', '日'].map((day) => (
+                <span key={day}>{day}</span>
+              ))}
+            </div>
+            <div className="task-calendar-days">
+              {days.map((day) => (
+                <button
+                  type="button"
+                  className={`task-calendar-circle${day.startsWith(month) ? '' : ' outside'}`}
+                  key={day}
+                  aria-label={`安排 ${day}`}
+                  aria-pressed={Object.hasOwn(dates, day)}
+                  aria-current={day === today ? 'date' : undefined}
+                  disabled={day < '2000-01-01' || day > '2200-12-31'}
+                  onClick={() => toggle(day)}
+                >
+                  {Number(day.slice(-2))}
+                </button>
+              ))}
+            </div>
+          </section>
+          <button
+            type="button"
+            className="button primary task-calendar-done"
+            onClick={() => setCalendar(false)}
+          >
+            完成
+          </button>
+        </Modal>
       )}
     </fieldset>
   );

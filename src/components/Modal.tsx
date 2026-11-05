@@ -11,6 +11,7 @@ export function Modal({
   drawer = false,
   className = '',
   closeLabel,
+  hideHeader = false,
 }: {
   title: string;
   close: () => void;
@@ -20,6 +21,7 @@ export function Modal({
   drawer?: boolean;
   className?: string;
   closeLabel?: string;
+  hideHeader?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null),
     closeRef = useRef(close);
@@ -64,16 +66,19 @@ export function Modal({
       }}
     >
       {sheet && <span className="sheet-handle" aria-hidden />}
-      <header className={sheet ? 'phone-sheet-header' : 'dialog-header'}>
-        <h2>{title}</h2>
-        <button
-          className="icon-button"
-          aria-label={closeLabel ?? (sheet ? `关闭${title}` : '关闭对话框')}
-          onClick={close}
-        >
-          <X size={21} />
-        </button>
-      </header>
+      {!hideHeader && (
+        <header className={sheet ? 'phone-sheet-header' : 'dialog-header'}>
+          <h2>{title}</h2>
+          <button
+            type="button"
+            className="icon-button"
+            aria-label={closeLabel ?? (sheet ? `关闭${title}` : '关闭对话框')}
+            onClick={close}
+          >
+            <X size={21} />
+          </button>
+        </header>
+      )}
       {children}
     </dialog>
   );

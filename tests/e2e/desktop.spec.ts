@@ -190,12 +190,12 @@ test('permanent desktop navigation and shared pages fit widescreen, 16:10 and co
       await page.screenshot({
         path: path.join(screenshots, `tasks-${viewport.width}x${viewport.height}.png`),
       });
-    await page.getByRole('tab', { name: '周计划', exact: true }).click();
-    await expect(page.locator('.phone-plan-day')).toHaveCount(7);
+    await page.getByRole('tab', { name: /^总视图/ }).click();
+    await expect(page.getByRole('tab', { name: '周计划', exact: true })).toHaveCount(0);
     await withinViewport(page);
     if (viewport.width === 1920 || viewport.width === 900)
       await page.screenshot({
-        path: path.join(screenshots, `week-${viewport.width}x${viewport.height}.png`),
+        path: path.join(screenshots, `overview-${viewport.width}x${viewport.height}.png`),
       });
     await navigate(page, '记录');
     await expect(page.getByRole('complementary', { name: '记录分类', exact: true })).toBeVisible();
@@ -323,7 +323,7 @@ test('tab transitions animate shared content and honor reduced motion', async ({
         .getAnimations()
         .map((animation) => animation.effect?.getTiming().duration);
     }, label);
-  expect(await animations('全部')).toContain(180);
+  expect(await animations('总视图')).toContain(180);
   await page.emulateMedia({ reducedMotion: 'reduce' });
   expect(await animations('待办箱')).toEqual([]);
   await expect(page.getByRole('tab', { name: /^待办箱/ })).toHaveAttribute('aria-selected', 'true');

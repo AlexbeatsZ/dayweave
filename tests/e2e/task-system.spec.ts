@@ -12,8 +12,11 @@ import {
 import { configureRepeat, generateRepeatedTasks } from '../../src/task-repeat';
 import { setTimeZone, setDayStart, businessDayStart } from '../../src/timezone';
 
-setTimeZone('Asia/Shanghai');
-setDayStart('04:00');
+test.beforeEach(() => {
+  setTimeZone('Asia/Shanghai');
+  setDayStart('04:00');
+});
+test.afterEach(() => setDayStart('00:00'));
 async function seed(page: Page, state: AppState) {
   state.settings.timeZone = 'Asia/Shanghai';
   state.settings.dayStartsAt = '04:00';
@@ -29,7 +32,7 @@ async function seed(page: Page, state: AppState) {
 for (const width of [390, 1440]) {
   test.describe(`task model at ${width}px`, () => {
     test.use({ viewport: { width, height: 960 }, hasTouch: width < 700, isMobile: width < 700 });
-    test('date range, per-day slots, infinity and manual difficulty persist without changing time fields', async ({
+    test('calendar dates, per-day slots, infinity and manual difficulty persist without changing time fields', async ({
       page,
     }) => {
       await seed(page, emptyState());
@@ -41,15 +44,107 @@ for (const width of [390, 1440]) {
       await form.getByLabel('任务难度').selectOption('hard');
       const today = dateKey(),
         end = shiftDate(today, 2);
-      await form.getByLabel('结束日期', { exact: true }).fill(end);
-      await form.getByRole('button', { name: '添加日期', exact: true }).click();
+      await expect(form.locator('input[type=date]')).toHaveCount(0);
+      await expect(form.locator('.task-date-shortcuts button')).toHaveText([
+        '今天',
+        '明天',
+        '待定',
+        '无日期',
+        '更多',
+      ]);
+      await form.getByRole('button', { name: '今天', exact: true }).click();
+      await expect(form.getByRole('button', { name: '无日期', exact: true })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+      await form.getByRole('button', { name: '今天', exact: true }).click();
+      await form.getByRole('button', { name: '明天', exact: true }).click();
+      await form.getByRole('button', { name: '明天', exact: true }).click();
+      await expect(form.getByRole('button', { name: '明天', exact: true })).toHaveAttribute(
+        'aria-pressed',
+        'false',
+      );
+      await form.getByRole('button', { name: '明天', exact: true }).click();
+      await form.getByRole('button', { name: '更多', exact: true }).click();
+      const calendar = page.getByRole('dialog', { name: '选择安排日期', exact: true });
+      await calendar.getByRole('button', { name: `安排 ${end}`, exact: true }).click();
+      await expect(
+        calendar.getByRole('button', { name: `安排 ${end}`, exact: true }),
+      ).toHaveAttribute('aria-pressed', 'true');
+      await calendar.getByRole('button', { name: `安排 ${end}`, exact: true }).click();
+      await expect(
+        calendar.getByRole('button', { name: `安排 ${end}`, exact: true }),
+      ).toHaveAttribute('aria-pressed', 'false');
+      await calendar.getByRole('button', { name: `安排 ${end}`, exact: true }).click();
+      await calendar.getByRole('button', { name: '待定', exact: true }).click();
+      const dayStyle = await calendar
+        .getByRole('button', { name: `安排 ${end}`, exact: true })
+        .evaluate((node) => {
+          const css = getComputedStyle(node);
+          return [css.width, css.height, css.borderRadius, css.backgroundColor];
+        });
+      expect(
+        await calendar.getByRole('button', { name: '待定', exact: true }).evaluate((node) => {
+          const css = getComputedStyle(node);
+          return [css.width, css.height, css.borderRadius, css.backgroundColor];
+        }),
+      ).toEqual(dayStyle);
+      expect(dayStyle[0]).toBe(dayStyle[1]);
+      const output = path.resolve('.local/preview/task-system');
+      await mkdir(output, { recursive: true });
+      await page.screenshot({ path: `${output}/calendar-${width}.png` });
+      const heading = calendar.locator('.task-calendar-month strong');
+      const initialMonth = await heading.textContent();
+      if (width < 700) {
+        const area = (await calendar.locator('.task-calendar-days').boundingBox())!;
+        const session = await page.context().newCDPSession(page);
+        const swipe = async (direction: number) => {
+          const x = direction < 0 ? area.x + area.width - 24 : area.x + 24;
+          const y = area.y + area.height / 2;
+          await session.send('Input.dispatchTouchEvent', {
+            type: 'touchStart',
+            touchPoints: [{ x, y }],
+          });
+          for (let step = 1; step <= 5; step++)
+            await session.send('Input.dispatchTouchEvent', {
+              type: 'touchMove',
+              touchPoints: [{ x: x + direction * step * 32, y }],
+            });
+          await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+        };
+        await swipe(-1);
+        await expect(heading).not.toHaveText(initialMonth!);
+        await swipe(1);
+        await expect(heading).toHaveText(initialMonth!);
+        await session.detach();
+      } else {
+        await calendar.getByRole('button', { name: '下个月', exact: true }).click();
+        await expect(heading).not.toHaveText(initialMonth!);
+        await calendar.getByRole('button', { name: '上个月', exact: true }).click();
+        await expect(heading).toHaveText(initialMonth!);
+      }
+      await expect(
+        calendar.getByRole('button', { name: `安排 ${end}`, exact: true }),
+      ).toHaveAttribute('aria-pressed', 'true');
+      await calendar.getByRole('button', { name: '待定', exact: true }).click();
+      await expect(calendar.getByRole('button', { name: '待定', exact: true })).toHaveAttribute(
+        'aria-pressed',
+        'false',
+      );
+      await calendar.getByRole('button', { name: '待定', exact: true }).click();
+      await calendar.getByRole('button', { name: '完成', exact: true }).click();
+      await expect(form).toBeVisible();
+      await expect(form.getByRole('button', { name: '待定', exact: true })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
       await form.getByRole('button', { name: `新建 ${today} 时段`, exact: true }).click();
       const group = page.getByRole('dialog', { name: '新的时段', exact: true });
       await group.getByLabel('时段名称').fill('午饭前');
       await group.getByRole('button', { name: '创建时段', exact: true }).click();
       await expect(form.getByLabel(`${today} 时段`, { exact: true })).not.toHaveValue('');
       await expect(form.getByLabel(`${end} 时段`, { exact: true })).toHaveValue('');
-      await form.getByRole('button', { name: '∞ 总视图保留', exact: true }).click();
+
       await form.getByLabel('预计用时', { exact: true }).fill('180');
       await form.getByLabel('实际用时', { exact: true }).fill('20');
       await form.getByLabel('新任务子任务').fill('复制');
@@ -65,8 +160,6 @@ for (const width of [390, 1440]) {
       const edit = page.getByRole('dialog', { name: '编辑任务', exact: true });
       await expect(edit.getByLabel('预计用时', { exact: true })).toHaveValue('180');
       await expect(edit.getByLabel('实际用时', { exact: true })).toHaveValue('20');
-      const output = path.resolve('.local/preview/task-system');
-      await mkdir(output, { recursive: true });
       await page.screenshot({ path: `${output}/editor-${width}.png`, fullPage: true });
       await edit.evaluate((element) =>
         element.scrollTo({ top: element.scrollHeight, behavior: 'instant' }),
@@ -84,6 +177,28 @@ for (const width of [390, 1440]) {
       expect(saved.dates['∞']).toBeNull();
       expect(saved.id).toMatch(/-0$/);
       expect(saved.difficulty).toBe('hard');
+    });
+
+    test('only the three requested views remain and a title alone creates an inbox task', async ({
+      page,
+    }) => {
+      await seed(page, emptyState());
+      const tabs = page.getByRole('tablist', { name: '待办子页面' });
+      await expect(tabs.getByRole('tab')).toHaveText(['日视图', '总视图', '待办箱']);
+      await expect(page.getByRole('searchbox')).toHaveCount(0);
+      await page.getByRole('tab', { name: '待办箱', exact: true }).click();
+      await page.getByRole('button', { name: '新建任务', exact: true }).click();
+      const form = page.getByRole('dialog', { name: '新建任务', exact: true });
+      await form.getByLabel('新任务标题').fill('先记下来');
+      await expect(form.getByRole('button', { name: '无日期', exact: true })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+      await form.getByRole('button', { name: '添加任务', exact: true }).click();
+      await expect(page.getByTestId('task-row')).toContainText('先记下来');
+      expect(
+        await page.evaluate(() => JSON.parse(localStorage.getItem('dayweave.v1')!).tasks[0].dates),
+      ).toEqual({});
     });
 
     test('history keeps only that day’s child facts; today keeps remaining work and current-day completion', async ({
@@ -134,7 +249,7 @@ for (const width of [390, 1440]) {
       await expect(row).toContainText('当日安排');
     });
 
-    test('overview folds instances by ID, history stays searchable, and offline instance editing keeps its template', async ({
+    test('overview folds instances by ID, history remains in its day, and offline instance editing keeps its template', async ({
       page,
     }) => {
       const today = dateKey();
@@ -150,7 +265,7 @@ for (const width of [390, 1440]) {
         newTask('历史的实验', { dates: { [shiftDate(today, -1)]: null } }),
       );
       await seed(page, generated);
-      await page.getByRole('tab', { name: /^全部/ }).click();
+      await page.getByRole('tab', { name: /^总视图/ }).click();
       await expect(page.locator('.task-series')).toHaveCount(1);
       await expect(page.locator('[data-testid=task-row]:visible')).toHaveCount(1);
       await page.locator('.task-series summary').click();
@@ -165,7 +280,9 @@ for (const width of [390, 1440]) {
           () => JSON.parse(localStorage.getItem('dayweave.v1')!).repeatRules[0].template.title,
         ),
       ).toBe('背单词');
-      await page.getByLabel('搜索任务与历史').fill('历史的实验');
+      await expect(page.getByRole('searchbox')).toHaveCount(0);
+      await page.getByRole('tab', { name: /^日视图/ }).click();
+      await page.getByLabel('待办日期', { exact: true }).fill(shiftDate(today, -1));
       await expect(page.getByTestId('task-row')).toHaveCount(1);
       await expect(page.getByTestId('task-row')).toContainText('历史的实验');
     });

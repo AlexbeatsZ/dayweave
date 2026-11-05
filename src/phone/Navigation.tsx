@@ -8,6 +8,7 @@ export function useSwipeTabs<T extends string>(
   tabs: readonly PhoneTab<T>[],
   value: string,
   onChange: (value: T) => void,
+  allowDialog = false,
 ) {
   const start = useRef<{ x: number; y: number; at: number } | null>(null);
   return {
@@ -15,7 +16,7 @@ export function useSwipeTabs<T extends string>(
       if (
         event.touches.length !== 1 ||
         (event.target as Element).closest(
-          'input, textarea, select, dialog, [contenteditable], [data-no-swipe]',
+          `input, textarea, select, ${allowDialog ? '' : 'dialog, '}[contenteditable], [data-no-swipe]`,
         )
       ) {
         start.current = null;

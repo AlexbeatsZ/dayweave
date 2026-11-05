@@ -86,13 +86,11 @@ test('compact shared tabs swipe both ways, goals group densely, and all add butt
   await expect(page.getByRole('button', { name: '切换深浅主题' })).toHaveCount(0);
   await expect(page.locator('.phone-nav > button')).toHaveCount(4);
   await swipe(page, 'left');
-  await expect(page.getByRole('tab', { name: '周计划' })).toHaveAttribute('aria-selected', 'true');
-  await swipe(page, 'left');
-  await expect(page.getByRole('tab', { name: /^全部/ })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('tab', { name: /^总视图/ })).toHaveAttribute('aria-selected', 'true');
   await swipe(page, 'left');
   await expect(page.getByRole('tab', { name: /^待办箱/ })).toHaveAttribute('aria-selected', 'true');
   await swipe(page, 'right');
-  await expect(page.getByRole('tab', { name: /^全部/ })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('tab', { name: /^总视图/ })).toHaveAttribute('aria-selected', 'true');
   const appearance = () =>
     page.locator('.phone-fab').evaluate((button) => {
       const css = getComputedStyle(button),

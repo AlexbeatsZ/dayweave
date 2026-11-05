@@ -32,7 +32,7 @@
 | `runtime.ts`                                        | 全应用一个秒时钟、主题响应、前台倒计时到期收尾                    | `useClock` / `useApplicationTheme` / `useCountdownCompletion` |
 | `phone/MobileApp.tsx`                               | 全宽共用主导航、待办范围、选中任务与子页协调                      | App 唯一页面入口；响应式布局不重挂载                          |
 | `phone/Navigation.tsx`                              | 共用顶栏、子页点击/水平手势与加号                                 | `PhoneTopbar` / `PhoneTabs` / `useSwipeTabs` / `FloatingAdd`  |
-| `phone/DateNavigator.tsx`                           | 日计划、周计划、时间线和每日统计共用日期控件                      | `DateNavigator` / `calendarWeek`                              |
+| `phone/DateNavigator.tsx`                           | 日视图、时间线和每日统计共用日期控件                              | `DateNavigator` / `calendarWeek`                              |
 | `phone/Sidebar.tsx`                                 | 按当前模块显示清单/标签或活动/标签及设置入口                      | 同一个分类组件在手机抽屉、PC 常驻侧栏内呈现                   |
 | `phone/TaskComposer.tsx`                            | 新建和编辑任务的同一个草稿与显式保存流程                          | `TaskComposer`，可传已有 task                                 |
 | `components/TaskRow.tsx`                            | 共用任务行、清单色确认框、视图序号                                | 行操作及排序回调                                              |
@@ -59,8 +59,8 @@ Workspace 直接使用统一 store，不建立 `readState → setState → subsc
 
 - 新建和编辑任务都使用 `TaskComposer`，以同一字段解析和保存，不并存另一套手机详情表单。编辑检查打开时的 `updatedAt`，不通过逐字段自动保存掩盖并发覆盖。
 - 日计划分组 `planGroups` 是某一业务日计划的分段，任务由 `dates` 的键决定属于哪些业务日，各值引用同日时段；删除分组只把相关值清成 null，不删除日期。分组只在日计划列表视图出现，详见 planning-goals.md。
-- 待办箱是 `dates={}` 的未完成任务范围，与所属清单独立；默认清单 ID `inbox` 仅保留兼容含义“未分组”。日计划、自然周和统计都从原任务派生，不复制计划实体；四象限已撤回，读取时丢弃旧 `quadrant` 字段。月历显示当天全部未删除任务，已完成的变暗排在后面，格子放不下时“还有 N 件”跳到该日日计划；月历下方不再单独列当天计划。
-- 任务序号由当前可见未完成任务顺序计算，不持久化另一份编号。长按拖动只更新任务顺序；活动与目标拖动写各自可选 `order`（`validateState` 按它排序数组，未排过的保持在后），同一个 `useSortDrag` 与 `moveOrder` 负责三处排序，不另写拖动逻辑。拖动影子包在原祖先的 class 链（display: contents）里，所以作用域样式无需复制；完成项只在日/周计划以灰色勾选沉底，其他范围隐藏。
+- 待办箱是 `dates={}` 的未完成任务范围，与所属清单独立；默认清单 ID `inbox` 仅保留兼容含义“未分组”。日视图、总视图和统计都从原任务派生，不复制计划实体；四象限已撤回，读取时丢弃旧 `quadrant` 字段。月历显示当天全部未删除任务，已完成的变暗排在后面，格子放不下时“还有 N 件”跳到该日日计划；月历下方不再单独列当天计划。
+- 任务序号由当前可见未完成任务顺序计算，不持久化另一份编号。长按拖动只更新任务顺序；活动与目标拖动写各自可选 `order`（`validateState` 按它排序数组，未排过的保持在后），同一个 `useSortDrag` 与 `moveOrder` 负责三处排序，不另写拖动逻辑。拖动影子包在原祖先的 class 链（display: contents）里，所以作用域样式无需复制；完成项只在日视图以灰色勾选沉底，其他范围隐藏。
 - `components/TaskCheck.tsx` 统一父任务、列表子任务和编辑草稿的完成控件及无障碍语义。`TaskRow` 展示原有子任务并在统一 store 事务中更新最新任务；`TaskComposer` 只改本地草稿，沿用显式保存和并发检查。不复制子任务状态，不另建子任务持久化路径；输入框样式只匹配实际文本输入。
 - 清单活动映射放入清单的 `activityId`，任务 UI 与 AI API 都调用 `startTaskTimer`，不再各写一段按清单名选择活动的逻辑。
 - 清单和活动复用各自已有 `color`；标签字符串仍存于任务/记录中，颜色元数据集中在 `tagColors.tasks/records`。其增量保存、备份和同步都属于统一状态，不创建独立标签数据库。

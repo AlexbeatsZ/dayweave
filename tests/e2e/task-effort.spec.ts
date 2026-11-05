@@ -32,7 +32,7 @@ test('shared task form keeps estimated and actual minutes optional and shows sav
       localStorage.setItem('dayweave.v1', JSON.stringify(data));
   }, state);
   await page.goto('/');
-  await page.getByRole('tab', { name: /全部/ }).click();
+  await page.getByRole('tab', { name: /总视图/ }).click();
   await page.getByRole('button', { name: '编辑 带记录的任务', exact: true }).click();
   const edit = page.getByRole('dialog', { name: '编辑任务', exact: true });
   await expect(edit.getByLabel('预计用时', { exact: true })).toHaveValue('30');
@@ -42,7 +42,7 @@ test('shared task form keeps estimated and actual minutes optional and shows sav
   await edit.getByLabel('实际用时', { exact: true }).fill('0');
   await edit.getByRole('button', { name: '保存任务', exact: true }).click();
   await page.reload();
-  await page.getByRole('tab', { name: /全部/ }).click();
+  await page.getByRole('tab', { name: /总视图/ }).click();
   const row = page.getByTestId('task-row');
   await expect(row).toContainText('实际 0 分钟');
   await expect(row).not.toContainText('预计');
@@ -59,7 +59,7 @@ test('shared task form keeps estimated and actual minutes optional and shows sav
   const create = page.getByRole('dialog', { name: '新建任务', exact: true });
   await create.getByLabel('新任务标题').fill('半分钟任务');
   await create.getByLabel('预计用时', { exact: true }).fill('0.5');
-  await create.getByRole('button', { name: '∞ 总视图保留', exact: true }).click();
+  await create.getByRole('button', { name: '待定', exact: true }).click();
   await create.getByRole('button', { name: '添加任务', exact: true }).click();
   await expect(page.getByTestId('task-row').filter({ hasText: '半分钟任务' })).toContainText(
     '预计 0.5 分钟',
@@ -76,7 +76,7 @@ test('manual difficulty persists independently from estimates and easy has no em
       localStorage.setItem('dayweave.v1', JSON.stringify(data));
   }, state);
   await page.goto('/');
-  await page.getByRole('tab', { name: /全部/ }).click();
+  await page.getByRole('tab', { name: /总视图/ }).click();
   const row = page.getByTestId('task-row');
   await expect(row.locator('.difficulty-tier')).toHaveCount(0);
   await row.getByRole('button', { name: '编辑 写周报', exact: true }).click();
@@ -87,7 +87,7 @@ test('manual difficulty persists independently from estimates and easy has no em
   await difficulty.selectOption('hard');
   await edit.getByRole('button', { name: '保存任务', exact: true }).click();
   await page.reload();
-  await page.getByRole('tab', { name: /全部/ }).click();
+  await page.getByRole('tab', { name: /总视图/ }).click();
   await expect(row.locator('.difficulty-tier')).toHaveText('困难');
   await expect(row).toContainText('预计 20 分钟');
   await row.getByRole('button', { name: '编辑 写周报', exact: true }).click();

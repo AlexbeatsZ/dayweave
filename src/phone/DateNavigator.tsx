@@ -7,24 +7,22 @@ export const calendarWeek = (date: string) => {
   return Array.from({ length: 7 }, (_, index) => shiftDate(first, index));
 };
 
-/** One calendar navigation style for daily/weekly plans, records and daily statistics. */
+/** One date navigation style for daily tasks, records and daily statistics. */
 export function DateNavigator({
   date,
   onDate,
   label = '查看日期',
-  week = false,
   taskDates = [],
 }: {
   date: string;
   onDate: (value: string) => void;
   label?: string;
-  week?: boolean;
   taskDates?: string[];
 }) {
   const days = calendarWeek(date),
     today = dateKey();
   return (
-    <section className="phone-week date-navigator" aria-label={week ? '自然周日期' : '日期导航'}>
+    <section className="phone-week date-navigator" aria-label="日期导航">
       <div className="phone-week-heading">
         <button
           className="icon-button"
@@ -34,9 +32,7 @@ export function DateNavigator({
           <ChevronLeft size={18} />
         </button>
         <label>
-          {week
-            ? `${days[0].slice(5)} — ${days[6].slice(5)}`
-            : `${date.slice(0, 4)}年${Number(date.slice(5, 7))}月`}
+          {`${date.slice(0, 4)}年${Number(date.slice(5, 7))}月`}
           <input
             type="date"
             aria-label={label}
@@ -47,7 +43,7 @@ export function DateNavigator({
           />
         </label>
         <button className="text-button" onClick={() => onDate(today)}>
-          {week ? '本周' : '今天'}
+          今天
         </button>
         <button
           className="icon-button"
@@ -62,7 +58,7 @@ export function DateNavigator({
           <button
             key={value}
             aria-label={`查看 ${value} 的任务`}
-            aria-pressed={week || date === value}
+            aria-pressed={date === value}
             aria-current={today === value ? 'date' : undefined}
             onClick={() => onDate(value)}
           >

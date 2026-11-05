@@ -142,6 +142,10 @@ test('shared lanes preserve short-first course ordering and restore full width f
   });
   for (const width of [390, 1440]) {
     await page.setViewportSize({ width, height: 900 });
+    await expect(page.locator('[data-layout]')).toHaveAttribute(
+      'data-layout',
+      width < 700 ? 'phone' : 'desktop',
+    );
     const short = (await page
       .getByRole('button', { name: '编辑课程 短课', exact: true })
       .boundingBox())!;
