@@ -32,6 +32,7 @@
           "notes": { "type": "string", "maxLength": 50000 },
           "estimatedMinutes": { "nullable": true, "type": "number", "minimum": 0 },
           "actualMinutes": { "nullable": true, "type": "number", "minimum": 0 },
+          "effort": { "nullable": true, "type": "string", "enum": ["small", "medium", "large"] },
           "listId": { "type": "string", "minLength": 1, "maxLength": 100 },
           "due": { "nullable": true, "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
           "tags": {
@@ -381,6 +382,11 @@
                 "notes": { "type": "string", "maxLength": 50000 },
                 "estimatedMinutes": { "nullable": true, "type": "number", "minimum": 0 },
                 "actualMinutes": { "nullable": true, "type": "number", "minimum": 0 },
+                "effort": {
+                  "nullable": true,
+                  "type": "string",
+                  "enum": ["small", "medium", "large"]
+                },
                 "listId": { "type": "string", "minLength": 1, "maxLength": 100 },
                 "due": { "nullable": true, "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
                 "tags": {
@@ -1615,6 +1621,11 @@
                   "notes": { "type": "string", "maxLength": 50000 },
                   "estimatedMinutes": { "nullable": true, "type": "number", "minimum": 0 },
                   "actualMinutes": { "nullable": true, "type": "number", "minimum": 0 },
+                  "effort": {
+                    "nullable": true,
+                    "type": "string",
+                    "enum": ["small", "medium", "large"]
+                  },
                   "listId": { "type": "string", "minLength": 1, "maxLength": 100 },
                   "due": {
                     "nullable": true,
@@ -1722,6 +1733,11 @@
                   "notes": { "type": "string", "maxLength": 50000 },
                   "estimatedMinutes": { "nullable": true, "type": "number", "minimum": 0 },
                   "actualMinutes": { "nullable": true, "type": "number", "minimum": 0 },
+                  "effort": {
+                    "nullable": true,
+                    "type": "string",
+                    "enum": ["small", "medium", "large"]
+                  },
                   "listId": { "type": "string", "minLength": 1, "maxLength": 100 },
                   "due": {
                     "nullable": true,
@@ -2586,6 +2602,11 @@
                         "notes": { "type": "string", "maxLength": 50000 },
                         "estimatedMinutes": { "nullable": true, "type": "number", "minimum": 0 },
                         "actualMinutes": { "nullable": true, "type": "number", "minimum": 0 },
+                        "effort": {
+                          "nullable": true,
+                          "type": "string",
+                          "enum": ["small", "medium", "large"]
+                        },
                         "listId": { "type": "string", "minLength": 1, "maxLength": 100 },
                         "due": {
                           "nullable": true,

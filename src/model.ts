@@ -51,6 +51,8 @@ export const taskSchema = z
     notes: z.string().max(50000),
     estimatedMinutes: z.number().finite().nonnegative().nullable().optional(),
     actualMinutes: z.number().finite().nonnegative().nullable().optional(),
+    /** Manually chosen workload; when absent the size is derived from `estimatedMinutes`. */
+    effort: z.enum(['small', 'medium', 'large']).nullable().optional(),
     listId: idSchema,
     due: dateSchema.nullable(),
     tags: z.array(z.string().trim().min(1).max(40)).max(30),
@@ -216,11 +218,16 @@ export type View =
   | 'trash'
   | `list:${string}`
   | `tag:${string}`;
-/** Task size shown in lists, derived only from the estimate. */
-export function effortTier(minutes: number | null | undefined): '小' | '中' | '大' | null {
+export const effortLabels = { small: '小', medium: '中', large: '大' } as const;
+export type TaskEffort = keyof typeof effortLabels;
+/** Task workload: the manual choice, otherwise derived from the estimate (≤30 小, ≤120 中). */
+export function taskEffort(task: Pick<Task, 'effort' | 'estimatedMinutes'>): TaskEffort | null {
+  if (task.effort) return task.effort;
+  const minutes = task.estimatedMinutes;
   if (minutes == null || minutes <= 0) return null;
-  return minutes <= 30 ? '小' : minutes <= 120 ? '中' : '大';
+  return minutes <= 30 ? 'small' : minutes <= 120 ? 'medium' : 'large';
 }
+const effortRank = { small: 1, medium: 2, large: 3 } as const;
 export const colors = ['#326559', '#5274a3', '#ad6a48', '#9671a5', '#b18a32', '#bb6475'];
 export const uid = () => globalThis.crypto.randomUUID();
 export const now = () => new Date().toISOString();
@@ -466,6 +473,7 @@ export function toggleTask(state: AppState, id: string): AppState {
     spawned = newTask(task.title, {
       notes: task.notes,
       ...(task.estimatedMinutes === undefined ? {} : { estimatedMinutes: task.estimatedMinutes }),
+      ...(task.effort ? { effort: task.effort } : {}),
       listId: task.listId,
       due: nextRepeatDate(task),
       tags: [...task.tags],
@@ -531,8 +539,17 @@ export function selectTasks(
       if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
       if (sort === 'date' || view === 'upcoming')
         return (a.due ?? '9999').localeCompare(b.due ?? '9999') || a.order - b.order;
-      if (sort === 'effort')
-        return (b.estimatedMinutes ?? -1) - (a.estimatedMinutes ?? -1) || a.order - b.order;
+      if (sort === 'effort') {
+        const rank = (task: Task) => {
+          const effort = taskEffort(task);
+          return effort ? effortRank[effort] : 0;
+        };
+        return (
+          rank(b) - rank(a) ||
+          (b.estimatedMinutes ?? -1) - (a.estimatedMinutes ?? -1) ||
+          a.order - b.order
+        );
+      }
       return a.order - b.order;
     });
 }

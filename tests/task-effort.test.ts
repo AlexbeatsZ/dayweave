@@ -40,6 +40,18 @@ test('task effort is optional in legacy data and accepts separate nullable, nonn
   }
 });
 
+test('manual workload is optional, nullable and limited to small / medium / large', () => {
+  for (const value of ['small', 'medium', 'large', null]) {
+    assert.equal(taskInputSchema.parse({ title: '新任务', effort: value }).effort, value);
+    assert.equal(taskPatchSchema.parse({ effort: value }).effort, value);
+  }
+  for (const value of ['huge', 1, '小', true]) {
+    assert.equal(taskInputSchema.safeParse({ title: '新任务', effort: value }).success, false);
+    assert.equal(taskPatchSchema.safeParse({ effort: value }).success, false);
+  }
+  assert.equal('effort' in taskPatchSchema.parse({ title: '改名' }), false);
+});
+
 test('saved linked records are read-only reference minutes and never fill an empty actual value', () => {
   const state = emptyState();
   const task = newTask('样品分析', { id: 'analysis', actualMinutes: null });

@@ -66,6 +66,7 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Active Work
 
+- 2026-11-05 unreleased on main: task modal UI fix (9658060, pushed) and manual task `effort` (小/中/大). `effort` is a new strict-schema task field: deploy server (hub) first, then all clients, before anyone picks a manual workload. Not yet built/deployed.
 - 2026-11-05 follow-up: Pad/phone 0.4.15 not yet foreground after install; confirm 已连接 when next opened. OMEN app installed but closed. Phone and Pad use Clash (cn.meta.clashmobile) with 100.64.0.0/10 on its TAILNET outbound — keep it there (no Tailscale app; DIRECT breaks Sefirah and all tailnet access). Script goals (docs/goal-scripts.md) are deployed but no script goal exists yet; Android WebView QuickJS/CSP and the hub's first real script results are not yet verified on a device. Electron smoke-desktop opens a visible window that steals the user's focus on this Mac; prefer headless checks and CI. AI Decision subtask-splitting prompt not started (ai-decision repo).
 - Observe AI Decision's next natural04:30 manual-goal settlement and08:00 plan-group creation (UTC+8). APIs, read-only production snapshots and installation are verified; actual model-created groups/checks and the user's installed new UI are not yet accepted.
 - Phone/Pad foreground sync and new layout, Android background/cold boot, and physical gestures remain user acceptance. OMEN is installed0.4.12 but remains closed; it syncs when next opened. Do not reset existing conflict candidates or identities.

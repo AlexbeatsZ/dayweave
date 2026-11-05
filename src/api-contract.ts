@@ -8,6 +8,7 @@ export const taskInputSchema = taskSchema
     notes: true,
     estimatedMinutes: true,
     actualMinutes: true,
+    effort: true,
     listId: true,
     due: true,
     tags: true,

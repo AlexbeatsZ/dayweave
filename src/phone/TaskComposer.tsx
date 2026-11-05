@@ -2,14 +2,17 @@ import { useState, type CSSProperties, type FormEvent } from 'react';
 import { CalendarDays, ListChecks, Plus, Repeat2, Timer, Trash2, X } from 'lucide-react';
 import {
   dayPlanGroups,
+  effortLabels,
   formatTaskMinutes,
   newTask,
   taskPlanGroup,
   withTaskDay,
   recordedTaskMinutes,
   shiftDate,
+  taskEffort,
   uid,
   type Task,
+  type TaskEffort,
 } from '../model';
 import { store, useStore } from '../store';
 import { Modal } from '../components/Modal';
@@ -56,6 +59,11 @@ export function TaskComposer({
     task?.estimatedMinutes?.toString() ?? '',
   );
   const [actualMinutes, setActualMinutes] = useState(task?.actualMinutes?.toString() ?? '');
+  const [effort, setEffort] = useState<TaskEffort | ''>(task?.effort ?? '');
+  // "自动" shows the size the estimate currently gives.
+  const derivedEffort = taskEffort({
+    estimatedMinutes: estimatedMinutes.trim() === '' ? null : Number(estimatedMinutes),
+  });
   const recordedMinutes = task ? recordedTaskMinutes(data, task.id) : 0;
   const [busy, setBusy] = useState(false),
     [error, setError] = useState('');
@@ -74,6 +82,7 @@ export function TaskComposer({
         notes,
         estimatedMinutes: estimatedMinutes.trim() === '' ? null : Number(estimatedMinutes),
         actualMinutes: actualMinutes.trim() === '' ? null : Number(actualMinutes),
+        ...(effort ? { effort } : {}),
         ...(chosenGroup ? { planGroupId: chosenGroup } : {}),
         repeat: date ? repeat : 'none',
         tags: [
@@ -104,7 +113,9 @@ export function TaskComposer({
             tasks: state.tasks.map((item) =>
               item.id === task.id
                 ? {
-                    ...withTaskDay(item, date || null, chosenGroup || null),
+                    // Auto leaves no field, so unchanged tasks stay readable by older peers.
+                    ...withoutEffort(withTaskDay(item, date || null, chosenGroup || null)),
+                    ...(effort ? { effort } : {}),
                     title: created.title,
                     notes: created.notes,
                     estimatedMinutes: created.estimatedMinutes,
@@ -331,6 +342,23 @@ export function TaskComposer({
               <option value="monthly">每月</option>
             </select>
           </label>
+          <label>
+            <span className="phone-form-option-name">工作量</span>
+            <select
+              aria-label="工作量"
+              value={effort}
+              onChange={(e) => setEffort(e.target.value as TaskEffort | '')}
+            >
+              <option value="">
+                自动{derivedEffort ? `（${effortLabels[derivedEffort]}）` : ''}
+              </option>
+              {Object.entries(effortLabels).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
         <div className="task-effort-fields">
           <label className="form-label">
@@ -419,4 +447,9 @@ export function TaskComposer({
       )}
     </Modal>
   );
+}
+
+function withoutEffort(task: Task): Task {
+  const { effort: _effort, ...rest } = task;
+  return rest;
 }

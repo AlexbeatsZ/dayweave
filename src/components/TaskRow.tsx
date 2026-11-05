@@ -1,7 +1,8 @@
 import { RotateCcw, Pin, Trash2, Repeat2, ListChecks, GripVertical, Timer } from 'lucide-react';
 import {
   dateKey,
-  effortTier,
+  effortLabels,
+  taskEffort,
   formatDate,
   formatTaskMinutes,
   now,
@@ -28,6 +29,7 @@ export function TaskRow({ task, index, selected, onSelect, onDelete, onMove, onT
   const drag = useSortDrag(task.id, 'task', onMove, !sortable);
   const list = data.lists.find((l) => l.id === task.listId);
   const completed = task.subtasks.filter((s) => s.done).length;
+  const effort = taskEffort(task);
   return (
     <article
       ref={drag.ref}
@@ -103,14 +105,15 @@ export function TaskRow({ task, index, selected, onSelect, onDelete, onMove, onT
               </span>
             )}
             {task.repeat !== 'none' && <Repeat2 size={12} aria-label="重复任务" />}
-            {task.estimatedMinutes != null && (
+            {(effort || task.estimatedMinutes != null) && (
               <span className="task-effort-meta">
-                {effortTier(task.estimatedMinutes) && (
-                  <b className="effort-tier" title={`任务量：${effortTier(task.estimatedMinutes)}`}>
-                    {effortTier(task.estimatedMinutes)}
+                {effort && (
+                  <b className="effort-tier" title={`工作量：${effortLabels[effort]}`}>
+                    {effortLabels[effort]}
                   </b>
                 )}
-                预计 {formatTaskMinutes(task.estimatedMinutes)}
+                {task.estimatedMinutes != null &&
+                  `预计 ${formatTaskMinutes(task.estimatedMinutes)}`}
               </span>
             )}
             {task.actualMinutes != null && (

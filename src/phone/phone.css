@@ -611,6 +611,12 @@
   padding: 4px 8px;
   border-radius: 10px;
 }
+.phone-form-option-name {
+  flex-shrink: 0;
+  padding-left: 2px;
+  color: var(--muted);
+  font-size: 13px;
+}
 .phone-form-options select {
   border: 0;
   width: 100%;

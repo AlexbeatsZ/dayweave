@@ -178,6 +178,7 @@ export function scriptTasks(data: ScriptData, _period: ScriptPeriod, query: Task
       slot: (task.planGroupId && slots.get(task.planGroupId)) || null,
       estimatedMinutes: task.estimatedMinutes ?? null,
       actualMinutes: task.actualMinutes ?? null,
+      effort: task.effort ?? null,
       parentId: task.parentId,
       subtasks: task.subtasks.map(({ title, done }) => ({ title, done })),
       createdAt: Date.parse(task.createdAt),

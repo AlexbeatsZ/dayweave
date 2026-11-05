@@ -462,7 +462,7 @@ export function MobileApp() {
                 >
                   <option value="manual">手动排序</option>
                   <option value="date">按日期</option>
-                  <option value="effort">按任务量</option>
+                  <option value="effort">按工作量</option>
                 </select>
               </label>
             </div>

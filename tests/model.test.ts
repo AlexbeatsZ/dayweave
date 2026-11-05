@@ -9,7 +9,7 @@ import {
   mergeImport,
   newTask,
   nextRepeatDate,
-  effortTier,
+  taskEffort,
   selectTasks,
   shiftDate,
   stateSchema,
@@ -111,11 +111,39 @@ test('legacy priority and quadrant are dropped on load', () => {
   assert.equal('priority' in task, false);
   assert.equal('quadrant' in task, false);
 });
-test('task size tier comes only from the estimate', () => {
+test('task workload is the manual choice, otherwise derived from the estimate', () => {
   assert.deepEqual(
-    [null, 0, 20, 30, 31, 120, 121].map((minutes) => effortTier(minutes)),
-    [null, null, '小', '小', '中', '中', '大'],
+    [null, 0, 20, 30, 31, 120, 121].map((estimatedMinutes) => taskEffort({ estimatedMinutes })),
+    [null, null, 'small', 'small', 'medium', 'medium', 'large'],
   );
+  assert.equal(taskEffort({ effort: 'large', estimatedMinutes: 10 }), 'large');
+  assert.equal(taskEffort({ effort: 'small' }), 'small');
+  assert.equal(taskEffort({ effort: null, estimatedMinutes: 200 }), 'large');
+  const legacy = newTask('旧任务');
+  assert.equal('effort' in legacy, false);
+  assert.equal(stateSchema.safeParse({ ...emptyState(), tasks: [legacy] }).success, true);
+  assert.equal(newTask('X', { effort: 'medium' }).effort, 'medium');
+  assert.throws(() => newTask('X', { effort: 'huge' as never }));
+});
+test('workload sort ranks manual and derived sizes, then estimate, then manual order', () => {
+  const state = emptyState();
+  state.tasks = [
+    newTask('none', { order: 1 }),
+    newTask('derived-large', { estimatedMinutes: 200, order: 2 }),
+    newTask('manual-large', { effort: 'large', estimatedMinutes: 10, order: 3 }),
+    newTask('manual-small', { effort: 'small', order: 4 }),
+    newTask('derived-medium', { estimatedMinutes: 60, order: 5 }),
+  ];
+  assert.deepEqual(
+    selectTasks(state, 'all', '', 'effort').map((task) => task.title),
+    ['derived-large', 'manual-large', 'derived-medium', 'manual-small', 'none'],
+  );
+});
+test('a repeating task carries its manual workload into the next occurrence', () => {
+  const state = emptyState();
+  state.tasks = [newTask('周报', { due: '2026-11-02', repeat: 'weekly', effort: 'large' })];
+  const next = toggleTask(state, state.tasks[0].id).tasks.find((task) => !task.completedAt);
+  assert.equal(next?.effort, 'large');
 });
 test('import merges newer edits and tombstones without removing local tasks or settings', () => {
   const task = newTask('Original', { updatedAt: '2026-10-18T10:00:00.000Z' });

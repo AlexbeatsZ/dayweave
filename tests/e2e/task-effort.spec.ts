@@ -59,3 +59,39 @@ test('shared task form keeps estimated and actual minutes optional and shows sav
     '预计 0.5 分钟',
   );
 });
+
+test('workload can be chosen manually, overrides the estimate and returns to automatic', async ({
+  page,
+}) => {
+  const state = emptyState();
+  state.tasks = [newTask('写周报', { id: 'report', estimatedMinutes: 20 })];
+  await page.addInitScript((data) => {
+    if (!localStorage.getItem('dayweave.v1'))
+      localStorage.setItem('dayweave.v1', JSON.stringify(data));
+  }, state);
+  await page.goto('/');
+  await page.getByRole('tab', { name: /全部/ }).click();
+  const row = page.getByTestId('task-row');
+  await expect(row.locator('.effort-tier')).toHaveText('小');
+  await row.getByRole('button', { name: '编辑 写周报', exact: true }).click();
+  const edit = page.getByRole('dialog', { name: '编辑任务', exact: true });
+  const effort = edit.getByLabel('工作量', { exact: true });
+  await expect(effort).toHaveValue('');
+  await expect(effort.locator('option:checked')).toHaveText('自动（小）');
+  await effort.selectOption('large');
+  await edit.getByRole('button', { name: '保存任务', exact: true }).click();
+  await page.reload();
+  await page.getByRole('tab', { name: /全部/ }).click();
+  await expect(row.locator('.effort-tier')).toHaveText('大');
+  await expect(row).toContainText('预计 20 分钟');
+  await row.getByRole('button', { name: '编辑 写周报', exact: true }).click();
+  await expect(effort).toHaveValue('large');
+  await effort.selectOption('');
+  await edit.getByRole('button', { name: '保存任务', exact: true }).click();
+  await expect(row.locator('.effort-tier')).toHaveText('小');
+  expect(
+    await page.evaluate(
+      () => 'effort' in JSON.parse(localStorage.getItem('dayweave.v1')!).tasks[0],
+    ),
+  ).toBe(false);
+});
