@@ -10,10 +10,10 @@ import {
   describeRules,
   type Goal,
   type GoalTask,
+  scriptResult,
   type ScriptOutcome,
   type State,
 } from '../domain';
-import { outcomeOf, useScriptResults } from '../script-runner';
 import { useSortDrag } from '../../phone/useSortDrag';
 import '../../phone/sort.css';
 
@@ -26,7 +26,7 @@ function gapText(minutes: number) {
 function statusText(goal: Goal, status: Status, outcome?: ScriptOutcome) {
   if (goal.kind === 'script') {
     if (outcome?.error) return `脚本出错：${outcome.error}`;
-    if (!outcome) return '判定中…';
+    if (!outcome) return '等待同步中心判定';
     const verdict = status.settled
       ? status.met === null
         ? '无法判定'
@@ -91,32 +91,13 @@ export function Goals({
 }) {
   const active = useMemo(() => sortGoals(state.goals.filter((goal) => !goal.archived)), [state]);
   const previousKey = (goal: Goal) => shiftDay(date, -periodLength(goal));
-  // Script goals run in a worker; their results arrive asynchronously per period.
-  const scriptResult = useScriptResults(
-    active.flatMap((goal) =>
-      goal.kind === 'script'
-        ? [
-            { goal, key: date },
-            { goal, key: previousKey(goal) },
-          ]
-        : [],
-    ),
-  );
-  const outcome = (goal: Goal, key: string) =>
-    goal.kind === 'script' ? outcomeOf(scriptResult(goal, key)) : undefined;
   const now = Date.now();
   const cards = active.map((goal) => ({
     goal,
-    outcome: outcome(goal, date),
-    status: goalStatus(state, goal, date, now, tasks, outcome(goal, date)),
-    previous: goalStatus(
-      state,
-      goal,
-      previousKey(goal),
-      now,
-      tasks,
-      outcome(goal, previousKey(goal)),
-    ),
+    // Script results are computed by the sync hub and arrive with the synced state.
+    outcome: goal.kind === 'script' ? scriptResult(state, goal, date) : undefined,
+    status: goalStatus(state, goal, date, now, tasks),
+    previous: goalStatus(state, goal, previousKey(goal), now, tasks),
   }));
   const groups = [...new Set(active.map((goal) => goal.group ?? ''))];
   return (

@@ -8,6 +8,7 @@ import {
   finishTimer,
   goalStatus,
   parseGoalTarget,
+  scriptResult,
   goalStages,
   emptyRule,
   type RecordRule,
@@ -201,9 +202,17 @@ export async function handleApi(
             kind: goal.kind ?? 'time',
             periodKey: goalPeriodKey(goal, date),
             ...(goal.kind === undefined ? { progressMinutes: status.progress } : {}),
-            // Script results are computed on each device and never stored, so met stays null here.
+            // Script results come from the hub's distributed results; missing ones read as null.
             ...(goal.kind === 'script'
-              ? { scriptName: state.scripts?.find((row) => row.id === goal.scriptId)?.name ?? null }
+              ? (() => {
+                  const result = scriptResult(state, goal, date);
+                  return {
+                    scriptName:
+                      state.scripts?.find((row) => row.id === goal.scriptId)?.name ?? null,
+                    scriptNote: result?.note ?? null,
+                    scriptError: result?.error ?? null,
+                  };
+                })()
               : {}),
             progress: status.progress,
             target: status.target,

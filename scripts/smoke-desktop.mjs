@@ -52,9 +52,20 @@ try {
   await page.getByRole('combobox', { name: '判定方式' }).selectOption('script');
   await page.getByRole('button', { name: '新建脚本', exact: true }).click();
   await page.getByRole('button', { name: '试运行', exact: true }).click();
-  await expect(page.locator('.script-run')).toContainText('今天：未达成 · 已计时 0 分钟');
-  await page.getByRole('button', { name: '关闭对话框' }).last().click();
-  await page.getByRole('button', { name: '关闭对话框' }).last().click();
+  await expect(page.locator('.script-run')).toContainText(
+    '本机试运行（今天）：未达成 · 已计时 0 分钟',
+  );
+  await page.getByRole('button', { name: '保存', exact: true }).last().click();
+  // The script dialog is modal; the goal form is usable once it has saved and closed.
+  await expect(page.getByRole('dialog', { name: '新建脚本' })).toHaveCount(0);
+  await page.getByLabel('目标名称').fill('脚本目标');
+  await page.getByRole('button', { name: '保存', exact: true }).click();
+  // An unpaired desktop owns its results: the main-process judge computes them in QuickJS.
+  await expect(page.locator('.goal-card', { hasText: '脚本目标' })).toContainText(
+    '已计时 0 分钟',
+    { timeout: 15000 },
+  );
+  assert.ok((await readSavedState()).timelog.goalResults.length >= 56);
   await page.getByRole('button', { name: '待办', exact: true }).click();
   await page.getByRole('button', { name: '新建任务', exact: true }).click();
   await page.getByLabel('新任务标题').fill('桌面持久化检查');

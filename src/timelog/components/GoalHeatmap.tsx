@@ -9,10 +9,10 @@ import {
   sortGoals,
   type Goal,
   type GoalTask,
+  scriptResult,
   type ScriptOutcome,
   type State,
 } from '../domain';
-import { outcomeOf, useScriptResults } from '../script-runner';
 import { weekday } from '../../timezone';
 
 /** Daily goals show eight calendar weeks; weekly goals fourteen weeks. Seven cells per row. */
@@ -79,13 +79,6 @@ export function GoalHeatmaps({
       return { goal, keys };
     });
   }, [state, date]);
-  const scriptResult = useScriptResults(
-    layout.flatMap(({ goal, keys }) =>
-      goal.kind === 'script'
-        ? keys.filter((cell) => !cell.empty).map((cell) => ({ goal, key: cell.key }))
-        : [],
-    ),
-  );
   const now = Date.now();
   const rows = layout.map(({ goal, keys }) => {
     // Time goals only read matching records; filtering once keeps every cell cheap.
@@ -96,15 +89,15 @@ export function GoalHeatmaps({
     const cells = keys.map(({ key, empty }) => {
       if (empty) return { key, shade: null, current: false, label: empty };
       const outcome: ScriptOutcome | undefined =
-        goal.kind === 'script' ? outcomeOf(scriptResult(goal, key)) : undefined;
+        goal.kind === 'script' ? scriptResult(state, goal, key) : undefined;
       if (goal.kind === 'script' && (!outcome || outcome.error))
         return {
           key,
           shade: null,
           current: false,
-          label: `${key} ${outcome?.error ? `脚本出错：${outcome.error}` : '判定中'}`,
+          label: `${key} ${outcome?.error ? `脚本出错：${outcome.error}` : '等待同步中心判定'}`,
         };
-      const status = goalStatus(scoped, goal, key, now, tasks, outcome);
+      const status = goalStatus(scoped, goal, key, now, tasks);
       return {
         key,
         shade: goalShade(goal, status),

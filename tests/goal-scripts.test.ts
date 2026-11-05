@@ -1,17 +1,23 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { emptyState, newTask, type AppState } from '../src/model';
 import { fromDocument, isDocumentKey, toDocument } from '../src/sync/document';
 import {
+  goalResultId,
   goalStatus,
+  scriptBasis,
+  scriptResult,
   validateState,
   type Goal,
+  type GoalResult,
   type ScriptGoal,
   type State,
 } from '../src/timelog/domain';
 import {
   queryRange,
   scriptGoals,
+  scriptHost,
   scriptPeriod,
   scriptRecords,
   scriptSlots,
@@ -20,6 +26,7 @@ import {
   type ScriptData,
   type ScriptPeriod,
 } from '../src/timelog/script-api';
+import { LoadedScript } from '../src/timelog/script-engine';
 import {
   intersect,
   minutes,
@@ -136,31 +143,24 @@ const scriptGoal = (params: ScriptGoal['params'] = {}): ScriptGoal => ({
   scriptId: 's',
   params,
 });
-/** The same ctx the worker builds, wired straight to the data functions. */
-function context(state: AppState, events: UsageEvent[], period: ScriptPeriod, params: object) {
-  const source = data(state);
-  const logs: string[] = [];
-  return {
-    logs,
-    ctx: {
+async function runCode(code: string, state: AppState, events: UsageEvent[], values = {}) {
+  const script = await LoadedScript.load(code);
+  try {
+    const period = scriptPeriod({ period: 'day' }, DAY, at('12:00', '2026-11-04'));
+    return script.run(
       period,
-      params,
-      util: scriptUtil,
-      log: (...values: unknown[]) => logs.push(values.join(' ')),
-      records: async (query?: object) => scriptRecords(source, period, query),
-      tasks: async (query?: object) => scriptTasks(source, period, query),
-      slots: async (query?: object) => scriptSlots(source, period, query),
-      goals: async () => scriptGoals(source, period),
-      usage: async (query?: object) => scriptUsage(events, queryRange(query, period), query),
-    },
-  };
+      resolveParams(script.meta.params, values),
+      scriptHost(data(state), period, () => events),
+    );
+  } finally {
+    script.dispose();
+  }
 }
 async function runTemplate(file: string, state: AppState, events: UsageEvent[], values = {}) {
-  const module = await import(`../src/timelog/script-templates/${file}`);
-  const meta = scriptMeta(module);
-  const period = scriptPeriod({ period: 'day' }, DAY, at('12:00', '2026-11-04'));
-  const { ctx } = context(state, events, period, resolveParams(meta.params, values));
-  return scriptOutcome(await module.default(ctx));
+  const code = await readFile(`src/timelog/script-templates/${file}`, 'utf8');
+  const run = await runCode(code, state, events, values);
+  assert.equal(run.error, undefined);
+  return run.outcome!;
 }
 
 test('span helpers merge, intersect, subtract and count sessions', () => {
@@ -297,24 +297,78 @@ test('script exports and results are checked before use', () => {
   assert.throws(() => scriptOutcome(1), /返回/);
 });
 
-test('script goals only count a settled, error-free answer', () => {
+test('script goals only count a settled, error-free result computed from the current basis', () => {
   const state: State = fixture().timelog;
+  state.scripts = [{ id: 's', name: '示例', code: 'export default () => true', updatedAt: 2 }];
   const goal = scriptGoal();
+  state.goals = [goal];
   const ended = at('12:00', '2026-11-04');
-  assert.equal(goalStatus(state, goal, DAY, ended).met, null, 'not run yet');
+  assert.equal(goalStatus(state, goal, DAY, ended).met, null, 'not computed yet');
+  const result = (outcome: Partial<GoalResult>): GoalResult => ({
+    id: goalResultId(goal.id, DAY),
+    goalId: goal.id,
+    period: DAY,
+    met: true,
+    progress: 1,
+    note: '',
+    basis: scriptBasis(state, goal),
+    updatedAt: 1,
+    ...outcome,
+  });
+  state.goalResults = [result({})];
+  assert.equal(goalStatus(state, goal, DAY, ended).met, true);
+  assert.equal(goalStatus(state, goal, DAY, at('12:00')).met, null, 'running periods stay open');
+  state.goalResults = [result({ met: null, error: 'x' })];
+  assert.equal(goalStatus(state, goal, DAY, ended).met, null);
+  state.goalResults = [result({})];
   assert.equal(
-    goalStatus(state, goal, DAY, ended, [], { met: true, progress: 1, note: '' }).met,
-    true,
+    scriptResult(state, { ...goal, params: { limit: 3 } }, DAY),
+    undefined,
+    'new params',
   );
-  assert.equal(
-    goalStatus(state, goal, DAY, ended, [], { met: null, progress: 0, note: '', error: 'x' }).met,
-    null,
+  assert.ok(
+    scriptResult(state, { ...goal, name: '改名', order: 3, updatedAt: 9 }, DAY),
+    'renaming or reordering keeps the result',
   );
-  assert.equal(
-    goalStatus(state, goal, DAY, at('12:00'), [], { met: false, progress: 0, note: '' }).met,
-    null,
-    'running periods stay open',
+  state.scripts = [{ ...state.scripts[0], updatedAt: 3 }];
+  assert.equal(scriptResult(state, goal, DAY), undefined, 'edited script');
+});
+
+test('the QuickJS sandbox exposes only ctx and stops runaway scripts', async () => {
+  const state = fixture();
+  const run = (code: string) => runCode(code, state, []);
+  let result = await run(
+    'export default async (ctx) => ({ met: typeof fetch === "undefined" && typeof require === "undefined" && typeof process === "undefined", note: String((await ctx.records()).length) })',
   );
+  assert.deepEqual(result.outcome, { met: true, progress: 1, note: '4' });
+  await assert.rejects(
+    () => LoadedScript.load("import fs from 'node:fs'; export default () => true"),
+    /不能导入/,
+  );
+  await assert.rejects(() => LoadedScript.load('export const x = 1'), /export default/);
+  await assert.rejects(
+    () => LoadedScript.load('export default () => {'),
+    /SyntaxError|expecting|unexpected/i,
+  );
+  result = await run(
+    'export default async function judge(ctx) {\n  ctx.log("a", 1)\n  return ctx.nope.value\n}',
+  );
+  assert.match(result.error!, /第 3 行/);
+  assert.deepEqual(result.logs, ['a 1']);
+  result = await run(
+    'export default async (ctx) => { await ctx.records({ start: 0, end: 1e12 }) }',
+  );
+  assert.match(result.error!, /62/);
+  result = await run('export default () => new Promise(() => {})');
+  assert.match(result.error!, /一直没有返回/);
+  result = await run(
+    'export default (ctx) => ctx.util.minutes([{ start: 0, end: 600000 }]) === 10',
+  );
+  assert.equal(result.outcome?.met, true);
+  const started = Date.now();
+  result = await run('export default () => { while (true) {} }');
+  assert.match(result.error!, /运行超过 5 秒/);
+  assert.ok(Date.now() - started < 8000);
 });
 
 test('the script library and script goals validate and sync as their own documents', () => {

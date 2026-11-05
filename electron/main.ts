@@ -23,6 +23,7 @@ import { DesktopSync } from './sync.js';
 import { importFudan } from './fudan-import.js';
 import { UsageStore } from './usage-store.js';
 import { DesktopUsage } from './usage.js';
+import { startScriptJudge, type ScriptJudge } from './script-judge.js';
 
 app.setName('Dayweave');
 app.setPath(
@@ -45,6 +46,7 @@ let api: Awaited<ReturnType<typeof startApi>> | undefined;
 let apiError = '';
 let sync: DesktopSync | undefined;
 let usage: DesktopUsage | undefined;
+let judge: ScriptJudge | undefined;
 let syncError = '';
 const trayMode = process.argv.includes('--tray');
 let tray: Tray | undefined;
@@ -131,6 +133,7 @@ else {
     if ((!window || allowClose) && !shutdownComplete) {
       event.preventDefault();
       shutdown ??= (async () => {
+        await judge?.close();
         await sync?.close();
         await usage?.close();
         await api?.close();
@@ -357,6 +360,7 @@ else {
           process.platform === 'win32' ? 'work-review-agent.exe' : 'work-review-agent',
         ),
       ).initialize();
+      judge = startScriptJudge(service, sync, () => usage?.store);
     } catch (error) {
       syncError = (error as Error).message;
     }

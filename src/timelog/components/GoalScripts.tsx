@@ -13,7 +13,8 @@ import {
   type ScriptParam,
   type State,
 } from '../domain';
-import { inspectScript, testScript, type RunResult } from '../script-runner';
+import type { ScriptRun } from '../script-engine';
+import { inspectScript, testScript } from '../script-runner';
 import { scriptTemplates } from '../script-templates';
 import { normalizeParam, type ScriptMeta } from '../script-util';
 import { Dialog } from './Dialog';
@@ -215,9 +216,11 @@ function ScriptEditor({
 }) {
   const { data } = useStore();
   const [code, setCode] = useState(script?.code ?? initialCode ?? scriptTemplates[0].code);
-  const [name, setName] = useState(script?.name ?? '');
+  const [name, setName] = useState(
+    script?.name ?? (initialCode === undefined ? scriptTemplates[0].name : ''),
+  );
   const [error, setError] = useState('');
-  const [run, setRun] = useState<(RunResult & { meta?: ScriptMeta }) | 'running' | null>(null);
+  const [run, setRun] = useState<(ScriptRun & { meta?: ScriptMeta }) | 'running' | null>(null);
   const users = state.goals.filter(
     (goal) => goal.kind === 'script' && goal.scriptId === script?.id,
   );
@@ -325,7 +328,7 @@ function ScriptEditor({
           export default async function judge(ctx) 返回 true / false / null 或{' '}
           {'{ met, progress, note }'}
           。用 ctx.records、ctx.usage、ctx.tasks、ctx.slots、ctx.classes 读取数据，接口见
-          docs/goal-scripts.md。
+          docs/goal-scripts.md。保存后由同步中心统一计算并分发结果；试运行只用本机数据。
         </p>
         {run && (
           <section className="script-run" aria-live="polite">
@@ -335,7 +338,7 @@ function ScriptEditor({
               <p className="form-error">出错：{run.error}</p>
             ) : (
               <p>
-                今天：
+                本机试运行（今天）：
                 <strong>
                   {run.outcome?.met === true
                     ? '达成'

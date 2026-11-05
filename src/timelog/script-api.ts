@@ -4,7 +4,7 @@
  * tests share one implementation. Times are epoch milliseconds; spans are clipped to the
  * requested range, which defaults to the judged period.
  */
-import type { PlanGroup, Task, TaskList } from '../model.js';
+import type { AppState, PlanGroup, Task, TaskList } from '../model.js';
 import { courseOccurrences, type Schedule } from '../schedule.js';
 import { getDayStart, getTimeZone, wallTime } from '../timezone.js';
 import type { UsageEvent } from '../usage/domain.js';
@@ -16,6 +16,7 @@ import {
   goalRange,
   goalStatus,
   liveSpans,
+  RESULT_PERIODS,
   shiftDay,
   type Goal,
   type Span,
@@ -271,4 +272,59 @@ export function scriptUsage(events: UsageEvent[], range: Span, query: UsageQuery
       end: Math.min(event.end, range.end),
     }))
     .sort((a, b) => a.start - b.start);
+}
+
+/** Answers one script run's data calls; `usage` returns the raw events overlapping a range. */
+export function scriptHost(
+  data: ScriptData,
+  period: ScriptPeriod,
+  usage: (range: Span) => UsageEvent[],
+) {
+  return (method: string, query: unknown): unknown => {
+    const q = (query ?? {}) as never;
+    switch (method) {
+      case 'records':
+        return scriptRecords(data, period, q);
+      case 'activities':
+        return scriptActivities(data);
+      case 'tasks':
+        return scriptTasks(data, period, q);
+      case 'slots':
+        return scriptSlots(data, period, q);
+      case 'classes':
+        return scriptClasses(data, period, q);
+      case 'goals':
+        return scriptGoals(data, period);
+      case 'usage': {
+        const range = queryRange(q, period);
+        return scriptUsage(usage(range), range, q);
+      }
+      default:
+        throw new Error(`ctx.${method} 不存在`);
+    }
+  };
+}
+/** Period keys whose results are kept, oldest first and ending with the current period. */
+export function resultPeriods(goal: Pick<Goal, 'period'>, today: string) {
+  const last = goalPeriodKey(goal, today);
+  const step = goal.period === 'week' ? 7 : 1;
+  const count = RESULT_PERIODS[goal.period];
+  return Array.from({ length: count }, (_, index) => shiftDay(last, (index - count + 1) * step));
+}
+/** Changes whenever data a script can read changes (automatic records excluded). */
+export function dataStamp(state: Pick<AppState, 'timelog' | 'tasks' | 'planGroups' | 'schedule'>) {
+  let stamp = 0;
+  for (const row of state.timelog.records) stamp = Math.max(stamp, row.updatedAt);
+  for (const row of state.timelog.goals)
+    if (row.kind !== 'script') stamp = Math.max(stamp, row.updatedAt);
+  for (const row of state.tasks) stamp = Math.max(stamp, Date.parse(row.updatedAt));
+  for (const row of state.planGroups) stamp = Math.max(stamp, Date.parse(row.updatedAt));
+  return [
+    stamp,
+    state.timelog.records.length,
+    state.tasks.length,
+    state.planGroups.length,
+    state.timelog.timer?.id ?? '',
+    JSON.stringify(state.schedule).length,
+  ].join(':');
 }

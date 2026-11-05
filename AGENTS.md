@@ -64,7 +64,7 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Active Work
 
-- 2026-11-04 follow-up: Pad 0.4.14 has not been foreground since the hub fix (screen locked); confirm it shows 已连接 when next opened. OMEN app installed but closed. Phone and Pad use Clash (cn.meta.clashmobile) with 100.64.0.0/10 on its TAILNET outbound — keep it there (no Tailscale app; DIRECT breaks Sefirah and all tailnet access). Source after 0.4.14 (unreleased, user chose to deploy later in one batch): sync settings now show `上次失败：<error>` while a client is not connected. Goal stages are written in the target time (`8-16h`, `<1-3h`; no separate 阶段 field). Goals can be judged by a synced JavaScript script library (`kind: 'script'`, `timelog.scripts`, results per device and never stored; docs/goal-scripts.md). This adds a synced collection and goal kind: the hub must be upgraded (server bump) before or together with every client. AI Decision subtask-splitting prompt not started (ai-decision repo).
+- 2026-11-04 follow-up: Pad 0.4.14 has not been foreground since the hub fix (screen locked); confirm it shows 已连接 when next opened. OMEN app installed but closed. Phone and Pad use Clash (cn.meta.clashmobile) with 100.64.0.0/10 on its TAILNET outbound — keep it there (no Tailscale app; DIRECT breaks Sefirah and all tailnet access). Source after 0.4.14 (unreleased, user chose to deploy later in one batch): sync settings now show `上次失败：<error>` while a client is not connected. Goal stages are written in the target time (`8-16h`, `<1-3h`; no separate 阶段 field). Goals can be judged by a synced JavaScript script library (`kind: 'script'`, `timelog.scripts`); only the hub (or an unpaired desktop/server) runs scripts in QuickJS and distributes results as synced `timelog.goalResults`, other devices only edit scripts/params (docs/goal-scripts.md). This adds synced collections and a goal kind: the hub must be upgraded (server bump) before or together with every client. Server tests need Node 24 (not on this Mac); run them on OMEN or CI. Electron smoke-desktop opens a visible window that steals the user's focus on this Mac; prefer headless checks and CI. AI Decision subtask-splitting prompt not started (ai-decision repo).
 - Observe AI Decision's next natural04:30 manual-goal settlement and08:00 plan-group creation (UTC+8). APIs, read-only production snapshots and installation are verified; actual model-created groups/checks and the user's installed new UI are not yet accepted.
 - Phone/Pad foreground sync and new layout, Android background/cold boot, and physical gestures remain user acceptance. OMEN is installed0.4.12 but remains closed; it syncs when next opened. Do not reset existing conflict candidates or identities.
 - Mac native capture still needs the user's Accessibility/browser-capture/Automation approval; do not grant permissions or refresh system icon caches automatically. Historical Work Review observations do not prove the new collector is accepted.
@@ -120,7 +120,7 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Docs Index
 
-- docs/design/goal-scripts.md and docs/goal-scripts.md: goal script library, worker sandbox, `ctx` data interface, per-device results.
+- docs/design/goal-scripts.md and docs/goal-scripts.md: goal script library, QuickJS sandbox, `ctx` data interface, hub-computed results.
 
 - docs/design/server.md and server/README.md: independent Node server, profile/lifecycle/capture policy, local administration and offline migration/update.
 

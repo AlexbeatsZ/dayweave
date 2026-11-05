@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { test, expect, type Page } from '@playwright/test';
 import { emptyState } from '../../src/model';
+import { goalResultId, scriptBasis, type ScriptGoal } from '../../src/timelog/domain';
 import { setDayStart, setTimeZone, wallTime } from '../../src/timezone';
 
 const DAY = '2026-11-03';
@@ -42,6 +43,19 @@ async function seed(page: Page) {
       kind: 'script',
       scriptId: 'focus',
       params: { apps: ['bilibili'] },
+    },
+  ];
+  // The hub computes and distributes results; this device only displays them.
+  state.timelog.goalResults = [
+    {
+      id: goalResultId('focus-goal', DAY),
+      goalId: 'focus-goal',
+      period: DAY,
+      met: true,
+      progress: 0.8,
+      note: '中心计算的结果',
+      basis: scriptBasis(state.timelog, state.timelog.goals[0] as ScriptGoal),
+      updatedAt: 1,
     },
   ];
   const usage = [
@@ -110,14 +124,13 @@ async function seed(page: Page) {
   await page.getByRole('tab', { name: '目标', exact: true }).click();
 }
 
-test('a library script judges a goal in a sandboxed worker from records and automatic usage', async ({
+test('goal cards show hub results; the editor test-runs scripts in the QuickJS sandbox with local records and usage', async ({
   page,
 }) => {
   test.setTimeout(60000);
   await seed(page);
-  // Only the 09:30–09:36 bilibili use overlaps the 09:00–11:00 study record.
   const card = page.locator('.goal-card', { hasText: '专心学习' });
-  await expect(card).toContainText('学习时用无关软件 6 分钟 · 1 次');
+  await expect(card).toContainText('中心计算的结果');
   await expect(card).toContainText('学习时少用无关软件');
 
   await card.getByRole('button', { name: '编辑目标 专心学习' }).click();
@@ -129,25 +142,30 @@ test('a library script judges a goal in a sandboxed worker from records and auto
   await page.getByRole('button', { name: '编辑脚本', exact: true }).click();
   const code = page.locator('.script-code');
   const run = page.getByRole('button', { name: '试运行', exact: true });
+  // Only the 09:30–09:36 bilibili use overlaps the 09:00–11:00 study record.
+  await run.click();
+  await expect(page.locator('.script-run')).toContainText(
+    '本机试运行（今天）：达成 · 学习时用无关软件 6 分钟 · 1 次',
+  );
 
-  // The page CSP and the worker lockdown leave no network access.
+  // The sandbox has no network, module or host access beyond ctx.
   await code.fill(
     "export default async function judge() { await fetch('https://example.com'); return true }",
   );
   await run.click();
-  await expect(page.locator('.script-run')).toContainText('出错');
+  await expect(page.locator('.script-run')).toContainText('fetch');
   await code.fill('export default async function judge(ctx) {\n  return ctx.nope.value\n}');
   await run.click();
   await expect(page.locator('.script-run')).toContainText(/出错：.*第 2 行/);
   await code.fill('export default async function judge() { while (true) {} }');
   await run.click();
-  await expect(page.locator('.script-run')).toContainText('运行超过 10 秒，已停止', {
+  await expect(page.locator('.script-run')).toContainText('运行超过 5 秒，已停止', {
     timeout: 15000,
   });
   await code.fill(
     "export default async function judge(ctx) {\n  const tasks = await ctx.tasks()\n  ctx.log('tasks', tasks.length)\n  return { met: true, note: '自定义' }\n}",
   );
   await run.click();
-  await expect(page.locator('.script-run')).toContainText('今天：达成 · 自定义');
+  await expect(page.locator('.script-run')).toContainText('本机试运行（今天）：达成 · 自定义');
   await expect(page.locator('.script-run pre')).toHaveText('tasks 0');
 });

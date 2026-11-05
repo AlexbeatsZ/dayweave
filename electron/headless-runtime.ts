@@ -7,6 +7,7 @@ import { lockProfile } from './profile-lock.js';
 import { DesktopSync } from './sync.js';
 import { UsageStore } from './usage-store.js';
 import { DesktopUsage } from './usage.js';
+import { startScriptJudge, type ScriptJudge } from './script-judge.js';
 
 export { lockProfile };
 export function defaultProfile() {
@@ -37,6 +38,7 @@ export async function startHeadless(options: HeadlessOptions) {
   const service = new StateService(new FileStore(directory));
   const sync = new DesktopSync(service, directory, options.discovery ?? true);
   let usage: DesktopUsage | undefined;
+  let judge: ScriptJudge | undefined;
   let api: Awaited<ReturnType<typeof startApi>> | undefined;
   let closing = false;
   let shutdown: Promise<void> | undefined;
@@ -47,6 +49,7 @@ export async function startHeadless(options: HeadlessOptions) {
       // Do not release the profile if draining/closing fails: the caller exits nonzero,
       // and stale-lock recovery can then check that this process really ended.
       await api?.close();
+      await judge?.close();
       await sync.close();
       await usage?.close();
       service.dispose();
@@ -67,6 +70,7 @@ export async function startHeadless(options: HeadlessOptions) {
     );
     await usage.initialize(!options.server);
     if (options.enableHub) await sync.enableHub(options.initialHubPort);
+    judge = startScriptJudge(service, sync, () => usage?.store);
     api = await startApi(service, options.apiPort, () => sync, {
       ...(options.server
         ? {

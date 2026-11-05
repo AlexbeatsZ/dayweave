@@ -133,6 +133,35 @@ export type ScriptOutcome = {
   note: string;
   error?: string;
 };
+/**
+ * A script goal's result for one period. Only the sync hub (or an unpaired desktop) computes
+ * and writes these; every other device just displays them, so all devices agree.
+ */
+export type GoalResult = ScriptOutcome & {
+  /** `${goalId}@${period}` */
+  id: string;
+  goalId: string;
+  /** Period key: the day, or the week's Monday. */
+  period: string;
+  /** What the result was computed from (see scriptBasis); a mismatch means it is outdated. */
+  basis: string;
+  updatedAt: number;
+};
+/** Periods of results kept per goal: the span of the statistics heatmap. */
+export const RESULT_PERIODS = { day: 56, week: 14 } as const;
+export const goalResultId = (goalId: string, period: string) => `${goalId}@${period}`;
+/** Changes exactly when a script goal's result must be recomputed for every period. */
+export function scriptBasis(state: Pick<State, 'scripts'>, goal: ScriptGoal) {
+  const script = state.scripts?.find((row) => row.id === goal.scriptId);
+  return JSON.stringify([goal.scriptId, script?.updatedAt ?? null, goal.period, goal.params]);
+}
+/** The distributed result for this period, or undefined while the hub has not (re)computed it. */
+export function scriptResult(state: State, goal: ScriptGoal, key: string) {
+  const result = state.goalResults?.find(
+    (row) => row.id === goalResultId(goal.id, goalPeriodKey(goal, key)),
+  );
+  return result && result.basis === scriptBasis(state, goal) ? result : undefined;
+}
 export const MAX_SCRIPT_LENGTH = 200000;
 /** The task fields a task-bound goal reads; tasks live outside the timelog module. */
 export type GoalTask = {
@@ -147,6 +176,8 @@ export type State = {
   goals: Goal[];
   /** Goal script library; omitted while empty. */
   scripts?: GoalScript[];
+  /** Script goal results written by the hub; omitted while empty. */
+  goalResults?: GoalResult[];
   timer: Timer | null;
   conflictedTimers?: Timer[];
   settings: { weekStartsOn: 1; updatedAt: number; timerPresets?: number[] };
@@ -504,12 +535,11 @@ export function goalStatus(
   key: string,
   now = Date.now(),
   tasks: GoalTask[] = [],
-  /** Script goals only: the device's latest run for this period; missing means not yet run. */
-  outcome?: ScriptOutcome,
 ) {
   const settled = now >= goalRange(goal, key).end;
   let progress: number, target: number, within: boolean;
   if (goal.kind === 'script') {
+    const outcome = scriptResult(state, goal, key);
     progress = outcome && !outcome.error ? outcome.progress : 0;
     target = 1;
     within = outcome?.met === true;
@@ -969,6 +999,27 @@ export function validateState(value: unknown): State {
       };
     }),
   ).sort(byOrder);
+  const goalResults = unique(
+    list(root.goalResults ?? [], '目标结果', 20000, (value): GoalResult => {
+      const o = obj(value, '目标结果');
+      if (o.met !== true && o.met !== false && o.met !== null) throw new Error('目标结果无效。');
+      const goalId = id(o.goalId);
+      const period = str(o.period, '周期', 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(period)) throw new Error('目标结果周期错误。');
+      if (o.id !== goalResultId(goalId, period)) throw new Error('目标结果 ID 错误。');
+      return {
+        id: o.id,
+        goalId,
+        period,
+        met: o.met,
+        progress: num(o.progress, '进度', 0, 1),
+        note: str(o.note, '说明', 200),
+        ...(o.error === undefined ? {} : { error: str(o.error, '错误', 2000) }),
+        basis: str(o.basis, '计算依据', 20000),
+        updatedAt: num(o.updatedAt, '更新时间'),
+      };
+    }),
+  );
   const timer = root.timer === null ? null : parseTimer(root.timer);
   const conflictedTimers = unique(list(root.conflictedTimers ?? [], '同时计时', 100, parseTimer));
   if (conflictedTimers.some((item) => item.id === timer?.id)) throw new Error('计时 ID 重复。');
@@ -979,6 +1030,7 @@ export function validateState(value: unknown): State {
     records,
     goals,
     ...(scripts.length ? { scripts } : {}),
+    ...(goalResults.length ? { goalResults } : {}),
     timer,
     ...(conflictedTimers.length ? { conflictedTimers } : {}),
     settings: {
@@ -1043,6 +1095,7 @@ export function mergeBackup(local: State, incoming: State): State {
     records: mergeList(local.records, incoming.records),
     goals: mergeList(local.goals, incoming.goals),
     scripts: mergeList(local.scripts ?? [], incoming.scripts ?? []),
+    goalResults: mergeList(local.goalResults ?? [], incoming.goalResults ?? []),
     timer: null,
     settings:
       incoming.settings.updatedAt > local.settings.updatedAt ? incoming.settings : local.settings,
