@@ -61,10 +61,9 @@ try {
   await page.getByLabel('目标名称').fill('脚本目标');
   await page.getByRole('button', { name: '保存', exact: true }).click();
   // An unpaired desktop owns its results: the main-process judge computes them in QuickJS.
-  await expect(page.locator('.goal-card', { hasText: '脚本目标' })).toContainText(
-    '已计时 0 分钟',
-    { timeout: 15000 },
-  );
+  await expect(page.locator('.goal-card', { hasText: '脚本目标' })).toContainText('已计时 0 分钟', {
+    timeout: 15000,
+  });
   assert.ok((await readSavedState()).timelog.goalResults.length >= 56);
   await page.getByRole('button', { name: '待办', exact: true }).click();
   await page.getByRole('button', { name: '新建任务', exact: true }).click();
