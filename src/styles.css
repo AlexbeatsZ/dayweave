@@ -260,6 +260,16 @@ input[type='date'] {
   border-color: var(--task-color, var(--accent));
   color: var(--bg);
 }
+.task-check.repeating:not(.checked) {
+  border-color: transparent;
+}
+.task-check-cycle {
+  position: absolute;
+  width: 23px;
+  height: 23px;
+  inset: -1.5px;
+  pointer-events: none;
+}
 .task-row {
   border-left: 3px solid transparent;
 }
@@ -1231,19 +1241,6 @@ dialog::backdrop {
 .task-repeat-options {
   display: grid;
   gap: 10px;
-}
-.task-series {
-  border-bottom: 1px solid var(--line);
-}
-.task-series summary {
-  cursor: pointer;
-  padding: 16px 10px;
-}
-.task-series summary span {
-  display: block;
-  margin-top: 6px;
-  color: var(--muted);
-  font-size: 12px;
 }
 .task-history-note {
   display: block;

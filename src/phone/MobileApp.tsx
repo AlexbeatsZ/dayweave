@@ -14,9 +14,9 @@ import {
   X,
 } from 'lucide-react';
 import {
-  activeTask,
   finiteTaskDates,
-  taskPrefix,
+  repeatingTaskIds,
+  taskOverview,
   taskCompleted,
   taskDoneOn,
   dateKey,
@@ -111,13 +111,15 @@ export function MobileApp() {
         : view.startsWith('tag:')
           ? `#${view.slice(4)}`
           : titles[view] || '任务';
-  const tasks = selectTasks(
+  const repeating = repeatingTaskIds(data.tasks);
+  const selectedTasks = selectTasks(
     data,
     view === 'timetable' ? 'today' : view,
     '',
     sort,
     ['today', 'timetable'].includes(view) ? day : today,
   );
+  const tasks = view === 'all' ? taskOverview(selectedTasks, today, repeating) : selectedTasks;
   const doneForDay = (task: Task) =>
     view === 'today' && day < today ? taskDoneOn(task, day) : taskCompleted(task);
   const unfinished = tasks.filter((task) => !doneForDay(task));
@@ -170,9 +172,7 @@ export function MobileApp() {
     {
       id: 'all' as const,
       label: '总视图',
-      count: new Set(
-        live.filter((task) => activeTask(task, today)).map((task) => taskPrefix(task.id)),
-      ).size,
+      count: taskOverview(live, today, repeating).length,
     },
     {
       id: 'inbox' as const,
@@ -327,6 +327,7 @@ export function MobileApp() {
       <TaskRow
         key={`${task.id}:${rowDay ?? ''}`}
         task={task}
+        repeating={repeating.has(task.id)}
         day={rowDay}
         index={ordinal.get(task.id)}
         onMove={taskCompleted(task) ? undefined : moveTask}
@@ -527,28 +528,7 @@ export function MobileApp() {
                   )}
                 </div>
               ) : (
-                <>
-                  {view === 'all'
-                    ? [...new Set(tasks.map((task) => taskPrefix(task.id)))].map((prefix) => {
-                        const instances = tasks.filter((task) => taskPrefix(task.id) === prefix);
-                        const rule = data.repeatRules.find((item) => item.prefix === prefix);
-                        return instances.length > 1 || rule ? (
-                          <details className="task-series" key={prefix}>
-                            <summary>
-                              <strong>{rule?.template.title ?? instances[0].title}</strong>
-                              <span>
-                                {instances.length} 次安排 ·{' '}
-                                {instances.flatMap(finiteTaskDates).sort()[0]} 起
-                              </span>
-                            </summary>
-                            {instances.map((task) => row(task))}
-                          </details>
-                        ) : (
-                          row(instances[0])
-                        );
-                      })
-                    : tasks.filter((task) => !doneForDay(task)).map((task) => row(task))}
-                </>
+                tasks.filter((task) => !doneForDay(task)).map((task) => row(task))
               )
             ) : (
               <div className="phone-empty">

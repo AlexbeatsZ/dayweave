@@ -8,6 +8,7 @@ import {
   shiftDate,
   changeSubtask,
   type AppState,
+  type Task,
 } from '../../src/model';
 import { configureRepeat, generateRepeatedTasks } from '../../src/task-repeat';
 import { setTimeZone, setDayStart, businessDayStart } from '../../src/timezone';
@@ -249,7 +250,7 @@ for (const width of [390, 1440]) {
       await expect(row).toContainText('当日安排');
     });
 
-    test('overview folds instances by ID, history remains in its day, and offline instance editing keeps its template', async ({
+    test('overview shows one real repeating instance, history remains in its day, and offline instance editing keeps its template', async ({
       page,
     }) => {
       const today = dateKey();
@@ -266,10 +267,24 @@ for (const width of [390, 1440]) {
       );
       await seed(page, generated);
       await page.getByRole('tab', { name: /^总视图/ }).click();
-      await expect(page.locator('.task-series')).toHaveCount(1);
-      await expect(page.locator('[data-testid=task-row]:visible')).toHaveCount(1);
-      await page.locator('.task-series summary').click();
-      await expect(page.getByTestId('task-row')).toHaveCount(9);
+      await expect(page.locator('.task-series')).toHaveCount(0);
+      await expect(page.getByTestId('task-row')).toHaveCount(2);
+      await expect(page.getByTestId('task-row').filter({ hasText: '背单词' })).toHaveAttribute(
+        'data-task-id',
+        task.id,
+      );
+      const repeatingCheck = page.locator('.task-check.repeating');
+      const ordinaryCheck = page
+        .getByTestId('task-row')
+        .filter({ hasText: '同名但独立' })
+        .locator(':scope > .task-check');
+      expect(
+        await repeatingCheck.evaluate((node) => [node.clientWidth, node.clientHeight]),
+      ).toEqual(await ordinaryCheck.evaluate((node) => [node.clientWidth, node.clientHeight]));
+      await expect(repeatingCheck.locator('.task-check-cycle')).toBeVisible();
+      const output = path.resolve('.local/preview/task-system');
+      await mkdir(output, { recursive: true });
+      await page.screenshot({ path: `${output}/recurring-overview-${width}.png` });
       await page.getByRole('button', { name: '编辑 背单词', exact: true }).first().click();
       const form = page.getByRole('dialog', { name: '编辑任务', exact: true });
       await form.getByLabel('任务标题').fill('只改今天这一项');
@@ -280,11 +295,80 @@ for (const width of [390, 1440]) {
           () => JSON.parse(localStorage.getItem('dayweave.v1')!).repeatRules[0].template.title,
         ),
       ).toBe('背单词');
+      await page.getByRole('checkbox', { name: '完成 只改今天这一项', exact: true }).click();
+      await expect(page.getByTestId('task-row').filter({ hasText: '背单词' })).not.toHaveAttribute(
+        'data-task-id',
+        task.id,
+      );
+      await expect(page.getByTestId('task-row')).toHaveCount(2);
       await expect(page.getByRole('searchbox')).toHaveCount(0);
       await page.getByRole('tab', { name: /^日视图/ }).click();
       await page.getByLabel('待办日期', { exact: true }).fill(shiftDate(today, -1));
       await expect(page.getByTestId('task-row')).toHaveCount(1);
       await expect(page.getByTestId('task-row')).toContainText('历史的实验');
+    });
+
+    test('numeric series selection responds to rescheduling, parent/child completion and ending a finite series without generating tasks', async ({
+      page,
+    }) => {
+      const today = dateKey(),
+        yesterday = shiftDate(today, -1),
+        state = emptyState();
+      state.tasks = [
+        newTask('第十次', { id: 'repeat-10', dates: { [today]: null }, pinned: true, order: 0 }),
+        newTask('第二次', {
+          id: 'repeat-2',
+          dates: { [shiftDate(today, 3)]: null },
+          order: 20,
+          subtasks: [{ id: 'child', title: '本次内容', done: false }],
+        }),
+        newTask('昨天那次', { id: 'repeat-1', dates: { [yesterday]: null }, order: 30 }),
+        newTask('已经完成', {
+          id: 'repeat-0',
+          dates: { [today]: null },
+          completedAt: new Date().toISOString(),
+        }),
+        newTask('已删实例', {
+          id: 'repeat-3',
+          dates: { [today]: null },
+          deletedAt: new Date().toISOString(),
+        }),
+        newTask('只待定', { id: 'repeat-4', dates: { '∞': null } }),
+        newTask('无日期', { id: 'repeat-5' }),
+      ];
+      await seed(page, state);
+      await page.getByRole('tab', { name: /^总视图/ }).click();
+      const row = page.getByTestId('task-row');
+      await expect(row).toHaveCount(1);
+      await expect(row).toHaveAttribute('data-task-id', 'repeat-2');
+      await expect(page.getByRole('tab', { name: /^总视图/ })).toHaveText('总视图1');
+      await page.getByLabel('任务排序').selectOption('date');
+      await expect(row).toHaveAttribute('data-task-id', 'repeat-2');
+      await page.getByRole('tab', { name: /^日视图/ }).click();
+      await page.getByLabel('待办日期', { exact: true }).fill(yesterday);
+      await page.getByRole('button', { name: '编辑 昨天那次', exact: true }).click();
+      const editor = page.getByRole('dialog', { name: '编辑任务', exact: true });
+      await editor.getByRole('button', { name: '今天', exact: true }).click();
+      await editor.getByRole('button', { name: '保存任务', exact: true }).click();
+      await page.getByRole('tab', { name: /^总视图/ }).click();
+      await expect(row).toHaveAttribute('data-task-id', 'repeat-1');
+      await row.getByRole('checkbox', { name: '完成 昨天那次', exact: true }).click();
+      await expect(row).toHaveAttribute('data-task-id', 'repeat-2');
+      await row.getByRole('checkbox', { name: '子任务 本次内容', exact: true }).click();
+      await expect(row).toHaveAttribute('data-task-id', 'repeat-10');
+      await expect(row.locator(':scope > .task-check')).not.toHaveClass(/repeating/);
+      await expect(row.locator('.task-check-cycle')).toHaveCount(0);
+      await row.getByRole('checkbox', { name: '完成 第十次', exact: true }).click();
+      await expect(row).toHaveCount(0);
+      await expect(page.getByRole('tab', { name: /^总视图/ })).toHaveText('总视图');
+      const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('dayweave.v1')!));
+      expect(saved.tasks).toHaveLength(state.tasks.length);
+      expect(saved.repeatRules).toHaveLength(0);
+      expect(saved.tasks.find((task: Task) => task.id === 'repeat-1').history.at(-1).done).toBe(
+        true,
+      );
+      expect(saved.tasks.find((task: Task) => task.id === 'repeat-2').subtasks[0].done).toBe(true);
+      expect(saved.tasks.find((task: Task) => task.id === 'repeat-10').completedAt).toBeTruthy();
     });
   });
 }

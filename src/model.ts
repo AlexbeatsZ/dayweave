@@ -13,6 +13,8 @@ import {
 export {
   taskPrefix,
   taskSequence,
+  repeatingTaskIds,
+  taskOverview,
   finiteTaskDates,
   activeTask,
   changeSubtask,

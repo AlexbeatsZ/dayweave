@@ -10,6 +10,8 @@ import {
   stateSchema,
   taskPrefix,
   taskSequence,
+  repeatingTaskIds,
+  taskOverview,
   selectTasks,
   newPlanGroup,
   deletePlanGroup,
@@ -106,6 +108,97 @@ test('a copy has a new prefix, fresh children and retains the task’s independe
   assert.equal(copied.completedAt, null);
   assert.equal(copied.history.length, 0);
   assert.notEqual(copied.subtasks[0].id, original.subtasks[0].id);
+});
+
+test('overview advances through eligible instances in numeric ID order, including an older instance rescheduled to today', () => {
+  const state = emptyState();
+  state.tasks = [
+    newTask('同名任务', { id: 'series-10', dates: { [today]: null }, order: 0, pinned: true }),
+    newTask('同名任务', { id: 'series-2', dates: { '2026-11-09': null }, order: 20 }),
+    newTask('昨天没完成', { id: 'series-1', dates: { '2026-11-04': null } }),
+    newTask('已完成', {
+      id: 'series-0',
+      dates: { [today]: null },
+      completedAt: new Date(at).toISOString(),
+    }),
+    newTask('已删除', {
+      id: 'series-3',
+      dates: { [today]: null },
+      deletedAt: new Date(at).toISOString(),
+    }),
+    newTask('只待定的实例', { id: 'series-4', dates: { '∞': null } }),
+    newTask('无日期实例', { id: 'series-5' }),
+    newTask('同名任务', { id: 'independent-0', dates: { '∞': null }, order: 10 }),
+    newTask('同名任务', { id: 'another-0', dates: { [today]: null }, order: 30 }),
+  ];
+  const snapshot = structuredClone(state);
+  const visible = () =>
+    taskOverview(
+      selectTasks(state, 'all', '', 'date', today),
+      today,
+      repeatingTaskIds(state.tasks),
+    ).map((task) => task.id);
+  assert.deepEqual(visible(), ['another-0', 'series-2', 'independent-0']);
+  assert.deepEqual(state, snapshot);
+  state.tasks.find((task) => task.id === 'series-1')!.dates[today] = null;
+  assert.equal(visible().filter((id) => id.startsWith('series-'))[0], 'series-1');
+  state.tasks = toggleTask(state, 'series-1').tasks;
+  assert.equal(visible().filter((id) => id.startsWith('series-'))[0], 'series-2');
+  state.tasks = toggleTask(state, 'series-2').tasks;
+  assert.equal(visible().filter((id) => id.startsWith('series-'))[0], 'series-10');
+  state.tasks = toggleTask(state, 'series-10').tasks;
+  assert.deepEqual(visible(), ['another-0', 'independent-0']);
+  assert.equal(state.tasks.length, snapshot.tasks.length);
+  assert.equal(state.repeatRules.length, 0);
+});
+
+test('only a higher sequence in the same series marks a task as repeating, independently of repeat rules', () => {
+  let state = emptyState();
+  const first = newTask('第一项', { id: 'loop-0', dates: { '∞': null } });
+  state.tasks = [first];
+  state = configureRepeat(state, first, '0 4 * * *');
+  assert.deepEqual([...repeatingTaskIds(state.tasks)], []);
+  assert.deepEqual(taskOverview(state.tasks, today, repeatingTaskIds(state.tasks)), [first]);
+  const last = newTask('最后一项', { id: 'loop-2', dates: { [today]: null } });
+  state.tasks.push(last, newTask('同名任务', { id: 'independent-10', dates: { [today]: null } }));
+  state.repeatRules = [];
+  const repeating = repeatingTaskIds(state.tasks);
+  assert.deepEqual([...repeating], ['loop-0']);
+  assert.deepEqual(
+    taskOverview(state.tasks, today, repeating).map((task) => task.id),
+    ['loop-2', 'independent-10'],
+  );
+  first.dates[today] = null;
+  assert.deepEqual(
+    taskOverview(state.tasks, today, repeating).map((task) => task.id),
+    ['loop-0', 'independent-10'],
+  );
+  assert.deepEqual(
+    taskOverview(state.tasks, '2026-11-06', repeating).map((task) => task.id),
+    [],
+  );
+});
+
+test('thirty precreated instances without Cron end after the thirtieth completion', () => {
+  let state = emptyState();
+  state.tasks = Array.from({ length: 30 }, (_, index) =>
+    newTask('有限循环', {
+      id: `finite-${index}`,
+      dates: { [today]: null },
+      order: 30 - index,
+    }),
+  );
+  for (let index = 0; index < 30; index++) {
+    const repeating = repeatingTaskIds(state.tasks);
+    const visible = taskOverview(state.tasks, today, repeating);
+    assert.equal(visible.length, 1);
+    assert.equal(visible[0].id, `finite-${index}`);
+    assert.equal(repeating.has(visible[0].id), index < 29);
+    state = toggleTask(state, visible[0].id);
+  }
+  assert.deepEqual(taskOverview(state.tasks, today, repeatingTaskIds(state.tasks)), []);
+  assert.equal(state.tasks.length, 30);
+  assert.equal(state.repeatRules.length, 0);
 });
 
 test('multiple days keep independent slots and invalid/deleted slots lose only their reference', () => {

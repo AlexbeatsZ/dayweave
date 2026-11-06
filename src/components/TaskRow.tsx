@@ -1,4 +1,4 @@
-import { RotateCcw, Pin, Trash2, Repeat2, ListChecks, GripVertical, Timer } from 'lucide-react';
+import { RotateCcw, Pin, Trash2, ListChecks, GripVertical, Timer } from 'lucide-react';
 import {
   dateKey,
   difficultyLabels,
@@ -6,7 +6,6 @@ import {
   changeSubtask,
   taskDaySubtasks,
   subtaskDay,
-  taskPrefix,
   taskDoneOn,
   taskCompletedOnDay,
   formatDate,
@@ -24,6 +23,7 @@ import '../phone/sort.css';
 
 type Props = {
   task: Task;
+  repeating: boolean;
   day?: string;
   index?: number;
   selected: boolean;
@@ -34,6 +34,7 @@ type Props = {
 };
 export function TaskRow({
   task,
+  repeating,
   day,
   index,
   selected,
@@ -68,7 +69,6 @@ export function TaskRow({
         .filter((row) => row.spans.length)
     : [];
   const shownDone = historical ? taskDoneOn(task, day!) : taskCompleted(task);
-  const rule = data.repeatRules.find((row) => row.prefix === taskPrefix(task.id));
   return (
     <article
       ref={drag.ref}
@@ -107,6 +107,7 @@ export function TaskRow({
       ) : (
         <TaskCheck
           checked={shownDone}
+          repeating={repeating}
           label={`完成 ${task.title}`}
           ordinal={index ?? 1}
           disabled={historical}
@@ -131,7 +132,6 @@ export function TaskRow({
               {list?.id === 'inbox' ? '未分组' : list?.name}
             </span>
             <span>{taskDateLabel(task, formatDate)}</span>
-            {rule && <Repeat2 size={12} aria-label="重复任务" />}
             {task.difficulty !== 'easy' && (
               <b className="difficulty-tier">{difficultyLabels[task.difficulty]}</b>
             )}

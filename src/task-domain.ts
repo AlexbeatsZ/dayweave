@@ -11,6 +11,37 @@ export const activeTask = (task: Task, today: string) =>
   !task.deletedAt &&
   !taskCompleted(task) &&
   ('∞' in task.dates || finiteTaskDates(task).some((date) => date >= today));
+
+/** A task repeats precisely when its ID has a higher-numbered sibling. */
+export function repeatingTaskIds(tasks: readonly Task[]) {
+  const last = new Map<string, number>();
+  for (const task of tasks) {
+    const prefix = taskPrefix(task.id);
+    last.set(prefix, Math.max(last.get(prefix) ?? 0, taskSequence(task.id)));
+  }
+  return new Set(
+    tasks
+      .filter((task) => taskSequence(task.id) < last.get(taskPrefix(task.id))!)
+      .map((task) => task.id),
+  );
+}
+
+/** Keep one actual, eligible instance per series, then retain the caller's display order. */
+export function taskOverview(
+  tasks: readonly Task[],
+  today: string,
+  repeating: ReadonlySet<string>,
+) {
+  const first = new Map<string, Task>();
+  for (const task of tasks) {
+    if (!activeTask(task, today)) continue;
+    const prefix = taskPrefix(task.id);
+    if (repeating.has(task.id) && !finiteTaskDates(task).some((date) => date >= today)) continue;
+    const previous = first.get(prefix);
+    if (!previous || taskSequence(task.id) < taskSequence(previous.id)) first.set(prefix, task);
+  }
+  return tasks.filter((task) => first.get(taskPrefix(task.id)) === task);
+}
 export const liveSubtasks = (task: Task) => task.subtasks.filter((row) => !row.deletedAt);
 export const taskCompleted = (task: Pick<Task, 'completedAt' | 'subtasks'>) =>
   !!task.completedAt ||
