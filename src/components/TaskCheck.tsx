@@ -1,4 +1,4 @@
-import { Check, RotateCw } from 'lucide-react';
+import { Check } from 'lucide-react';
 
 /** The same completion control for tasks, inline subtasks and editor drafts. */
 export function TaskCheck({
@@ -30,15 +30,25 @@ export function TaskCheck({
         <Check size={13} strokeWidth={3} />
       ) : (
         <>
-          {repeating && (
-            <RotateCw
-              className="task-check-cycle"
-              size={23}
-              viewBox="2.25 2.25 19.5 19.5"
-              strokeWidth={1.25}
-              aria-hidden
-            />
-          )}
+          {/* Share SVG geometry so CSS border rounding cannot change the apparent line weight. */}
+          <svg
+            className={`task-check-ring ${repeating ? 'task-check-cycle' : ''}`}
+            width="23"
+            height="23"
+            viewBox="0 0 23 23"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
+            {repeating ? (
+              <path d="M22.25 11.5a10.75 10.75 0 1 1-1.44-5.375M20.81 1.625v4.5h-4.5" />
+            ) : (
+              <circle cx="11.5" cy="11.5" r="10.75" />
+            )}
+          </svg>
           {ordinal}
         </>
       )}

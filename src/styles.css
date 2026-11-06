@@ -232,7 +232,7 @@ input[type='date'] {
 .task-check {
   width: 23px;
   height: 23px;
-  border: 1.5px solid var(--task-color, var(--accent));
+  border: 0;
   border-radius: 50%;
   flex-shrink: 0;
   display: inline-flex;
@@ -257,17 +257,13 @@ input[type='date'] {
 }
 .task-check.checked {
   background: var(--task-color, var(--accent));
-  border-color: var(--task-color, var(--accent));
   color: var(--bg);
 }
-.task-check.repeating:not(.checked) {
-  border-color: transparent;
-}
-.task-check-cycle {
+.task-check-ring {
   position: absolute;
   width: 23px;
   height: 23px;
-  inset: -1.5px;
+  inset: 0;
   pointer-events: none;
 }
 .task-row {
@@ -1111,7 +1107,6 @@ dialog::backdrop {
 }
 .task-row.done .task-check.checked {
   background: #707075;
-  border-color: #707075;
   color: var(--bg);
 }
 

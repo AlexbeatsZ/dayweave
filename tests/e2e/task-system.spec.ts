@@ -278,13 +278,33 @@ for (const width of [390, 1440]) {
         .getByTestId('task-row')
         .filter({ hasText: '同名但独立' })
         .locator(':scope > .task-check');
-      expect(
-        await repeatingCheck.evaluate((node) => [node.clientWidth, node.clientHeight]),
-      ).toEqual(await ordinaryCheck.evaluate((node) => [node.clientWidth, node.clientHeight]));
+      const outline = (node: Element) => {
+        const ring = node.querySelector('.task-check-ring')!;
+        const css = getComputedStyle(ring);
+        const bounds = ring.getBoundingClientRect();
+        return [bounds.width, bounds.height, css.strokeWidth, css.stroke];
+      };
+      expect(await repeatingCheck.evaluate(outline)).toEqual([
+        23,
+        23,
+        '1.5px',
+        'rgb(118, 185, 237)',
+      ]);
+      expect(await ordinaryCheck.evaluate(outline)).toEqual(await repeatingCheck.evaluate(outline));
       await expect(repeatingCheck.locator('.task-check-cycle')).toBeVisible();
       const output = path.resolve('.local/preview/task-system');
       await mkdir(output, { recursive: true });
       await page.screenshot({ path: `${output}/recurring-overview-${width}.png` });
+      await page.evaluate(() => (document.documentElement.dataset.theme = 'light'));
+      expect(await repeatingCheck.evaluate(outline)).toEqual([
+        23,
+        23,
+        '1.5px',
+        'rgb(40, 108, 158)',
+      ]);
+      expect(await ordinaryCheck.evaluate(outline)).toEqual(await repeatingCheck.evaluate(outline));
+      await page.screenshot({ path: `${output}/recurring-overview-light-${width}.png` });
+      await page.evaluate(() => (document.documentElement.dataset.theme = 'dark'));
       await page.getByRole('button', { name: '编辑 背单词', exact: true }).first().click();
       const form = page.getByRole('dialog', { name: '编辑任务', exact: true });
       await form.getByLabel('任务标题').fill('只改今天这一项');

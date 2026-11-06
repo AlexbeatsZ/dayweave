@@ -234,7 +234,10 @@ export function TaskComposer({
         <div
           className="phone-subtasks"
           style={
-            { '--task-color': data.lists.find((item) => item.id === list)?.color } as CSSProperties
+            {
+              '--task-color':
+                list === 'inbox' ? undefined : data.lists.find((item) => item.id === list)?.color,
+            } as CSSProperties
           }
         >
           {subtasks

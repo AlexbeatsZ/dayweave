@@ -77,7 +77,9 @@ export function TaskRow({
       data-task-id={task.id}
       data-sort-id={sortable ? task.id : undefined}
       data-sort-group={sortable ? 'task' : undefined}
-      style={{ '--task-color': list?.color ?? '#7e8b8b' } as React.CSSProperties}
+      style={
+        { '--task-color': list?.id === 'inbox' ? undefined : list?.color } as React.CSSProperties
+      }
       onClickCapture={drag.onClickCapture}
       draggable={!task.deletedAt && !onTrack}
       onDragStart={(event) => {

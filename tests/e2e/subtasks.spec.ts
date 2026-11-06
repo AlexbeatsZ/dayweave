@@ -14,7 +14,7 @@ async function sameCheckStyle(main: Locator, child: Locator) {
       width: css.width,
       height: css.height,
       radius: css.borderRadius,
-      color: css.borderColor,
+      color: element.getAttribute('aria-checked') === 'true' ? css.backgroundColor : css.color,
     };
   };
   const regular = await main.evaluate(geometry);
@@ -38,7 +38,7 @@ for (const phone of [true, false]) {
       setTimeZone('Asia/Shanghai');
       const state = emptyState();
       state.settings.theme = 'dark';
-      state.lists.push({ id: 'study-list', name: '学习', color: '#76b9ed', order: 1 });
+      state.lists.push({ id: 'study-list', name: '学习', color: '#c47d9c', order: 1 });
       state.tasks = [
         newTask(title, {
           id: 'parent',
@@ -85,6 +85,7 @@ for (const phone of [true, false]) {
       await expect(child).toBeVisible();
       await expect(parent.locator('.task-subtask')).toHaveCount(3);
       await sameCheckStyle(main, child);
+      await expect(main).toHaveCSS('color', 'rgb(196, 125, 156)');
       await expect(main).toHaveText('1');
       await expect(row(page, 'second').locator(':scope > .task-check')).toHaveText('2');
       await expect(parent.locator('.task-meta')).toContainText('1/3');
