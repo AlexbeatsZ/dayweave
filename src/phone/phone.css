@@ -265,7 +265,7 @@
   max-width: 110px;
 }
 .phone-tasks .task-row {
-  padding: 15px 0;
+  padding: 15px 0 15px 8px;
   min-height: 74px;
   gap: 11px;
   border-bottom: 1px solid var(--line);

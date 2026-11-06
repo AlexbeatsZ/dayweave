@@ -255,14 +255,14 @@ for (const width of [390, 1440]) {
     }) => {
       const today = dateKey();
       const state = emptyState();
-      const task = newTask('背单词', { dates: { [today]: null } });
+      const task = newTask('背单词', { dates: { [today]: null }, difficulty: 'hard' });
       state.tasks = [task];
       const generated = generateRepeatedTasks(
         configureRepeat(state, task, '0 4 * * *'),
         shiftDate(today, 7),
       );
       generated.tasks.push(
-        newTask('同名但独立', { dates: { '∞': null } }),
+        newTask('同名但独立', { dates: { '∞': null }, difficulty: 'medium' }),
         newTask('历史的实验', { dates: { [shiftDate(today, -1)]: null } }),
       );
       await seed(page, generated);
@@ -295,6 +295,10 @@ for (const width of [390, 1440]) {
       const output = path.resolve('.local/preview/task-system');
       await mkdir(output, { recursive: true });
       await page.screenshot({ path: `${output}/recurring-overview-${width}.png` });
+      await page
+        .getByTestId('task-row')
+        .first()
+        .screenshot({ path: `${output}/difficulty-spacing-${width}.png` });
       await page.evaluate(() => (document.documentElement.dataset.theme = 'light'));
       expect(await repeatingCheck.evaluate(outline)).toEqual([
         23,
