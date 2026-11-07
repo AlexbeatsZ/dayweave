@@ -9,9 +9,9 @@ type Gesture = {
   pointerId: number | null;
   touchId: number | null;
   active: boolean;
-  /** Moved past the 9px threshold after lifting, i.e. an actual drag. */
+  /** Moved enough to drag, rather than just holding still. */
   moved: boolean;
-  hold: ReturnType<typeof setTimeout>;
+  hold?: ReturnType<typeof setTimeout>;
   frame?: number;
   ghost?: HTMLElement;
   overlay?: HTMLElement;
@@ -43,7 +43,8 @@ function overlayFor(row: HTMLElement) {
 }
 
 /**
- * Long-press drag ordering shared by tasks, activities and goals. The sortable element
+ * Drag ordering shared by tasks, activities and goals. Mouse/pen movement starts the drag;
+ * touch waits for a stationary hold. The sortable element
  * carries `data-sort-id` and `data-sort-group`; only elements of the same group are targets.
  * Gestures may start on plain content or on a control marked `data-sort-handle`.
  * Touch moves stay native until the stationary hold succeeds. In particular, do not
@@ -190,7 +191,7 @@ export function useSortDrag(id: string, group: string, onMove?: Move, disabled =
         touchId,
         active: false,
         moved: false,
-        hold: setTimeout(activate, SORT_HOLD_MS),
+        hold: touchId !== null ? setTimeout(activate, SORT_HOLD_MS) : undefined,
         offsetX: 0,
         offsetY: 0,
       };
@@ -209,12 +210,19 @@ export function useSortDrag(id: string, group: string, onMove?: Move, disabled =
       if (!current) return;
       current.x = x;
       current.y = y;
+      const distance = Math.hypot(x - current.startX, y - current.startY);
       if (!current.active) {
-        if (Math.hypot(x - current.startX, y - current.startY) > 9) stop();
+        if (current.touchId !== null) {
+          if (distance > 9) stop();
+        } else if (distance >= 5) {
+          if (event.cancelable) event.preventDefault();
+          current.moved = true;
+          activate();
+        }
         return;
       }
       if (event.cancelable) event.preventDefault();
-      if (Math.hypot(x - current.startX, y - current.startY) > 9) current.moved = true;
+      if (distance > 9) current.moved = true;
       updateGhost(current);
     }
 
@@ -263,19 +271,24 @@ export function useSortDrag(id: string, group: string, onMove?: Move, disabled =
     function contextMenu(event: Event) {
       if (gesture) event.preventDefault();
     }
+    function nativeDragStart(event: DragEvent) {
+      // Text, links and images must not replace the shared pointer gesture with a
+      // browser drag session, which otherwise stops delivering pointer events.
+      event.preventDefault();
+    }
     function visibilityChange() {
       if (document.hidden) stop();
     }
     row.addEventListener('pointerdown', pointerStart);
     row.addEventListener('touchstart', touchStart, { passive: true });
     row.addEventListener('contextmenu', contextMenu);
-    row.addEventListener('dragstart', blur);
+    row.addEventListener('dragstart', nativeDragStart);
     return () => {
       stop();
       row.removeEventListener('pointerdown', pointerStart);
       row.removeEventListener('touchstart', touchStart);
       row.removeEventListener('contextmenu', contextMenu);
-      row.removeEventListener('dragstart', blur);
+      row.removeEventListener('dragstart', nativeDragStart);
       cancel.current = () => {};
     };
   }, [id, group, disabled, !!onMove]);

@@ -24,7 +24,7 @@
 - **父子完成与历史**：子任务有独立的完成/撤销记录，父子状态关联；查看历史日期时保留当日发生的完成事实。
 - **重复任务**：既支持提前创建有限个连续编号的实例，也支持由同步中心按五字段 **Cron** 规则生成未来实例。总视图仅投影符合条件的当前实例，不将整条重复链展开成一大串任务。不会因为删除实例自动重造历史任务。
 
-任务体系与数据迁移的精确定义见 [任务设计](docs/design/task-system.md)。当前本地源码准备 **0.5.3** 的循环任务外观更新；**已确认交付的客户端基线为 0.5.2 / 同步中心 0.2.1**，不要仅凭源码版本认定某设备已经安装新版。
+任务体系与数据迁移的精确定义见 [任务设计](docs/design/task-system.md)。当前本地源码准备 **0.5.4** 的桌面拖动交互更新；**已确认交付的客户端基线为 0.5.3 / 同步中心 0.2.1**，不要仅凭源码版本认定某设备已经安装新版。
 
 ### 2. 记录：计时、时间线与目标
 
@@ -58,12 +58,12 @@
 
 从 [Releases](https://github.com/AlexbeatsZ/dayweave/releases) 下载与平台匹配的**实际已发布**资产：
 
-| 平台 | 交付形式 | 安装或使用 |
-| --- | --- | --- |
-| Windows x64 | 便携 EXE / 安装程序（依 Release 资产） | 运行 EXE；安装版按向导安装 |
-| macOS Apple Silicon / Intel | DMG / ZIP | 将 `Dayweave.app` 放入 Applications |
-| Android | APK | 安装并打开应用；组件由系统的小组件选择器添加 |
-| 同步中心 | 独立 `Dayweave-Server` 包 | 解压后使用外部 Node.js 运行，不需要 Electron |
+| 平台                         | 交付形式                               | 安装或使用                                   |
+| ---------------------------- | -------------------------------------- | -------------------------------------------- |
+| Windows x64                  | 便携 EXE / 安装程序（依 Release 资产） | 运行 EXE；安装版按向导安装                   |
+| macOS Apple Silicon（arm64） | DMG / ZIP                              | 将 `Dayweave.app` 放入 Applications          |
+| Android                      | APK                                    | 安装并打开应用；组件由系统的小组件选择器添加 |
+| 同步中心                     | 独立 `Dayweave-Server` 包              | 解压后使用外部 Node.js 运行，不需要 Electron |
 
 macOS 公开包的签名/公证状态与 Windows 可执行文件签名可能影响首次启动提示，以各 Release 说明为准。升级前建议使用应用内备份功能；多设备同时升级任务协议应参照 [服务器升级说明](server/README.md)。
 
@@ -132,7 +132,7 @@ npm run test:api
 
 npm run build:collector    # 本机采集器（桌面发布前）
 npm run dist:win           # Windows 打包（Windows 环境）
-npm run dist:mac           # macOS 打包（macOS 环境）
+npm run dist:mac           # macOS arm64 打包（Apple Silicon Mac）
 npm run dist:android       # Android 包（需 SDK/JDK）
 ```
 
@@ -140,16 +140,16 @@ npm run dist:android       # Android 包（需 SDK/JDK）
 
 ## 仓库结构与许可
 
-| 路径 | 职责 |
-| --- | --- |
-| `src/` | 任务、计时、目标、课程、同步与共用 UI |
-| `electron/` | 桌面宿主、托盘、本机接口 |
-| `android/` | Android 原生应用与小组件 |
-| `native/collector/` | Rust 桌面采集器 |
-| `server/` | 独立 Server、配置与维护工具 |
-| `scripts/` | 开发、打包、API 工具与迁移脚本 |
-| `assets/icons/` | **现行时织品牌图标原始素材** |
-| `docs/` | 设计、OpenAPI、验证与发布历史 |
+| 路径                | 职责                                  |
+| ------------------- | ------------------------------------- |
+| `src/`              | 任务、计时、目标、课程、同步与共用 UI |
+| `electron/`         | 桌面宿主、托盘、本机接口              |
+| `android/`          | Android 原生应用与小组件              |
+| `native/collector/` | Rust 桌面采集器                       |
+| `server/`           | 独立 Server、配置与维护工具           |
+| `scripts/`          | 开发、打包、API 工具与迁移脚本        |
+| `assets/icons/`     | **现行时织品牌图标原始素材**          |
+| `docs/`             | 设计、OpenAPI、验证与发布历史         |
 
 本页使用当前的 macOS 时织图标；Windows 由[原始图标](assets/icons/Shizhi_Windows_256.png)生成平台资源，Android 使用同系列矢量资源。旧版 Clearlist 图标不应再作为项目图标。
 

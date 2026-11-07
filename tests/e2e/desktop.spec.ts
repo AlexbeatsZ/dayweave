@@ -276,20 +276,27 @@ test('crossing the desktop breakpoint preserves active timer, task draft and sel
   await expect(page.getByRole('dialog')).toHaveCount(1);
 });
 
-test('mouse long press reorders visible task priority numbers and completion sinks in daily plans', async ({
+test('mouse drags task text immediately without selecting it; order and completion persist', async ({
   page,
 }) => {
   await seed(page);
   const rows = page.locator('.phone-content .task-row');
   await expect(rows.locator('.task-check')).toHaveText(['1', '2', '3']);
-  const first = (await rows.first().locator('.task-body').boundingBox())!,
+  const first = (await rows.first().locator('.task-title').boundingBox())!,
     last = (await rows.nth(2).locator('.task-body').boundingBox())!;
-  await page.mouse.move(first.x + first.width / 2, first.y + first.height / 2);
+  await page.mouse.move(first.x + 30, first.y + first.height / 2);
   await page.mouse.down();
-  await page.waitForTimeout(500);
-  await expect(page.locator('.sort-ghost')).toBeVisible();
-  await page.mouse.move(last.x + last.width / 2, last.y + last.height / 2 + 3, { steps: 8 });
+  await page.mouse.move(first.x + 36, first.y + first.height / 2);
+  // No hold or retrying assertion: the mouse must lift as soon as it moves 6px.
+  expect(await page.locator('.sort-ghost').count()).toBe(1);
+  expect(await page.evaluate(() => window.getSelection()?.toString())).toBe('');
+  await page.mouse.move(last.x + 30, last.y + last.height / 2 + 3, { steps: 8 });
+  const previews = path.resolve('.local/preview/mouse-drag');
+  await mkdir(previews, { recursive: true });
+  await page.screenshot({ path: path.join(previews, 'desktop-dragging.png') });
   await page.mouse.up();
+  await expect(page.locator('.sort-ghost')).toHaveCount(0);
+  await expect(page.locator('body')).not.toHaveClass(/\bsort-active\b/);
   await expect(rows.locator('.task-title')).toHaveText([
     '完成分析化学习题',
     '整理今天的工作记录',
@@ -297,6 +304,8 @@ test('mouse long press reorders visible task priority numbers and completion sin
   ]);
   await expect(rows.locator('.task-check')).toHaveText(['1', '2', '3']);
   await expect(page.getByRole('dialog')).toHaveCount(0);
+  expect(await page.evaluate(() => window.getSelection()?.toString())).toBe('');
+  await page.screenshot({ path: path.join(previews, 'desktop-reordered.png') });
   await page.getByRole('checkbox', { name: '完成 完成分析化学习题', exact: true }).click();
   await expect(rows.last()).toHaveClass(/\bdone\b/);
   await expect(rows.locator('.task-check:not(.checked)')).toHaveText(['1', '2']);
@@ -306,6 +315,41 @@ test('mouse long press reorders visible task priority numbers and completion sin
     '整理量子化学课堂笔记',
     '完成分析化学习题',
   ]);
+});
+
+test('mouse jitter and a stationary hold still open tasks; editor text remains selectable', async ({
+  page,
+}) => {
+  await seed(page);
+  const body = page.getByRole('button', { name: '编辑 整理量子化学课堂笔记', exact: true });
+  const bounds = (await body.boundingBox())!;
+  await page.mouse.move(bounds.x + 30, bounds.y + bounds.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(bounds.x + 33, bounds.y + bounds.height / 2);
+  await page.waitForTimeout(450);
+  await expect(page.locator('.sort-ghost')).toHaveCount(0);
+  await page.mouse.up();
+  const editor = page.getByRole('dialog', { name: '编辑任务', exact: true });
+  await expect(editor).toBeVisible();
+  const title = editor.getByLabel('任务标题', { exact: true });
+  await title.focus();
+  await title.press('ControlOrMeta+A');
+  expect(
+    await title.evaluate((input: HTMLInputElement) =>
+      input.value.slice(input.selectionStart!, input.selectionEnd!),
+    ),
+  ).toBe('整理量子化学课堂笔记');
+  await page.keyboard.press('Escape');
+  await expect(editor).not.toBeVisible();
+
+  // A drag within the same row must not become an edit on release.
+  await page.mouse.move(bounds.x + 30, bounds.y + bounds.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(bounds.x + 45, bounds.y + bounds.height / 2);
+  expect(await page.locator('.sort-ghost').count()).toBe(1);
+  await page.mouse.up();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  expect((await state(page)).tasks.find((task) => task.id === 'notes')!.order).toBe(10);
 });
 
 test('tab transitions animate shared content and honor reduced motion', async ({ page }) => {

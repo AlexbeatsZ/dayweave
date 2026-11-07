@@ -1,3 +1,15 @@
+[data-sort-id][data-sort-group] {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+@media (any-pointer: fine) {
+  [data-sort-id][data-sort-group],
+  [data-sort-id][data-sort-group] [data-sort-handle] {
+    cursor: grab;
+  }
+}
+
 .sort-active,
 .sort-active * {
   user-select: none;

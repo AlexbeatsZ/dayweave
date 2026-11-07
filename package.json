@@ -1,7 +1,7 @@
 {
   "name": "dayweave",
   "productName": "Dayweave",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "private": true,
   "description": "时织 — 待办、时间记录与跨时区课程表",
   "license": "MIT",
@@ -94,8 +94,18 @@
     },
     "mac": {
       "target": [
-        "dmg",
-        "zip"
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "arm64"
+          ]
+        }
       ],
       "category": "public.app-category.productivity",
       "icon": "build/icon.icns",

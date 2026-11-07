@@ -81,20 +81,6 @@ export function TaskRow({
         { '--task-color': list?.id === 'inbox' ? undefined : list?.color } as React.CSSProperties
       }
       onClickCapture={drag.onClickCapture}
-      draggable={!task.deletedAt && !onTrack}
-      onDragStart={(event) => {
-        event.dataTransfer.setData('application/clearlist-task', task.id);
-        event.dataTransfer.effectAllowed = 'move';
-      }}
-      onDragOver={(event) => {
-        if (onMove && event.dataTransfer.types.includes('application/clearlist-task'))
-          event.preventDefault();
-      }}
-      onDrop={(event) => {
-        event.preventDefault();
-        const source = event.dataTransfer.getData('application/clearlist-task');
-        if (source && source !== task.id) onMove?.(source, task.id);
-      }}
     >
       <GripVertical size={14} className="drag-handle" aria-hidden />
       {task.deletedAt ? (
