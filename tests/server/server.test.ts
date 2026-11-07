@@ -212,6 +212,11 @@ test(
         assert.equal(status.mode, 'server');
         assert.equal(status.version, serverVersion);
         assert.equal(status.appVersion, appVersion);
+        assert.equal(status.capabilities.taskRecordLinks, true);
+        assert.equal(
+          (await request(running.info, 'GET', '/health')).capabilities.taskRecordLinks,
+          true,
+        );
         assert.equal(status.sync.hubId, 'original-hub');
         assert.deepEqual(status.sync.conflicts, [conflict]);
         assert.equal(status.recovered, true);
