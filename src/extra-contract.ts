@@ -7,11 +7,41 @@ const input = (schema: unknown) => ({
 });
 const op = (summary: string, schema?: unknown) => ({
   summary,
-  responses: { 200: result, 400: { description: '输入无效' }, 409: { description: '版本冲突' } },
+  responses: {
+    200: result,
+    400: { description: '输入无效' },
+    404: { description: '对象或关联任务不存在' },
+    409: { description: '版本或操作冲突（包括目标已删除、计时已结束/被替换）' },
+    428: { description: '实体编辑缺少 expectedUpdatedAt' },
+  },
   ...(schema ? { requestBody: input(schema) } : {}),
 });
 const free = { type: 'object', additionalProperties: true };
 const id = [{ in: 'path', name: 'id', required: true, schema: { type: 'string' } }];
+const taskLink = {
+  type: ['string', 'null'],
+  minLength: 1,
+  maxLength: 100,
+  description:
+    '完整任务 ID；可关联已完成任务，不存在返回404，已删除返回409。null解除，编辑时省略保留。读取未绑定时省略taskId；任务详情用 GET /tasks/{id}。',
+};
+const recordProperties = {
+  activityId: { type: 'string' },
+  taskId: taskLink,
+  note: { type: 'string' },
+  tags: { type: 'array', items: { type: 'string' } },
+  spans: {
+    type: 'array',
+    minItems: 1,
+    description: '有效片段，按起点有序且不重叠；间隔是暂停，不能改成首尾连续区间',
+    items: {
+      type: 'object',
+      required: ['start', 'end'],
+      properties: { start: { type: 'number' }, end: { type: 'number' } },
+      additionalProperties: false,
+    },
+  },
+};
 export const extraPaths: Record<string, unknown> = {
   '/sync/status': { get: op('同步状态与已配对设备，不返回密钥') },
   '/sync/invite': { post: op('在已开启的中心生成单次五分钟配对邀请；邀请含密钥') },
@@ -29,7 +59,7 @@ export const extraPaths: Record<string, unknown> = {
           description: '未来时刻设为 plannedEndAt；null/缺省正向计时，过去时刻保存历史记录',
         },
         activityId: { type: 'string' },
-        taskId: { type: 'string' },
+        taskId: { ...taskLink, type: 'string' },
         note: { type: 'string' },
         tags: { type: 'array', items: { type: 'string' } },
       },
@@ -134,13 +164,49 @@ export const extraPaths: Record<string, unknown> = {
     delete: op('删除活动及其目标；历史记录保留；需 expectedUpdatedAt', free),
   },
   '/timelog/records': {
-    get: op('读取记录（date/activityId/q/offset/limit）'),
-    post: op('创建记录', free),
+    get: {
+      ...op(
+        '读取原始记录及真实 taskId；date/activityId/taskId/q/offset/limit/includeDeleted 可组合',
+      ),
+      parameters: [
+        ...['date', 'activityId', 'taskId', 'q'].map((name) => ({
+          in: 'query',
+          name,
+          schema: { type: 'string' },
+        })),
+        { in: 'query', name: 'offset', schema: { type: 'integer', minimum: 0, default: 0 } },
+        {
+          in: 'query',
+          name: 'limit',
+          schema: { type: 'integer', minimum: 1, maximum: 500, default: 100 },
+        },
+        { in: 'query', name: 'includeDeleted', schema: { type: 'boolean', default: false } },
+      ],
+    },
+    post: {
+      ...op('创建已结束记录，可同时关联任务；不改变当前计时', {
+        type: 'object',
+        required: ['activityId', 'spans'],
+        properties: { ...recordProperties, id: { type: 'string' } },
+      }),
+      responses: { ...op('').responses, 201: result },
+    },
   },
   '/timelog/records/{id}': {
     parameters: id,
-    get: op('读取记录'),
-    patch: op('修改记录，需 expectedUpdatedAt', free),
+    get: op('读取原始记录、taskId 和 updatedAt；用 GET /tasks/{taskId} 核对关联任务详情'),
+    patch: op(
+      '修改记录，需 expectedUpdatedAt；纯关联只发送 expectedUpdatedAt+taskId，其余字段省略保留',
+      {
+        type: 'object',
+        required: ['expectedUpdatedAt'],
+        properties: {
+          ...recordProperties,
+          expectedUpdatedAt: { type: 'number' },
+          restore: { type: 'boolean' },
+        },
+      },
+    ),
     delete: op('软删除记录，需 expectedUpdatedAt', free),
   },
   '/timelog/records/{id}/fill': {
@@ -161,30 +227,33 @@ export const extraPaths: Record<string, unknown> = {
           description: '从上一条记录末尾开始；不能与 startAt 同用',
         },
         endAt: { type: ['number', 'null'], description: '未来 UTC epoch 毫秒；null/缺省正向计时' },
-        taskId: { type: 'string' },
+        taskId: { ...taskLink, type: 'string' },
         tags: { type: 'array', items: { type: 'string' } },
       },
       additionalProperties: false,
     }),
   },
   '/timelog/timer/configure': {
-    post: op('调整运行中计时的起止、任务、描述和标签；保留原记录 ID 及暂停片段', {
-      type: 'object',
-      required: ['timerId'],
-      properties: {
-        timerId: { type: 'string' },
-        startAt: { type: 'number' },
-        fromPreviousRecord: { type: 'boolean' },
-        endAt: {
-          type: ['number', 'null'],
-          description: '未来 UTC epoch 截止；null 清除截止并转正向计时',
+    post: op(
+      '调整运行或暂停中的原计时；纯关联仅发送 timerId+taskId 并携带 If-Match，可比较完整 timer 快照；无活动/ID不匹配/已经到期返回409',
+      {
+        type: 'object',
+        required: ['timerId'],
+        properties: {
+          timerId: { type: 'string' },
+          startAt: { type: 'number' },
+          fromPreviousRecord: { type: 'boolean' },
+          endAt: {
+            type: ['number', 'null'],
+            description: '未来 UTC epoch 截止；null 清除截止并转正向计时',
+          },
+          taskId: taskLink,
+          note: { type: 'string' },
+          tags: { type: 'array', items: { type: 'string' } },
         },
-        taskId: { type: ['string', 'null'] },
-        note: { type: 'string' },
-        tags: { type: 'array', items: { type: 'string' } },
+        additionalProperties: false,
       },
-      additionalProperties: false,
-    }),
+    ),
   },
   '/timelog/timer/next': {
     post: op('结束当前计时并从同一时刻开始下一个活动', {

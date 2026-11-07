@@ -19,6 +19,10 @@ export const taskInputSchema = taskSchema
   .partial()
   .required({ title: true })
   .extend({
+    id: taskSchema.shape.id
+      .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-(0|[1-9]\d*)$/i)
+      .refine((value) => Number.isSafeInteger(Number(value.slice(value.lastIndexOf('-') + 1))))
+      .optional(),
     subtasks: z
       .array(subtaskSchema.pick({ id: true, title: true, done: true }))
       .max(200)
@@ -26,6 +30,7 @@ export const taskInputSchema = taskSchema
   })
   .strict();
 export const taskPatchSchema = taskInputSchema
+  .omit({ id: true })
   .partial()
   .extend({
     difficulty: taskSchema.shape.difficulty.removeDefault().optional(),
@@ -108,7 +113,7 @@ export const openapi = {
   openapi: '3.0.3',
   info: {
     title: 'Dayweave AI API',
-    version: '2.0.0',
+    version: '2.1.0',
     description:
       '时织 Windows/macOS 本机接口。应用运行时可用；实际地址与令牌见设置或用户数据目录 api.json。默认不对局域网开放。所有写入先持久化再通知界面；DELETE 任务为软删除。',
   },
@@ -139,7 +144,11 @@ export const openapi = {
   },
   paths: {
     ...extraPaths,
-    '/health': { get: operation('检查应用状态与版本') },
+    '/health': {
+      get: operation(
+        '检查应用状态与版本；data.capabilities.taskRecordLinks=true 表示已支持任务/计时关联与预存ID创建',
+      ),
+    },
     '/openapi.json': { get: operation('读取当前 OpenAPI 文档') },
     '/tasks': {
       get: {
@@ -169,7 +178,10 @@ export const openapi = {
           { in: 'query', name: 'offset', schema: { type: 'integer', minimum: 0, default: 0 } },
         ],
       },
-      post: operation('创建任务', taskInputSchema),
+      post: operation(
+        '创建任务；可指定随机UUID前缀+整数后缀的id，同ID（含已删除）返回409；完成用 /complete',
+        taskInputSchema,
+      ),
     },
     '/tasks/{id}': {
       get: operation('读取单个任务，含已完成和回收站状态', undefined, true),
@@ -177,7 +189,11 @@ export const openapi = {
       delete: operation('将任务移入回收站', undefined, true),
     },
     '/tasks/{id}/complete': {
-      post: operation('完成任务及其子任务', undefined, true),
+      post: operation(
+        '幂等完成任务及现存子任务；空子任务列表也可完成，完成时间由服务端本次操作生成，不接受回填',
+        undefined,
+        true,
+      ),
     },
     '/tasks/{id}/reopen': { post: operation('重新打开已完成任务', undefined, true) },
     '/tasks/{id}/restore': { post: operation('从回收站恢复任务', undefined, true) },

@@ -19,7 +19,7 @@ import {
   mergeSchedule,
 } from '../src/schedule.js';
 import { importCourses } from '../src/course-import.js';
-import { handleApi } from '../src/timelog/api.js';
+import { handleApi, linkedTaskId } from '../src/timelog/api.js';
 import {
   startTimer,
   finishTimer,
@@ -151,6 +151,7 @@ export async function handleExtendedRoute(c: Context): Promise<boolean> {
     snapshot = await mutate((s) => {
       if (open && (s.timelog.timer || s.timelog.conflictedTimers?.length))
         fail(409, '请先结束已有计时');
+      const taskId = linkedTaskId(input.taskId, s.tasks);
       const work = startTimer(
         { ...s.timelog, timer: null, conflictedTimers: [] },
         activityId(s, input.activityId),
@@ -159,7 +160,7 @@ export async function handleExtendedRoute(c: Context): Promise<boolean> {
         {
           ...(open && input.endAt != null ? { plannedEndAt: input.endAt } : {}),
           tags: input.tags,
-          ...(input.taskId ? { taskId: input.taskId } : {}),
+          ...(taskId ? { taskId } : {}),
         },
       );
       createdId = work.timer!.id;
@@ -221,10 +222,13 @@ export async function handleExtendedRoute(c: Context): Promise<boolean> {
           : undefined,
       },
       {
-        readState: async () => (await c.service.snapshot()).state.timelog,
-        readTasks: async () => (await c.service.snapshot()).state.tasks,
+        readState: async () => {
+          snapshot = await c.service.snapshot();
+          return snapshot.state.timelog;
+        },
+        readTasks: async () => snapshot.state.tasks,
         mutateState: async (fn) => {
-          snapshot = await mutate((s) => ({ ...s, timelog: fn(s.timelog) }));
+          snapshot = await mutate((s) => ({ ...s, timelog: fn(s.timelog, s.tasks) }));
           return snapshot.state.timelog;
         },
       },
