@@ -5,6 +5,7 @@ export function createGateway(options?: {
   port?: number;
   subscriptionPort?: number;
   syncPort?: number;
+  mcpPort?: number;
 }): {
   server: Server;
   listen(): Promise<AddressInfo>;

@@ -1,5 +1,11 @@
 # ROG 公网同步入口
 
+## 2026-11-08 AI Decision MCP
+
+复用当前 Web 隧道的 HTTPS 入口，固定将 `/ai-decision/mcp` 转发到回环 `18783/mcp`，并转发该命名空间的 authorize/token/register/revoke/consent 与 OAuth 发现元数据。参数查询串和 OAuth/MCP 请求头原样保留，未列出的 `/ai-decision` 路径返回404，请求体限制1MiB。只有经过独立 MCP OAuth 验证的调用才能访问原业务工具；没有路由到 decisiond 的8766端口。
+
+当前 `DayweaveHttpsGateway` 任务实际入口为 keepass-webdav-sync/shared-gateway.mjs；它依次包装 WebObsidian/Mojian/Dayweave 路由并保留 KeePass WebDAV 的条件写入保护。更新本模块的运行副本即可增加 MCP 路由，不修改任务 Action、外层包装器、私有配置或各业务端口。部署只重启该网关进程；订阅发布器、Web frpc、Sakura/Tailscale、DayweaveHub 和其他业务后端保持。网关源码作为独立 https-gateway 发行，不构建或升级 Dayweave 客户端。
+
 ## 现场拓扑与所有者
 
 2026-10-28：Sakura 账户允许两条隧道，现有 Web 与 Tailscale 已用满。不新增隧道、不购买额度，也不改 Tailscale 的服务、节点、端口或启动目标。

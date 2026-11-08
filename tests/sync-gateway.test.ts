@@ -63,3 +63,67 @@ test('HTTPS gateway preserves subscription responses and limits encrypted sync t
     ]);
   }
 });
+
+test('HTTPS gateway routes native MCP and OAuth without exposing the controller API', async () => {
+  const received: Array<{ url?: string; auth?: string }> = [];
+  const upstream = http.createServer((request, response) => {
+    received.push({ url: request.url, auth: request.headers.authorization });
+    response.writeHead(200, { 'Content-Type': 'application/json' });
+    request.pipe(response);
+  });
+  await new Promise<void>((resolve) => upstream.listen(0, '127.0.0.1', resolve));
+  const port = (upstream.address() as { port: number }).port;
+  const gateway = createGateway({ port: 0, mcpPort: port, subscriptionPort: port });
+  const address = await gateway.listen();
+  const base = `http://127.0.0.1:${address.port}`;
+  try {
+    const reply = await fetch(base + '/ai-decision/mcp', {
+      method: 'POST',
+      headers: { authorization: 'Bearer mcp-token' },
+      body: '{"jsonrpc":"2.0"}',
+    });
+    assert.equal(await reply.text(), '{"jsonrpc":"2.0"}');
+    assert.deepEqual(received.at(-1), { url: '/mcp', auth: 'Bearer mcp-token' });
+    for (const [external, internal] of [
+      ['/ai-decision/authorize?state=opaque', '/authorize?state=opaque'],
+      ['/ai-decision/consent?request_id=opaque', '/consent?request_id=opaque'],
+      ['/ai-decision/token', '/token'],
+      ['/ai-decision/register', '/register'],
+      ['/ai-decision/revoke', '/revoke'],
+      [
+        '/ai-decision/.well-known/oauth-authorization-server',
+        '/.well-known/oauth-authorization-server',
+      ],
+      [
+        '/.well-known/oauth-authorization-server/ai-decision',
+        '/.well-known/oauth-authorization-server',
+      ],
+      [
+        '/.well-known/oauth-protected-resource/ai-decision/mcp',
+        '/.well-known/oauth-protected-resource/ai-decision/mcp',
+      ],
+    ]) {
+      assert.equal((await fetch(base + external)).status, 200);
+      assert.equal(received.at(-1)?.url, internal);
+    }
+    const count = received.length;
+    for (const path of [
+      '/ai-decision/v1/bridge/tools/commit_decision',
+      '/ai-decision/health',
+      '/ai-decision/%6dcp',
+      '/ai-decision/mcp/other',
+    ]) {
+      assert.equal((await fetch(base + path)).status, 404);
+    }
+    assert.equal(received.length, count);
+    assert.equal((await fetch(base + '/s/original.yaml')).status, 200);
+    assert.equal(received.at(-1)?.url, '/s/original.yaml');
+  } finally {
+    gateway.server.closeAllConnections();
+    upstream.closeAllConnections();
+    await Promise.all([
+      new Promise<void>((resolve) => gateway.server.close(() => resolve())),
+      new Promise<void>((resolve) => upstream.close(() => resolve())),
+    ]);
+  }
+});
