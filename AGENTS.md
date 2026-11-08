@@ -4,7 +4,7 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Current State
 
-- 2026-11-08 shared HTTPS gateway adds exact authenticated AI Decision MCP/OAuth routes to loopback18783, preserving subscription/Dayweave/WebObsidian/Mojian/KeePass wrappers. User authorized end-to-end Gemini integration; no client UI or application package changes. See docs/design/https-gateway.md.
+- 2026-11-08 shared HTTPS gateway v0.1.1 deployed: exact authenticated AI Decision MCP/OAuth routes to loopback18783. Google linked through original Sakura63573 and imported36 native tools; Gemini live reading accepted. Only gateway3164→10164 restarted; task Action/wrappers and DayweaveHub42292/subscription47848/KeePass22764 preserved. No Dayweave client/center upgrade or Gemini schedule migration. See docs/design/https-gateway.md.
 
 - 2026-11-06 source-only task/record API contract is OpenAPI2.1.0 (app0.5.4/Server0.2.1 package versions unchanged): historical records accept taskId on POST/PATCH, null detaches/omission preserves, exact taskId filtering; explicit links validate live tasks in the original write queue and allow completed targets. Native task POST accepts optional caller-persisted UUID-sequence id with duplicate409, then /complete works without subtasks during an active timer. Completion time is the current operation; dates+notes retain actual past occurrence. Detailed AI Decision record/timer If-Match/readback contract: docs/design/api.md. All195Node tests/type/format pass, including6new isolated HTTP/persistence/concurrency tests; no production data, deployment or release acceptance.
 
