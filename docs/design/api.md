@@ -8,6 +8,8 @@ Windows / macOS 桌面进程提供 `http://127.0.0.1:<port>/api/v1`，默认端�
 
 任务默认软删除；完成与恢复使用显式幂等动作。重复任务由同步中心按 Cron 生成有限未来窗口，不由完成动作生成。禁止通过普通 PATCH 改写身份、创建时间、完成时间和重复链；这些由专门动作管理。导入使用现有合并规则。整个事务必须通过 Zod 格式与引用校验。
 
+主动记录写入、计时与合并导入都检查新占用，命中冲突时整笔不提交并返回 HTTP 409、`error.code: 409`、`error.reason: "TIME_OVERLAP"`。 `error.details` 含 `recordId`、`conflictingRecordId`、`conflictingTimer` 与冲突交集的 `startAt/endAt`（UTC epoch ms，无上限时 `endAt:null`）。读取最新记录和计时、修正区间后重试；不要把重叠当成单纯的 ETag 过期。健康接口的 `capabilities.timeOverlapProtection` 表示中心已启用规则。全状态导入保留服务器的计时，不采纳导入中的计时副本。
+
 OpenAPI 文档由 `src/api-contract.ts` 生成到 `docs/api/openapi.json`，运行服务也通过 `/openapi.json` 返回同一份文档。命令行客户端默认从当前平台的用户数据目录读取地址和令牌，不输出令牌。
 
 `/health` 从运行包元数据读取真实版本。独立服务器的 version 为服务器版本、appVersion 为共享客户端领域版本，并携带 mode=server/sourceCommit。服务器扩展受认证的 `/server/status`、`/usage/status`、`/server/shutdown`，撤销设备用 `DELETE /sync/peers/{id}` 调用原 revoke；其余完整业务API不变。服务器端口冲突失败，桌面保持原空闲端口回退；管理与CLI的具体契约见 `server/README.md` 和 `server.md`。

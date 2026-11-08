@@ -91,7 +91,11 @@ export default function Workspace({
       ? `${formatClock(duration(liveSpans(state.timer, now)))} · 时织`
       : '时织 · Dayweave';
   }, [state?.timer, now]);
-  async function commit(transform: (current: State) => State, message = '已保存') {
+  async function commit(
+    transform: (current: State) => State,
+    message = '已保存',
+    onError?: (message: string) => void,
+  ) {
     pendingWrites.current += 1;
     setBusy(true);
     try {
@@ -99,7 +103,8 @@ export default function Workspace({
       if (message) setNotice({ text: message, error: false });
       return true;
     } catch (error) {
-      setNotice({ text: errorText(error), error: true });
+      if (onError) onError(errorText(error));
+      else setNotice({ text: errorText(error), error: true });
       return false;
     } finally {
       pendingWrites.current -= 1;

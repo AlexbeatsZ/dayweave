@@ -6,6 +6,9 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 - 2026-11-08 shared HTTPS gateway v0.1.1 deployed: exact authenticated AI Decision MCP/OAuth routes to loopback18783. Google linked through original Sakura63573 and imported36 native tools; Gemini live reading accepted. Only gateway3164→10164 restarted; task Action/wrappers and DayweaveHub42292/subscription47848/KeePass22764 preserved. No Dayweave client/center upgrade or Gemini schedule migration. See docs/design/https-gateway.md.
 
+- Client source 0.5.5 (Android code28) / Server 0.2.3 share a commit-time guard against new overlaps in active time records. Open/paused timers reserve time from startedAt; saved records occupy only their spans. HTTP 409 TIME_OVERLAP, authenticated sync conflict candidates and legacy-read compatibility are documented in timelog-domain.md, api.md and sync.md. Production cleanup is an explicit backed-up operation, never automatic on startup.
+
+
 - 2026-11-06 source-only task/record API contract is OpenAPI2.1.0 (app0.5.4/Server0.2.1 package versions unchanged): historical records accept taskId on POST/PATCH, null detaches/omission preserves, exact taskId filtering; explicit links validate live tasks in the original write queue and allow completed targets. Native task POST accepts optional caller-persisted UUID-sequence id with duplicate409, then /complete works without subtasks during an active timer. Completion time is the current operation; dates+notes retain actual past occurrence. Detailed AI Decision record/timer If-Match/readback contract: docs/design/api.md. All195Node tests/type/format pass, including6new isolated HTTP/persistence/concurrency tests; no production data, deployment or release acceptance.
 
 - 2026-11-07 Server0.2.2 (eed67de, OpenAPI2.1.0 task/record links) is live on ROG via unchanged DayweaveHub task/args: new PID42292/Session0, health version0.2.2/appVersion0.5.4/capabilities.taskRecordLinks=true. Coordinated window under AI pause owner task-links-github-20261106: admin stop of0.2.1/PID32452 exit0, stage-update full profile+old program copy at ROG Temp/.agents/dayweave-server-0.2.2/recovery-20261107, task restarted. Readback1250tasks/1196records (before1195), hubId818c2d6a, same5peers,0conflicts, usage273107/pending0/sources error-free; 8 serial health samples over40s max98ms. Release server-v0.2.2 (3 assets, ZIP from Server CI42334796979). AI Decision0.1.26 now uses link_task and gates on the capability. GUI clients remain0.5.4. Evidence .local/server-0.2.2/evidence.
@@ -79,7 +82,6 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 - Validation: 102 Node tests, all 56 browser workflows (10 Fudan refresh cases), 13 Android JVM checks, isolated Electron Fudan capture, desktop persistence/recovery and UI/API smoke pass. Web/Electron production builds pass with the existing chunk-size warning. No true-account or physical-device acceptance was performed.
 
 # Active Work
-
 
 - AI Decision link_task (target=record|timer) and create→complete adapter run against production OpenAPI2.1.0, gated on GET /health data.capabilities.taskRecordLinks===true; AI owns its ledger/fingerprint/unknown-result reconciliation (docs/design/api.md). No live association was test-written; the first natural AI association/backfill remains unaccepted.
 

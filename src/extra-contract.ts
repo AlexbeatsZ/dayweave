@@ -11,7 +11,9 @@ const op = (summary: string, schema?: unknown) => ({
     200: result,
     400: { description: '输入无效' },
     404: { description: '对象或关联任务不存在' },
-    409: { description: '版本或操作冲突（包括目标已删除、计时已结束/被替换）' },
+    409: {
+      description: '版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。',
+    },
     428: { description: '实体编辑缺少 expectedUpdatedAt' },
   },
   ...(schema ? { requestBody: input(schema) } : {}),

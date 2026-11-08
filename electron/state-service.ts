@@ -2,7 +2,8 @@ import { setDayStart, setTimeZone } from '../src/timezone.js';
 import { randomUUID } from 'node:crypto';
 import { stateSchema, normalizeTaskChanges, type AppState } from '../src/model.js';
 import { applyDelta, type StateDelta } from '../src/state-delta.js';
-import { finishDueTimer } from '../src/timelog/domain.js';
+import { finishDueTimer, type State as TimeState } from '../src/timelog/domain.js';
+import { assertTimeOccupancy } from '../src/timelog/occupancy.js';
 import { FileStore } from './storage.js';
 
 export type StateSnapshot = { state: AppState; revision: string; path: string; recovered: boolean };
@@ -66,7 +67,11 @@ export class StateService {
       this.listeners.delete(callback);
     };
   }
-  mutate(transform: (state: AppState) => AppState, expected?: string): Promise<StateSnapshot> {
+  mutate(
+    transform: (state: AppState) => AppState,
+    expected?: string,
+    receivedTime?: TimeState,
+  ): Promise<StateSnapshot> {
     const operation = this.queue.then(async () => {
       await this.load();
       const snapshot = structuredClone(this.current!);
@@ -79,6 +84,7 @@ export class StateService {
         snapshot.state,
       );
       const next = stateSchema.parse({ ...state, timelog: finishDueTimer(state.timelog) });
+      assertTimeOccupancy(receivedTime ?? snapshot.state.timelog, next.timelog);
       if (JSON.stringify(next) === JSON.stringify(snapshot.state)) {
         this.scheduleDeadline();
         return snapshot;

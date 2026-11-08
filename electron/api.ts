@@ -38,6 +38,7 @@ import {
 } from '../src/api-contract.js';
 import { configureRepeat } from '../src/task-repeat.js';
 import { StateConflict } from '../src/state-delta.js';
+import { TimeOverlap } from '../src/timelog/occupancy.js';
 import { StateService, type StateSnapshot } from './state-service.js';
 import type { SyncBridge } from '../src/sync/types.js';
 import type { DesktopUsage } from './usage.js';
@@ -152,7 +153,7 @@ export async function startApi(
         version: appVersion(),
         storage: 'ready',
         ...options.health,
-        capabilities: { taskRecordLinks: true },
+        capabilities: { taskRecordLinks: true, timeOverlapProtection: true },
       };
       if (options.management) {
         if (route === '/server/status' && method === 'GET')
@@ -482,6 +483,9 @@ export async function startApi(
         JSON.stringify({
           error: {
             code: status,
+            ...(error instanceof TimeOverlap
+              ? { reason: error.reason, details: error.detail }
+              : {}),
             message:
               error instanceof z.ZodError
                 ? 'Invalid input or data references'

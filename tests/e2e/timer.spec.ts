@@ -151,6 +151,10 @@ test('start / future end, daily plan, labels and description survive seamless ne
   await page.locator('.activity-tile').filter({ hasText: '学习' }).tap();
   await page.getByRole('button', { name: '调整起止时间', exact: true }).tap();
   const times = page.getByRole('dialog', { name: '调整起止时间', exact: true });
+  await times.getByLabel('活动开始时间').fill(dateTimeInput(NOW - 1200000));
+  await times.getByRole('button', { name: '保存起止时间', exact: true }).tap();
+  await expect(times.getByRole('alert')).toContainText('与已有记录');
+  expect((await stored(page)).timelog.timer?.startedAt).toBe(NOW);
   await times.getByLabel('活动开始时间').fill(dateTimeInput(NOW - 480000));
   await times.getByLabel('活动结束时间').fill(dateTimeInput(NOW + 1800000));
   await times.getByRole('button', { name: '保存起止时间', exact: true }).tap();

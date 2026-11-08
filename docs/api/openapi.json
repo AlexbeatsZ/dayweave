@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Dayweave AI API",
-    "version": "2.1.0",
+    "version": "2.2.0",
     "description": "时织 Windows/macOS 本机接口。应用运行时可用；实际地址与令牌见设置或用户数据目录 api.json。默认不对局域网开放。所有写入先持久化再通知界面；DELETE 任务为软删除。"
   },
   "servers": [
@@ -218,7 +218,7 @@
           "timelog": {},
           "schedule": {
             "default": {
-              "semesterStart": "2026-11-02",
+              "semesterStart": "2026-11-09",
               "totalWeeks": 20,
               "timeZone": "Asia/Shanghai",
               "displayDays": "auto",
@@ -828,7 +828,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         }
       }
@@ -842,7 +844,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
@@ -857,7 +861,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
@@ -872,7 +878,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
@@ -887,7 +895,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         }
       },
@@ -899,7 +909,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
@@ -945,7 +957,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
@@ -972,7 +986,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         }
       }
@@ -989,7 +1005,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
@@ -1012,7 +1030,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         }
       },
@@ -1024,7 +1044,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
@@ -1075,7 +1097,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         }
       }
@@ -1089,7 +1113,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "parameters": [
@@ -1107,7 +1133,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
@@ -1138,7 +1166,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
@@ -1162,7 +1192,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
@@ -1181,7 +1213,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
@@ -1196,7 +1230,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         }
       },
@@ -1208,7 +1244,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
@@ -1232,7 +1270,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
@@ -1251,7 +1291,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
@@ -1266,7 +1308,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         }
       },
@@ -1278,7 +1322,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
@@ -1302,7 +1348,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         }
       },
@@ -1314,7 +1362,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
@@ -1333,7 +1383,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
@@ -1354,7 +1406,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "parameters": [
@@ -1390,7 +1444,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
@@ -1442,7 +1498,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         }
       },
@@ -1454,7 +1512,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
@@ -1502,7 +1562,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
@@ -1526,7 +1588,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
@@ -1547,7 +1611,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         }
       }
@@ -1561,7 +1627,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
@@ -1608,7 +1676,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
@@ -1652,7 +1722,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
@@ -1683,7 +1755,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
@@ -1704,7 +1778,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
@@ -1725,7 +1801,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
@@ -1746,7 +1824,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
@@ -1767,7 +1847,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         }
       },
@@ -1779,7 +1861,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
@@ -1814,7 +1898,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         }
       }
@@ -1828,7 +1914,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         }
       }
@@ -1842,7 +1930,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         }
       },
@@ -1854,7 +1944,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
@@ -1878,7 +1970,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         }
       },
@@ -1890,7 +1984,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
@@ -1909,7 +2005,9 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
@@ -1930,14 +2028,16 @@
           },
           "400": { "description": "输入无效" },
           "404": { "description": "对象或关联任务不存在" },
-          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         }
       }
     },
     "/health": {
       "get": {
-        "summary": "检查应用状态与版本；data.capabilities.taskRecordLinks=true 表示已支持任务/计时关联与预存ID创建",
+        "summary": "检查应用状态与版本；capabilities.taskRecordLinks 支持任务/计时关联，timeOverlapProtection 表示写入时禁止新增时间占用重叠",
         "responses": {
           "200": {
             "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
@@ -1958,7 +2058,9 @@
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
         }
       }
     },
@@ -1985,7 +2087,9 @@
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
         }
       }
     },
@@ -2012,7 +2116,9 @@
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
         },
         "parameters": [
           {
@@ -2125,7 +2231,9 @@
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
         },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
       }
@@ -2156,7 +2264,9 @@
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
         }
       },
       "patch": {
@@ -2234,7 +2344,9 @@
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
         }
       },
       "delete": {
@@ -2263,7 +2375,9 @@
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
         }
       }
     },
@@ -2294,7 +2408,9 @@
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
         }
       }
     },
@@ -2325,7 +2441,9 @@
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
         }
       }
     },
@@ -2356,7 +2474,9 @@
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
         }
       }
     },
@@ -2408,7 +2528,9 @@
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
         }
       },
       "delete": {
@@ -2437,7 +2559,9 @@
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
         }
       }
     },
@@ -2484,7 +2608,9 @@
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
         }
       }
     },
@@ -2531,7 +2657,9 @@
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
         }
       },
       "delete": {
@@ -2561,7 +2689,9 @@
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
         }
       }
     },
@@ -2588,7 +2718,9 @@
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
         }
       }
     },
@@ -2628,7 +2760,9 @@
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
         },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
       }
@@ -2656,7 +2790,9 @@
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
         },
         "parameters": [
           { "in": "query", "name": "date", "schema": { "type": "string", "format": "date" } }
@@ -2708,7 +2844,9 @@
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
         },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
       }
@@ -2762,7 +2900,9 @@
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
         }
       },
       "delete": {
@@ -2791,7 +2931,9 @@
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
         }
       }
     },
@@ -2818,7 +2960,9 @@
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
         }
       },
       "post": {
@@ -2866,7 +3010,9 @@
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
         },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
       }
@@ -2920,7 +3066,9 @@
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
         }
       },
       "delete": {
@@ -2949,7 +3097,9 @@
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
         }
       }
     },
@@ -2976,7 +3126,9 @@
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
         }
       },
       "patch": {
@@ -3018,7 +3170,9 @@
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
         },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
       }
@@ -3046,7 +3200,9 @@
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
         }
       }
     },
@@ -3073,7 +3229,9 @@
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
         }
       }
     },
@@ -3091,7 +3249,7 @@
                   "timelog": {},
                   "schedule": {
                     "default": {
-                      "semesterStart": "2026-11-02",
+                      "semesterStart": "2026-11-09",
                       "totalWeeks": 20,
                       "timeZone": "Asia/Shanghai",
                       "displayDays": "auto",
@@ -3766,7 +3924,9 @@
           "401": { "description": "缺少或错误的 Bearer 令牌" },
           "403": { "description": "拒绝跨站或非本机请求" },
           "404": { "description": "未找到对象" },
-          "409": { "description": "版本或操作冲突，读取最新数据后再决定是否重试" }
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
         },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
       }

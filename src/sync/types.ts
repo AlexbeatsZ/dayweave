@@ -1,5 +1,6 @@
 import type { AppState } from '../model.js';
 import type { SyncConflict, SyncDocument } from './document.js';
+import type { State as TimeState } from '../timelog/domain.js';
 
 export type Peer = { name: string; endpoint: string; hubId: string };
 export type SyncConfig = {
@@ -65,7 +66,8 @@ export interface SyncStorage {
 }
 export interface SyncState {
   snapshot(): Promise<{ state: AppState }>;
-  mutate(transform: (state: AppState) => AppState): Promise<unknown>;
+  /** The optional baseline is only used when applying an authenticated hub snapshot. */
+  mutate(transform: (state: AppState) => AppState, receivedTime?: TimeState): Promise<unknown>;
 }
 export type SyncBridge = {
   status(): Promise<SyncStatus>;

@@ -115,16 +115,20 @@ export function TimerPanel({
         throw new Error('请检查起止时间：开始不能晚于现在，结束需晚于开始。');
       if (!timer) throw new Error('请先选择活动开始计时。');
       const id = timer.id;
-      const saved = await commit((current) => {
-        if (current.timer?.id !== id) throw new Error('活动已变化，请重新调整。');
-        const adjusted = adjustTimerStart(
-          { ...current, timer: { ...current.timer, plannedEndAt: null } },
-          startAt,
-          at,
-        );
-        if (endAt != null && endAt <= at) return finishTimer(adjusted, endAt);
-        return { ...adjusted, timer: { ...adjusted.timer!, plannedEndAt: endAt } };
-      }, '起止时间已更新');
+      const saved = await commit(
+        (current) => {
+          if (current.timer?.id !== id) throw new Error('活动已变化，请重新调整。');
+          const adjusted = adjustTimerStart(
+            { ...current, timer: { ...current.timer, plannedEndAt: null } },
+            startAt,
+            at,
+          );
+          if (endAt != null && endAt <= at) return finishTimer(adjusted, endAt);
+          return { ...adjusted, timer: { ...adjusted.timer!, plannedEndAt: endAt } };
+        },
+        '起止时间已更新',
+        setError,
+      );
       if (saved) {
         close();
         if (endAt != null && endAt <= at) onFinished();
@@ -574,10 +578,14 @@ export function TimerPanel({
               <p className="section-note">选择下一项后，当前活动会记录并在同一时刻衔接下一项。</p>
               {activityGrid((id) => {
                 const at = Date.now();
-                void commit((current) => {
-                  if (current.timer?.id !== timer?.id) throw new Error('活动已变化');
-                  return nextActivity(current, id, at);
-                }, '已衔接下一项活动').then((saved) => {
+                void commit(
+                  (current) => {
+                    if (current.timer?.id !== timer?.id) throw new Error('活动已变化');
+                    return nextActivity(current, id, at);
+                  },
+                  '已衔接下一项活动',
+                  setError,
+                ).then((saved) => {
                   if (saved) close();
                 });
               })}

@@ -29,12 +29,16 @@ export type EditTarget =
   | { kind: 'record'; record?: TimeRecord; range?: Span; activityId?: string }
   | { kind: 'activity'; activity?: Activity; nature?: Nature }
   | { kind: 'goal'; goal?: Goal };
-export type Commit = (transform: (state: State) => State, notice?: string) => Promise<boolean>;
+export type Commit = (
+  transform: (state: State) => State,
+  notice?: string,
+  onError?: (message: string) => void,
+) => Promise<boolean>;
 const localInput = (at: number) => (Number.isFinite(at) ? dateTimeInput(at) : '');
 export function Editor({
   target,
   state,
-  commit,
+  commit: runCommit,
   close,
 }: {
   target: EditTarget;
@@ -71,6 +75,7 @@ export function Editor({
     ],
   );
   const [error, setError] = useState('');
+  const commit: Commit = (transform, notice) => runCommit(transform, notice, setError);
   const [activityId, setActivityId] = useState(
     record?.activityId ||
       (target.kind === 'record' ? target.activityId : undefined) ||
@@ -152,7 +157,6 @@ export function Editor({
           };
         }, '记录已保存');
         if (saved) close();
-        else setError('未保存，请查看提示并修正后重试。');
       } else if (target.kind === 'activity') {
         const previous = target.activity;
         const saved = await commit((current) => {
@@ -184,7 +188,6 @@ export function Editor({
           };
         }, '活动已保存');
         if (saved) close();
-        else setError('未保存，请查看提示。');
       } else {
         const previous = target.goal;
         const goalTarget = goalKind === 'time' ? parseGoalTarget(text('target')) : null;
@@ -235,7 +238,6 @@ export function Editor({
           };
         }, '目标已保存');
         if (saved) close();
-        else setError('未保存，请查看提示。');
       }
     } catch (error) {
       setError(error instanceof Error ? error.message : String(error));

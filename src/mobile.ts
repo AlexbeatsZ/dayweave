@@ -90,10 +90,11 @@ export async function initializeMobile() {
     {
       snapshot: async () => {
         const snapshot = await store.flush();
-        if (!snapshot.loaded || snapshot.error) throw new Error(snapshot.error || '数据尚未载入');
+        if (!snapshot.loaded || (snapshot.error && snapshot.errorKind !== 'operation'))
+          throw new Error(snapshot.error || '数据尚未载入');
         return { state: snapshot.data };
       },
-      mutate: (transform) => store.transact(transform),
+      mutate: (transform, receivedTime) => store.transact(transform, receivedTime),
     },
     async (endpoint, path, body) => (await files.postSync({ endpoint, path, body })).body,
     deviceName,
