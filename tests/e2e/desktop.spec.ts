@@ -9,8 +9,11 @@ test.use({ timezoneId: 'America/New_York' });
 
 async function seed(page: Page) {
   setTimeZone('Asia/Shanghai');
+  // The seeded 01:00–02:30 records are history even when CI runs at night.
+  const now = Date.parse('2026-10-23T04:00:00Z');
+  await page.clock.setFixedTime(now);
   const state = emptyState(),
-    today = dayKey(Date.now()),
+    today = dayKey(now),
     start = dayStart(today);
   state.settings.theme = 'dark';
   state.lists.push(
