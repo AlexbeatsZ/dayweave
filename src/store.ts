@@ -9,6 +9,8 @@ import {
   type Task,
 } from './model';
 import { applyDelta, diffState, type StateDelta } from './state-delta';
+import { assertTimeOccupancy } from './timelog/occupancy';
+import type { State as TimeState } from './timelog/domain';
 
 import { setDayStart, setTimeZone } from './timezone';
 const key = 'dayweave.v1';
@@ -30,7 +32,8 @@ let snapshot: Snapshot = {
   path: '',
 };
 const listeners = new Set<() => void>();
-const jobs: Array<{ delta: StateDelta; data: AppState }> = [];
+type SaveJob = { delta: StateDelta; data: AppState; rejection?: string };
+const jobs: SaveJob[] = [];
 let authoritative = snapshot.data;
 let authoritativeRevision = '';
 function acceptRemote(result: { state: AppState; revision?: string }) {
@@ -79,6 +82,23 @@ function pump() {
         jobs.shift();
         emit({ data: rebased(), saving: jobs.length > 0, error: '', errorKind: undefined });
       } catch (error) {
+        const rejected = message(error).match(/TIME_OVERLAP: [^\n]+/);
+        if (rejected) {
+          job.rejection = rejected[0];
+          jobs.shift();
+          try {
+            emit({
+              data: rebased(),
+              saving: jobs.length > 0,
+              error: job.rejection,
+              errorKind: 'operation',
+            });
+            continue;
+          } catch {
+            // A queued edit may depend on the rejected operation. Preserve its recovery data.
+            error = new Error('STATE_CONFLICT: 后续修改依赖未保存的时间记录。');
+          }
+        }
         failed = true;
         const conflict = message(error).includes('STATE_CONFLICT:');
         emit({
@@ -98,9 +118,17 @@ function pump() {
 
 function enqueue(data: AppState) {
   const delta = diffState(snapshot.data, data);
-  jobs.push({ delta, data });
+  const job: SaveJob = { delta, data };
+  jobs.push(job);
   emit({ data, saving: !failed });
   void pump();
+  return job;
+}
+
+function validateMutation(transform: (state: AppState) => AppState, receivedTime?: TimeState) {
+  const next = stateSchema.parse(normalizeTaskChanges(transform(snapshot.data), snapshot.data));
+  assertTimeOccupancy(receivedTime ?? snapshot.data.timelog, next.timelog);
+  return next;
 }
 
 export const store = {
@@ -110,7 +138,9 @@ export const store = {
       closeListenerAttached = true;
       window.clearlist.onBeforeClose(async () => {
         await pending;
-        window.clearlist!.readyToClose(!snapshot.loaded || !snapshot.error);
+        window.clearlist!.readyToClose(
+          !snapshot.loaded || !snapshot.error || snapshot.errorKind === 'operation',
+        );
       });
     }
     if (window.clearlist?.onState && !stateListenerAttached) {
@@ -171,21 +201,21 @@ export const store = {
       listeners.delete(fn);
     };
   },
-  async transact(transform: (state: AppState) => AppState) {
+  async transact(transform: (state: AppState) => AppState, receivedTime?: TimeState) {
     if (recovering) throw new Error('正在恢复数据，请稍后重试');
-    if (!snapshot.loaded || snapshot.error) throw new Error(snapshot.error || '数据尚未载入');
+    if (!snapshot.loaded || failed) throw new Error(snapshot.error || '数据尚未载入');
     // A rejected user operation is recoverable, unlike a failed disk write.
     // Validate before publishing so a short timer or stale edit cannot poison later saves.
-    enqueue(stateSchema.parse(normalizeTaskChanges(transform(snapshot.data), snapshot.data)));
+    const job = enqueue(validateMutation(transform, receivedTime));
     await store.flush();
-    if (snapshot.error) throw new Error(snapshot.error);
+    if (job.rejection || failed) throw new Error(job.rejection ?? snapshot.error);
     return snapshot.data;
   },
   update(transform: (state: AppState) => AppState) {
     if (!snapshot.loaded || failed || recovering) return;
     let data: AppState;
     try {
-      data = stateSchema.parse(normalizeTaskChanges(transform(snapshot.data), snapshot.data));
+      data = validateMutation(transform);
     } catch (error) {
       emit({ errorKind: 'operation', error: `修改未应用：${message(error)}` });
       return;

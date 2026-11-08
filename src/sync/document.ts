@@ -1,6 +1,7 @@
 import { mergeTaskEntity } from '../task-merge.js';
 import { stateSchema, emptyState, type AppState } from '../model.js';
 import { type Timer, type TimeRecord, validateState } from '../timelog/domain.js';
+import { newTimeOverlaps, timeOccupancy } from '../timelog/occupancy.js';
 
 export type Entity = Record<string, unknown>;
 export type SyncDocument = Record<string, Entity>;
@@ -284,6 +285,50 @@ export function mergeDocuments(base: SyncDocument, local: SyncDocument, remote: 
   }
   return { doc, conflicts };
 }
+
+/** Preserve the hub's accepted history and put colliding edits in the existing conflict journal. */
+export function reconcileTimeOverlaps(
+  merged: SyncDocument,
+  authoritative: AppState,
+  local: AppState,
+  conflicts: SyncConflict[],
+): AppState {
+  const candidate = fromDocument(merged, local);
+  const before = timeOccupancy(authoritative.timelog);
+  const after = timeOccupancy(candidate.timelog);
+  const overlaps = () =>
+    new Map([...newTimeOverlaps(before, after)].map((error) => [error.detail.recordId, error]));
+  let rejected = overlaps();
+  if (!rejected.size) return candidate;
+  const baseline = toDocument(authoritative);
+  const doc = { ...merged };
+  // Restoring a prior interval may expose another collision with a remaining edit.
+  // Each pass restores an additional ID to its authoritative occupancy.
+  while (rejected.size) {
+    for (const [id, error] of rejected) {
+      const key = entityKey('records', id);
+      const existing = baseline[key];
+      conflicts.push({
+        key,
+        field: '*',
+        local: doc[key],
+        remote: existing ?? null,
+        reason: error.message,
+      });
+      if (existing) {
+        doc[key] = existing;
+        const activity = entityKey('activities', existing.activityId as string);
+        doc[activity] ??= baseline[activity];
+      } else delete doc[key];
+      const previous = before.get(id);
+      if (previous) after.set(id, previous);
+      else after.delete(id);
+    }
+    rejected = overlaps();
+  }
+  return fromDocument(doc, local);
+}
+
 // Keep edits made while the HTTP request was in flight; send them on the next exchange.
 export function overlayNewEdits(
   sent: SyncDocument,

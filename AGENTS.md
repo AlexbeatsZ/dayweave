@@ -4,6 +4,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Current State
 
+- Client source 0.5.5 (Android code28) / Server 0.2.3 share a commit-time guard against new overlaps in active time records. Open/paused timers reserve time from startedAt; saved records occupy only their spans. HTTP 409 TIME_OVERLAP, authenticated sync conflict candidates and legacy-read compatibility are documented in timelog-domain.md, api.md and sync.md. Production cleanup is an explicit backed-up operation, never automatic on startup.
+
 - 2026-11-08 shared HTTPS gateway adds exact authenticated AI Decision MCP/OAuth routes to loopback18783, preserving subscription/Dayweave/WebObsidian/Mojian/KeePass wrappers. User authorized end-to-end Gemini integration; no client UI or application package changes. See docs/design/https-gateway.md.
 
 - 2026-11-06 source-only task/record API contract is OpenAPI2.1.0 (app0.5.4/Server0.2.1 package versions unchanged): historical records accept taskId on POST/PATCH, null detaches/omission preserves, exact taskId filtering; explicit links validate live tasks in the original write queue and allow completed targets. Native task POST accepts optional caller-persisted UUID-sequence id with duplicate409, then /complete works without subtasks during an active timer. Completion time is the current operation; dates+notes retain actual past occurrence. Detailed AI Decision record/timer If-Match/readback contract: docs/design/api.md. All195Node tests/type/format pass, including6new isolated HTTP/persistence/concurrency tests; no production data, deployment or release acceptance.
@@ -79,7 +81,6 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 - Validation: 102 Node tests, all 56 browser workflows (10 Fudan refresh cases), 13 Android JVM checks, isolated Electron Fudan capture, desktop persistence/recovery and UI/API smoke pass. Web/Electron production builds pass with the existing chunk-size warning. No true-account or physical-device acceptance was performed.
 
 # Active Work
-
 
 - AI Decision link_task (target=record|timer) and create→complete adapter run against production OpenAPI2.1.0, gated on GET /health data.capabilities.taskRecordLinks===true; AI owns its ledger/fingerprint/unknown-result reconciliation (docs/design/api.md). No live association was test-written; the first natural AI association/backfill remains unaccepted.
 

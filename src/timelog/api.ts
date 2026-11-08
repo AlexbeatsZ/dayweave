@@ -1,4 +1,5 @@
 import { buildTimeline, fillAdjacentGap, lastRecordEnd } from './timeline.js';
+import { TimeOverlap } from './occupancy.js';
 import {
   activeActivity,
   adjustTimerStart,
@@ -567,6 +568,8 @@ export async function handleApi(
     });
     return { status: method === 'POST' && !itemId ? 201 : 200, body: result };
   } catch (error) {
+    // The unified HTTP boundary renders the same structured 409 for every time-writing route.
+    if (error instanceof TimeOverlap) throw error;
     return {
       status:
         error instanceof ApiError ? error.status : ((error as { status?: number }).status ?? 400),

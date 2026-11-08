@@ -1,6 +1,8 @@
 # 时织 / Dayweave Server
 
-独立版本 `0.2.2`，共享客户端 `0.5.4` 的业务、计时、同步及 SQLite 所有者。需要 **Node 24（24.14.1 或更高的 24.x）或 Node 26**，CI 在 Windows/Ubuntu 的 Node 24.14.1 与 26 上验证。包已含 JavaScript 依赖，不需要 npm install、编译、Electron、React、Rust 或本机采集程序。Node 运行时由运行机器提供。
+独立版本 `0.2.3`，共享客户端 `0.5.5` 的业务、计时、同步及 SQLite 所有者。需要 **Node 24（24.14.1 或更高的 24.x）或 Node 26**，CI 在 Windows/Ubuntu 的 Node 24.14.1 与 26 上验证。包已含 JavaScript 依赖，不需要 npm install、编译、Electron、React、Rust 或本机采集程序。Node 运行时由运行机器提供。
+
+0.2.3 将主动时间防重叠校验纳入同一个写入队列，覆盖 AI 整份导入与客户端同步。健康接口新增 `capabilities.timeOverlapProtection=true`；API 重叠返回 HTTP 409/`TIME_OVERLAP`，同步保留冲突候选。状态和协议 2 不变。
 
 0.2.2补齐任务与计时关联的 OpenAPI2.1.0 契约：历史记录 POST/PATCH 可建立/改绑/解除 taskId，省略字段保留原计时片段及元数据；显式关联在原写入事务校验任务，已完成可关联、不存在404/已删除409。运行或暂停计时沿用 timerId+If-Match，拒绝已结束/到期计时。任务创建可传预存 UUID-整数 ID，同ID409，再用原 /complete 完成，无需虚构子任务。`GET /health` 的 `data.capabilities.taskRecordLinks=true` 是 AI Decision 对旧中心的能力门槛；创建/完成仍不支持原生历史完成时间，实际发生日用 dates+notes 记录。完整契约见仓库 docs/design/api.md 和公开 OpenAPI。状态/同步协议仍为2，可保留现有0.5.4客户端，不要求本轮升级五端GUI。
 
@@ -110,7 +112,7 @@ node 'C:\staging\Dayweave-Server\stage-update.mjs' `
 恢复目录必须尚不存在，其父目录必须存在。各目标互相独立，配置保存在 current 外。脚本只准备程序并输出 `activated:false`，不启动新进程、恢复数据或管理任务。完整备份包含敏感数据和配对密钥，保留原用户访问权限。
 
 4. 沿用 Meta 用户、显式 profile，把原 DayweaveHub 任务动作改成 Node + server.mjs + `--config`。可使用“未登录也运行”的任务方式；需由运维在该真实身份下验证目录权限和网络可达性，不能改成 SYSTEM 并依赖其 APPDATA。工作目录无需参与路径解析。启用任务失败重试（例如一分钟、三次），不要反复并行创建 writer；开机/未登录的真实验收单独记录。
-5. 检查 `/health` 为 mode=server、版本0.2.2、appVersion0.5.4、capabilities.taskRecordLinks=true，API 49731、中心49732，原身份/客户端授权/序号/冲突与旧记录还在；跨至少两个15秒导入周期串行采样health/export，再单次检查详细状态及真实同步、AI Decision。共享网关、订阅、Tailscale以及其他程序的任务不随本包改动。
+5. 检查 `/health` 为 mode=server、版本0.2.3、appVersion0.5.5、capabilities.timeOverlapProtection=true，API 49731、中心49732，原身份/客户端授权/序号/冲突与旧记录还在；跨至少两个15秒导入周期串行采样health/export，再单次检查详细状态及真实同步、AI Decision。共享网关、订阅、Tailscale以及其他程序的任务不随本包改动。
 6. 需要回退时先有序关闭新 writer，保留新数据，先恢复原程序/任务入口并使用当前兼容 profile。只有证据表明数据损坏且明确授权时才从本次完整 profile 恢复；不要单独覆盖 usage.db、丢弃 WAL 或用旧备份回滚已确认的新业务数据。
 
 `owner.lock` 与桌面共用，Windows 另用由规范化 profile 路径派生的内核命名管道串行化恢复，防止同时启动时竞争移除旧锁。崩溃退出后通过死亡 PID 恢复；无法确定锁所有者时失败并要求检查，不删除活动锁。SQLite 沿用 WAL 恢复，坏 data.json 只从通过校验的 data.backup.json 恢复并保留损坏原件，没有有效数据则拒绝启动。
@@ -129,6 +131,6 @@ node 'C:\staging\Dayweave-Server\stage-update.mjs' `
 
 ## 构建与发行
 
-仓库中 `npm run bundle:server` 只 bundle 服务端；Windows `npm run dist:server` 同时生成 `release/Dayweave-Server-0.2.2.zip`。包里只有运行文件、示例配置与许可，不含 Node 运行时、profile 或源码依赖目录。`npm run test:server` 在隔离临时 profile 中验证，包含约200MiB合成历史及跨导入周期采样，需先 bundle。
+仓库中 `npm run bundle:server` 只 bundle 服务端；Windows `npm run dist:server` 同时生成 `release/Dayweave-Server-0.2.3.zip`。包里只有运行文件、示例配置与许可，不含 Node 运行时、profile 或源码依赖目录。`npm run test:server` 在隔离临时 profile 中验证，包含约200MiB合成历史及跨导入周期采样，需先 bundle。
 
-独立 tag `server-v0.2.2`，Release 指定 `--latest=false`，兼容现有schema2客户端0.5.4。服务端后续升级独立递增 server/package.json；纯服务器变更不重建 APK/EXE/DMG，领域结构变化则按兼容性要求同批升级客户端。历史生产接管证据见上；副本/生产性能、整机重启及资源收益按各自证据单独记录。
+独立 tag `server-v0.2.3`，Release 指定 `--latest=false`，兼容 schema 2 客户端；客户端需升级到 0.5.5 才能在离线编辑时立即提示重叠。服务端后续升级独立递增 server/package.json；纯服务器变更不重建 APK/EXE/DMG，领域结构变化则按兼容性要求同批升级客户端。历史生产接管证据见上；副本/生产性能、整机重启及资源收益按各自证据单独记录。

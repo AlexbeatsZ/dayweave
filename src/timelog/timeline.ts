@@ -6,6 +6,7 @@ import {
   type State,
   type TimeRecord,
 } from './domain.js';
+import { timerReservation } from './occupancy.js';
 export type TimelineEntry = Span &
   (
     | { kind: 'gap'; key: string }
@@ -44,8 +45,14 @@ export function buildTimeline(
       if (clippedEnd > start)
         entries.push({ kind: 'timer', key: `timer:${index}`, start, end: clippedEnd });
     });
+  const occupied: Span[] = entries.slice();
+  for (const timer of [state.timer, ...(state.conflictedTimers ?? [])]) {
+    if (!timer) continue;
+    const start = Math.max(range.start, timerReservation(timer).start);
+    if (start < end) occupied.push({ start, end });
+  }
   let cursor = range.start;
-  for (const span of entries.slice().sort((a, b) => a.start - b.start || a.end - b.end)) {
+  for (const span of occupied.sort((a, b) => a.start - b.start || a.end - b.end)) {
     if (span.start > cursor && (shortGaps || span.start - cursor >= 60000))
       entries.push({ kind: 'gap', key: `gap:${cursor}`, start: cursor, end: span.start });
     cursor = Math.max(cursor, span.end);

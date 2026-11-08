@@ -3,6 +3,7 @@ import { syncEndpoint, syncEndpoints, openEnvelope, seal, type Envelope } from '
 import {
   fromDocument,
   overlayNewEdits,
+  reconcileTimeOverlaps,
   stable,
   toDocument,
   migrateLegacyDocument,
@@ -138,9 +139,17 @@ export class SyncClient {
       throw new Error('同步恢复日志无效');
     await this.save();
     const conflicts = structuredClone(config.conflicts);
-    const received = toDocument(stateSchema.parse(reply.state));
-    await this.state.mutate((current) =>
-      fromDocument(overlayNewEdits(sent, toDocument(current), received, conflicts), current),
+    const authoritative = stateSchema.parse(reply.state);
+    const received = toDocument(authoritative);
+    await this.state.mutate(
+      (current) =>
+        reconcileTimeOverlaps(
+          overlayNewEdits(sent, toDocument(current), received, conflicts),
+          authoritative,
+          current,
+          conflicts,
+        ),
+      authoritative.timelog,
     );
     for (const conflict of reply.conflicts ?? [])
       if (!conflicts.some((item) => stable(item) === stable(conflict))) conflicts.push(conflict);

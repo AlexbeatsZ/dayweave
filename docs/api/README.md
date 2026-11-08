@@ -11,6 +11,7 @@ Windows/macOS 程序启动后提供本机 HTTP API；也可使用 Release 的 `D
 - `DAYWEAVE_DATA_DIR`、`DAYWEAVE_API_PORT` 只设置当前进程；`DAYWEAVE_API_DISABLE=1` 关闭桌面接口。
 - 响应为 `{data,revision}`，ETag 也是 revision；OpenAPI 端点直接返回文档。
 - 写入建议带 `If-Match: "<revision>"`；409 后重读并重新决策。时间记录实体编辑/删除及预设修改另需 `expectedUpdatedAt`，运行中计时操作需匹配 `timerId`。
+- `error.reason=TIME_OVERLAP` 的 409 表示新占用与已保存片段或未结束计时冲突；`error.details` 给出两个记录 ID、是否撞到计时及重叠区间。暂停计时仍保护从开始时刻起的时间，边界相接允许。导入也遵守该规则，冲突时整笔不写入；旧重叠可读取和修正。
 
 ## ROG 运行方式
 

@@ -12,6 +12,99 @@ import { initialState, startTimer, toggleTimer } from '../src/timelog/domain';
 import { diffState } from '../src/state-delta';
 import { fromDocument, toDocument } from '../src/sync/document';
 
+test('time writes and AI import reject new overlap atomically, including paused timers', async () =>
+  apiFixture(async (service, request) => {
+    const start = Date.now() - 180_000;
+    const ranges = (left: number, right: number) => ({
+      activityId: 'study',
+      spans: [{ start: start + left, end: start + right }],
+    });
+    const conflict = async (response: Response, timer: boolean) => {
+      assert.equal(response.status, 409);
+      const { error } = await response.json();
+      assert.equal(error.reason, 'TIME_OVERLAP');
+      assert.equal(error.details.conflictingTimer, timer);
+    };
+    await data(await request('POST', '/timelog/records', ranges(-60_000, 0)), 201);
+    const timer = await data(
+      await request('POST', '/timelog/timer/start', { activityId: 'study', startAt: start }),
+    );
+    await data(await request('POST', '/timelog/timer/pause', { timerId: timer.id }));
+    await conflict(
+      await request('POST', '/time-records', { startAt: start, endAt: start + 1000 }),
+      true,
+    );
+    await conflict(
+      await request('POST', '/timelog/timer/configure', {
+        timerId: timer.id,
+        startAt: start - 1000,
+      }),
+      false,
+    );
+    const before = await service.snapshot();
+    const incoming = structuredClone(before.state);
+    incoming.timelog.records.push({
+      ...incoming.timelog.records[0],
+      id: randomUUID(),
+      spans: ranges(60_000, 90_000).spans,
+    });
+    await conflict(
+      await request('POST', '/import', incoming, { 'If-Match': `"${before.revision}"` }),
+      true,
+    );
+    assert.deepEqual(await service.snapshot(), before);
+    await data(await request('POST', '/timelog/timer/cancel', { timerId: timer.id }));
+    const results = await Promise.all([
+      request('POST', '/timelog/records', ranges(0, 10_000)),
+      request('POST', '/timelog/records', ranges(5000, 15_000)),
+    ]);
+    assert.deepEqual(results.map((result) => result.status).sort(), [201, 409]);
+    await conflict(
+      results.find((result) => result.status === 409)!,
+      false,
+    );
+    assert.equal((await service.snapshot()).state.timelog.records.length, 2);
+  }));
+
+test('legacy overlap can be read, edited without adding occupancy, and trimmed', async () => {
+  const state = emptyState();
+  const start = Date.now() - 60_000;
+  const record = (id: string, left: number, right: number) => ({
+    id,
+    activityId: 'study',
+    note: '',
+    tags: [],
+    spans: [{ start: start + left, end: start + right }],
+    nature: 'positive' as const,
+    deletedAt: null,
+    updatedAt: start,
+  });
+  state.timelog.records = [record('legacy-a', 0, 20_000), record('legacy-b', 10_000, 30_000)];
+  await apiFixture(async (service, request) => {
+    const original = await data(await request('GET', '/timelog/records/legacy-b'));
+    const noted = await data(
+      await request('PATCH', '/timelog/records/legacy-b', {
+        expectedUpdatedAt: original.updatedAt,
+        note: '保留原有重叠的备注修改',
+      }),
+    );
+    await data(
+      await request('PATCH', '/timelog/records/legacy-b', {
+        expectedUpdatedAt: noted.updatedAt,
+        spans: record('legacy-b', 20_000, 30_000).spans,
+      }),
+    );
+    await data(
+      await request('POST', '/timelog/records', {
+        activityId: 'study',
+        spans: record('adjacent', 30_000, 40_000).spans,
+      }),
+      201,
+    );
+    assert.equal((await service.snapshot()).state.timelog.records.length, 3);
+  }, state);
+});
+
 async function fixture(run: (service: StateService) => Promise<void>) {
   const root = path.join(os.tmpdir(), '.agents');
   await mkdir(root, { recursive: true });
@@ -36,8 +129,10 @@ async function apiFixture(
       headers?: Record<string, string>,
     ) => Promise<Response>,
   ) => Promise<void>,
+  seed?: ReturnType<typeof emptyState>,
 ) {
   await fixture(async (service) => {
+    if (seed) await service.restore(seed);
     const api = await startApi(service, 0);
     try {
       await run(service, (method, route, body, headers = {}) =>
@@ -172,7 +267,7 @@ test('AI configures one timer start/end/task/tags and manages synchronized count
     await data(
       await request('POST', '/timelog/timer/configure', {
         timerId: timer.id,
-        startAt: previousEnd - 1000,
+        startAt: previousEnd + 1000,
         endAt: null,
         taskId: null,
       }),
@@ -180,7 +275,7 @@ test('AI configures one timer start/end/task/tags and manages synchronized count
     const adjusted = (await service.snapshot()).state.timelog.timer!;
     assert.equal(adjusted.runningSince, null);
     assert.equal(adjusted.spans[0].end, paused.spans[0].end);
-    assert.equal(adjusted.spans[0].start, previousEnd - 1000);
+    assert.equal(adjusted.spans[0].start, previousEnd + 1000);
     assert.equal(adjusted.plannedEndAt, null);
     assert.equal(adjusted.taskId, undefined);
     const settings = await data(await request('GET', '/timelog/settings'));
@@ -424,7 +519,11 @@ test('all record and timer link inputs reject missing/deleted tasks atomically w
       201,
     );
     const timer = await data(
-      await request('POST', '/timelog/timer/start', { activityId, taskId: task.id, startAt }),
+      await request('POST', '/timelog/timer/start', {
+        activityId,
+        taskId: task.id,
+        startAt: startAt + 60000,
+      }),
     );
     await data(await request('DELETE', `/tasks/${task.id}`));
     const attempts: [unknown, number, string][] = [

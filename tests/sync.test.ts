@@ -268,6 +268,40 @@ test('real encrypted hub with two clients: pairing, offline merge, cross-device 
     await b.client.now();
     const timerId = a.get().timelog.timer!.id;
     assert.equal(b.get().timelog.timer!.id, timerId);
+    // Simulate an old/offline client. Its colliding record stays available in the
+    // conflict journal, while its independent task still reaches the hub.
+    const offline = {
+      id: 'offline-overlap',
+      activityId: 'study',
+      note: '离线补录',
+      tags: [],
+      nature: 'positive' as const,
+      deletedAt: null,
+      updatedAt: Date.now(),
+      spans: [{ start: b.get().timelog.timer!.startedAt + 1, end: Date.now() - 1000 }],
+    };
+    b.get().timelog.records.push(offline);
+    b.get().tasks.push(newTask('离线补录之外的任务'));
+    await b.client.now();
+    assert.equal(b.client.connected, true, b.client.error);
+    assert.equal(b.get().timelog.records.length, 0);
+    const collision = b.client.config.conflicts.findIndex(
+      (item) => item.key === 'records/offline-overlap',
+    );
+    assert.ok(collision >= 0);
+    assert.match(b.client.config.conflicts[collision].reason, /TIME_OVERLAP/);
+    assert.equal(
+      (b.client.config.conflicts[collision].local as { note: string }).note,
+      offline.note,
+    );
+    assert.ok(
+      (await service.snapshot()).state.tasks.some((task) => task.title === '离线补录之外的任务'),
+    );
+    await b.client.now();
+    assert.equal(
+      b.client.config.conflicts.filter((item) => item.key === 'records/offline-overlap').length,
+      1,
+    );
     b.get().timelog = finishTimer(b.get().timelog, Date.now() - 1000);
     b.loseReply();
     await b.client.now();

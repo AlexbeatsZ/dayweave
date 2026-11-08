@@ -6,7 +6,12 @@ import Bonjour from 'bonjour-service';
 import { SyncClient, fetchEnvelope } from '../src/sync/client.js';
 import { SyncScheduler } from '../src/sync/scheduler.js';
 import { localEndpoint, openEnvelope, randomKey, seal, type Envelope } from '../src/sync/crypto.js';
-import { fromDocument, isDocumentKey, mergeDocuments, toDocument } from '../src/sync/document.js';
+import {
+  isDocumentKey,
+  mergeDocuments,
+  reconcileTimeOverlaps,
+  toDocument,
+} from '../src/sync/document.js';
 import { generateRepeatedTasks } from '../src/task-repeat.js';
 import { dateSchema, stateSchema } from '../src/model.js';
 import type { Peer, SyncBridge, SyncRequest, SyncStatus } from '../src/sync/types.js';
@@ -88,7 +93,15 @@ export class DesktopSync implements SyncBridge {
     readonly directory: string,
     readonly discovery = true,
   ) {
-    this.client = new SyncClient(syncFiles(directory), service, fetchEnvelope, os.hostname());
+    this.client = new SyncClient(
+      syncFiles(directory),
+      {
+        snapshot: () => service.snapshot(),
+        mutate: (transform, receivedTime) => service.mutate(transform, undefined, receivedTime),
+      },
+      fetchEnvelope,
+      os.hostname(),
+    );
     this.scheduler = new SyncScheduler(() => this.client.now());
   }
   async initialize() {
@@ -307,7 +320,10 @@ export class DesktopSync implements SyncBridge {
                       if (!isDocumentKey(key)) throw new Error('基础文档字段无效');
                     const merged = mergeDocuments(base, incoming, toDocument(current));
                     conflicts = merged.conflicts;
-                    return generateRepeatedTasks(fromDocument(merged.doc, current), value.through);
+                    return generateRepeatedTasks(
+                      reconcileTimeOverlaps(merged.doc, current, current, conflicts),
+                      value.through,
+                    );
                   })
                 : await this.service
                     .mutate((current) => generateRepeatedTasks(current, value.through))
