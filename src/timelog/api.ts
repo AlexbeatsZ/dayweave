@@ -44,6 +44,17 @@ class ApiError extends Error {
 const fail = (status: number, message: string): never => {
   throw new ApiError(status, message);
 };
+type TaskReference = { id: string; deletedAt: string | null };
+/** Validate explicit API links in the same transaction as the record/timer write. */
+export function linkedTaskId(value: unknown, tasks: readonly TaskReference[]) {
+  if (value == null) return undefined;
+  if (typeof value !== 'string' || !value.trim() || value.length > 100)
+    return fail(400, 'taskId must be a non-empty string of at most 100 characters or null');
+  const task = tasks.find((row) => row.id === value);
+  if (!task) return fail(404, 'Task not found for taskId');
+  if (task.deletedAt) return fail(409, 'Task is deleted; restore it before linking');
+  return task.id;
+}
 const object = (value: unknown): Record<string, unknown> => {
   if (!value || typeof value !== 'object' || Array.isArray(value))
     return fail(400, 'JSON object required');
@@ -99,7 +110,7 @@ export async function handleApi(
   request: ApiRequest,
   storage: {
     readState: () => Promise<State>;
-    mutateState: (fn: (state: State) => State) => Promise<State>;
+    mutateState: (fn: (state: State, tasks: readonly TaskReference[]) => State) => Promise<State>;
     /** Tasks for task-bound goals; the standalone timelog module has none. */
     readTasks?: () => Promise<GoalTask[]>;
   },
@@ -179,6 +190,7 @@ export async function handleApi(
               (!row.deletedAt || url.searchParams.get('includeDeleted') === 'true') &&
               (!url.searchParams.has('activityId') ||
                 row.activityId === url.searchParams.get('activityId')) &&
+              (!url.searchParams.has('taskId') || row.taskId === url.searchParams.get('taskId')) &&
               (!date || row.spans.some((span) => span.start < date.end && span.end > date.start)) &&
               `${row.note} ${row.tags.join(' ')} ${state.activities.find((a) => a.id === row.activityId)?.name}`
                 .toLocaleLowerCase()
@@ -232,7 +244,7 @@ export async function handleApi(
     if (!['POST', 'PATCH', 'DELETE'].includes(method)) return fail(405, 'Method not allowed');
     const body = object(request.body);
     let result: unknown;
-    await mutateState((state) => {
+    await mutateState((state, tasks) => {
       const now = Date.now();
       if (resource === 'settings' && !itemId && method === 'PATCH') {
         expected(body, state.settings);
@@ -263,7 +275,7 @@ export async function handleApi(
           const start = timerStart(body, state, now);
           const next = startTimer(state, text(body.activityId), text(body.note), start, {
             plannedEndAt: plannedEnd(body, start, now),
-            ...(body.taskId == null ? {} : { taskId: text(body.taskId) }),
+            taskId: linkedTaskId(body.taskId, tasks),
             ...(body.tags === undefined ? {} : { tags: body.tags as string[] }),
           });
           result = next.timer;
@@ -273,6 +285,12 @@ export async function handleApi(
         if (body.timerId !== state.timer.id)
           return fail(409, 'timerId does not match the active timer');
         if (itemId === 'configure') {
+          if (
+            state.timer.runningSince !== null &&
+            state.timer.plannedEndAt != null &&
+            state.timer.plannedEndAt <= now
+          )
+            fail(409, 'Timer has ended; read the saved record before editing');
           let next =
             body.startAt !== undefined || body.fromPreviousRecord === true
               ? adjustTimerStart(state, timerStart(body, state, now), now)
@@ -281,8 +299,11 @@ export async function handleApi(
           if (body.endAt !== undefined) timer.plannedEndAt = plannedEnd(body, timer.startedAt, now);
           if (body.note !== undefined) timer.note = text(body.note);
           if (body.tags !== undefined) timer.tags = body.tags as string[];
-          if (body.taskId === null) delete timer.taskId;
-          else if (body.taskId !== undefined) timer.taskId = text(body.taskId);
+          if (body.taskId !== undefined) {
+            const taskId = linkedTaskId(body.taskId, tasks);
+            if (taskId === undefined) delete timer.taskId;
+            else timer.taskId = taskId;
+          }
           result = timer;
           return { ...next, timer };
         }
@@ -380,9 +401,13 @@ export async function handleApi(
         const spans = body.spans === undefined ? previous?.spans : body.spans;
         if (!Array.isArray(spans) || !spans.length) fail(400, 'spans is required');
         const same = previous?.activityId === activityId;
+        const taskId =
+          method !== 'DELETE' && body.taskId !== undefined
+            ? linkedTaskId(body.taskId, tasks)
+            : previous?.taskId;
         const item: TimeRecord = {
           id: previous?.id || text(body.id) || newId(),
-          ...(previous?.taskId ? { taskId: previous.taskId } : {}),
+          ...(taskId === undefined ? {} : { taskId }),
           activityId,
           note: text(body.note, previous?.note),
           tags: (body.tags ?? previous?.tags ?? []) as string[],

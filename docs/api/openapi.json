@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Dayweave AI API",
-    "version": "2.0.0",
+    "version": "2.1.0",
     "description": "时织 Windows/macOS 本机接口。应用运行时可用；实际地址与令牌见设置或用户数据目录 api.json。默认不对局域网开放。所有写入先持久化再通知界面；DELETE 任务为软删除。"
   },
   "servers": [
@@ -827,7 +827,9 @@
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         }
       }
     },
@@ -839,7 +841,9 @@
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
       }
@@ -852,7 +856,9 @@
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
       }
@@ -865,7 +871,9 @@
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
       }
@@ -878,7 +886,9 @@
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         }
       },
       "post": {
@@ -888,7 +898,9 @@
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
           "required": true,
@@ -904,7 +916,12 @@
                     "description": "未来时刻设为 plannedEndAt；null/缺省正向计时，过去时刻保存历史记录"
                   },
                   "activityId": { "type": "string" },
-                  "taskId": { "type": "string" },
+                  "taskId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100,
+                    "description": "完整任务 ID；可关联已完成任务，不存在返回404，已删除返回409。null解除，编辑时省略保留。读取未绑定时省略taskId；任务详情用 GET /tasks/{id}。"
+                  },
                   "note": { "type": "string" },
                   "tags": { "type": "array", "items": { "type": "string" } }
                 },
@@ -927,7 +944,9 @@
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
           "required": true,
@@ -952,7 +971,9 @@
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         }
       }
     },
@@ -967,7 +988,9 @@
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
           "required": true,
@@ -988,7 +1011,9 @@
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         }
       },
       "patch": {
@@ -998,7 +1023,9 @@
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
           "required": true,
@@ -1047,7 +1074,9 @@
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         }
       }
     },
@@ -1059,7 +1088,9 @@
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "parameters": [
           { "in": "query", "name": "from", "schema": { "type": "number" } },
@@ -1075,7 +1106,9 @@
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
           "required": true,
@@ -1104,7 +1137,9 @@
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
           "required": true,
@@ -1126,7 +1161,9 @@
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
           "required": true,
@@ -1143,7 +1180,9 @@
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
       }
@@ -1156,7 +1195,9 @@
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         }
       },
       "post": {
@@ -1166,7 +1207,9 @@
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
           "required": true,
@@ -1188,7 +1231,9 @@
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
           "required": true,
@@ -1205,7 +1250,9 @@
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
       }
@@ -1218,7 +1265,9 @@
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         }
       },
       "post": {
@@ -1228,7 +1277,9 @@
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
           "required": true,
@@ -1250,7 +1301,9 @@
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         }
       },
       "patch": {
@@ -1260,7 +1313,9 @@
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
           "required": true,
@@ -1277,7 +1332,9 @@
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
           "required": true,
@@ -1290,28 +1347,84 @@
     },
     "/timelog/records": {
       "get": {
-        "summary": "读取记录（date/activityId/q/offset/limit）",
+        "summary": "读取原始记录及真实 taskId；date/activityId/taskId/q/offset/limit/includeDeleted 可组合",
         "responses": {
           "200": {
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
-        }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
+        },
+        "parameters": [
+          { "in": "query", "name": "date", "schema": { "type": "string" } },
+          { "in": "query", "name": "activityId", "schema": { "type": "string" } },
+          { "in": "query", "name": "taskId", "schema": { "type": "string" } },
+          { "in": "query", "name": "q", "schema": { "type": "string" } },
+          {
+            "in": "query",
+            "name": "offset",
+            "schema": { "type": "integer", "minimum": 0, "default": 0 }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": { "type": "integer", "minimum": 1, "maximum": 500, "default": 100 }
+          },
+          {
+            "in": "query",
+            "name": "includeDeleted",
+            "schema": { "type": "boolean", "default": false }
+          }
+        ]
       },
       "post": {
-        "summary": "创建记录",
+        "summary": "创建已结束记录，可同时关联任务；不改变当前计时",
         "responses": {
           "200": {
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
+          "201": {
+            "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
+          },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": { "schema": { "type": "object", "additionalProperties": true } }
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["activityId", "spans"],
+                "properties": {
+                  "activityId": { "type": "string" },
+                  "taskId": {
+                    "type": ["string", "null"],
+                    "minLength": 1,
+                    "maxLength": 100,
+                    "description": "完整任务 ID；可关联已完成任务，不存在返回404，已删除返回409。null解除，编辑时省略保留。读取未绑定时省略taskId；任务详情用 GET /tasks/{id}。"
+                  },
+                  "note": { "type": "string" },
+                  "tags": { "type": "array", "items": { "type": "string" } },
+                  "spans": {
+                    "type": "array",
+                    "minItems": 1,
+                    "description": "有效片段，按起点有序且不重叠；间隔是暂停，不能改成首尾连续区间",
+                    "items": {
+                      "type": "object",
+                      "required": ["start", "end"],
+                      "properties": { "start": { "type": "number" }, "end": { "type": "number" } },
+                      "additionalProperties": false
+                    }
+                  },
+                  "id": { "type": "string" }
+                }
+              }
+            }
           }
         },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
@@ -1322,28 +1435,61 @@
         { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } }
       ],
       "get": {
-        "summary": "读取记录",
+        "summary": "读取原始记录、taskId 和 updatedAt；用 GET /tasks/{taskId} 核对关联任务详情",
         "responses": {
           "200": {
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         }
       },
       "patch": {
-        "summary": "修改记录，需 expectedUpdatedAt",
+        "summary": "修改记录，需 expectedUpdatedAt；纯关联只发送 expectedUpdatedAt+taskId，其余字段省略保留",
         "responses": {
           "200": {
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": { "schema": { "type": "object", "additionalProperties": true } }
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["expectedUpdatedAt"],
+                "properties": {
+                  "activityId": { "type": "string" },
+                  "taskId": {
+                    "type": ["string", "null"],
+                    "minLength": 1,
+                    "maxLength": 100,
+                    "description": "完整任务 ID；可关联已完成任务，不存在返回404，已删除返回409。null解除，编辑时省略保留。读取未绑定时省略taskId；任务详情用 GET /tasks/{id}。"
+                  },
+                  "note": { "type": "string" },
+                  "tags": { "type": "array", "items": { "type": "string" } },
+                  "spans": {
+                    "type": "array",
+                    "minItems": 1,
+                    "description": "有效片段，按起点有序且不重叠；间隔是暂停，不能改成首尾连续区间",
+                    "items": {
+                      "type": "object",
+                      "required": ["start", "end"],
+                      "properties": { "start": { "type": "number" }, "end": { "type": "number" } },
+                      "additionalProperties": false
+                    }
+                  },
+                  "expectedUpdatedAt": { "type": "number" },
+                  "restore": { "type": "boolean" }
+                }
+              }
+            }
           }
         },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
@@ -1355,7 +1501,9 @@
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
           "required": true,
@@ -1377,7 +1525,9 @@
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
           "required": true,
@@ -1396,7 +1546,9 @@
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         }
       }
     },
@@ -1408,7 +1560,9 @@
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
           "required": true,
@@ -1429,7 +1583,12 @@
                     "type": ["number", "null"],
                     "description": "未来 UTC epoch 毫秒；null/缺省正向计时"
                   },
-                  "taskId": { "type": "string" },
+                  "taskId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100,
+                    "description": "完整任务 ID；可关联已完成任务，不存在返回404，已删除返回409。null解除，编辑时省略保留。读取未绑定时省略taskId；任务详情用 GET /tasks/{id}。"
+                  },
                   "tags": { "type": "array", "items": { "type": "string" } }
                 },
                 "additionalProperties": false
@@ -1442,13 +1601,15 @@
     },
     "/timelog/timer/configure": {
       "post": {
-        "summary": "调整运行中计时的起止、任务、描述和标签；保留原记录 ID 及暂停片段",
+        "summary": "调整运行或暂停中的原计时；纯关联仅发送 timerId+taskId 并携带 If-Match，可比较完整 timer 快照；无活动/ID不匹配/已经到期返回409",
         "responses": {
           "200": {
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
           "required": true,
@@ -1465,7 +1626,12 @@
                     "type": ["number", "null"],
                     "description": "未来 UTC epoch 截止；null 清除截止并转正向计时"
                   },
-                  "taskId": { "type": ["string", "null"] },
+                  "taskId": {
+                    "type": ["string", "null"],
+                    "minLength": 1,
+                    "maxLength": 100,
+                    "description": "完整任务 ID；可关联已完成任务，不存在返回404，已删除返回409。null解除，编辑时省略保留。读取未绑定时省略taskId；任务详情用 GET /tasks/{id}。"
+                  },
                   "note": { "type": "string" },
                   "tags": { "type": "array", "items": { "type": "string" } }
                 },
@@ -1485,7 +1651,9 @@
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
           "required": true,
@@ -1514,7 +1682,9 @@
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
           "required": true,
@@ -1533,7 +1703,9 @@
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
           "required": true,
@@ -1552,7 +1724,9 @@
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
           "required": true,
@@ -1571,7 +1745,9 @@
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
           "required": true,
@@ -1590,7 +1766,9 @@
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         }
       },
       "patch": {
@@ -1600,7 +1778,9 @@
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
           "required": true,
@@ -1633,7 +1813,9 @@
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         }
       }
     },
@@ -1645,7 +1827,9 @@
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         }
       }
     },
@@ -1657,7 +1841,9 @@
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         }
       },
       "post": {
@@ -1667,7 +1853,9 @@
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
           "required": true,
@@ -1689,7 +1877,9 @@
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         }
       },
       "patch": {
@@ -1699,7 +1889,9 @@
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
           "required": true,
@@ -1716,7 +1908,9 @@
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
         "requestBody": {
           "required": true,
@@ -1735,13 +1929,15 @@
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
           },
           "400": { "description": "输入无效" },
-          "409": { "description": "版本冲突" }
+          "404": { "description": "对象或关联任务不存在" },
+          "409": { "description": "版本或操作冲突（包括目标已删除、计时已结束/被替换）" },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         }
       }
     },
     "/health": {
       "get": {
-        "summary": "检查应用状态与版本",
+        "summary": "检查应用状态与版本；data.capabilities.taskRecordLinks=true 表示已支持任务/计时关联与预存ID创建",
         "responses": {
           "200": {
             "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
@@ -1848,7 +2044,7 @@
         ]
       },
       "post": {
-        "summary": "创建任务",
+        "summary": "创建任务；可指定随机UUID前缀+整数后缀的id，同ID（含已删除）返回409；完成用 /complete",
         "requestBody": {
           "required": true,
           "content": {
@@ -1895,7 +2091,13 @@
                     }
                   },
                   "pinned": { "type": "boolean" },
-                  "order": { "type": "number" }
+                  "order": { "type": "number" },
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100,
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-(0|[1-9]\\d*)$"
+                  }
                 },
                 "required": ["title"],
                 "additionalProperties": false
@@ -2067,7 +2269,7 @@
     },
     "/tasks/{id}/complete": {
       "post": {
-        "summary": "完成任务及其子任务",
+        "summary": "幂等完成任务及现存子任务；空子任务列表也可完成，完成时间由服务端本次操作生成，不接受回填",
         "parameters": [
           { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } },
           { "$ref": "#/components/parameters/IfMatch" }

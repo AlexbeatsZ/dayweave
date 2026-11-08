@@ -26,6 +26,8 @@ Native RemoteViews, 2x2 and 4x2 variants, :widgetProvider process, miui exposure
 
 Authenticated loopback HTTP at 127.0.0.1:49731/api/v1, token discovery api.json, OpenAPI and CLI. ROG can run the app or standalone headless API against its own profile; remote control uses SSH forwarding rather than public unauthenticated listeners. Unified context includes today tasks, active timers, current/next courses and epoch instants. All writes share the same storage queue as UI; If-Match prevents stale writes.
 
+Source contract OpenAPI 2.1.0 adds historical record task links (POST/PATCH, null clears and omission preserves), exact taskId record filtering and caller-supplied UUID-sequence IDs on task creation. Explicit links validate the latest task inside the existing transaction; completed targets are valid, missing/deleted targets are rejected. Original linked IDs, state/protocol v2 and migration remain unchanged. AI Decision resolves internal/new task references before sparse record PATCH or timer configure with existing If-Match. Native POST task → complete works during a timer and needs no artificial subtask; completion timestamps describe the current operation, while dates+notes may describe a past occurrence. See api.md and task-system.md for readback, concurrency and the unshipped capability boundary.
+
 ## Synchronization
 
 ROG owns an optional encrypted LAN listener at 49732; AI loopback and synchronization share StateService. Read sync.md before changing merge or transport logic. Android sync runs while the app is open; system background freezing is explicitly shown in settings.

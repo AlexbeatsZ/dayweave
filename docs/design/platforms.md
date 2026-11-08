@@ -16,7 +16,8 @@ React / TypeScript 负责任务、日期、重复、活动计时、课程、统�
 
 - 使用固定 bundle ID `org.dayweave.desktop`，数据保存到 `app.getPath('appData')/Dayweave`，遵循当前用户的系统目录。
 - 保留原生菜单及 Cmd+Q、Cmd+W、复制粘贴、最小化等行为；关闭最后一个窗口后应用保留在 Dock，点击 Dock 可重新打开窗口。
-- Apple Silicon 与 Intel 分别构建 DMG / ZIP；没有 Developer ID 时提供 ad-hoc 签名并明确未公证。构建验证与真实 Mac 运行、下载后的 Gatekeeper 体验分别报告。
+- macOS 仅交付 Apple Silicon（arm64）的 DMG / ZIP，本地打包脚本和 CI 都不再构建 Intel 包。没有 Developer ID 时提供 ad-hoc 签名并明确未公证。构建验证与真实 Mac 运行、下载后的 Gatekeeper 体验分别报告。
+- 本机正式安装只保留 `/Applications/Dayweave.app`。打包、验证与部署完成后清理 `release/` 中展开的 `.app`，只保留当前所需的发行包；升级恢复文件中的程序包也不长期保留为可被系统登记的 `.app`。清理程序副本时保留独立的数据恢复目录及配对信息。
 - 运行时最低 macOS 13，与 Electron 44 的支持范围一致，不能只修改 Info.plist 来宣称支持更旧系统。
 
 ## 托盘启动

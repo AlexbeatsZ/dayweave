@@ -61,17 +61,7 @@ jobs:
           name: Dayweave-Android-unsigned
           path: release/Dayweave-*-Android-unsigned.apk
   macos:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - runner: macos-15
-            arch: arm64
-            app-dir: mac-arm64
-          - runner: macos-15-intel
-            arch: x64
-            app-dir: mac
-    runs-on: ${{ matrix.runner }}
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -88,13 +78,13 @@ jobs:
       - run: node scripts/smoke-desktop.mjs
       - run: node scripts/smoke-tray.mjs
       - run: node scripts/smoke-api.mjs
-      - run: node scripts/package-macos.mjs ${{ matrix.arch }}
+      - run: node scripts/package-macos.mjs
       - run: node scripts/smoke-api.mjs
         env:
-          DAYWEAVE_EXECUTABLE: release/${{ matrix.app-dir }}/Dayweave.app/Contents/MacOS/Dayweave
+          DAYWEAVE_EXECUTABLE: release/mac-arm64/Dayweave.app/Contents/MacOS/Dayweave
       - uses: actions/upload-artifact@v4
         with:
-          name: Dayweave-macOS-${{ matrix.arch }}
+          name: Dayweave-macOS-arm64
           path: |
-            release/Dayweave-*-macOS-${{ matrix.arch }}.dmg
-            release/Dayweave-*-macOS-${{ matrix.arch }}.zip
+            release/Dayweave-*-macOS-arm64.dmg
+            release/Dayweave-*-macOS-arm64.zip

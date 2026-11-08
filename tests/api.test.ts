@@ -198,6 +198,7 @@ test('API rejects missing authentication, browser origins and forged hosts', asy
     const health = await request('GET', '/health');
     assert.equal(health.status, 200);
     assert.equal(health.headers.get('Access-Control-Allow-Origin'), null);
+    assert.equal((await health.json()).data.capabilities.taskRecordLinks, true);
     const config = JSON.parse(
       await readFile(path.join(service.storage.directory, 'api.json'), 'utf8'),
     );

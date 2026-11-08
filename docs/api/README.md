@@ -83,7 +83,7 @@ ssh -N -L 49733:127.0.0.1:49731 meta@192.168.31.214
 
 `POST /time-records` 只需 `{"startAt":<epochMs>}`，可附 `activityId/taskId/note/tags`。未给 `endAt` 或为 null 时正计时；未来的 `endAt` 保存为 `plannedEndAt` 并开始倒计时；过去的 `endAt` 创建已结束记录。`POST /time-records/{id}/stop` 可用可选的过去结束时刻结束原记录。
 
-`/timelog/timer/start` 和 `/configure` 的 `startAt` 不晚于现在，不能与 `fromPreviousRecord:true` 同用；`endAt` 仅接受未来 UTC epoch 毫秒，null 清除截止。`configure` 不传字段则保留现值，`taskId:null` 解除计划绑定。需要创建过去的完整记录时使用 `/time-records` 或 `/timelog/records`。
+`/timelog/timer/start` 和 `/configure` 的 `startAt` 不晚于现在，不能与 `fromPreviousRecord:true` 同用；`endAt` 仅接受未来 UTC epoch 毫秒，null 清除截止。`configure` 不传字段则保留现值，`taskId:null` 解除任务绑定。需要创建过去的完整记录时使用 `/time-records` 或 `/timelog/records`。
 
 倒计时暂停冻结剩余时间，恢复顺延截止；到期按原计划截止保存同一 ID，延迟唤醒不额外累计。`next` 的旧记录结束边界与新计时起点一致，返回新计时；之后操作使用它的新 `timerId`。离线同时开始的计时保留为冲突候选，不能盲目新开计时。
 
@@ -97,6 +97,39 @@ ssh -N -L 49733:127.0.0.1:49731 meta@192.168.31.214
 ```
 
 上面的更新时间仅为格式示例，必须替换为实际读到的值。预设最多 30 项，每项为 1 至 10080 的整数分钟，去重后保存，空数组表示删除全部预设。
+
+## 任务关联与事后成果（OpenAPI 2.1.0，源码待交付）
+
+本节能力以目标服务 `GET /openapi.json` 的 `info.version=2.1.0` 为准，路径仍是 `/api/v1`；当前源码的应用/Server 包版本尚为 0.5.4/0.2.1，不表示已部署新接口。状态 schema/同步协议仍为 2。
+
+运行时首先检查 `GET /health` 的 JSON `data.capabilities.taskRecordLinks === true`。旧中心没有该标志时禁止发本节新增写入，避免旧历史 PATCH 静默忽略 taskId；同一标志也声明本节 caller-id 创建能力。源代码修改不会使尚未升级的生产中心自动获得该标志。
+
+先 `GET /timelog/records/{id}` 读取原记录及其 `updatedAt`，再以响应 ETag 作为 `If-Match` 发稀疏 PATCH：
+
+```json
+{
+  "expectedUpdatedAt": 1792700000000,
+  "taskId": "e6e0ce1f-7347-42bf-96fa-a96b2d0adb7c-0"
+}
+```
+
+所有示例 ID/时间都需要换成真实读到的值。字符串建立或改绑，`taskId:null` 解绑，省略保留；其余字段省略就保留原片段（含暂停空隙）、活动/性质、备注、标签及删除状态，也不会调整正在进行的计时。`expectedUpdatedAt` 必填，缺少返回 428、过期返回 409；全局 If-Match 过期同样返回 409。`POST /timelog/records` 用 `activityId+spans` 创建已结束记录时也可带 taskId，返回 201。
+
+运行或暂停计时先 `GET /timelog/timer` 或 `/export` 取得完整原 `timer` 与 ETag，再发 `POST /timelog/timer/configure`，仅包含 `{"timerId":"真实ID","taskId":"真实TaskID"}` 并带 `If-Match`。null 解除，省略保留。除 taskId 外，完整 timer 的 id、活动/性质、开始/运行起点、spans、截止、备注和标签应完全相同；派生 elapsed 随时钟变化不用于比较。无活动计时、旧 ID、已经结束/到期返回 409，不能因此重新 start。接口不接收额外 expected_revision/指纹，调用方自己的完整快照指纹比较由原 If-Match 围栏保护。
+
+全部显式关联都在最新状态的同一写事务内验证任务。已完成但未删除的任务可以关联，不存在返回 404，软删除返回 409，非法类型/空串返回 400。既有历史/导入引用在读取、同步和省略字段的普通编辑中保留；null 可解除。一个任务可以关联多条记录，一条记录只有一个 taskId；活动分组、记录业务日、任务 dates/日计划分组各自独立，关联不会改变它们，也不自动完成任务或回填 actualMinutes。
+
+查重与读回沿用 `GET /timelog/records/{id}`、`GET /timelog/records?taskId=<完整TaskID>&offset=0&limit=100`（最多 500/页，可组合 date/activityId/q/includeDeleted）、`GET /time-records`（最近 1000 条，含开放记录）；它们返回实际 taskId，未绑定时省略。任务相关详情用 `GET /tasks/{taskId}` 核对 title、dates、notes、completedAt、deletedAt 等，已完成/已删除目标均能读回。重复系列须使用完整实例 ID。
+
+补建用户报告已经做完的事项：
+
+1. 先查询核对既有任务；确无对应项时，调用方先持久化随机 `UUID-0`，再 `POST /tasks` 传可选 `id`、title、实际业务日的 dates、notes 及正常任务字段。省略 id 则由服务生成；同 ID（包含软删除）返回 409，不覆盖既有内容，普通 PATCH 禁止改 ID。
+2. 创建并读回后，用最新 ETag 调用 `POST /tasks/{id}/complete`，请求体 `{}`。显式完成支持空子任务列表；无需添加虚构子任务。创建与完成为两个独立事务，活动计时不会阻止它们。
+3. 再用上述 PATCH/configure 把真实记录/计时关联到新任务。记录有真实起止才补录 spans；只有完成陈述时不虚构计时范围。
+
+`POST /tasks` 的完整可写字段为必填 title，可选 id、notes、estimatedMinutes、actualMinutes、difficulty、listId、dates、tags、subtasks（`{id,title,done}`数组）、pinned、order；未知字段400，成功200返回完整Task及revision/ETag。不接受 status；AI Decision的 `status=completed` 必须由控制器转换为上述创建→complete两步。
+
+创建/普通 PATCH 不接受 completedAt、createdAt、updatedAt、history。complete 使用服务器当前操作时间，不支持原生历史完成时间回填；dates+notes 可以记录实际发生日期，但原生完成统计/历史仍属于补录操作日。所有动作结果未知时先按预存 ID 只读核对；AI Decision 负责动作账本与幂等，不能在未知结果后盲目重发写入或换一个任务 ID。详细交接字段和版本边界见 [API 设计](../design/api.md)。
 
 ## 课程与请求文件
 

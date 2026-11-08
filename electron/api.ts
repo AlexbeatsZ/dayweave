@@ -152,6 +152,7 @@ export async function startApi(
         version: appVersion(),
         storage: 'ready',
         ...options.health,
+        capabilities: { taskRecordLinks: true },
       };
       if (options.management) {
         if (route === '/server/status' && method === 'GET')
@@ -258,6 +259,8 @@ export async function startApi(
         const input = taskInputSchema.parse(await body(request));
         let id = '';
         snapshot = await mutate((s) => {
+          if (input.id !== undefined && s.tasks.some((task) => task.id === input.id))
+            fail(409, 'Task ID already exists; read the existing task before deciding');
           const task = newTask(input.title, input);
           planGroupFits(s, task);
           id = task.id;
