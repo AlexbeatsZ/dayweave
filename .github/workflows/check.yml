@@ -40,7 +40,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: Dayweave-Windows-x64
-          path: release/Dayweave-*-Windows-x64.exe
+          path: |
+            release/Dayweave-*-Windows-x64.exe
+            release/Dayweave-*-Windows-Setup.exe
   android:
     runs-on: ubuntu-24.04
     steps:

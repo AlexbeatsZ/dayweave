@@ -3,6 +3,7 @@ import { TimeOverlap } from './occupancy.js';
 import {
   activeActivity,
   adjustTimerStart,
+  behaviorReview,
   deleteActivity,
   dayKey,
   dayRange,
@@ -215,6 +216,9 @@ export async function handleApi(
             kind: goal.kind ?? 'time',
             periodKey: goalPeriodKey(goal, date),
             ...(goal.kind === undefined ? { progressMinutes: status.progress } : {}),
+            ...(goal.kind === 'behaviorRule'
+              ? { review: behaviorReview(state, goal.id, date) }
+              : {}),
             // Script results come from the hub's distributed results; missing ones read as null.
             ...(goal.kind === 'script'
               ? (() => {
@@ -448,6 +452,12 @@ export async function handleApi(
           return { ...state, goals: state.goals.filter((goal) => goal.id !== itemId) };
         }
         if (body.archived !== undefined) fail(400, 'Use DELETE to remove a goal');
+        if (
+          body.review !== undefined ||
+          body.reviewStatus !== undefined ||
+          body.behaviorReviews !== undefined
+        )
+          fail(400, 'Behavior reviews can only be confirmed in Dayweave');
         const old = previous as Goal | undefined;
         if (body.check !== undefined) {
           // Manual goals are checked per period by the user or the AI; nothing else changes.
@@ -490,7 +500,18 @@ export async function handleApi(
           };
         else if (kind === 'manual')
           item = { ...base, kind, checks: old?.kind === 'manual' ? old.checks : {} };
-        else if (kind === 'script') {
+        else if (kind === 'behaviorRule') {
+          const rule = old?.kind === 'behaviorRule' ? old : undefined;
+          const period = text(body.period, rule?.period ?? 'day');
+          if (period !== 'day') return fail(400, 'Behavior rules require a daily period');
+          item = {
+            ...base,
+            kind,
+            period,
+            trigger: text(body.trigger, rule?.trigger).trim(),
+            action: text(body.action, rule?.action).trim(),
+          };
+        } else if (kind === 'script') {
           // Scripts live in the app's library; the API only points a goal at one.
           const scriptId = text(body.scriptId, old?.kind === 'script' ? old.scriptId : '');
           if (!state.scripts?.some((row) => row.id === scriptId))
@@ -555,7 +576,7 @@ export async function handleApi(
             ...target,
             ...(stages.length ? { stages } : {}),
           };
-        } else return fail(400, 'kind must be time, tasks, manual or script');
+        } else return fail(400, 'kind must be time, tasks, manual, behaviorRule or script');
         result = item;
         return {
           ...state,

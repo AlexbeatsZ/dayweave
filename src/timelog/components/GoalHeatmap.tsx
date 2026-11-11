@@ -1,6 +1,7 @@
-import { useMemo, type CSSProperties } from 'react';
+import { useMemo, useState, type CSSProperties } from 'react';
 import { Target } from 'lucide-react';
 import {
+  behaviorReviewLabels,
   goalPeriodKey,
   goalRange,
   goalStatus,
@@ -21,7 +22,7 @@ const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日'];
 type Status = ReturnType<typeof goalStatus>;
 
 /** 0 is gray and 1 the theme blue; stages split the range evenly. */
-export function goalShade(goal: Goal, status: Status) {
+function goalShade(goal: Exclude<Goal, { kind: 'behaviorRule' }>, status: Status) {
   if (goal.kind === 'script') return status.progress;
   if (goal.kind === undefined && !goal.stages?.length && goal.comparison === 'atLeast')
     return Math.min(1, status.progress / status.target);
@@ -48,6 +49,9 @@ export function GoalHeatmaps({
   tasks: GoalTask[];
   date: string;
 }) {
+  const [selectedReview, setSelectedReview] = useState<{ ruleId: string; date: string } | null>(
+    null,
+  );
   // Which periods each goal shows; computing them first lets script goals request results.
   const layout = useMemo(() => {
     // Periods that ended before the first saved record have no data, not a result: an
@@ -71,7 +75,7 @@ export function GoalHeatmaps({
           empty:
             key > last
               ? `${key} 尚未到来`
-              : goalRange(goal, key).end <= firstRecord
+              : goal.kind !== 'behaviorRule' && goalRange(goal, key).end <= firstRecord
                 ? `${key} 无记录`
                 : '',
         };
@@ -98,6 +102,13 @@ export function GoalHeatmaps({
           label: `${key} ${outcome?.error ? `脚本出错：${outcome.error}` : '等待同步中心判定'}`,
         };
       const status = goalStatus(scoped, goal, key, now, tasks);
+      if (goal.kind === 'behaviorRule')
+        return {
+          key,
+          shade: status.reviewStatus ? 0.35 : null,
+          current: !status.settled,
+          label: `${key} ${status.reviewStatus ? behaviorReviewLabels[status.reviewStatus] : '未选择'}`,
+        };
       return {
         key,
         shade: goalShade(goal, status),
@@ -107,7 +118,11 @@ export function GoalHeatmaps({
     });
     const settled = cells.filter((cell) => cell.shade !== null && !cell.current);
     const full = settled.filter((cell) => cell.shade === 1).length;
-    return { goal, cells, summary: `${full}/${settled.length} 期全部完成` };
+    const summary =
+      goal.kind === 'behaviorRule'
+        ? `已回顾 ${cells.filter((cell) => cell.shade !== null).length} 天`
+        : `${full}/${settled.length} 期全部完成`;
+    return { goal, cells, last: goalPeriodKey(goal, date), summary };
   });
   if (!rows.length)
     return (
@@ -118,39 +133,65 @@ export function GoalHeatmaps({
     );
   return (
     <div className="goal-heatmaps">
-      <p className="section-note">颜色越蓝完成越多；有阶段的目标按达到的阶段数均分。</p>
-      {rows.map(({ goal, cells, summary }) => (
-        <section className="phone-analysis-card goal-heatmap" key={goal.id}>
-          <header>
-            <h2>{goal.name}</h2>
-            <span>
-              {goal.period === 'week' ? '每周' : '每日'} · {summary}
-            </span>
-          </header>
-          {goal.period === 'day' && (
-            <ol className="goal-heat-weekdays" aria-hidden="true">
-              {WEEKDAYS.map((day) => (
-                <li key={day}>{day}</li>
+      {rows.some(({ goal }) => goal.kind !== 'behaviorRule') && (
+        <p className="section-note">颜色越蓝完成越多；有阶段的目标按达到的阶段数均分。</p>
+      )}
+      {rows.map(({ goal, cells, last, summary }) => {
+        const behavior = goal.kind === 'behaviorRule';
+        const selection =
+          selectedReview?.ruleId === goal.id
+            ? cells.find((cell) => cell.key === selectedReview.date && cell.key <= last)
+            : undefined;
+        return (
+          <section className="phone-analysis-card goal-heatmap" key={goal.id}>
+            <header>
+              <h2>{goal.name}</h2>
+              <span>
+                {behavior ? '行为回顾' : goal.period === 'week' ? '每周' : '每日'} · {summary}
+              </span>
+            </header>
+            {goal.period === 'day' && (
+              <ol className="goal-heat-weekdays" aria-hidden="true">
+                {WEEKDAYS.map((day) => (
+                  <li key={day}>{day}</li>
+                ))}
+              </ol>
+            )}
+            <ol
+              className="goal-heat"
+              aria-label={`${goal.name} ${behavior ? '回顾记录' : '完成情况'}`}
+            >
+              {cells.map((cell) => (
+                <li
+                  key={cell.key}
+                  className={`${cell.shade === null ? 'future' : ''} ${cell.current ? 'current' : ''}`}
+                  title={cell.label}
+                  aria-label={behavior && cell.key <= last ? undefined : cell.label}
+                  style={
+                    cell.shade === null
+                      ? undefined
+                      : ({ '--heat': `${Math.round(cell.shade * 100)}%` } as CSSProperties)
+                  }
+                >
+                  {behavior && cell.key <= last && (
+                    <button
+                      type="button"
+                      aria-label={cell.label}
+                      aria-pressed={selection?.key === cell.key}
+                      onClick={() => setSelectedReview({ ruleId: goal.id, date: cell.key })}
+                    />
+                  )}
+                </li>
               ))}
             </ol>
-          )}
-          <ol className="goal-heat" aria-label={`${goal.name} 完成情况`}>
-            {cells.map((cell) => (
-              <li
-                key={cell.key}
-                className={`${cell.shade === null ? 'future' : ''} ${cell.current ? 'current' : ''}`}
-                title={cell.label}
-                aria-label={cell.label}
-                style={
-                  cell.shade === null
-                    ? undefined
-                    : ({ '--heat': `${Math.round(cell.shade * 100)}%` } as CSSProperties)
-                }
-              />
-            ))}
-          </ol>
-        </section>
-      ))}
+            {selection && (
+              <p className="goal-review-history" role="status">
+                {selection.label}
+              </p>
+            )}
+          </section>
+        );
+      })}
     </div>
   );
 }

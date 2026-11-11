@@ -1923,7 +1923,7 @@
     },
     "/timelog/goals": {
       "get": {
-        "summary": "读取目标",
+        "summary": "读取目标，行为规则按 date 返回 review 或 null",
         "responses": {
           "200": {
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
@@ -1937,7 +1937,7 @@
         }
       },
       "post": {
-        "summary": "创建目标",
+        "summary": "创建目标，行为规则使用 kind=behaviorRule、period=day、trigger 和 action",
         "responses": {
           "200": {
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
@@ -1963,7 +1963,7 @@
         { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } }
       ],
       "get": {
-        "summary": "读取目标",
+        "summary": "读取目标，行为规则按 date 返回 review 或 null",
         "responses": {
           "200": {
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
@@ -1977,7 +1977,7 @@
         }
       },
       "patch": {
-        "summary": "更新目标，需 expectedUpdatedAt",
+        "summary": "更新目标，需 expectedUpdatedAt。行为回顾由用户在客户端选择",
         "responses": {
           "200": {
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"

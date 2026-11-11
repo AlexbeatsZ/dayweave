@@ -147,14 +147,14 @@ export function applyDelta(state: AppState, value: StateDelta, strict = true): A
       const changed = after[module] as unknown as Record<string, unknown>;
       const collections =
         module === 'timelog'
-          ? ['activities', 'records', 'goals', 'scripts', 'goalResults']
+          ? ['activities', 'records', 'goals', 'scripts', 'goalResults', 'behaviorReviews']
           : module === 'schedule'
             ? ['courses', 'events']
             : [];
       for (const field of new Set([...Object.keys(previous), ...Object.keys(changed)])) {
         if (equal(previous[field], changed[field])) continue;
         if (collections.includes(field)) {
-          // Optional collections (scripts, goalResults) are omitted while empty.
+          // Optional collections are omitted while empty.
           const oldRows = (previous[field] ?? []) as Row[];
           const newRows = (changed[field] ?? []) as Row[];
           current[field] ??= [];

@@ -1,6 +1,8 @@
 # 时织 / Dayweave Server
 
-独立版本 `0.2.3`，共享客户端 `0.5.5` 的业务、计时、同步及 SQLite 所有者。需要 **Node 24（24.14.1 或更高的 24.x）或 Node 26**，CI 在 Windows/Ubuntu 的 Node 24.14.1 与 26 上验证。包已含 JavaScript 依赖，不需要 npm install、编译、Electron、React、Rust 或本机采集程序。Node 运行时由运行机器提供。
+独立版本 `0.2.4`，共享客户端 `0.5.7` 的业务、计时、同步及 SQLite 所有者。需要 **Node 24（24.14.1 或更高的 24.x）或 Node 26**，CI 在 Windows/Ubuntu 的 Node 24.14.1 与 26 上验证。包已含 JavaScript 依赖，不需要 npm install、编译、Electron、React、Rust 或本机采集程序。Node 运行时由运行机器提供。
+
+0.2.4 支持行为规则目标和按业务日保存的行为回顾。启用前先升级中心，再升级全部配对客户端到 0.5.7。状态与同步协议仍为 2。
 
 0.2.3 将主动时间防重叠校验纳入同一个写入队列，覆盖 AI 整份导入与客户端同步。健康接口新增 `capabilities.timeOverlapProtection=true`；API 重叠返回 HTTP 409/`TIME_OVERLAP`，同步保留冲突候选。状态和协议 2 不变。
 

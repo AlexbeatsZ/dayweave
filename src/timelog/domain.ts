@@ -117,7 +117,40 @@ export type ScriptGoal = GoalCommon & {
   scriptId: string;
   params: Record<string, ScriptParam>;
 };
-export type Goal = TimeGoal | TaskGoal | ManualGoal | ScriptGoal;
+/** A daily prompt the user answers by reflecting on a situation and their response. */
+export type BehaviorRule = GoalCommon & {
+  kind: 'behaviorRule';
+  period: 'day';
+  trigger: string;
+  action: string;
+};
+export const behaviorReviewLabels = {
+  notTriggered: '未触发',
+  missed: '已触发，未全部执行',
+  executed: '已触发，全部执行',
+} as const;
+export type BehaviorReviewStatus = keyof typeof behaviorReviewLabels;
+export type BehaviorReview = {
+  id: string;
+  ruleId: string;
+  date: string;
+  status: BehaviorReviewStatus;
+  updatedAt: number;
+};
+export const MAX_BEHAVIOR_TEXT = 500;
+const behaviorReviewId = (ruleId: string, date: string) => `${ruleId}@${date}`;
+const reviewIndexes = new WeakMap<BehaviorReview[], Map<string, BehaviorReview>>();
+export function behaviorReview(state: State, ruleId: string, date: string) {
+  const rows = state.behaviorReviews;
+  if (!rows) return null;
+  let index = reviewIndexes.get(rows);
+  if (!index) {
+    index = new Map(rows.map((row) => [row.id, row]));
+    reviewIndexes.set(rows, index);
+  }
+  return index.get(behaviorReviewId(ruleId, date)) ?? null;
+}
+export type Goal = TimeGoal | TaskGoal | ManualGoal | ScriptGoal | BehaviorRule;
 /** One JavaScript module in the synced script library. */
 export type GoalScript = {
   id: string;
@@ -179,6 +212,8 @@ export type State = {
   scripts?: GoalScript[];
   /** Script goal results written by the hub; omitted while empty. */
   goalResults?: GoalResult[];
+  /** One independently synced row per rule and business day; absence means unanswered. */
+  behaviorReviews?: BehaviorReview[];
   timer: Timer | null;
   conflictedTimers?: Timer[];
   settings: { weekStartsOn: 1; updatedAt: number; timerPresets?: number[] };
@@ -452,6 +487,34 @@ export const shiftDay = (key: string, offset: number) => zoneShiftDay(key, offse
 export function dayRange(key: string): Span {
   return { start: dayStart(key), end: dayStart(shiftDay(key, 1)) };
 }
+export function reviewBehavior(
+  state: State,
+  ruleId: string,
+  date: string,
+  status: BehaviorReviewStatus | null,
+  now = Date.now(),
+): State {
+  const goal = state.goals.find((row) => row.id === ruleId);
+  if (goal?.kind !== 'behaviorRule' || goal.archived)
+    throw new Error('行为规则已变化，请重新打开。');
+  if (date !== dayKey(now) || now < dayStart(date) || now >= dayRange(date).end)
+    throw new Error('只能在当天结算前确认行为回顾。');
+  const prior = behaviorReview(state, ruleId, date);
+  const reviews = state.behaviorReviews ?? [];
+  if (status === null) {
+    return prior
+      ? { ...state, behaviorReviews: reviews.filter((row) => row.id !== prior.id) }
+      : state;
+  }
+  if (prior?.status === status) return state;
+  const row = { id: behaviorReviewId(ruleId, date), ruleId, date, status, updatedAt: now };
+  return {
+    ...state,
+    behaviorReviews: prior
+      ? reviews.map((item) => (item.id === row.id ? row : item))
+      : [...reviews, row],
+  };
+}
 export function weekRange(key: string): Span {
   const start = shiftDay(key, 1 - weekday(key));
   return { start: dayStart(start), end: dayStart(shiftDay(start, 7)) };
@@ -538,6 +601,18 @@ export function goalStatus(
   tasks: GoalTask[] = [],
 ) {
   const settled = now >= goalRange(goal, key).end;
+  if (goal.kind === 'behaviorRule') {
+    return {
+      reviewStatus: behaviorReview(state, goal.id, key)?.status ?? null,
+      progress: 0,
+      target: 0,
+      settled,
+      met: null,
+      within: false,
+      reached: 0,
+      levels: 0,
+    };
+  }
   let progress: number, target: number, within: boolean;
   if (goal.kind === 'script') {
     const outcome = scriptResult(state, goal, key);
@@ -913,6 +988,13 @@ export function validateState(value: unknown): State {
           ),
         };
       }
+      if (o.kind === 'behaviorRule') {
+        if (common.period !== 'day') throw new Error('行为规则只支持每日回顾。');
+        const trigger = str(o.trigger, '触发条件', MAX_BEHAVIOR_TEXT).trim();
+        const action = str(o.action, '目标行为', MAX_BEHAVIOR_TEXT).trim();
+        if (!trigger || !action) throw new Error('请填写触发条件和目标行为。');
+        return { ...common, kind: 'behaviorRule', period: 'day', trigger, action };
+      }
       if (o.kind === 'script') {
         const params = obj(o.params ?? {}, '脚本参数');
         if (Object.keys(params).length > 50) throw new Error('脚本参数过多。');
@@ -1024,6 +1106,21 @@ export function validateState(value: unknown): State {
       };
     }),
   );
+  const goalIds = new Set(goals.map((goal) => goal.id));
+  const behaviorReviews = unique(
+    list(root.behaviorReviews ?? [], '行为回顾', 100000, (value): BehaviorReview => {
+      const o = obj(value, '行为回顾');
+      const ruleId = id(o.ruleId);
+      const date = str(o.date, '行为回顾日期', 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || shiftDay(date, 0) !== date)
+        throw new Error('行为回顾日期无效。');
+      if (o.id !== behaviorReviewId(ruleId, date)) throw new Error('行为回顾 ID 无效。');
+      const status = o.status;
+      if (status !== 'notTriggered' && status !== 'missed' && status !== 'executed')
+        throw new Error('执行状态无效。');
+      return { id: o.id, ruleId, date, status, updatedAt: num(o.updatedAt, '更新时间') };
+    }),
+  ).filter((row) => goalIds.has(row.ruleId));
   const timer = root.timer === null ? null : parseTimer(root.timer);
   const conflictedTimers = unique(list(root.conflictedTimers ?? [], '同时计时', 100, parseTimer));
   if (conflictedTimers.some((item) => item.id === timer?.id)) throw new Error('计时 ID 重复。');
@@ -1035,6 +1132,7 @@ export function validateState(value: unknown): State {
     goals,
     ...(scripts.length ? { scripts } : {}),
     ...(goalResults.length ? { goalResults } : {}),
+    ...(behaviorReviews.length ? { behaviorReviews } : {}),
     timer,
     ...(conflictedTimers.length ? { conflictedTimers } : {}),
     settings: {
@@ -1100,6 +1198,7 @@ export function mergeBackup(local: State, incoming: State): State {
     goals: mergeList(local.goals, incoming.goals),
     scripts: mergeList(local.scripts ?? [], incoming.scripts ?? []),
     goalResults: mergeList(local.goalResults ?? [], incoming.goalResults ?? []),
+    behaviorReviews: mergeList(local.behaviorReviews ?? [], incoming.behaviorReviews ?? []),
     timer: null,
     settings:
       incoming.settings.updatedAt > local.settings.updatedAt ? incoming.settings : local.settings,

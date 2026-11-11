@@ -4,6 +4,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Current State
 
+- Client 0.5.7/code30 and Server 0.2.4 add daily behavior rules. The goal card has a P/Q description and a dropdown that saves immediately or clears the current day's answer. Reviews close at the configured business day boundary, sync independently by rule and date, and remain read-only in history. Upgrade the center before using the feature on paired clients. See docs/design/planning-goals.md and docs/design/timelog-interface.md.
+
 - 2026-11-08 shared HTTPS gateway v0.1.1 deployed: exact authenticated AI Decision MCP/OAuth routes to loopback18783. Google linked through original Sakura63573 and imported36 native tools; Gemini live reading accepted. Only gateway3164→10164 restarted; task Action/wrappers and DayweaveHub42292/subscription47848/KeePass22764 preserved. No Dayweave client/center upgrade or Gemini schedule migration. See docs/design/https-gateway.md.
 
 - 2026-11-08 client 0.5.5/code28 and Server 0.2.3 are published and installed on OMEN, ROG desktop/server, Mac arm64, Redmi K70 and Pad 6 Pro. Original DayweaveHub task/config and 5 peer keys preserved; ROG server PID47356/Session0, Mac PID86137 tray synced with 1237 active records/0 conflicts. Windows desktops left closed, Android UIDs/firstInstallTime/widgets preserved without opening either UI. User authorized one-time cleanup: clipped 20 existing records, soft-deleted 9 entirely covered ones, 0 overlaps on readback; pre-cleanup backup and original profile recovery under ROG Temp/.agents/dayweave-0.2.3-20261108. No automatic cleanup. Exact package/tag, checks and recovery notes in docs/log/2026-11.md.

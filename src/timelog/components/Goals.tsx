@@ -1,7 +1,16 @@
 import { useMemo, type CSSProperties } from 'react';
-import { Check, FileCode2, ListChecks, MoreHorizontal, Target, Timer } from 'lucide-react';
+import {
+  Check,
+  FileCode2,
+  GitBranch,
+  ListChecks,
+  MoreHorizontal,
+  Target,
+  Timer,
+} from 'lucide-react';
 import {
   formatDuration,
+  behaviorReviewLabels,
   goalPeriodKey,
   goalStatus,
   goalTargetText,
@@ -9,6 +18,7 @@ import {
   sortGoals,
   describeRules,
   type Goal,
+  type BehaviorReviewStatus,
   type GoalTask,
   scriptResult,
   type ScriptOutcome,
@@ -20,10 +30,19 @@ import '../../phone/sort.css';
 const periodLength = (goal: Goal) => (goal.period === 'week' ? 7 : 1);
 const periodName = (goal: Goal) => (goal.period === 'week' ? '本周' : '今天');
 type Status = ReturnType<typeof goalStatus>;
+type SubmitReview = (
+  ruleId: string,
+  date: string,
+  status: BehaviorReviewStatus | null,
+) => Promise<boolean>;
 function gapText(minutes: number) {
   return formatDuration(Math.ceil(Math.abs(minutes)) * 60000);
 }
-function statusText(goal: Goal, status: Status, outcome?: ScriptOutcome) {
+function statusText(
+  goal: Exclude<Goal, { kind: 'behaviorRule' }>,
+  status: Status,
+  outcome?: ScriptOutcome,
+) {
   if (goal.kind === 'script') {
     if (outcome?.error) return `脚本出错：${outcome.error}`;
     if (!outcome) return '等待同步中心判定';
@@ -63,7 +82,12 @@ function statusText(goal: Goal, status: Status, outcome?: ScriptOutcome) {
     ? `阶段 ${status.levels}/${status.levels} · 已到目标`
     : `阶段 ${status.reached}/${status.levels} · 下一阶段还需 ${gapText(next - status.progress)}`;
 }
-function amountText(goal: Goal, status: Status, date: string, state: State) {
+function amountText(
+  goal: Exclude<Goal, { kind: 'behaviorRule' }>,
+  status: Status,
+  date: string,
+  state: State,
+) {
   if (goal.kind === 'script')
     return state.scripts?.find((row) => row.id === goal.scriptId)?.name ?? '脚本已删除';
   if (goal.kind === 'tasks') return `#${goal.taskTag}`;
@@ -75,6 +99,8 @@ export function Goals({
   state,
   tasks,
   date,
+  now,
+  review,
   edit,
   remove,
   check,
@@ -83,6 +109,8 @@ export function Goals({
   state: State;
   tasks: GoalTask[];
   date: string;
+  now: number;
+  review: SubmitReview;
   edit: (goal?: Goal) => void;
   remove: (goal: Goal) => void;
   check: (goal: Goal, done: boolean) => void;
@@ -91,7 +119,6 @@ export function Goals({
 }) {
   const active = useMemo(() => sortGoals(state.goals.filter((goal) => !goal.archived)), [state]);
   const previousKey = (goal: Goal) => shiftDay(date, -periodLength(goal));
-  const now = Date.now();
   const cards = active.map((goal) => ({
     goal,
     // Script results are computed by the sync hub and arrive with the synced state.
@@ -104,15 +131,18 @@ export function Goals({
     <div className="goal-groups">
       {groups.map((group) => {
         const rows = cards.filter(({ goal }) => (goal.group ?? '') === group);
+        const graded = rows.filter(({ goal }) => goal.kind !== 'behaviorRule');
         const visible = rows.map(({ goal }) => goal.id);
         const title = group || (groups.length > 1 ? '其他目标' : '目标');
         return (
           <section className="goal-group" key={group} aria-label={title}>
             <header>
               <h2>{title}</h2>
-              <span title="每个目标的上一周期">
-                上期 {rows.filter((row) => row.previous.met).length}/{rows.length}
-              </span>
+              {graded.length > 0 && (
+                <span title="每个目标的上一周期">
+                  上期 {graded.filter((row) => row.previous.met).length}/{graded.length}
+                </span>
+              )}
             </header>
             <div className="goal-grid">
               {rows.map((row) => (
@@ -125,6 +155,7 @@ export function Goals({
                   edit={edit}
                   remove={remove}
                   check={check}
+                  review={review}
                   move={
                     rows.length > 1 ? (source, target) => move(visible, source, target) : undefined
                   }
@@ -144,7 +175,7 @@ export function Goals({
         </div>
       )}
       <p className="section-note">
-        周期结束后才判定是否达成，结束前可以修正记录或勾选。每周从周一开始。长按目标可拖动排序。
+        达成类目标在周期结束后判定。每周从周一开始。长按目标可拖动排序。
       </p>
     </div>
   );
@@ -160,6 +191,7 @@ function GoalCard({
   edit,
   remove,
   check,
+  review,
   move,
 }: {
   goal: Goal;
@@ -171,6 +203,7 @@ function GoalCard({
   edit: (goal?: Goal) => void;
   remove: (goal: Goal) => void;
   check: (goal: Goal, done: boolean) => void;
+  review: SubmitReview;
   move?: (source: string, target: string) => void;
 }) {
   const drag = useSortDrag(goal.id, sortGroup, move);
@@ -206,6 +239,8 @@ function GoalCard({
             <FileCode2 size={18} aria-hidden />
           ) : goal.kind === 'tasks' ? (
             <ListChecks size={18} aria-hidden />
+          ) : goal.kind === 'behaviorRule' ? (
+            <GitBranch size={18} aria-hidden />
           ) : (
             // The check button sits over this slot; it cannot nest inside the edit button.
             <span className="goal-icon-slot" aria-hidden />
@@ -216,18 +251,47 @@ function GoalCard({
         {goal.kind === undefined && (
           <p className="goal-match">{describeRules(goal.rules, state.activities)}</p>
         )}
-        <div className="goal-card-status">
-          <span>{statusText(goal, current, outcome)}</span>
-          <strong>{amountText(goal, current, date, state)}</strong>
-        </div>
-        <div className="progress-track">
-          <span style={{ width: `${percent}%` }} />
-          {thresholds.length > 1 &&
-            thresholds.map((value) => (
-              <i key={value} style={{ left: `${(value / scale) * 100}%` }} />
-            ))}
-        </div>
+        {goal.kind === 'behaviorRule' ? (
+          <div className="behavior-rule-text">
+            <span>触发条件：{goal.trigger}</span>
+            <span>目标行为：{goal.action}</span>
+          </div>
+        ) : (
+          <>
+            <div className="goal-card-status">
+              <span>{statusText(goal, current, outcome)}</span>
+              <strong>{amountText(goal, current, date, state)}</strong>
+            </div>
+            <div className="progress-track">
+              <span style={{ width: `${percent}%` }} />
+              {thresholds.length > 1 &&
+                thresholds.map((value) => (
+                  <i key={value} style={{ left: `${(value / scale) * 100}%` }} />
+                ))}
+            </div>
+          </>
+        )}
       </button>
+      {goal.kind === 'behaviorRule' && (
+        <select
+          key={date}
+          className="behavior-review-select"
+          aria-label={`今日行为回顾 ${goal.name}`}
+          value={current.reviewStatus ?? ''}
+          disabled={current.settled}
+          onChange={(event) => {
+            const value = event.target.value as BehaviorReviewStatus | '';
+            void review(goal.id, date, value || null);
+          }}
+        >
+          <option value="">未选择</option>
+          {Object.entries(behaviorReviewLabels).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
+      )}
       {goal.kind === 'manual' && (
         <button
           className="goal-check"

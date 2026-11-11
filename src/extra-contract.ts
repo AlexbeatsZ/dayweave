@@ -291,11 +291,14 @@ export const extraPaths: Record<string, unknown> = {
   },
   '/timelog/timeline': { get: op('按日程时区展开时间线，date=YYYY-MM-DD') },
   '/timelog/stats': { get: op('记录统计，date=YYYY-MM-DD') },
-  '/timelog/goals': { get: op('读取目标'), post: op('创建目标', free) },
+  '/timelog/goals': {
+    get: op('读取目标，行为规则按 date 返回 review 或 null'),
+    post: op('创建目标，行为规则使用 kind=behaviorRule、period=day、trigger 和 action', free),
+  },
   '/timelog/goals/{id}': {
     parameters: id,
-    get: op('读取目标'),
-    patch: op('更新目标，需 expectedUpdatedAt', free),
+    get: op('读取目标，行为规则按 date 返回 review 或 null'),
+    patch: op('更新目标，需 expectedUpdatedAt。行为回顾由用户在客户端选择', free),
     delete: op('删除目标，需 expectedUpdatedAt', free),
   },
   '/timelog/backup': { get: op('导出兼容 Open Timelog 的备份') },

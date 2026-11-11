@@ -1631,6 +1631,20 @@
   outline: 1.5px solid var(--accent);
   outline-offset: 1px;
 }
+.goal-heat li > button {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+}
+.goal-heat li > button[aria-pressed='true'] {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+.goal-review-history {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
 
 /* Time shortcuts (now, N minutes ago, after the previous record) share the chip pill look. */
 .quick-chips button:disabled {

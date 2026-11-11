@@ -474,6 +474,32 @@
 .timelog-module .goal-card-status strong {
   font-weight: 500;
 }
+.timelog-module .goal-card[data-kind='behaviorRule'] {
+  display: flex;
+  flex-direction: column;
+}
+.timelog-module .behavior-rule-text {
+  display: grid;
+  gap: 3px;
+  white-space: pre-wrap;
+  margin-top: -4px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.timelog-module .behavior-review-select {
+  margin: auto 12px 12px;
+  width: auto;
+  min-width: 0;
+  min-height: 36px;
+  padding: 4px 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--surface);
+  font-size: 12px;
+}
 .timelog-module .progress-track {
   position: relative;
   flex: none;

@@ -7,6 +7,7 @@ import {
   emptyRule,
   type RecordRule,
   goalTargetText,
+  MAX_BEHAVIOR_TEXT,
   newId,
   parseGoalTarget,
   timestamp,
@@ -49,11 +50,13 @@ export function Editor({
   const phone = usePhone();
   const { data } = useStore();
   const tagColors = data.tagColors.records;
-  const [goalKind, setGoalKind] = useState<'time' | 'tasks' | 'manual' | 'script'>(
+  const [goalKind, setGoalKind] = useState<NonNullable<Goal['kind']> | 'time'>(
     target.kind === 'goal' ? (target.goal?.kind ?? 'time') : 'time',
   );
   const editedScriptGoal =
     target.kind === 'goal' && target.goal?.kind === 'script' ? target.goal : undefined;
+  const editedBehavior =
+    target.kind === 'goal' && target.goal?.kind === 'behaviorRule' ? target.goal : undefined;
   const [scriptId, setScriptId] = useState(
     editedScriptGoal?.scriptId ?? state.scripts?.[0]?.id ?? '',
   );
@@ -190,7 +193,6 @@ export function Editor({
         if (saved) close();
       } else {
         const previous = target.goal;
-        const goalTarget = goalKind === 'time' ? parseGoalTarget(text('target')) : null;
         const saved = await commit((current) => {
           const existing = previous && current.goals.find((row) => row.id === previous.id);
           if (previous && existing?.updatedAt !== previous.updatedAt)
@@ -200,36 +202,41 @@ export function Editor({
             id: previous?.id || newId(),
             name: text('name'),
             ...(group ? { group } : {}),
-            period: text('period') as Goal['period'],
+            period: goalPeriod,
             archived: false,
             ...(existing?.order === undefined ? {} : { order: existing.order }),
             updatedAt: timestamp(existing?.updatedAt),
           };
-          const next: Goal =
-            goalKind === 'script'
-              ? {
-                  ...base,
-                  kind: 'script',
-                  scriptId: current.scripts?.some((row) => row.id === scriptId)
-                    ? scriptId
-                    : (() => {
-                        throw new Error('请选择或新建一个脚本。');
-                      })(),
-                  params: scriptParams,
-                }
-              : goalKind === 'tasks'
-                ? { ...base, kind: 'tasks', taskTag: text('taskTag').replace(/^#+/, '') }
-                : goalKind === 'manual'
-                  ? {
-                      ...base,
-                      kind: 'manual',
-                      checks: existing?.kind === 'manual' ? existing.checks : {},
-                    }
-                  : {
-                      ...base,
-                      rules,
-                      ...goalTarget!,
-                    };
+          let next: Goal;
+          switch (goalKind) {
+            case 'behaviorRule':
+              next = {
+                ...base,
+                kind: goalKind,
+                period: 'day',
+                trigger: text('trigger'),
+                action: text('action'),
+              };
+              break;
+            case 'script':
+              if (!current.scripts?.some((row) => row.id === scriptId))
+                throw new Error('请选择或新建一个脚本。');
+              next = { ...base, kind: goalKind, scriptId, params: scriptParams };
+              break;
+            case 'tasks':
+              next = { ...base, kind: goalKind, taskTag: text('taskTag').replace(/^#+/, '') };
+              break;
+            case 'manual':
+              next = {
+                ...base,
+                kind: goalKind,
+                checks: existing?.kind === 'manual' ? existing.checks : {},
+              };
+              break;
+            case 'time':
+              next = { ...base, rules, ...parseGoalTarget(text('target')) };
+              break;
+          }
           return {
             ...current,
             goals: previous
@@ -470,7 +477,9 @@ export function Editor({
                 周期
                 <select
                   name="period"
-                  value={goalPeriod}
+                  aria-label="周期"
+                  value={goalKind === 'behaviorRule' ? 'day' : goalPeriod}
+                  disabled={goalKind === 'behaviorRule'}
                   onChange={(event) => setGoalPeriod(event.target.value as Goal['period'])}
                 >
                   <option value="day">每日</option>
@@ -481,12 +490,14 @@ export function Editor({
             <label>
               判定方式
               <select
+                aria-label="判定方式"
                 value={goalKind}
                 onChange={(event) => setGoalKind(event.target.value as typeof goalKind)}
               >
                 <option value="time">自动：按计时</option>
                 <option value="tasks">绑定待办标签</option>
                 <option value="manual">手动勾选</option>
+                <option value="behaviorRule">行为规则</option>
                 <option value="script">自动化脚本</option>
               </select>
             </label>
@@ -557,7 +568,35 @@ export function Editor({
             {goalKind === 'manual' && (
               <p className="muted">在目标卡片上勾选；AI 也可以代为勾选。</p>
             )}
-            <p className="muted">周期结束后才判定是否达成。</p>
+            {goalKind === 'behaviorRule' ? (
+              <>
+                <label>
+                  触发条件（P）
+                  <textarea
+                    name="trigger"
+                    rows={2}
+                    defaultValue={editedBehavior?.trigger}
+                    placeholder="例如：第二次重复考虑已经想过的理由"
+                    maxLength={MAX_BEHAVIOR_TEXT}
+                    required
+                  />
+                </label>
+                <label>
+                  目标行为（Q）
+                  <textarea
+                    name="action"
+                    rows={2}
+                    defaultValue={editedBehavior?.action}
+                    placeholder="例如：打开速记，写下问题与下一步"
+                    maxLength={MAX_BEHAVIOR_TEXT}
+                    required
+                  />
+                </label>
+                <p className="muted">每日回顾，结算后只可查看。</p>
+              </>
+            ) : (
+              <p className="muted">周期结束后才判定是否达成。</p>
+            )}
           </>
         )}
         {error && (

@@ -218,7 +218,7 @@ export async function startApi(
       if (route === '/export' && method === 'GET') return send(snapshot.state, snapshot);
       if (route === '/import' && method === 'POST') {
         const incoming = await body(request, 50 * 1024 * 1024);
-        snapshot = await mutate((s) => mergeImport(s, incoming));
+        snapshot = await mutate((s) => mergeImport(s, incoming, { preserveBehaviorReviews: true }));
         return send(
           { tasks: snapshot.state.tasks.length, lists: snapshot.state.lists.length },
           snapshot,

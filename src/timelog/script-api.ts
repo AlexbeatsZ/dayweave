@@ -229,10 +229,10 @@ export function scriptClasses(data: ScriptData, period: ScriptPeriod, query: Ran
     end: row.end,
   }));
 }
-/** Statuses of the other (non-script) goals for the same period. */
+/** Statuses of the other graded (non-script) goals for the same period. */
 export function scriptGoals(data: ScriptData, period: ScriptPeriod) {
   return data.timelog.goals
-    .filter((goal) => !goal.archived && goal.kind !== 'script')
+    .filter((goal) => !goal.archived && goal.kind !== 'script' && goal.kind !== 'behaviorRule')
     .map((goal) => {
       const status = goalStatus(data.timelog, goal, period.key, period.now, data.tasks);
       return {

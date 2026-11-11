@@ -618,7 +618,13 @@ function mergeAroundTimers(local: AppState['timelog'], incoming: AppState['timel
     ...(local.conflictedTimers?.length ? { conflictedTimers: local.conflictedTimers } : {}),
   };
 }
-export function mergeImport(local: AppState, incoming: unknown): AppState {
+export function mergeImport(
+  local: AppState,
+  incoming: unknown,
+  { preserveBehaviorReviews = false } = {},
+): AppState {
+  const importableTimelog = (state: AppState['timelog']) =>
+    preserveBehaviorReviews ? { ...state, behaviorReviews: undefined } : state;
   if (
     incoming &&
     typeof incoming === 'object' &&
@@ -626,7 +632,7 @@ export function mergeImport(local: AppState, incoming: unknown): AppState {
     incoming.format === 'open-timelog'
   ) {
     const backup = parseBackup(JSON.stringify(incoming));
-    return { ...local, timelog: mergeBackup(local.timelog, backup.data) };
+    return { ...local, timelog: mergeBackup(local.timelog, importableTimelog(backup.data)) };
   }
   const imported = stateSchema.parse(incoming);
   const lists = new Map(local.lists.map((x) => [x.id, x]));
@@ -680,7 +686,7 @@ export function mergeImport(local: AppState, incoming: unknown): AppState {
     ...local,
     timelog:
       incoming && typeof incoming === 'object' && 'timelog' in incoming
-        ? mergeAroundTimers(local.timelog, imported.timelog)
+        ? mergeAroundTimers(local.timelog, importableTimelog(imported.timelog))
         : local.timelog,
     schedule:
       incoming && typeof incoming === 'object' && 'schedule' in incoming
