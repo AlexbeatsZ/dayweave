@@ -1,7 +1,8 @@
+import { stateWithActivities } from './fixtures/activities';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
-import { emptyState, newTask, type AppState } from '../src/model';
+import { newTask, type AppState } from '../src/model';
 import { fromDocument, isDocumentKey, toDocument } from '../src/sync/document';
 import {
   goalResultId,
@@ -48,7 +49,7 @@ const at = (time: string, day = DAY) => wallTime(day, time);
 const span = (from: string, to: string) => ({ start: at(from), end: at(to) });
 
 function fixture(): AppState {
-  const state = emptyState();
+  const state = stateWithActivities();
   const record = (
     id: string,
     activityId: string,
@@ -395,7 +396,7 @@ test('the script library and script goals validate and sync as their own documen
   const doc = toDocument(state);
   assert.ok(isDocumentKey('scripts/s'));
   assert.equal((doc['scripts/s'] as { code: string }).code, 'export default () => true');
-  const back = fromDocument(doc, emptyState());
+  const back = fromDocument(doc, stateWithActivities());
   assert.deepEqual(back.timelog.scripts, state.timelog.scripts);
   assert.equal((back.timelog.goals[0] as Goal).kind, 'script');
 });
@@ -421,11 +422,13 @@ test('the focus-apps template counts distracting app time inside study records',
     usage('com.android.chrome', '09:30', '09:40'),
   ];
   let result = await runTemplate('focus-apps.js', state, events, {
+    study: ['study'],
     apps: ['bilibili', 'tencent.mm'],
   });
   assert.match(result.note, /16 分钟 · 2 次/, '6 + 10 minutes inside 09:00–11:00, two sessions');
   assert.equal(result.met, false);
   result = await runTemplate('focus-apps.js', state, events, {
+    study: ['study'],
     apps: ['bilibili', 'tencent.mm'],
     maxMinutes: 20,
   });
@@ -434,6 +437,7 @@ test('the focus-apps template counts distracting app time inside study records',
     'focus-apps.js',
     { ...state, timelog: { ...state.timelog, records: [] } },
     events,
+    { study: ['study'] },
   );
   assert.equal(result.met, null);
 });

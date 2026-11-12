@@ -1,5 +1,6 @@
+import { stateWithActivities } from '../fixtures/activities';
 import { test, expect, type Page } from '@playwright/test';
-import { emptyState, newTask } from '../../src/model';
+import { newTask } from '../../src/model';
 import { dayKey, dayStart, shiftDay } from '../../src/timelog/domain';
 import { setTimeZone } from '../../src/timezone';
 
@@ -14,7 +15,7 @@ async function seed(page: Page) {
   setTimeZone('Asia/Shanghai');
   const day = dayKey(Date.now()),
     start = dayStart(day),
-    state = emptyState();
+    state = stateWithActivities();
   state.settings.theme = 'dark';
   state.lists.push({ id: 'study-list', name: '学习', color: '#4264b2', order: 1 });
   state.tasks = [
@@ -126,7 +127,7 @@ test('compact shared tabs swipe both ways, goals group densely, and all add butt
   await page.evaluate(async () => {
     const path = '/src/store.ts';
     const { store } = await import(path);
-    await store.transact((state: ReturnType<typeof emptyState>) => ({
+    await store.transact((state: ReturnType<typeof stateWithActivities>) => ({
       ...state,
       timelog: {
         ...state.timelog,
@@ -193,7 +194,7 @@ test('timeline auto-loads beyond seven days, visible-day points follow scrolling
     async ({ start }) => {
       const path = '/src/store.ts';
       const { store } = await import(path);
-      await store.transact((state: ReturnType<typeof emptyState>) => ({
+      await store.transact((state: ReturnType<typeof stateWithActivities>) => ({
         ...state,
         timelog: {
           ...state.timelog,
@@ -377,7 +378,7 @@ test('rejected operations allow subsequent saves and analytics retain historical
   await page.evaluate(async () => {
     const path = '/src/store.ts';
     const { store } = await import(path);
-    await store.transact((state: ReturnType<typeof emptyState>) => ({
+    await store.transact((state: ReturnType<typeof stateWithActivities>) => ({
       ...state,
       timelog: {
         ...state.timelog,

@@ -1014,7 +1014,15 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "type": "object", "properties": { "activityId": { "type": "string" } } }
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "activityId": {
+                    "type": "string",
+                    "description": "当前活动 ID。没有清单绑定且有多个可用活动时必填。"
+                  }
+                }
+              }
             }
           }
         },
@@ -1301,7 +1309,7 @@
     },
     "/timelog/activities": {
       "get": {
-        "summary": "读取活动",
+        "summary": "读取当前可用活动",
         "responses": {
           "200": {
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"

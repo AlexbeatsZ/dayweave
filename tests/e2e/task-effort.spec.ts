@@ -1,11 +1,12 @@
 import { test, expect } from '@playwright/test';
 import { emptyState, newTask } from '../../src/model';
+import { stateWithActivities } from '../fixtures/activities';
 
 test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
 test('shared task form keeps estimated and actual minutes optional and shows saved record time separately', async ({
   page,
 }) => {
-  const state = emptyState();
+  const state = stateWithActivities();
   state.tasks = [
     newTask('带记录的任务', {
       id: 'effort-task',

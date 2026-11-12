@@ -1,3 +1,4 @@
+import { stateWithActivities } from './fixtures/activities';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdir, mkdtemp, rm, readFile, writeFile } from 'node:fs/promises';
@@ -492,7 +493,7 @@ const legacyTask = (id: string, parentId: string | null = null) => {
 };
 test('v1 migration preserves all tasks/references, exact subtask IDs and unknown dates, with easy difficulty', () => {
   const legacy = {
-    ...emptyState(),
+    ...stateWithActivities(),
     version: 1,
     tasks: [
       legacyTask('root'),
@@ -568,10 +569,10 @@ test('v1 migration preserves all tasks/references, exact subtask IDs and unknown
   assert.equal(Object.keys(migrated.repeatRules[0].occurrences).length, 2);
   assert.deepEqual(stateSchema.parse(migrated), migrated);
   assert.deepEqual(stateSchema.parse(legacy), migrated);
-  const oldDoc: ReturnType<typeof toDocument> = { ...toDocument(emptyState()) };
+  const oldDoc: ReturnType<typeof toDocument> = { ...toDocument(stateWithActivities()) };
   for (const task of legacy.tasks) oldDoc[`tasks/${task.id}`] = task;
   oldDoc['sessions/session'] = legacy.sessions[0];
-  const baseline = fromDocument(migrateLegacyDocument(oldDoc), emptyState());
+  const baseline = fromDocument(migrateLegacyDocument(oldDoc), stateWithActivities());
   assert.deepEqual(
     baseline.tasks.map((row) => row.id),
     migrated.tasks.map((row) => row.id),

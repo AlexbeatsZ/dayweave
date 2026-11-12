@@ -245,56 +245,7 @@ export const timestamp = (previous = 0) => Math.max(Date.now(), previous + 1);
 export function initialState(): State {
   const at = Date.now();
   return {
-    activities: [
-      {
-        id: 'study',
-        name: '学习',
-        nature: 'positive',
-        color: colors[0],
-        archived: false,
-        updatedAt: at,
-      },
-      {
-        id: 'work',
-        name: '工作',
-        nature: 'positive',
-        color: colors[1],
-        archived: false,
-        updatedAt: at,
-      },
-      {
-        id: 'reading',
-        name: '阅读',
-        nature: 'positive',
-        color: colors[3],
-        archived: false,
-        updatedAt: at,
-      },
-      {
-        id: 'exercise',
-        name: '运动',
-        nature: 'positive',
-        color: colors[6],
-        archived: false,
-        updatedAt: at,
-      },
-      {
-        id: 'life',
-        name: '日常生活',
-        nature: 'neutral',
-        color: colors[2],
-        archived: false,
-        updatedAt: at,
-      },
-      {
-        id: 'scroll',
-        name: '无目的刷手机',
-        nature: 'negative',
-        color: colors[4],
-        archived: false,
-        updatedAt: at,
-      },
-    ],
+    activities: [],
     records: [],
     goals: [],
     timer: null,
@@ -315,6 +266,53 @@ export function liveSpans(timer: Timer, now: number): Span[] {
       ];
 }
 export const activeActivity = (activity: Activity) => !activity.archived && !activity.deletedAt;
+// Fingerprints of the retired presets. A matching name on a different ID is user data.
+const oldPresets = new Map([
+  ['study', ['学习', '#357a9e', 'positive']],
+  ['work', ['工作', '#4d8b73', 'positive']],
+  ['reading', ['阅读', '#8e74a4', 'positive']],
+  ['exercise', ['运动', '#8f9851', 'positive']],
+  ['life', ['日常生活', '#a98241', 'neutral']],
+  ['scroll', ['无目的刷手机', '#bc7267', 'negative']],
+]);
+
+export function retireUnusedActivityPresets(state: State, listActivityIds: string[]): State {
+  const unused = state.activities.filter((row) => {
+    const preset = oldPresets.get(row.id);
+    return (
+      preset &&
+      activeActivity(row) &&
+      row.order === undefined &&
+      row.name === preset[0] &&
+      row.color.toLowerCase() === preset[1] &&
+      row.nature === preset[2]
+    );
+  });
+  if (!unused.length) return state;
+  const used = new Set(listActivityIds);
+  for (const row of state.records) used.add(row.activityId);
+  for (const row of [state.timer, ...(state.conflictedTimers ?? [])])
+    if (row) used.add(row.activityId);
+  for (const goal of state.goals)
+    if (goal.kind === undefined)
+      for (const rule of goal.rules) for (const id of rule.activities) used.add(id);
+  const retired = new Set(unused.filter((row) => !used.has(row.id)).map((row) => row.id));
+  if (!retired.size) return state;
+  return {
+    ...state,
+    // Keep an inactive identity so another device can still sync historical references.
+    activities: state.activities.map((row) =>
+      retired.has(row.id)
+        ? {
+            ...row,
+            deletedAt: Math.max(1, row.updatedAt),
+            updatedAt: Math.min(8.64e15, row.updatedAt + 1),
+          }
+        : row,
+    ),
+  };
+}
+
 export function startTimer(
   state: State,
   activityId: string,

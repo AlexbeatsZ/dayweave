@@ -1,3 +1,4 @@
+import { stateWithActivities } from './fixtures/activities';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -55,7 +56,7 @@ test('inbox follows planned date across lists; natural week includes Monday and 
 });
 
 test('countdown pauses remaining duration, resumes deadline and saves exact planned end once', () => {
-  let state = startTimer(emptyState().timelog, 'study', '倒计时', start, {
+  let state = startTimer(stateWithActivities().timelog, 'study', '倒计时', start, {
     plannedEndAt: start + 300000,
     tags: ['复习'],
     taskId: 'task',
@@ -77,7 +78,7 @@ test('countdown pauses remaining duration, resumes deadline and saves exact plan
 });
 
 test('adjusting start preserves pauses; next activity atomically saves metadata and shares boundary', () => {
-  let state = startTimer(emptyState().timelog, 'study', '阅读', start, {
+  let state = startTimer(stateWithActivities().timelog, 'study', '阅读', start, {
     tags: ['化学'],
     taskId: 'plan',
   });
@@ -99,7 +100,7 @@ test('adjusting start preserves pauses; next activity atomically saves metadata 
 });
 
 test('countdown and custom presets survive sync while unrelated timezone edits merge', () => {
-  const base = emptyState();
+  const base = stateWithActivities();
   const a = structuredClone(base),
     b = structuredClone(base);
   a.timelog = startTimer(a.timelog, 'study', '', start, { plannedEndAt: start + 300000 });
@@ -127,7 +128,7 @@ test('countdown and custom presets survive sync while unrelated timezone edits m
 });
 
 test('activity deletion removes goals and choices but preserves historical references', () => {
-  let state = startTimer(emptyState().timelog, 'study', '历史', start);
+  let state = startTimer(stateWithActivities().timelog, 'study', '历史', start);
   assert.throws(() => deleteActivity(state, 'study'), /先结束/);
   state = nextActivity(state, 'work', start + 60000);
   state.goals.push({
@@ -155,43 +156,26 @@ test('activity deletion removes goals and choices but preserves historical refer
   );
 });
 
-test('list defaults start the intended activity and retain the associated task metadata', () => {
-  for (const [listName, activityName, nature] of [
-    ['学习', '学习', 'positive'],
-    ['工作', '实操', 'positive'],
-    ['生活', '日常', 'neutral'],
-  ] as const) {
-    const state = emptyState();
-    state.lists.push({ id: 'subject', name: listName, color: '#4488cc', order: 1 });
-    state.tasks = [newTask('完成本日计划', { listId: 'subject', tags: ['课程', '准备'] })];
-    const next = startTaskTimer(state, state.tasks[0].id, start);
-    const timer = next.timelog.timer!;
-    const activity = next.timelog.activities.find((item) => item.id === timer.activityId)!;
-    assert.equal(activity.name, activityName);
-    assert.equal(timer.nature, nature);
-    assert.equal(timer.taskId, state.tasks[0].id);
-    assert.equal(timer.note, '完成本日计划');
-    assert.deepEqual(timer.tags, ['课程', '准备']);
-    assert.equal(timer.startedAt, start);
-    assert.equal(timer.runningSince, start);
-    assert.equal(state.timelog.timer, null);
-    assert.equal(stateSchema.safeParse(next).success, true);
-    const again = startTaskTimer(
-      { ...next, timelog: { ...next.timelog, timer: null } },
-      state.tasks[0].id,
-      start + 60000,
-    );
-    assert.equal(again.timelog.timer!.activityId, activity.id);
-    assert.equal(
-      again.timelog.activities.filter((item) => activeActivity(item) && item.name === activityName)
-        .length,
-      1,
-    );
-  }
+test('unbound task timing uses one real activity or requires a choice without creating activities', () => {
+  const state = stateWithActivities();
+  state.lists.push({ id: 'subject', name: '工作', color: '#4488cc', order: 1 });
+  const task = newTask('完成本日计划', { listId: 'subject', tags: ['课程', '准备'] });
+  state.tasks = [task];
+  assert.throws(() => startTaskTimer(state, task.id, start), /请选择任务计时/);
+  const next = startTaskTimer(state, task.id, start, 'reading');
+  assert.deepEqual(next.timelog.activities, state.timelog.activities);
+  assert.equal(next.timelog.timer?.activityId, 'reading');
+  assert.equal(next.timelog.timer?.taskId, task.id);
+  assert.equal(next.timelog.timer?.note, task.title);
+  assert.deepEqual(next.timelog.timer?.tags, task.tags);
+  state.timelog.activities = [];
+  assert.throws(() => startTaskTimer(state, task.id, start), /计时页添加活动/);
+  state.timelog.activities = next.timelog.activities.filter((row) => row.id === 'exercise');
+  assert.equal(startTaskTimer(state, task.id, start).timelog.timer?.activityId, 'exercise');
 });
 
 test('explicit list activity mapping overrides defaults and survives renaming the list', () => {
-  const state = emptyState();
+  const state = stateWithActivities();
   state.lists.push({
     id: 'subject',
     name: '学习',
@@ -204,7 +188,7 @@ test('explicit list activity mapping overrides defaults and survives renaming th
   assert.equal(mapped.timelog.timer!.activityId, 'reading');
   assert.equal(mapped.timelog.activities.length, state.timelog.activities.length);
   state.lists[1].name = '专业资料';
-  const restored = fromDocument(toDocument(state), emptyState());
+  const restored = fromDocument(toDocument(state), stateWithActivities());
   assert.equal(restored.lists.find((item) => item.id === 'subject')!.activityId, 'reading');
   assert.equal(
     startTaskTimer(restored, state.tasks[0].id, start).timelog.timer!.activityId,
@@ -217,7 +201,7 @@ test('explicit list activity mapping overrides defaults and survives renaming th
 });
 
 test('a deleted custom mapping reports the stale binding instead of silently starting another activity', () => {
-  const state = emptyState();
+  const state = stateWithActivities();
   state.timelog.activities.push({
     id: 'custom-lab',
     name: '实验操作',
@@ -349,7 +333,7 @@ test('dragging across a pinned boundary follows the chosen position without chan
 });
 
 test('tag color changes and deletions persist through deltas without overwriting unrelated changes', () => {
-  const base = emptyState();
+  const base = stateWithActivities();
   base.tasks = [newTask('同一任务', { id: 'task', tags: ['化学'] })];
   base.tagColors = {
     tasks: { 化学: '#123456', 待删除: '#778899' },
@@ -373,7 +357,7 @@ test('tag color changes and deletions persist through deltas without overwriting
 });
 
 test('task and activity tag colors remain independent and merge across devices with task metadata intact', () => {
-  const base = emptyState();
+  const base = stateWithActivities();
   base.tasks = [newTask('复习课程', { tags: ['重要'] })];
   const phone = structuredClone(base);
   const desktop = structuredClone(base);
@@ -382,14 +366,17 @@ test('task and activity tag colors remain independent and merge across devices w
   desktop.timelog.activities[0].color = '#557799';
   const merged = mergeDocuments(toDocument(base), toDocument(phone), toDocument(desktop));
   assert.equal(merged.conflicts.length, 0);
-  const restored = fromDocument(merged.doc, emptyState());
+  const restored = fromDocument(merged.doc, stateWithActivities());
   assert.deepEqual(restored.tagColors, {
     tasks: { 重要: '#4488cc' },
     records: { 重要: '#cc8844' },
   });
   assert.deepEqual(restored.tasks[0].tags, ['重要']);
   assert.equal(restored.timelog.activities[0].color, '#557799');
-  assert.deepEqual(fromDocument(toDocument(restored), emptyState()).tagColors, restored.tagColors);
+  assert.deepEqual(
+    fromDocument(toDocument(restored), stateWithActivities()).tagColors,
+    restored.tagColors,
+  );
   const cleared = structuredClone(restored);
   delete cleared.tagColors.tasks.重要;
   assert.deepEqual(fromDocument(toDocument(cleared), restored).tagColors, {

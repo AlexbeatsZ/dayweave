@@ -23,6 +23,7 @@ import {
   dayPlanGroups,
   taskPlanGroup,
   startTaskTimer,
+  TaskTimerActivityRequired,
   formatDate,
   now,
   reorderTasks,
@@ -33,10 +34,11 @@ import {
 } from '../model';
 import { store, useStore } from '../store';
 import { useClock } from '../runtime';
-import { duration, formatClock, liveSpans, toggleTimer } from '../timelog/domain';
+import { activeActivity, duration, formatClock, liveSpans, toggleTimer } from '../timelog/domain';
 import { TaskRow } from '../components/TaskRow';
 import { Settings } from '../components/Settings';
 import { PlanGroupModal } from '../components/PlanGroupModal';
+import { Modal } from '../components/Modal';
 import { StorageRecovery } from '../components/StorageRecovery';
 import { Timetable, NextClass } from '../components/Timetable';
 import { Calendar } from '../components/Calendar';
@@ -84,6 +86,7 @@ export function MobileApp() {
     [settings, setSettings] = useState(false);
   const [planGroup, setPlanGroup] = useState<{ group?: PlanGroup } | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
+  const [taskToTrack, setTaskToTrack] = useState<string | null>(null);
   const [recordFilter, setRecordFilter] = useState<RecordFilter>({});
   const [arrangement, setArrangement] = useState<'calendar' | 'timetable'>(
     location.hash === '#timetable' ? 'timetable' : 'calendar',
@@ -306,12 +309,13 @@ export function MobileApp() {
     };
   });
 
-  async function track(id: string) {
+  async function track(id: string, activityId?: string) {
     try {
-      await store.transact((state) => startTaskTimer(state, id));
+      await store.transact((state) => startTaskTimer(state, id, Date.now(), activityId));
       navigate('timelog', 'timer');
     } catch (error) {
-      notice(error instanceof Error ? error.message : String(error));
+      if (error instanceof TaskTimerActivityRequired) setTaskToTrack(id);
+      else notice(error instanceof Error ? error.message : String(error));
     }
   }
   function remove(task: Task) {
@@ -745,6 +749,27 @@ export function MobileApp() {
           onClose={() => setPlanGroup(null)}
           onSaved={notice}
         />
+      )}
+      {taskToTrack && (
+        <Modal title="选择计时活动" close={() => setTaskToTrack(null)}>
+          <div className="modal-body">
+            <div className="phone-activity-chips">
+              {data.timelog.activities.filter(activeActivity).map((activity) => (
+                <button
+                  type="button"
+                  key={activity.id}
+                  onClick={() => {
+                    setTaskToTrack(null);
+                    void track(taskToTrack, activity.id);
+                  }}
+                >
+                  <i style={{ background: activity.color }} />
+                  {activity.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        </Modal>
       )}
       {settings && <Settings onClose={() => setSettings(false)} onMessage={notice} />}
       {toast && (

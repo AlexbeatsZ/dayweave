@@ -163,8 +163,8 @@ export async function handleApi(
         };
       }
       if (resource === 'activities') {
-        const items = state.activities.filter((row) => !row.deletedAt);
-        const item = itemId && items.find((row) => row.id === itemId);
+        const items = state.activities.filter(activeActivity);
+        const item = itemId && state.activities.find((row) => row.id === itemId && !row.deletedAt);
         if (itemId && !item) fail(404, 'Activity not found');
         return { status: 200, body: item || { items, total: items.length } };
       }

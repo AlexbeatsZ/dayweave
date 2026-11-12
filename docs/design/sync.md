@@ -32,7 +32,7 @@ ROG 的 LAN 同步、loopback AI API 和桌面 UI 共享 `StateService` 与同�
 
 行为规则定义随 `goals/<ID>` 同步，回顾以 `behaviorReviews/<规则ID@业务日>` 独立同步。部署先升级中心，再升级配对客户端，旧版不识别新目标或回顾行。结算截止只限制客户端新写入，已经离线保存的回顾随后照常同步。
 
-- 清单实体携带 `color` 与可选 `activityId`，默认任务计时映射为学习 → 学习、工作 → 实操、生活 → 日常。显式绑定按活动 ID 保存和同步，默认名称规则仅用于未配置绑定的选择；UI 和 AI 使用同一领域入口。
+- 清单实体携带 `color` 与可选 `activityId`，显式绑定按活动 ID 保存和同步，界面与 AI 共用计时规则。旧内置项仅在档案解析时按未使用规则停用，保留身份以兼容晚到的历史记录。
 - 活动实体保存自身 `color`；删除后的历史活动身份必要时用 `deletedAt` 保留，以解析旧记录。删除不变成可恢复的归档入口。
 - `tagColors.tasks` 与 `tagColors.records` 分别保存两类标签颜色，在同步 preferences 中表示为 `taskTagColors`、`recordTagColors`。它们和标签内容、清单映射都进入完整备份与增量保存。
 - `timelog.settings.timerPresets` 与更新时间同步为 preferences 中的 `timerPresets`、`timerPresetsUpdatedAt`；预设未提供时新程序补默认 `[5,30,45,60]`，显式空数组不能被当作缺失覆盖。

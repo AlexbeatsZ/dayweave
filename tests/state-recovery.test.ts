@@ -1,3 +1,4 @@
+import { stateWithActivities } from './fixtures/activities';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
@@ -10,7 +11,7 @@ import { FileStore } from '../electron/storage.js';
 import { startTimer, toggleTimer, finishTimer } from '../src/timelog/domain.js';
 
 test('module deltas merge unrelated entities, fields and numeric timestamps', () => {
-  const base = emptyState();
+  const base = stateWithActivities();
   const local = structuredClone(base);
   const remote = structuredClone(base);
   local.timelog.activities[0].name = 'Local name';
@@ -30,7 +31,7 @@ test('module deltas merge unrelated entities, fields and numeric timestamps', ()
 });
 
 test('real field conflicts and delete-versus-edit remain explicit', () => {
-  const base = emptyState();
+  const base = stateWithActivities();
   const local = structuredClone(base);
   const remote = structuredClone(base);
   local.timelog.activities[0].name = 'Local';
@@ -41,7 +42,7 @@ test('real field conflicts and delete-versus-edit remain explicit', () => {
 });
 
 test('optional field removal and independent record edits survive concurrent module changes', () => {
-  const base = emptyState();
+  const base = stateWithActivities();
   const task = newTask('Linked task');
   base.tasks.push(task);
   base.timelog.records.push({
@@ -70,7 +71,7 @@ test('optional field removal and independent record edits survive concurrent mod
 });
 
 test('timer transitions remain atomic and conflicting order changes remain explicit', () => {
-  const base = emptyState();
+  const base = stateWithActivities();
   const local = structuredClone(base);
   const remote = structuredClone(base);
   local.timelog.activities.reverse();
@@ -91,7 +92,7 @@ test('timer transitions remain atomic and conflicting order changes remain expli
 });
 
 test('independent collection additions preserve both sides and local ordering without concurrency', () => {
-  const base = emptyState();
+  const base = stateWithActivities();
   const local = structuredClone(base);
   const remote = structuredClone(base);
   local.timelog.activities.push({ ...base.timelog.activities[0], id: 'local' });

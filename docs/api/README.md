@@ -80,7 +80,7 @@ ssh -N -L 49733:127.0.0.1:49731 meta@192.168.31.214
 
 0.4.0 手机的日计划与周计划按所选日程时区计算，周计划为周一至周日；待办箱仅判断 `dates={}`，与 `listId` 无关。默认清单 ID `inbox` 表示未分组。任务 `order` 保存用户拖动顺序，确认框中的序号由当前可见未完成任务推导，不是永久编号。
 
-清单 `activityId` 显式绑定优先；未配置时默认学习 → 学习、工作 → 实操、生活 → 日常。`POST /tasks/{id}/track` 与界面复用 `startTaskTimer`。清单/活动颜色与 `tagColors.tasks/records` 标签颜色进入完整状态和同步；新建、编辑任务使用同一 UI 保存流程，API 修改也受并发检查约束。
+清单 `activityId` 显式绑定优先。未配置时只有一个可用活动才可省略 `activityId`，有多个则须显式选择。新档案须先通过 `POST /timelog/activities` 创建活动。`POST /tasks/{id}/track` 与界面复用 `startTaskTimer`。清单/活动颜色与 `tagColors.tasks/records` 标签颜色进入完整状态和同步；新建、编辑任务使用同一 UI 保存流程，API 修改也受并发检查约束。
 
 `POST /time-records` 只需 `{"startAt":<epochMs>}`，可附 `activityId/taskId/note/tags`。未给 `endAt` 或为 null 时正计时；未来的 `endAt` 保存为 `plannedEndAt` 并开始倒计时；过去的 `endAt` 创建已结束记录。`POST /time-records/{id}/stop` 可用可选的过去结束时刻结束原记录。
 

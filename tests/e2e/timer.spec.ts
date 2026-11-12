@@ -1,6 +1,7 @@
+import { stateWithActivities } from '../fixtures/activities';
 import { mkdir } from 'node:fs/promises';
 import { test, expect, type Page } from '@playwright/test';
-import { emptyState, newTask, type AppState } from '../../src/model';
+import { newTask, type AppState } from '../../src/model';
 import { duration } from '../../src/timelog/domain';
 import { dateTimeInput, setTimeZone, shiftDay, zoneDateKey } from '../../src/timezone';
 
@@ -25,7 +26,7 @@ async function openTimer(page: Page) {
 async function seed(page: Page, configure?: (state: AppState) => void) {
   setTimeZone('Asia/Shanghai');
   const day = zoneDateKey(NOW),
-    state = emptyState();
+    state = stateWithActivities();
   state.settings.theme = 'dark';
   state.tasks = [
     newTask('复习量子化学', { id: 'today-plan', dates: { [day]: null } }),

@@ -8,6 +8,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { DatabaseSync } from 'node:sqlite';
 import { emptyState, newTask, type AppState } from '../../src/model.js';
+import { stateWithActivities } from '../fixtures/activities';
 import { SyncClient, fetchEnvelope } from '../../src/sync/client.js';
 import { randomKey } from '../../src/sync/crypto.js';
 import { UsageStore } from '../../electron/usage-store.js';
@@ -89,7 +90,7 @@ async function launch(pkg: string, config: string, profile: string) {
   await exited;
   throw new Error('Server startup timeout: ' + output);
 }
-async function request(info: any, method: string, route: string, body?: unknown) {
+async function request(info: any, method: string, route: string, body?: unknown, status = 200) {
   const response = await fetch(info.url + route, {
     method,
     headers: {
@@ -99,7 +100,7 @@ async function request(info: any, method: string, route: string, body?: unknown)
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
   const result = await response.json();
-  assert.equal(response.status, 200, JSON.stringify(result));
+  assert.equal(response.status, status, JSON.stringify(result));
   return result.data;
 }
 async function admin(pkg: string, config: string, ...args: string[]) {
@@ -147,7 +148,7 @@ test(
     await fixture(async (root, pkg) => {
       const profile = path.join(root, 'original-profile');
       await mkdir(profile);
-      const state = emptyState();
+      const state = stateWithActivities();
       state.tasks.push(newTask('Legacy task'));
       await writeFile(path.join(profile, 'data.json'), '{broken');
       await writeFile(path.join(profile, 'data.backup.json'), JSON.stringify(state));
@@ -344,6 +345,7 @@ test(
       const config = await configFile(root, profile);
       let running = await launch(pkg, config, profile);
       try {
+        await request(running.info, 'POST', '/timelog/activities', { name: '截止计时' }, 201);
         const endAt = Date.now() + 600;
         const timer = await request(running.info, 'POST', '/time-records', {
           startAt: Date.now() - 60000,

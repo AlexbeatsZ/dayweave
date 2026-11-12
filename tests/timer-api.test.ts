@@ -1,3 +1,4 @@
+import { stateWithActivities, timelogWithActivities } from './fixtures/activities';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdir, mkdtemp, rm } from 'node:fs/promises';
@@ -7,8 +8,7 @@ import { randomUUID } from 'node:crypto';
 import { StateService } from '../electron/state-service';
 import { FileStore } from '../electron/storage';
 import { startApi } from '../electron/api';
-import { emptyState } from '../src/model';
-import { initialState, startTimer, toggleTimer } from '../src/timelog/domain';
+import { startTimer, toggleTimer } from '../src/timelog/domain';
 import { diffState } from '../src/state-delta';
 import { fromDocument, toDocument } from '../src/sync/document';
 
@@ -67,7 +67,7 @@ test('time writes and AI import reject new overlap atomically, including paused 
   }));
 
 test('legacy overlap can be read, edited without adding occupancy, and trimmed', async () => {
-  const state = emptyState();
+  const state = stateWithActivities();
   const start = Date.now() - 60_000;
   const record = (id: string, left: number, right: number) => ({
     id,
@@ -129,10 +129,10 @@ async function apiFixture(
       headers?: Record<string, string>,
     ) => Promise<Response>,
   ) => Promise<void>,
-  seed?: ReturnType<typeof emptyState>,
+  seed?: ReturnType<typeof stateWithActivities>,
 ) {
   await fixture(async (service) => {
-    if (seed) await service.restore(seed);
+    await service.restore(seed ?? stateWithActivities());
     const api = await startApi(service, 0);
     try {
       await run(service, (method, route, body, headers = {}) =>
@@ -499,7 +499,7 @@ test('historical record links preserve pause gaps and metadata, allow many recor
     );
     assert.equal(persisted.timelog.records.find((row) => row.id === second.id)?.taskId, task.id);
     assert.deepEqual(persisted.timelog.timer, timer);
-    const synced = fromDocument(toDocument(persisted), emptyState());
+    const synced = fromDocument(toDocument(persisted), stateWithActivities());
     assert.deepEqual(synced.timelog.records, persisted.timelog.records);
     assert.deepEqual(synced.timelog.timer, timer);
   });
@@ -867,7 +867,7 @@ test('StateService schedules exactly one deadline, shifts it across pause and re
   const now = 1792700000000;
   t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now });
   await fixture(async (service) => {
-    const initial = await service.snapshot();
+    const initial = await service.restore(stateWithActivities());
     const activityId = initial.state.timelog.activities[0].id;
     await service.mutate((state) => ({
       ...state,
@@ -917,9 +917,9 @@ test('loading a persisted expired countdown finishes at its stored deadline exac
     await service.snapshot();
     service.dispose();
     const now = Date.now();
-    const state = emptyState();
+    const state = stateWithActivities();
     state.timelog = startTimer(
-      initialState(),
+      timelogWithActivities(),
       state.timelog.activities[0].id,
       'Expired while closed',
       now - 120000,

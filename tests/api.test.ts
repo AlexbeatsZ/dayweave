@@ -12,6 +12,7 @@ import { emptyState, newTask, now } from '../src/model';
 
 test('start-only record is a live timer and stopping closes the same record ID', async () =>
   fixture(async ({ request }) => {
+    assert.equal((await request('POST', '/timelog/activities', { name: '专注记录' })).status, 201);
     const startAt = Date.now() - 60000;
     const response = await request('POST', '/time-records', { startAt, note: 'AI 统一计时' });
     assert.equal(response.status, 200);
@@ -87,6 +88,7 @@ test('unified context, timetable writes and stale course revisions share the per
 
 test('task tracking appears in shared timer, survives pause/resume and writes the task-linked record', async () =>
   fixture(async ({ request, service }) => {
+    assert.equal((await request('POST', '/timelog/activities', { name: '任务活动' })).status, 201);
     const { data: task } = await (await request('POST', '/tasks', { title: 'Track this' })).json();
     const response = await request('POST', `/tasks/${task.id}/track`, {});
     assert.equal(response.status, 200);

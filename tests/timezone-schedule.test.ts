@@ -1,3 +1,4 @@
+import { timelogWithActivities } from './fixtures/activities';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -26,7 +27,6 @@ import {
 } from '../src/schedule.js';
 import { importCourses, parseCsv } from '../src/course-import.js';
 import {
-  initialState,
   makeBackup,
   startTimer,
   finishTimer,
@@ -147,7 +147,7 @@ test('old Clearlist and Timelog backups merge into the same store and retain tas
   old.tasks = [newTask('Old task')];
   const migrated = stateSchema.parse(old);
   assert.equal(migrated.settings.timeZone, 'Asia/Shanghai');
-  const t = initialState();
+  const t = timelogWithActivities();
   t.records = [
     {
       id: 'r',

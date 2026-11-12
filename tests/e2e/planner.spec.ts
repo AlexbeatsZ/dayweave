@@ -1,5 +1,6 @@
 import { test, expect, type Locator, type Page } from '@playwright/test';
-import { emptyState, newTask, type AppState } from '../../src/model';
+import { newTask, type AppState } from '../../src/model';
+import { stateWithActivities } from '../fixtures/activities';
 import { dayKey, dayStart, shiftDay } from '../../src/timelog/domain';
 import { setTimeZone } from '../../src/timezone';
 
@@ -16,7 +17,7 @@ async function seed(page: Page) {
   const today = dayKey(Date.now()),
     start = dayStart(today),
     old = shiftDay(today, -8),
-    state = emptyState();
+    state = stateWithActivities();
   state.settings.theme = 'dark';
   state.lists.push(
     { id: 'study-list', name: '学习', color: '#4264b2', order: 1 },
@@ -62,8 +63,9 @@ async function seed(page: Page) {
       order: 70,
     }),
   ];
-  // Only 学习 exists: starting 工作 / 生活 must create 实操 / 日常 without duplicates.
-  state.timelog.activities = state.timelog.activities.filter((activity) => activity.id === 'study');
+  state.timelog.activities = state.timelog.activities.filter((activity) =>
+    ['study', 'work', 'life'].includes(activity.id),
+  );
   state.timelog.records = [
     {
       id: 'record-alive',
@@ -233,7 +235,7 @@ test('long press reorders the visible priority numbers and completed plans sink 
   await expect(rows(page).locator('.task-check')).toHaveText(['1']);
 });
 
-test('list colors and configurable activity mappings persist while default work / life activities are created once', async ({
+test('task timing chooses from existing activities and a list binding persists', async ({
   page,
 }) => {
   test.setTimeout(120000);
@@ -260,18 +262,26 @@ test('list colors and configurable activity mappings persist while default work 
 
   for (const [title, taskId, name] of [
     ['学习计划', 'study-task', '学习'],
-    ['工作计划', 'work-task', '实操'],
-    ['生活计划', 'life-task', '日常'],
-    ['工作计划', 'work-task', '实操'],
+    ['工作计划', 'work-task', '工作'],
+    ['生活计划', 'life-task', '日常生活'],
+    ['工作计划', 'work-task', '工作'],
   ]) {
     await page.getByRole('button', { name: `计时 ${title}`, exact: true }).tap();
+    await page
+      .getByRole('dialog', { name: '选择计时活动' })
+      .getByRole('button', { name, exact: true })
+      .tap();
     await expect.poll(async () => (await state(page)).timelog.timer?.taskId).toBe(taskId);
     const current = await state(page),
       timer = current.timelog.timer!;
     expect(
       current.timelog.activities.find((activity) => activity.id === timer.activityId)?.name,
     ).toBe(name);
-    expect(current.timelog.activities.filter((activity) => activity.name === name)).toHaveLength(1);
+    expect(current.timelog.activities.map((activity) => activity.name)).toEqual([
+      '学习',
+      '工作',
+      '日常生活',
+    ]);
     await page.getByRole('button', { name: '取消', exact: true }).tap();
     await page.getByRole('button', { name: '手机待办', exact: true }).tap();
   }

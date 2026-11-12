@@ -38,6 +38,7 @@ import {
 } from '../src/api-contract.js';
 import { configureRepeat } from '../src/task-repeat.js';
 import { StateConflict } from '../src/state-delta.js';
+import { activeActivity } from '../src/timelog/domain.js';
 import { TimeOverlap } from '../src/timelog/occupancy.js';
 import { StateService, type StateSnapshot } from './state-service.js';
 import type { SyncBridge } from '../src/sync/types.js';
@@ -426,7 +427,14 @@ export async function startApi(
       if (route === '/lists' && method === 'POST') {
         const input = listInputSchema.parse(await body(request));
         const list = { id: uid(), color: '#326559', order: Date.now(), ...input };
-        snapshot = await mutate((s) => ({ ...s, lists: [...s.lists, list] }));
+        snapshot = await mutate((s) => {
+          if (
+            list.activityId &&
+            !s.timelog.activities.some((row) => row.id === list.activityId && activeActivity(row))
+          )
+            fail(400, 'Choose an available activity');
+          return { ...s, lists: [...s.lists, list] };
+        });
         return send(list, snapshot);
       }
       const listMatch = route.match(/^\/lists\/([^/]+)$/);
@@ -436,8 +444,16 @@ export async function startApi(
           method === 'PATCH' ? listInputSchema.partial().parse(await body(request)) : null;
         snapshot = await mutate((s) => {
           if (!s.lists.some((l) => l.id === id)) fail(404, 'List not found');
-          if (method === 'PATCH')
+          if (method === 'PATCH') {
+            if (
+              input?.activityId &&
+              !s.timelog.activities.some(
+                (row) => row.id === input.activityId && activeActivity(row),
+              )
+            )
+              fail(400, 'Choose an available activity');
             return { ...s, lists: s.lists.map((l) => (l.id === id ? { ...l, ...input } : l)) };
+          }
           if (id === 'inbox') fail(409, 'The default list cannot be deleted');
           return {
             ...s,

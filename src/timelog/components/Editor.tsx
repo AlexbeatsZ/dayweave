@@ -1,6 +1,7 @@
 import { dateTimeInput, parseDateTimeInput } from '../../timezone';
 import { useState, type FormEvent } from 'react';
 import {
+  activeActivity,
   colors,
   duration,
   formatDuration,
@@ -82,23 +83,14 @@ export function Editor({
   const [activityId, setActivityId] = useState(
     record?.activityId ||
       (target.kind === 'record' ? target.activityId : undefined) ||
-      state.activities.find((row) => !row.archived && !row.deletedAt)?.id ||
+      state.activities.find(activeActivity)?.id ||
       '',
   );
   const [tags, setTags] = useState(record?.tags || []);
-  // A new time goal starts from the first active activity, the most common case.
   const [rules, setRules] = useState<RecordRule[]>(() =>
     target.kind === 'goal' && target.goal?.kind === undefined && target.goal
       ? target.goal.rules
-      : [
-          {
-            ...emptyRule(),
-            activities: state.activities
-              .filter((row) => !row.archived && !row.deletedAt)
-              .slice(0, 1)
-              .map((row) => row.id),
-          },
-        ],
+      : [emptyRule()],
   );
   const tagOptions = [
     ...new Set([...Object.keys(tagColors), ...state.records.flatMap((row) => row.tags)]),
@@ -136,7 +128,8 @@ export function Editor({
           throw new Error('请检查起止时间：结束需晚于开始，且不能晚于现在。');
         const saved = await commit((current) => {
           const activity = current.activities.find((row) => row.id === text('activityId'));
-          if (!activity) throw new Error('请选择活动。');
+          if (!activity || (!activeActivity(activity) && record?.activityId !== activity.id))
+            throw new Error('请选择可用的活动。');
           const previous = record && current.records.find((row) => row.id === record.id);
           if (record && previous?.updatedAt !== record.updatedAt)
             throw new Error('记录已在其他窗口更新，请重新编辑。');
@@ -252,14 +245,9 @@ export function Editor({
       setSaving(false);
     }
   }
-  const activityOptions = (selected?: string) =>
-    state.activities
-      .filter((row) => (!row.archived && !row.deletedAt) || row.id === selected)
-      .map((row) => (
-        <option key={row.id} value={row.id}>
-          {row.name}
-        </option>
-      ));
+  const recordActivities = state.activities.filter(
+    (row) => activeActivity(row) || row.id === record?.activityId,
+  );
   return (
     <Dialog title={title} close={close}>
       <form className={`editor ${target.kind === 'record' ? 'record-editor' : ''}`} onSubmit={save}>
@@ -279,26 +267,31 @@ export function Editor({
                 onChange={(event) => setActivityId(event.target.value)}
                 required
               >
-                {activityOptions(record?.activityId)}
+                {!recordActivities.some((row) => row.id === activityId) && (
+                  <option value="" disabled>
+                    请选择活动
+                  </option>
+                )}
+                {recordActivities.map((row) => (
+                  <option key={row.id} value={row.id}>
+                    {row.name}
+                  </option>
+                ))}
               </select>
             </label>
             {phone && (
               <div className="phone-activity-chips" aria-label="选择记录活动">
-                {state.activities
-                  .filter(
-                    (row) => (!row.archived && !row.deletedAt) || row.id === record?.activityId,
-                  )
-                  .map((activity) => (
-                    <button
-                      type="button"
-                      key={activity.id}
-                      aria-pressed={activityId === activity.id}
-                      onClick={() => setActivityId(activity.id)}
-                    >
-                      <i style={{ background: activity.color }} />
-                      {activity.name}
-                    </button>
-                  ))}
+                {recordActivities.map((activity) => (
+                  <button
+                    type="button"
+                    key={activity.id}
+                    aria-pressed={activityId === activity.id}
+                    onClick={() => setActivityId(activity.id)}
+                  >
+                    <i style={{ background: activity.color }} />
+                    {activity.name}
+                  </button>
+                ))}
               </div>
             )}
             {spans.map((span, index) => (
@@ -608,7 +601,10 @@ export function Editor({
           <button className="secondary" type="button" onClick={close}>
             取消
           </button>
-          <button className="primary" disabled={saving}>
+          <button
+            className="primary"
+            disabled={saving || (target.kind === 'record' && !recordActivities.length)}
+          >
             {saving ? '保存中…' : '保存'}
           </button>
         </footer>

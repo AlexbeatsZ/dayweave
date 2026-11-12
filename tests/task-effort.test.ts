@@ -1,3 +1,4 @@
+import { stateWithActivities } from './fixtures/activities';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdir, mkdtemp, rm } from 'node:fs/promises';
@@ -53,7 +54,7 @@ test('difficulty is easy, medium or hard and PATCH omission preserves it', () =>
 });
 
 test('saved linked records are read-only reference minutes and never fill an empty actual value', () => {
-  const state = emptyState();
+  const state = stateWithActivities();
   const task = newTask('样品分析', { id: 'analysis', actualMinutes: null });
   state.tasks = [task];
   let timelog = startTimer(state.timelog, 'study', '', at, { taskId: task.id });

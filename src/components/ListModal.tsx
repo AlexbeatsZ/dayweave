@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { colors, uid, defaultTaskActivity, type TaskList } from '../model';
+import { colors, uid, type TaskList } from '../model';
 import { store, useStore } from '../store';
 import { ColorPicker } from './ColorPicker';
 import { activeActivity } from '../timelog/domain';
@@ -17,6 +17,7 @@ export function ListModal({
   const [name, setName] = useState(list?.name ?? '');
   const [color, setColor] = useState(list?.color ?? colors[0]);
   const { data } = useStore();
+  const activities = data.timelog.activities.filter(activeActivity);
   const [activityId, setActivityId] = useState(list?.activityId ?? '');
   const [deleting, setDeleting] = useState(false);
   const [busy, setBusy] = useState(false),
@@ -44,25 +45,32 @@ export function ListModal({
           if (!name.trim()) return;
           await save(
             () =>
-              store.transact((s) => ({
-                ...s,
-                lists: list
-                  ? s.lists.map((l) =>
-                      l.id === list.id
-                        ? { ...l, name: name.trim(), color, activityId: activityId || null }
-                        : l,
-                    )
-                  : [
-                      ...s.lists,
-                      {
-                        id: uid(),
-                        name: name.trim(),
-                        color,
-                        activityId: activityId || null,
-                        order: Date.now(),
-                      },
-                    ],
-              })),
+              store.transact((s) => {
+                if (
+                  activityId &&
+                  !s.timelog.activities.some((row) => row.id === activityId && activeActivity(row))
+                )
+                  throw new Error('请选择可用的活动，或设为无默认活动。');
+                return {
+                  ...s,
+                  lists: list
+                    ? s.lists.map((l) =>
+                        l.id === list.id
+                          ? { ...l, name: name.trim(), color, activityId: activityId || null }
+                          : l,
+                      )
+                    : [
+                        ...s.lists,
+                        {
+                          id: uid(),
+                          name: name.trim(),
+                          color,
+                          activityId: activityId || null,
+                          order: Date.now(),
+                        },
+                      ],
+                };
+              }),
             list ? '清单已更新' : '清单已创建',
           );
         }}
@@ -90,20 +98,19 @@ export function ListModal({
             value={activityId}
             onChange={(event) => setActivityId(event.target.value)}
           >
-            <option value="">
-              自动匹配
-              {defaultTaskActivity(name.trim())
-                ? ` · ${defaultTaskActivity(name.trim())}`
-                : ' · 学习'}
-            </option>
-            {data.timelog.activities.filter(activeActivity).map((activity) => (
+            <option value="">无默认活动</option>
+            {activityId && !activities.some((row) => row.id === activityId) && (
+              <option value={activityId} disabled>
+                原活动已不可用
+              </option>
+            )}
+            {activities.map((activity) => (
               <option key={activity.id} value={activity.id}>
                 {activity.name}
               </option>
             ))}
           </select>
         </label>
-        <p className="field-hint">学习→学习，工作→实操，生活→日常。也可以为任意清单指定活动。</p>
         {error && (
           <p className="form-error" role="alert">
             {error}

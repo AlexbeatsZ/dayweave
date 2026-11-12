@@ -281,6 +281,7 @@ test('a full-state import from the AI keeps the running timer instead of rejecti
     return { status: response.status, body: await response.json() };
   };
   try {
+    assert.equal((await request('POST', '/timelog/activities', { name: '任务记录' })).status, 201);
     const started = await request('POST', '/time-records', { startAt: Date.now() - 60000 });
     assert.equal(started.status, 200);
     const exported = (await request('GET', '/export')).body.data;

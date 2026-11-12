@@ -1,3 +1,4 @@
+import { stateWithActivities } from './fixtures/activities';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm, mkdir } from 'node:fs/promises';
@@ -92,7 +93,7 @@ test('coalesced in-flight exchange preserves later edits and uses one outgoing s
 });
 
 test('open records round-trip without ticks; closed timing wins over stale pause and note edits', () => {
-  const a = emptyState();
+  const a = stateWithActivities();
   a.timelog = startTimer(a.timelog, 'study', '跨设备', Date.now() - 20000);
   const base = toDocument(a);
   const id = a.timelog.timer!.id;
@@ -126,7 +127,7 @@ test('offline task fields merge independently and task conflicts accept the late
   assert.equal(fromDocument(merged.doc, a).tasks[0].title, '电脑标题');
 });
 test('simultaneous offline starts preserve both timer IDs and old schemas still load', () => {
-  const a = emptyState(),
+  const a = stateWithActivities(),
     b = structuredClone(a),
     c = structuredClone(a);
   b.timelog = startTimer(b.timelog, 'study', '电脑', Date.now() - 3000);
@@ -186,7 +187,7 @@ test('real encrypted hub with two clients: pairing, offline merge, cross-device 
   const endpoint = 'http://127.0.0.1:' + hub.client.config.hub.port;
   const memory = (name: string) => {
     let raw: string | null = null;
-    let state = emptyState();
+    let state = stateWithActivities();
     let last: Envelope;
     let loseReply = false;
     const client = new SyncClient(
@@ -340,7 +341,7 @@ test('real encrypted hub with two clients: pairing, offline merge, cross-device 
 });
 
 test('hub accepts every key toDocument produces, including daily-plan time slots', async () => {
-  const state = emptyState();
+  const state = stateWithActivities();
   const day = '2026-11-04';
   const group = newPlanGroup(day, { title: '午饭前' });
   state.planGroups = [group];
@@ -363,7 +364,7 @@ test('hub accepts every key toDocument produces, including daily-plan time slots
   try {
     await service.mutate((current) => ({ ...current, planGroups: [group] }));
     let raw: string | null = null;
-    let local = emptyState();
+    let local = stateWithActivities();
     const client = new SyncClient(
       {
         read: async () => raw,

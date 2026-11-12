@@ -31,8 +31,8 @@ import {
   mergeBackup,
   parseBackup,
   activeActivity,
+  retireUnusedActivityPresets,
   startTimer,
-  newId,
   duration,
 } from './timelog/domain.js';
 import { moveOrder } from './order.js';
@@ -275,6 +275,10 @@ export const stateSchema = z.preprocess(migrateTaskState, stateFields).transform
   );
   return {
     ...state,
+    timelog: retireUnusedActivityPresets(
+      state.timelog,
+      state.lists.flatMap((list) => (list.activityId ? [list.activityId] : [])),
+    ),
     tasks: state.tasks.map((task) =>
       normalizeTask({
         ...task,
@@ -358,9 +362,6 @@ export function emptyState(): AppState {
     },
   };
 }
-/** Default list mapping is shared by UI and AI; activity identity is always persisted. */
-export const defaultTaskActivity = (name: string) =>
-  (({ 学习: '学习', 工作: '实操', 生活: '日常' }) as Record<string, string>)[name];
 export function reorderTasks(
   state: AppState,
   visibleIds: string[],
@@ -454,6 +455,13 @@ export function deletePlanGroup(state: AppState, id: string): AppState {
     ),
   };
 }
+export class TaskTimerActivityRequired extends Error {
+  readonly status = 400;
+  constructor() {
+    super('请选择任务计时使用的活动。');
+  }
+}
+
 export function startTaskTimer(
   state: AppState,
   taskId: string,
@@ -466,30 +474,23 @@ export function startTaskTimer(
   if (!task) throw new Error('未找到进行中的任务。');
   const list = state.lists.find((list) => list.id === task.listId);
   const mapped = activityId ?? list?.activityId;
-  const expected = defaultTaskActivity(list?.name ?? '');
-  let timelog = state.timelog;
-  let activity = mapped
-    ? timelog.activities.find((activity) => activity.id === mapped && activeActivity(activity))
-    : timelog.activities.find(
-        (activity) => activeActivity(activity) && activity.name === (expected ?? '学习'),
-      );
-  if (mapped && !activity) throw new Error('清单绑定的活动已删除，请在清单设置中重新选择。');
-  if (!activity && expected) {
-    activity = {
-      id: newId(),
-      name: expected,
-      color: list?.color ?? '#76b9ed',
-      nature: expected === '日常' ? 'neutral' : 'positive',
-      archived: false,
-      updatedAt: at,
-    };
-    timelog = { ...timelog, activities: [...timelog.activities, activity] };
-  }
-  activity ??= timelog.activities.find(activeActivity);
-  if (!activity) throw new Error('请先添加一个计时活动。');
+  const activities = state.timelog.activities.filter(activeActivity);
+  const activity = mapped ? activities.find((row) => row.id === mapped) : activities[0];
+  if (mapped && !activity)
+    throw Object.assign(
+      new Error(
+        activityId ? '请选择可用的活动。' : '清单绑定的活动已删除，请在清单设置中重新选择。',
+      ),
+      { status: 400 },
+    );
+  if (!activity) throw Object.assign(new Error('请先在计时页添加活动。'), { status: 400 });
+  if (!mapped && activities.length > 1) throw new TaskTimerActivityRequired();
   return {
     ...state,
-    timelog: startTimer(timelog, activity.id, task.title, at, { taskId: task.id, tags: task.tags }),
+    timelog: startTimer(state.timelog, activity.id, task.title, at, {
+      taskId: task.id,
+      tags: task.tags,
+    }),
   };
 }
 export function newTask(title: string, partial: Partial<z.input<typeof taskSchema>> = {}): Task {

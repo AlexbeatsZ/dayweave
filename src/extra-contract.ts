@@ -85,7 +85,12 @@ export const extraPaths: Record<string, unknown> = {
     parameters: id,
     post: op('从任务开始正向计时，与现有时间线共用计时器', {
       type: 'object',
-      properties: { activityId: { type: 'string' } },
+      properties: {
+        activityId: {
+          type: 'string',
+          description: '当前活动 ID。没有清单绑定且有多个可用活动时必填。',
+        },
+      },
     }),
   },
   '/schedule': {
@@ -158,7 +163,7 @@ export const extraPaths: Record<string, unknown> = {
     patch: op('修改单次课程实例', free),
     delete: op('删除单次课程实例'),
   },
-  '/timelog/activities': { get: op('读取活动'), post: op('创建活动', free) },
+  '/timelog/activities': { get: op('读取当前可用活动'), post: op('创建活动', free) },
   '/timelog/activities/{id}': {
     parameters: id,
     get: op('读取活动'),

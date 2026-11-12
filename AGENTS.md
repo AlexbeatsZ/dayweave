@@ -87,6 +87,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Active Work
 
+- 2026-11-11 activity catalog correction is ready for UI review. New profiles start without activities, and the upgrade retires only unused old presets with unchanged fingerprints. Task timers use an actual activity or prompt for a choice. Behavior review dropdown is inset 16 px. Previews: `.local/preview/user-activities/`. Await explicit authorization after UI review before any build, CI push, packaging or release.
+
 - AI Decision link_task (target=record|timer) and create→complete adapter run against production OpenAPI2.1.0, gated on GET /health data.capabilities.taskRecordLinks===true; AI owns its ledger/fingerprint/unknown-result reconciliation (docs/design/api.md). No live association was test-written; the first natural AI association/backfill remains unaccepted.
 
 - 2026-11-05 client0.5.3/code26 five-device delivery and14asset Release publication complete. CI42142284863 attempts1/2 each Windows102/103browser pass; failures were different initial-page readiness waits before calendar/backup-recovery actions. Android/arm64/Intel fully passed. Windows startup-test instability remains unresolved; no assertion/code change or further blind retry. Installed Windows desktops remain closed; original profiles/identities/conflicts/widgets and Server/AI preserved.

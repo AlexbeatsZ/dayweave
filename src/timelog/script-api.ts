@@ -9,6 +9,7 @@ import { courseOccurrences, type Schedule } from '../schedule.js';
 import { getDayStart, getTimeZone, wallTime } from '../timezone.js';
 import type { UsageEvent } from '../usage/domain.js';
 import {
+  activeActivity,
   clipped,
   dayRange,
   duration,
@@ -153,7 +154,7 @@ export function scriptRecords(data: ScriptData, period: ScriptPeriod, query: Rec
 }
 export function scriptActivities(data: ScriptData) {
   return data.timelog.activities
-    .filter((row) => !row.deletedAt)
+    .filter(activeActivity)
     .map(({ id, name, nature, color, archived }) => ({ id, name, nature, color, archived }));
 }
 export function scriptTasks(data: ScriptData, _period: ScriptPeriod, query: TaskQuery = {}) {

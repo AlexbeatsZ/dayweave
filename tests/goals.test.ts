@@ -1,10 +1,10 @@
+import { timelogWithActivities } from './fixtures/activities';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   dayRange,
   goalStatus,
   goalTargetText,
-  initialState,
   parseGoalTarget,
   deleteActivity,
   describeRules,
@@ -30,7 +30,7 @@ test('goal target text accepts hours, minutes and a ceiling marker', () => {
 });
 
 test('goals are judged only after their period ends', () => {
-  const state: State = initialState();
+  const state: State = timelogWithActivities();
   const day = '2026-11-02';
   const { start, end } = dayRange(day);
   state.records = [
@@ -72,7 +72,7 @@ test('goals are judged only after their period ends', () => {
 });
 
 test('older data without comparison or with points still loads', () => {
-  const base = initialState();
+  const base = timelogWithActivities();
   const legacy = {
     ...base,
     activities: base.activities.map((row) => ({ ...row, pointsPerHour: 20 })),
@@ -138,7 +138,7 @@ test('a range in the target time sets one stage per unit and grades each period'
     '480,750,960',
   );
 
-  const state: State = initialState();
+  const state: State = timelogWithActivities();
   const day = '2026-11-02';
   const { start, end } = dayRange(day);
   const record = (hours: number) => ({
@@ -177,15 +177,17 @@ test('a range in the target time sets one stage per unit and grades each period'
   }
   // Stored stages are normalized and checked against the target on load.
   const loaded = validateState({
-    ...initialState(),
+    ...timelogWithActivities(),
     goals: [{ ...study, stages: [600, 480, 960] }],
   });
   assert.deepEqual((loaded.goals[0] as typeof study).stages, [480, 600]);
-  assert.throws(() => validateState({ ...initialState(), goals: [{ ...study, stages: [1200] }] }));
+  assert.throws(() =>
+    validateState({ ...timelogWithActivities(), goals: [{ ...study, stages: [1200] }] }),
+  );
 });
 
 test('drag order renumbers rows and sorts goals and activities', () => {
-  const base = initialState();
+  const base = timelogWithActivities();
   const goal = (id: string, period: 'day' | 'week', group?: string): Goal => ({
     id,
     name: id,
@@ -253,7 +255,7 @@ test('time goals count records matching any rule of activities and tags', () => 
   assert.equal(matchesRules(notScroll, record('life', [])), true);
   assert.equal(matchesRules(notScroll, record('life', ['刷手机'])), false);
   assert.equal(matchesRules([emptyRule()], record('life', [])), true);
-  const base = initialState();
+  const base = timelogWithActivities();
   assert.equal(
     describeRules(rules, base.activities),
     '学习或阅读，带 #英语，不带 #摸鱼；或 任意活动，带 #阅读',

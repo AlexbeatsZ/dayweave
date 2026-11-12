@@ -1,13 +1,14 @@
+import { stateWithActivities, timelogWithActivities } from '../fixtures/activities';
 import { test, expect } from '@playwright/test';
-import { emptyState, newTask } from '../../src/model';
-import { makeBackup, initialState } from '../../src/timelog/domain';
+import { newTask } from '../../src/model';
+import { makeBackup } from '../../src/timelog/domain';
 
 test.use({ timezoneId: 'America/New_York' });
 test.beforeEach(async ({ page }) => {
   await page.addInitScript((data) => {
     if (!localStorage.getItem('dayweave.v1'))
       localStorage.setItem('dayweave.v1', JSON.stringify(data));
-  }, emptyState());
+  }, stateWithActivities());
 });
 test('Shanghai course stays 08:00 on a UTC-4 device and shows Sunday 20:00 with a 30 minute countdown', async ({
   page,
@@ -62,6 +63,10 @@ test('task starts a shared positive timer and timelog records persist through re
   await page.getByRole('button', { name: '添加任务', exact: true }).click();
   await page.getByRole('button', { name: '编辑 做量子化学习题', exact: true }).click();
   await page.getByRole('button', { name: '开始记录时间', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: '选择计时活动' })
+    .getByRole('button', { name: '学习', exact: true })
+    .click();
   await expect(page.locator('.timelog-module')).toBeVisible();
   await page.getByRole('tab', { name: '计时', exact: true }).click();
   await expect(page.getByLabel('计时描述')).toHaveValue('做量子化学习题');
@@ -78,7 +83,7 @@ test('task starts a shared positive timer and timelog records persist through re
 test('course and full backup imports preserve both original project formats', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: '设置与同步', exact: true }).click();
-  const old = JSON.parse(JSON.stringify(emptyState()));
+  const old = JSON.parse(JSON.stringify(stateWithActivities()));
   delete old.timelog;
   delete old.schedule;
   delete old.settings.timeZone;
@@ -88,7 +93,7 @@ test('course and full backup imports preserve both original project formats', as
     const { store } = await import(modulePath);
     await store.importData(data);
   }, old);
-  const timelog = initialState();
+  const timelog = timelogWithActivities();
   timelog.records = [
     {
       id: 'old-record',

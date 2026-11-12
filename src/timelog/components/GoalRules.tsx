@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Ban, Plus, Trash2 } from 'lucide-react';
 import {
+  activeActivity,
   dayKey,
   dayRange,
   describeRule,
@@ -31,11 +32,6 @@ export function GoalRules({
   onChange: (rules: RecordRule[]) => void;
 }) {
   const [extraTags, setExtraTags] = useState<string[]>([]);
-  const named = new Set(rules.flatMap((rule) => rule.activities));
-  // Hidden activities stay listed while a rule still names them, so they can be removed.
-  const activities = state.activities.filter(
-    (row) => named.has(row.id) || (!row.archived && !row.deletedAt),
-  );
   const tags = [
     ...new Set([
       ...tagOptions,
@@ -92,27 +88,30 @@ export function GoalRules({
             role="group"
             aria-label={`规则 ${index + 1} 的活动`}
           >
-            {activities.map((activity) => {
-              const selected = rule.activities.includes(activity.id);
-              return (
-                <button
-                  type="button"
-                  key={activity.id}
-                  aria-pressed={selected}
-                  onClick={() =>
-                    update(index, {
-                      ...rule,
-                      activities: selected
-                        ? rule.activities.filter((item) => item !== activity.id)
-                        : [...rule.activities, activity.id],
-                    })
-                  }
-                >
-                  <i style={{ background: activity.color }} />
-                  {activity.name}
-                </button>
-              );
-            })}
+            {state.activities
+              .filter((row) => activeActivity(row) || rule.activities.includes(row.id))
+              .map((activity) => {
+                const selected = rule.activities.includes(activity.id);
+                return (
+                  <button
+                    type="button"
+                    key={activity.id}
+                    aria-pressed={selected}
+                    onClick={() =>
+                      update(index, {
+                        ...rule,
+                        activities: selected
+                          ? rule.activities.filter((item) => item !== activity.id)
+                          : [...rule.activities, activity.id],
+                      })
+                    }
+                  >
+                    <i style={{ background: activity.color }} />
+                    {activity.name}
+                    {!activeActivity(activity) && '（历史）'}
+                  </button>
+                );
+              })}
           </div>
           <div className="match-heading">标签</div>
           <div className="phone-tag-chips" role="group" aria-label={`规则 ${index + 1} 的标签`}>

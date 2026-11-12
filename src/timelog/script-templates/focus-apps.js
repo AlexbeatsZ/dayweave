@@ -4,7 +4,7 @@
 export const description = '学习时段内使用无关软件超过阈值就算失败。';
 
 export const params = {
-  study: { label: '学习活动', type: 'list', default: ['学习'] },
+  study: { label: '学习活动', type: 'list', default: [], hint: '填写已有活动的名称或 ID' },
   apps: {
     label: '无关软件',
     type: 'list',
@@ -23,6 +23,7 @@ export const params = {
 
 export default async function judge(ctx) {
   const { study, apps, maxMinutes, maxTimes, gapMinutes } = ctx.params;
+  if (!study.length) return { met: null, note: '请指定学习活动' };
   const studying = (await ctx.records({ activities: study })).flatMap((record) => record.spans);
   if (!studying.length) return { met: null, note: '没有学习记录' };
   const used = (await ctx.usage({ apps, kinds: ['app'] })).map(({ start, end }) => ({

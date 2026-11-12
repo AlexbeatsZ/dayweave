@@ -1,7 +1,8 @@
+import { stateWithActivities } from '../fixtures/activities';
 import { test, expect, type Page } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
-import { emptyState, newTask, type AppState } from '../../src/model';
+import { newTask, type AppState } from '../../src/model';
 import { dayKey, dayStart } from '../../src/timelog/domain';
 import { setTimeZone, shiftDay, weekday } from '../../src/timezone';
 
@@ -12,7 +13,7 @@ async function seed(page: Page) {
   // The seeded 01:00–02:30 records are history even when CI runs at night.
   const now = Date.parse('2026-10-23T04:00:00Z');
   await page.clock.setFixedTime(now);
-  const state = emptyState(),
+  const state = stateWithActivities(),
     today = dayKey(now),
     start = dayStart(today);
   state.settings.theme = 'dark';

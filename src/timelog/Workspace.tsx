@@ -156,10 +156,16 @@ export default function Workspace({
     });
   }
   function addRecord(range?: { start: number; end: number }) {
+    const activity = state.activities.find(activeActivity);
+    if (!activity) {
+      onPageChange('timer');
+      setNotice({ text: '请先添加一个活动。', error: false });
+      return;
+    }
     const end = Math.min(Date.now(), dayRange(date).end);
     setEditor({
       kind: 'record',
-      activityId: state.activities.find(activeActivity)?.id,
+      activityId: activity.id,
       range: range ?? { start: Math.max(dayStart(date), end - 1800000), end },
     });
   }

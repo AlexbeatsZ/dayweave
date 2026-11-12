@@ -1,5 +1,5 @@
+import { stateWithActivities } from '../fixtures/activities';
 import { test, expect, type Page } from '@playwright/test';
-import { emptyState } from '../../src/model';
 import { dayStart, dayKey } from '../../src/timelog/domain';
 import { setDayStart, setTimeZone } from '../../src/timezone';
 
@@ -9,7 +9,7 @@ async function seed(page: Page, phone = false, crowded = false) {
   setDayStart('00:00');
   const day = dayKey(Date.parse('2026-10-27T08:00:00Z')),
     start = dayStart(day) + 9 * 3600000;
-  const state = emptyState();
+  const state = stateWithActivities();
   state.timelog.records = [
     {
       id: 'manual-study',

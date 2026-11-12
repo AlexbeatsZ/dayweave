@@ -1,6 +1,6 @@
+import { stateWithActivities } from '../fixtures/activities';
 import { readFile } from 'node:fs/promises';
 import { test, expect, type Page } from '@playwright/test';
-import { emptyState } from '../../src/model';
 import { goalResultId, scriptBasis, type ScriptGoal } from '../../src/timelog/domain';
 import { setDayStart, setTimeZone, wallTime } from '../../src/timezone';
 
@@ -11,7 +11,7 @@ setDayStart('00:00');
 const at = (time: string) => wallTime(DAY, time);
 
 async function seed(page: Page) {
-  const state = emptyState();
+  const state = stateWithActivities();
   state.settings.theme = 'dark';
   state.timelog.records = [
     {
@@ -42,7 +42,7 @@ async function seed(page: Page) {
       updatedAt: 1,
       kind: 'script',
       scriptId: 'focus',
-      params: { apps: ['bilibili'] },
+      params: { study: ['study'], apps: ['bilibili'] },
     },
   ];
   // The hub computes and distributes results; this device only displays them.
