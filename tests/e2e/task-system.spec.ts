@@ -282,7 +282,13 @@ for (const width of [390, 1440]) {
         const ring = node.querySelector('.task-check-ring')!;
         const css = getComputedStyle(ring);
         const bounds = ring.getBoundingClientRect();
-        return [bounds.width, bounds.height, css.strokeWidth, css.stroke];
+        // Browser transforms can introduce subpixel floating-point noise.
+        return [
+          Number(bounds.width.toFixed(2)),
+          Number(bounds.height.toFixed(2)),
+          css.strokeWidth,
+          css.stroke,
+        ];
       };
       expect(await repeatingCheck.evaluate(outline)).toEqual([
         23,
