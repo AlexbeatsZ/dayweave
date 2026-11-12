@@ -88,25 +88,36 @@ public class CourseWidgetProvider extends AppWidgetProvider {
         for(CourseSchedule.Event e:events){if(e.start>now&&(boundary==0||e.start<boundary))boundary=e.start;if(e.end>now&&(boundary==0||e.end<boundary))boundary=e.end;}
         for(int kind=0;kind<2;kind++)for(int id:kind==0?wide:small){
             RemoteViews views=new RemoteViews(context.getPackageName(),kind==0?R.layout.course_widget:R.layout.course_widget_compact);
-            // Tablet launcher cells can be much taller than their nominal 2-row size.
-            // Keep the same hierarchy, with readable type instead of a tiny corner of content.
-            if(manager.getAppWidgetOptions(id).getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT,110)>=180){
-                views.setTextViewTextSize(R.id.widget_title,android.util.TypedValue.COMPLEX_UNIT_SP,kind==0?26:21);
-                views.setTextViewTextSize(R.id.widget_time,android.util.TypedValue.COMPLEX_UNIT_SP,kind==0?17:13);
-                views.setTextViewTextSize(R.id.widget_countdown,android.util.TypedValue.COMPLEX_UNIT_SP,kind==0?28:20);
-                views.setTextViewTextSize(R.id.widget_location,android.util.TypedValue.COMPLEX_UNIT_SP,14);
+            // Tablet and tall phone cells exceed the nominal 2-row size: keep the hierarchy, enlarge the type.
+            boolean large=manager.getAppWidgetOptions(id).getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT,110)>=180;
+            if(large){
+                views.setTextViewTextSize(R.id.widget_title,android.util.TypedValue.COMPLEX_UNIT_SP,kind==0?24:20);
+                views.setTextViewTextSize(R.id.widget_time,android.util.TypedValue.COMPLEX_UNIT_SP,kind==0?15:13);
+                views.setTextViewTextSize(R.id.widget_location,android.util.TypedValue.COMPLEX_UNIT_SP,kind==0?15:13);
+                views.setTextViewTextSize(R.id.widget_countdown,android.util.TypedValue.COMPLEX_UNIT_SP,kind==0?44:32);
+                views.setTextViewTextSize(R.id.widget_countdown_label,android.util.TypedValue.COMPLEX_UNIT_SP,kind==0?16:13);
+                if(kind==0)views.setTextViewTextSize(R.id.widget_separator,android.util.TypedValue.COMPLEX_UNIT_SP,15);
+                else views.setInt(R.id.widget_title,"setMaxLines",2);
             }
-            views.setTextViewText(R.id.widget_status,current!=null?"正在上课":"下一节课");
+            views.setTextViewText(R.id.widget_status,current!=null?"正在上课":next!=null?"下一节课":"课程表");
             views.setTextViewText(R.id.widget_title,error!=null?error:item!=null?item.name:data==null?"打开时织，导入课程":"接下来没有课程");
-            views.setTextViewText(R.id.widget_time,item!=null?format(item.start,zone,"MM-dd HH:mm")+"–"+format(item.end,zone,"HH:mm"):"待办 · 时间 · 课程");
+            views.setTextViewText(R.id.widget_time,item!=null?format(item.start,zone,"MM-dd HH:mm")+"–"+format(item.end,zone,"HH:mm"):"");
+            views.setViewVisibility(R.id.widget_time,item==null?View.GONE:View.VISIBLE);
+            if(kind==0)views.setViewVisibility(R.id.widget_separator,item==null?View.GONE:View.VISIBLE);
             views.setTextViewText(R.id.widget_location,item!=null?(item.location.isEmpty()?"未填写教室":item.location):"点击打开课程表");
             views.setTextViewText(R.id.widget_zone,zone);
-            views.setViewVisibility(R.id.widget_countdown,item==null?View.GONE:View.VISIBLE);
-            if(item!=null){views.setChronometer(R.id.widget_countdown,SystemClock.elapsedRealtime()+Math.max(0,(current!=null?item.end:item.start)-now),current!=null?"%s 后下课":"%s 后上课",true);views.setChronometerCountDown(R.id.widget_countdown,true);}
+            if(kind==1)views.setViewVisibility(R.id.widget_zone,large?View.VISIBLE:View.GONE);
+            views.setViewVisibility(R.id.widget_countdown_row,item==null?View.GONE:View.VISIBLE);
+            if(item!=null){
+                views.setChronometer(R.id.widget_countdown,SystemClock.elapsedRealtime()+Math.max(0,(current!=null?item.end:item.start)-now),"%s",true);
+                views.setChronometerCountDown(R.id.widget_countdown,true);
+                views.setTextViewText(R.id.widget_countdown_label,current!=null?"后下课":"后上课");
+            }
             if(kind==0){
                 String local=item==null?"":ZoneId.systemDefault().getId().equals(zone)?item.teacher:"设备 "+format(item.start,ZoneId.systemDefault().getId(),"MM-dd HH:mm");
                 if(current!=null&&next!=null)local="下一节 "+format(next.start,zone,"HH:mm")+" "+next.name;
                 views.setTextViewText(R.id.widget_secondary,local);
+                views.setViewVisibility(R.id.widget_secondary,local.isEmpty()?View.GONE:View.VISIBLE);
             }
             Intent launch=new Intent(context,MainActivity.class).setAction(Intent.ACTION_VIEW).setData(Uri.parse("dayweave://timetable")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_CLEAR_TOP);
             views.setOnClickPendingIntent(android.R.id.background,PendingIntent.getActivity(context,100,launch,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE));

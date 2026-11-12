@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Static Material 3 roles for Android < 12; values-v31 maps the same roles to wallpaper colors. -->
 <resources>
-    <color name="widget_surface">#F2F2F2</color>
-    <color name="widget_ink">#252525</color>
+    <color name="widget_surface">#F1F3F9</color>
+    <color name="widget_ink">#191C20</color>
     <color name="widget_accent">#286C9E</color>
-    <color name="widget_muted">#525257</color>
-    <color name="widget_faint">#6B6B70</color>
+    <color name="widget_muted">#43474E</color>
+    <color name="widget_faint">#73777F</color>
+    <color name="widget_container">#D0E4FF</color>
+    <color name="widget_on_container">#001D35</color>
 </resources>

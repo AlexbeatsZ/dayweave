@@ -1,6 +1,8 @@
 # 时织 / Dayweave Server
 
-独立版本 `0.2.4`，共享客户端 `0.5.7` 的业务、计时、同步及 SQLite 所有者。需要 **Node 24（24.14.1 或更高的 24.x）或 Node 26**，CI 在 Windows/Ubuntu 的 Node 24.14.1 与 26 上验证。包已含 JavaScript 依赖，不需要 npm install、编译、Electron、React、Rust 或本机采集程序。Node 运行时由运行机器提供。
+独立版本 `0.2.5`，共享客户端 `0.5.8` 的业务、计时、同步及 SQLite 所有者。需要 **Node 24（24.14.1 或更高的 24.x）或 Node 26**，CI 在 Windows/Ubuntu 的 Node 24.14.1 与 26 上验证。包已含 JavaScript 依赖，不需要 npm install、编译、Electron、React、Rust 或本机采集程序。Node 运行时由运行机器提供。
+
+0.2.5 移除旧活动预设并保留历史引用，客户端 0.5.8 与之配套。新建任务计时使用实际活动。
 
 0.2.4 支持行为规则目标和按业务日保存的行为回顾。启用前先升级中心，再升级全部配对客户端到 0.5.7。状态与同步协议仍为 2。
 

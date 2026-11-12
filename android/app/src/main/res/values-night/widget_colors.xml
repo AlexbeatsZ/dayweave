@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="widget_surface">#252525</color>
-    <color name="widget_ink">#F4F4F5</color>
-    <color name="widget_accent">#76B9ED</color>
-    <color name="widget_muted">#D0D0D4</color>
-    <color name="widget_faint">#ADADB2</color>
+    <color name="widget_surface">#1D2024</color>
+    <color name="widget_ink">#E1E2E8</color>
+    <color name="widget_accent">#9DCAFF</color>
+    <color name="widget_muted">#C3C6CF</color>
+    <color name="widget_faint">#8D9199</color>
+    <color name="widget_container">#0F4A75</color>
+    <color name="widget_on_container">#D0E4FF</color>
 </resources>
