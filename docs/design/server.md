@@ -28,6 +28,8 @@ runtime.close 幂等；API 先拒绝新管理请求并关闭listener、等待已
 
 `POST /server/shutdown` 的响应只确认请求受理，CLI还等待 owner.lock 释放；生产运维需确认原PID退出。CLI先核对 `/health.mode=server`，避免拿旧桌面令牌误停桌面。没有无认证停机或系统taskkill实现。旧桌面无该接口，第一次切换必须由部署方正常退出旧唯一writer；WM_CLOSE可能只是隐藏窗口，不能作为停机证据。
 
+2026-11-11 ROG 异常重启后，Windows 将旧 owner.lock 的 PID 复用给 Memory Compression，中心沿用的 PID 存活判定因此拒绝启动。原 DayweaveHub 开机任务现在通过 `.local/server/start-with-boot-recovery.ps1` 启动原 Node、服务程序和配置。只有锁的修改时间早于本次开机，且该 PID 的当前进程明确在本次开机后启动，脚本才在重新核对锁后将它移存到 `%TEMP%\.agents\dayweave-boot-locks`。其余情况交给原服务的锁处理。用同一 S4U 账户和隔离 profile 验证了当前开机周期的锁保持、跨开机 PID 复用的锁恢复和认证停机退出 0。线上任务已用新入口重启并恢复同步，整机再次开机尚未复验。
+
 ## 本机管理与迁移
 
 新增管理端点继续放在已有 startApi 的 Host/Origin/Bearer保护之后。status只派生现有所有者的计数/健康，不保存管理状态。设备撤销复用 DesktopSync.revoke，不删除历史。邀请复用原有效期和单次密钥；只有显式 invite命令输出密钥。服务器status/usage/shutdown只在server模式安装。

@@ -4,7 +4,7 @@
 
 复用当前 Web 隧道的 HTTPS 入口，固定将 `/ai-decision/mcp` 转发到回环 `18783/mcp`，并转发该命名空间的 authorize/token/register/revoke/consent 与 OAuth 发现元数据。参数查询串和 OAuth/MCP 请求头原样保留，未列出的 `/ai-decision` 路径返回404，请求体限制1MiB。只有经过独立 MCP OAuth 验证的调用才能访问原业务工具；没有路由到 decisiond 的8766端口。
 
-当前 `DayweaveHttpsGateway` 任务实际入口为 keepass-webdav-sync/shared-gateway.mjs；它依次包装 WebObsidian/Mojian/Dayweave 路由并保留 KeePass WebDAV 的条件写入保护。更新本模块的运行副本即可增加 MCP 路由，不修改任务 Action、外层包装器、私有配置或各业务端口。部署只重启该网关进程；订阅发布器、Web frpc、Sakura/Tailscale、DayweaveHub 和其他业务后端保持。网关源码作为独立 https-gateway 发行，不构建或升级 Dayweave 客户端。
+当前 `DayweaveHttpsGateway` 任务入口为 ROG `webobsidian-sync/sync-server/shared-gateway.mjs`，传入现有 Dayweave 网关模块和 Mojian 路由模块。WebObsidian 与 Mojian 由包装器转发，Dayweave 模块处理同步、MCP 和订阅路由。2026-11-11 KeePass 退役后，旧入口仍读取已经移除的私有配置，导致重启时整个网关退出。恢复时只替换原任务的 Action，保留 SYSTEM 开机触发器。网关源码作为独立 https-gateway 发行。
 
 ## 现场拓扑与所有者
 

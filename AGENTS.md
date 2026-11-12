@@ -4,6 +4,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Current State
 
+- 2026-11-11 ROG boot recovery restored Dayweave Server 0.2.3 and the shared HTTPS gateway. Both original tasks retain enabled boot triggers. DayweaveHub now runs `.local/server/start-with-boot-recovery.ps1` before launching the original server and config. It preserves and clears a pre-boot owner lock when the recorded PID belongs to a post-boot process. The gateway uses the existing WebObsidian wrapper with the Mojian route and Dayweave module after KeePass retirement. Mac sync completed with no pending changes or conflicts, and authenticated public Mojian and WebObsidian manifests returned 200. A full machine reboot after the repair remains unverified. See docs/log/2026-11.md.
+
 - Client 0.5.7/code30 and Server 0.2.4 are published as prereleases with 12/3 assets. Daily behavior rules have a P/Q description and a dropdown that saves immediately or clears the current day's answer. Reviews close at the configured business day boundary, sync independently by rule and date, and remain read-only in history. No production deployment was performed. Upgrade the center before using the feature on paired clients. See docs/design/planning-goals.md and docs/design/timelog-interface.md.
 
 - 2026-11-08 shared HTTPS gateway v0.1.1 deployed: exact authenticated AI Decision MCP/OAuth routes to loopback18783. Google linked through original Sakura63573 and imported36 native tools; Gemini live reading accepted. Only gateway3164→10164 restarted; task Action/wrappers and DayweaveHub42292/subscription47848/KeePass22764 preserved. No Dayweave client/center upgrade or Gemini schedule migration. See docs/design/https-gateway.md.
