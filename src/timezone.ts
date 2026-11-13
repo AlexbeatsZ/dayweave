@@ -55,6 +55,7 @@ export const businessDayStart = (date: string, zone = currentZone, start = curre
   wallTime(date, start, zone);
 export const zoneClock = (at: number, zone = currentZone) =>
   zonedDate(at, zone).toPlainTime().toString({ smallestUnit: 'minute' });
+export const minuteOf = (clock: string) => Number(clock.slice(0, 2)) * 60 + Number(clock.slice(3));
 export const dateTimeInput = (at: number, zone = currentZone) =>
   `${zoneDateKey(at, zone)}T${zoneClock(at, zone)}`;
 export function parseDateTimeInput(value: string, zone = currentZone) {

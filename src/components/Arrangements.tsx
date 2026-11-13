@@ -13,6 +13,7 @@ import { taskCompleted, reorderTasks, toggleTask, type Task } from '../model';
 import { eventsOnDate, eventDayCount, eventBounds } from '../event-domain';
 import { intervalLanes } from '../interval-lanes';
 import { type CalendarEvent, eventTypes } from '../event-model';
+import type { CoursePeriod } from '../schedule';
 import {
   dayStart,
   zonedDate,
@@ -21,6 +22,7 @@ import {
   wallTime,
   shiftDay,
   weekday,
+  minuteOf,
 } from '../timezone';
 import { exportText, isMobileApp, requestWidget } from '../files';
 import { csvTemplate } from '../course-import';
@@ -117,12 +119,16 @@ function EventWeek({
   zone,
   open,
   add,
+  periods,
+  editPeriods,
 }: {
   events: CalendarEvent[];
   days: string[];
   zone: string;
   open: (id: string) => void;
   add: (day: string) => void;
+  periods: CoursePeriod[];
+  editPeriods: () => void;
 }) {
   const minute = (at: number) => {
     const local = zonedDate(at, zone);
@@ -146,22 +152,50 @@ function EventWeek({
     };
   });
   const timed = columns.flatMap((column) => column.timed);
-  const from = Math.floor(Math.min(8 * 60, ...timed.map((item) => item.from)) / 60) * 60;
-  const until = Math.ceil(Math.max(18 * 60, ...timed.map((item) => item.until)) / 60) * 60;
+  const from = Math.min(minuteOf(periods[0].start), ...timed.map((item) => item.from));
+  const until = Math.max(minuteOf(periods.at(-1)!.end), ...timed.map((item) => item.until));
   const pixelsPerMinute = 1.35;
   const hasAllDay = columns.some((column) => column.allDay.length);
   return (
     <div
-      className="arrangement-week arrangement-event-week"
-      style={{ '--arrangement-days': days.length } as CSSProperties}
+      className="arrangement-week arrangement-event-week timetable-grid-view"
+      style={
+        {
+          '--arrangement-days': days.length,
+          '--timetable-height': `${(until - from) * pixelsPerMinute}px`,
+        } as CSSProperties
+      }
       data-no-swipe
     >
+      <section className="arrangement-day arrangement-period-column" aria-label="节次标尺">
+        <div className="timetable-corner">节次</div>
+        <div className={hasAllDay ? 'arrangement-all-day' : undefined} aria-hidden="true" />
+        <div className="timetable-ruler">
+          {periods.map((period, index) => (
+            <button
+              key={index}
+              className="timetable-period"
+              aria-label={`第 ${index + 1} 节，打开节次设置`}
+              style={{
+                top: (minuteOf(period.start) - from) * pixelsPerMinute,
+                height: (minuteOf(period.end) - minuteOf(period.start)) * pixelsPerMinute,
+              }}
+              onClick={editPeriods}
+            >
+              <strong>{index + 1}</strong>
+              <span>{period.start}</span>
+              <span>{period.end}</span>
+            </button>
+          ))}
+        </div>
+        <div aria-hidden="true" />
+      </section>
       {columns.map((column, index) => (
         <section
           className={`arrangement-day ${column.day === zoneDateKey(Date.now(), zone) ? 'is-today' : ''}`}
           key={column.day}
           aria-label={`${column.day} 日程`}
-          style={{ gridColumn: index + 1 }}
+          style={{ gridColumn: index + 2 }}
         >
           <button className="arrangement-day-heading" onClick={() => add(column.day)}>
             <strong>周{'一二三四五六日'[index]}</strong>
@@ -176,11 +210,14 @@ function EventWeek({
             className="arrangement-time-column"
             style={{ height: (until - from) * pixelsPerMinute }}
           >
-            {Array.from({ length: (until - from) / 60 }, (_, hour) => (
+            {periods.map((period, index) => (
               <div
-                key={hour}
-                className="arrangement-hour-line"
-                style={{ top: hour * 60 * pixelsPerMinute }}
+                key={index}
+                className="arrangement-period-guide"
+                style={{
+                  top: (minuteOf(period.start) - from) * pixelsPerMinute,
+                  height: (minuteOf(period.end) - minuteOf(period.start)) * pixelsPerMinute,
+                }}
                 aria-hidden="true"
               />
             ))}
@@ -363,7 +400,15 @@ export function Arrangements({
             </div>
           </div>
           {mode === 'event' ? (
-            <EventWeek events={data.calendarEvents} days={days} zone={zone} open={open} add={add} />
+            <EventWeek
+              events={data.calendarEvents}
+              days={days}
+              zone={zone}
+              open={open}
+              add={add}
+              periods={data.schedule.periods}
+              editPeriods={() => setPeriods(true)}
+            />
           ) : (
             <div
               className="arrangement-week"
@@ -553,7 +598,7 @@ export function Arrangements({
                     setPeriods(true);
                   }}
                 >
-                  旧课表导入节次
+                  节次设置
                 </button>
                 <button
                   className="button"

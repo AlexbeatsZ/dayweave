@@ -127,10 +127,55 @@ test('event week keeps seven time-aligned columns fitting every phone width', as
     );
     const grid = page.locator('.arrangement-week');
     expect(await grid.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
+    await expect(page.getByRole('region', { name: '节次标尺' })).toBeVisible();
+    await expect(page.locator('.timetable-period')).toHaveCount(13);
     await page.screenshot({ path: `.local/preview/arrangements/events-week-${width}.png` });
   }
   await page.getByRole('button', { name: '下一周', exact: true }).click();
   await expect(page.locator('.arrangement-event').filter({ hasText: '周末实验' })).toBeVisible();
+});
+
+test('original period settings move the shared ruler without changing Event data', async ({
+  page,
+}) => {
+  await seed(page, true);
+  const eventsBefore = await page.evaluate(async () => {
+    const path = '/src/store.ts';
+    const { store } = await import(path);
+    return store.get().calendarEvents;
+  });
+  await page.getByRole('button', { name: '第 1 节，打开节次设置', exact: true }).click();
+  const editor = page.getByRole('dialog', { name: '节次设置', exact: true });
+  await editor.getByLabel('第 1 节上课时间', { exact: true }).fill('07:20');
+  await editor.getByLabel('第 1 节下课时间', { exact: true }).fill('08:05');
+  await editor.getByRole('button', { name: '保存节次', exact: true }).click();
+  await expect(editor).toHaveCount(0);
+  const first = page.getByRole('button', { name: '第 1 节，打开节次设置', exact: true });
+  await expect(first).toContainText('07:20');
+  const ruler = (await first.boundingBox())!;
+  const course = (await page
+    .getByRole('button', { name: '编辑日程 量子化学', exact: true })
+    .boundingBox())!;
+  expect(course.y - ruler.y).toBeCloseTo(40 * 1.35, 0);
+  expect(ruler.height).toBeCloseTo(45 * 1.35, 0);
+  expect(
+    await page.evaluate(() => JSON.parse(localStorage.getItem('dayweave.v1')!).calendarEvents),
+  ).toEqual(eventsBefore);
+  await page.reload();
+  await expect(first).toContainText('07:20');
+  await page.getByRole('button', { name: '编辑日程 量子化学', exact: true }).click();
+  await page.getByLabel('日程标题').fill('一项需要省略显示的很长很长的课程名称');
+  await page.getByRole('button', { name: '保存', exact: true }).click();
+  const title = page.locator('.arrangement-timed-event strong').filter({ hasText: '一项需要省略' });
+  expect(
+    await title.evaluate((node) => ({
+      overflow: getComputedStyle(node).textOverflow,
+      wrapping: getComputedStyle(node).whiteSpace,
+      clipped: node.scrollWidth > node.clientWidth,
+    })),
+  ).toEqual({ overflow: 'ellipsis', wrapping: 'nowrap', clipped: true });
+  await title.click();
+  await expect(page.getByLabel('日程标题')).toHaveValue('一项需要省略显示的很长很长的课程名称');
 });
 
 test('event cards align by real time and duration beneath a shared all-day row', async ({

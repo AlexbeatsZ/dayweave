@@ -3,13 +3,12 @@ import { CalendarDays, ChevronRight, Plus, Minus, Clock3 } from 'lucide-react';
 import { store, useStore } from '../store';
 import { scheduleSchema, type CoursePeriod } from '../schedule';
 import { calendarOccurrences } from '../event-domain';
-import { zoneDateKey, zoneClock, deviceZone, zoneLabel, timeZones } from '../timezone';
+import { zoneDateKey, zoneClock, deviceZone, zoneLabel, timeZones, minuteOf } from '../timezone';
 import { Modal } from './Modal';
 import { usePhone } from '../phone/usePhone';
 import './Timetable.css';
 
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
-const minuteOf = (clock: string) => Number(clock.slice(0, 2)) * 60 + Number(clock.slice(3));
 const clockOf = (minute: number) =>
   `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`;
 const sectionNames = { morning: '上午', afternoon: '下午', evening: '晚上' };
@@ -281,7 +280,7 @@ export function PeriodEditor({ close }: { close: () => void }) {
           }
         }}
       >
-        <p className="field-hint">设置各段节数与时间。已有课程保留自己的上课、下课时间。</p>
+        <p className="field-hint">设置各段节数与参考时间。日程按各自的时间段定位。</p>
         {sections.map((section) => (
           <fieldset className="period-section" key={section}>
             <legend>{sectionNames[section]}</legend>

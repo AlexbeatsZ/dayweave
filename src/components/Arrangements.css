@@ -59,12 +59,21 @@
   min-width: 0;
 }
 .arrangement-event-week {
+  --period-line: color-mix(in srgb, var(--line) 65%, transparent);
+  grid-template-columns: 54px repeat(var(--arrangement-days, 7), minmax(0, 1fr));
   grid-template-rows: auto auto auto auto;
 }
 .arrangement-event-week .arrangement-day {
   display: grid;
   grid-row: 1 / span 4;
   grid-template-rows: subgrid;
+}
+.arrangement-period-column {
+  grid-column: 1;
+}
+.arrangement-event-week .timetable-ruler,
+.arrangement-event-week .timetable-corner {
+  border-right: 0;
 }
 .arrangement-all-day {
   display: flex;
@@ -77,11 +86,12 @@
   position: relative;
   min-width: 0;
 }
-.arrangement-hour-line {
+.arrangement-period-guide {
   position: absolute;
   left: 0;
   right: 0;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--period-line);
+  border-bottom: 1px solid var(--period-line);
   pointer-events: none;
 }
 .arrangement-timed-event {
@@ -98,12 +108,14 @@
   flex-shrink: 0;
   line-height: 1.2;
 }
+.arrangement-event > * {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .arrangement-timed-event .arrangement-event strong {
   font-size: 12px;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow: hidden;
 }
 .arrangement-event,
 .week-task {
@@ -256,6 +268,9 @@
   font-variant-numeric: tabular-nums;
 }
 @media (max-width: 700px) {
+  .arrangement-event-week {
+    grid-template-columns: 36px repeat(var(--arrangement-days, 7), minmax(0, 1fr));
+  }
   .arrangement-day-items {
     padding: 3px 2px;
     gap: 5px;
