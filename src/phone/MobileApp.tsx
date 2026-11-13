@@ -189,10 +189,6 @@ export function MobileApp() {
     { id: 'timer' as const, label: '计时' },
     { id: 'goals' as const, label: '目标' },
   ];
-  const arrangementTabs = [
-    { id: 'calendar', label: '待办' },
-    { id: 'timetable', label: '日程' },
-  ];
   const statisticsTabs = [
     { id: 'daily', label: '每日' },
     { id: 'tasks', label: '待办' },
@@ -203,11 +199,9 @@ export function MobileApp() {
     ? taskTabs
     : timeView
       ? recordTabs
-      : view === 'timetable'
-        ? arrangementTabs
-        : view === 'stats'
-          ? statisticsTabs
-          : [];
+      : view === 'stats'
+        ? statisticsTabs
+        : [];
   const activeTab = showTaskTabs
     ? view
     : timeView
@@ -242,7 +236,6 @@ export function MobileApp() {
   const changeTab = (id: string) => {
     if (showTaskTabs) navigate(id as View);
     else if (timeView) setTimePage(id as TimePage);
-    else if (view === 'timetable') setArrangement(id as 'calendar' | 'timetable');
     else setStatisticsPage(id as StatisticsPage);
     scroll.current?.scrollTo(0, 0);
   };
@@ -405,15 +398,7 @@ export function MobileApp() {
             tabs={tabs}
             value={activeTab}
             onChange={changeTab}
-            label={
-              showTaskTabs
-                ? '待办子页面'
-                : timeView
-                  ? '记录子页面'
-                  : view === 'timetable'
-                    ? '安排子页面'
-                    : '统计子页面'
-            }
+            label={showTaskTabs ? '待办子页面' : timeView ? '记录子页面' : '统计子页面'}
           />
         )}
       </PhoneTopbar>
@@ -563,6 +548,7 @@ export function MobileApp() {
         {view === 'timetable' && (
           <Arrangements
             mode={arrangement === 'calendar' ? 'task' : 'event'}
+            onModeChange={(mode) => setArrangement(mode === 'task' ? 'calendar' : 'timetable')}
             date={day}
             onDate={setDay}
             onTask={setSelected}

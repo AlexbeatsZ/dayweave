@@ -13,13 +13,33 @@
   width: auto;
   min-width: 180px;
 }
+.arrangements .calendar-toolbar {
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.arrangements .calendar-toolbar > div {
+  margin-left: auto;
+  gap: 4px;
+}
+.arrangement-mode-switch {
+  white-space: nowrap;
+}
+.phone-shell[data-section='arrangements'] > .phone-content {
+  touch-action: pan-x pan-y;
+}
+.arrangement-week-scroll {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  isolation: isolate;
+  touch-action: pan-x pan-y;
+}
 .arrangement-week {
   display: grid;
   grid-template-columns: repeat(var(--arrangement-days, 7), minmax(0, 1fr));
   min-width: 0;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  overflow: hidden;
+  width: 100%;
   min-height: 420px;
 }
 .arrangement-day {
@@ -46,10 +66,6 @@
   font-size: 11px;
   color: var(--muted);
 }
-.arrangement-day.is-today .arrangement-day-heading {
-  color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 9%, transparent);
-}
 .arrangement-day-items {
   display: flex;
   flex-direction: column;
@@ -70,6 +86,9 @@
 }
 .arrangement-period-column {
   grid-column: 1;
+  position: sticky;
+  left: 0;
+  z-index: 3;
 }
 .arrangement-event-week .timetable-ruler,
 .arrangement-event-week .timetable-corner {
@@ -135,6 +154,16 @@
 }
 .arrangement-event {
   border-top: 3px solid var(--event-color);
+}
+.arrangement-week,
+.arrangement-day,
+.arrangement-event,
+.week-task,
+.arrangement-day-heading,
+.arrangement-event-week .timetable-corner,
+.arrangement-event-week .timetable-ruler,
+.arrangement-event-week .timetable-period {
+  background: var(--canvas);
 }
 .arrangement-event strong,
 .week-task-title {
@@ -268,14 +297,21 @@
   font-variant-numeric: tabular-nums;
 }
 @media (max-width: 700px) {
+  .arrangement-week {
+    width: calc(100% / 5 * var(--arrangement-days, 7));
+  }
   .arrangement-event-week {
     grid-template-columns: 36px repeat(var(--arrangement-days, 7), minmax(0, 1fr));
+    width: calc(36px + (100% - 36px) / 5 * var(--arrangement-days, 7));
+  }
+  .arrangements .calendar-toolbar h2 {
+    font-size: 14px;
   }
   .arrangement-day-items {
     padding: 3px 2px;
     gap: 5px;
   }
-  .arrangement-week {
+  .arrangement-week-scroll {
     border-radius: 8px;
   }
   .arrangement-event,

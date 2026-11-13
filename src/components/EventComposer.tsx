@@ -240,7 +240,11 @@ export function EventComposer({
             onChange={(input) => patch({ notes: input.target.value })}
           />
         </label>
-        <ColorPicker value={draft.color} onChange={(color) => patch({ color })} />
+        <ColorPicker
+          label="顶部标记颜色"
+          value={draft.color}
+          onChange={(color) => patch({ color })}
+        />
         {repeated && (
           <label>
             修改范围

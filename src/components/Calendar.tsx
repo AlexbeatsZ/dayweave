@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import type { CalendarEvent } from '../event-model';
 import { eventsOnDate } from '../event-domain';
@@ -23,6 +23,7 @@ export function Calendar({
   onSelect,
   onDrop,
   onWindow,
+  toolbarAction,
 }: {
   tasks: Task[];
   events?: CalendarEvent[];
@@ -35,6 +36,7 @@ export function Calendar({
   onSelect: (id: string) => void;
   onDrop: (id: string, date: string, fromDate?: string) => void;
   onWindow?: (through: string) => void;
+  toolbarAction?: ReactNode;
 }) {
   const [month, setMonth] = useState(() => fromDateKey(dateKey().slice(0, 7) + '-01'));
   const first = civilDateKey(month);
@@ -51,6 +53,7 @@ export function Calendar({
       <div className="calendar-toolbar">
         <h2>{month.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long' })}</h2>
         <div>
+          {toolbarAction}
           <button
             className="button small"
             onClick={() => {

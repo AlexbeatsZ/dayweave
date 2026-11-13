@@ -197,16 +197,18 @@ export function SemesterEditor({ close }: { close: () => void }) {
           周课程按这个时区上课。设备时区不改变上课时刻，已导入日历课程保留真实时刻。
         </p>
         <label>
-          课表显示天数
-          <select name="displayDays" aria-label="课表显示天数" defaultValue={initial.displayDays}>
-            <option value="auto">自动：无周末课程时显示 5 天</option>
+          桌面周表显示天数
+          <select
+            name="displayDays"
+            aria-label="桌面周表显示天数"
+            defaultValue={initial.displayDays}
+          >
+            <option value="auto">自动（按周末安排显示 5 或 7 天）</option>
             <option value="5">固定 5 天（周一至周五）</option>
             <option value="7">固定 7 天（周一至周日）</option>
           </select>
         </label>
-        <p className="field-hint">
-          自动检查整个学期的周末安排。固定天数只改变课表显示，不删除课程。
-        </p>
+        <p className="field-hint">手机每屏显示 5 天，可左右滑动查看整周。</p>
         <label>
           全校停课日期
           <textarea

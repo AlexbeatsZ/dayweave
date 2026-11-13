@@ -31,6 +31,7 @@ import { exportEventCalendar } from '../calendar-export';
 import { arrangementMigrationReport } from '../event-migration';
 import { useSortDrag } from '../phone/useSortDrag';
 import { FloatingAdd, PhoneTabs } from '../phone/Navigation';
+import { usePhone } from '../phone/usePhone';
 import './Arrangements.css';
 
 function WeekTask({
@@ -192,7 +193,7 @@ function EventWeek({
       </section>
       {columns.map((column, index) => (
         <section
-          className={`arrangement-day ${column.day === zoneDateKey(Date.now(), zone) ? 'is-today' : ''}`}
+          className="arrangement-day"
           key={column.day}
           aria-label={`${column.day} 日程`}
           style={{ gridColumn: index + 2 }}
@@ -253,6 +254,7 @@ function EventWeek({
 
 export function Arrangements({
   mode,
+  onModeChange,
   date,
   onDate,
   onTask,
@@ -260,6 +262,7 @@ export function Arrangements({
   onOpenDay,
 }: {
   mode: 'task' | 'event';
+  onModeChange: (mode: 'task' | 'event') => void;
   date: string;
   onDate: (date: string) => void;
   onTask: (id: string) => void;
@@ -267,6 +270,7 @@ export function Arrangements({
   onOpenDay: (date: string) => void;
 }) {
   const { data } = useStore();
+  const phone = usePhone();
   const [taskView, setTaskView] = useState<'month' | 'week'>('month');
   const [eventView, setEventView] = useState<'month' | 'week'>('week');
   const view = mode === 'task' ? taskView : eventView;
@@ -282,7 +286,7 @@ export function Arrangements({
   const fudan = useFudanSource();
   const zone = mode === 'event' ? data.schedule.timeZone : data.settings.timeZone;
   const monday = shiftDay(date, 1 - weekday(date));
-  const count = mode === 'event' ? eventDayCount(data.calendarEvents, data.schedule) : 7;
+  const count = phone || mode === 'task' ? 7 : eventDayCount(data.calendarEvents, data.schedule);
   const days = Array.from({ length: count }, (_, i) => shiftDay(monday, i));
   const ensure = (through: string) => {
     void window.clearlist?.sync?.ensureTasks?.(through).catch((cause) => setError(String(cause)));
@@ -313,6 +317,16 @@ export function Arrangements({
           a.order - b.order,
       );
   const report = arrangementMigrationReport(data);
+  const switchMode = (
+    <button
+      className="button small arrangement-mode-switch"
+      aria-label={`切换到${mode === 'task' ? '日程' : '待办'}`}
+      title={`当前${mode === 'task' ? '待办' : '日程'}`}
+      onClick={() => onModeChange(mode === 'task' ? 'event' : 'task')}
+    >
+      切换
+    </button>
+  );
   return (
     <section className="arrangements" aria-label={mode === 'task' ? '待办安排' : '日程安排'}>
       <div className="arrangement-controls">
@@ -351,6 +365,7 @@ export function Arrangements({
       {imports.busy && <p role="status">正在读取课程…</p>}
       {view === 'month' ? (
         <Calendar
+          toolbarAction={switchMode}
           tasks={mode === 'task' ? data.tasks : []}
           events={mode === 'event' ? data.calendarEvents : undefined}
           timeZone={zone}
@@ -377,6 +392,7 @@ export function Arrangements({
               {monday.slice(0, 7)} · {monday.slice(-2)}—{days.at(-1)!.slice(5)}
             </h2>
             <div>
+              {switchMode}
               <button
                 className="button small"
                 onClick={() => onDate(zoneDateKey(Date.now(), zone))}
@@ -399,73 +415,71 @@ export function Arrangements({
               </button>
             </div>
           </div>
-          {mode === 'event' ? (
-            <EventWeek
-              events={data.calendarEvents}
-              days={days}
-              zone={zone}
-              open={open}
-              add={add}
-              periods={data.schedule.periods}
-              editPeriods={() => setPeriods(true)}
-            />
-          ) : (
-            <div
-              className="arrangement-week"
-              style={{ '--arrangement-days': count } as CSSProperties}
-              data-no-swipe
-            >
-              {days.map((day, index) => (
-                <section
-                  className={`arrangement-day ${day === zoneDateKey(Date.now(), zone) ? 'is-today' : ''}`}
-                  key={day}
-                  aria-label={`${day} 待办`}
-                >
-                  <button className="arrangement-day-heading" onClick={() => add(day)}>
-                    <strong>周{'一二三四五六日'[index]}</strong>
-                    <span>{day.slice(5).replace('-', '/')}</span>
-                  </button>
-                  <div className="arrangement-day-items">
-                    {tasksFor(day).map((task) => (
-                      <WeekTask
-                        key={task.id}
-                        task={task}
-                        date={day}
-                        open={open}
-                        move={(source, target) => {
-                          void store
-                            .transact((state) => {
-                              const priority = state.tasks.find(
-                                (row) => row.id === target,
-                              )?.priority;
-                              return reorderTasks(
-                                {
-                                  ...state,
-                                  tasks: state.tasks.map((row) =>
-                                    row.id === source ? { ...row, priority } : row,
-                                  ),
-                                },
-                                tasksFor(day).map((row) => row.id),
-                                source,
-                                target,
-                              );
-                            })
-                            .catch((cause) => setError(String(cause)));
-                        }}
-                      />
-                    ))}
-                  </div>
-                  <button
-                    className="arrangement-day-add"
-                    aria-label={`在 ${day} 添加任务`}
-                    onClick={() => add(day)}
-                  >
-                    <Plus size={16} />
-                  </button>
-                </section>
-              ))}
-            </div>
-          )}
+          <div className="arrangement-week-scroll" data-no-swipe>
+            {mode === 'event' ? (
+              <EventWeek
+                events={data.calendarEvents}
+                days={days}
+                zone={zone}
+                open={open}
+                add={add}
+                periods={data.schedule.periods}
+                editPeriods={() => setPeriods(true)}
+              />
+            ) : (
+              <div
+                className="arrangement-week"
+                style={{ '--arrangement-days': count } as CSSProperties}
+                data-no-swipe
+              >
+                {days.map((day, index) => (
+                  <section className="arrangement-day" key={day} aria-label={`${day} 待办`}>
+                    <button className="arrangement-day-heading" onClick={() => add(day)}>
+                      <strong>周{'一二三四五六日'[index]}</strong>
+                      <span>{day.slice(5).replace('-', '/')}</span>
+                    </button>
+                    <div className="arrangement-day-items">
+                      {tasksFor(day).map((task) => (
+                        <WeekTask
+                          key={task.id}
+                          task={task}
+                          date={day}
+                          open={open}
+                          move={(source, target) => {
+                            void store
+                              .transact((state) => {
+                                const priority = state.tasks.find(
+                                  (row) => row.id === target,
+                                )?.priority;
+                                return reorderTasks(
+                                  {
+                                    ...state,
+                                    tasks: state.tasks.map((row) =>
+                                      row.id === source ? { ...row, priority } : row,
+                                    ),
+                                  },
+                                  tasksFor(day).map((row) => row.id),
+                                  source,
+                                  target,
+                                );
+                              })
+                              .catch((cause) => setError(String(cause)));
+                          }}
+                        />
+                      ))}
+                    </div>
+                    <button
+                      className="arrangement-day-add"
+                      aria-label={`在 ${day} 添加任务`}
+                      onClick={() => add(day)}
+                    >
+                      <Plus size={16} />
+                    </button>
+                  </section>
+                ))}
+              </div>
+            )}
+          </div>
         </>
       )}
       {mode === 'event' && <FloatingAdd label="新增日程" onClick={() => add(date)} />}

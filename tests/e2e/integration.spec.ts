@@ -19,7 +19,7 @@ test('Shanghai course stays 08:00 on a UTC-4 device and shows Sunday 20:00 with 
     .getByRole('navigation', { name: '主导航' })
     .getByRole('button', { name: '安排', exact: true })
     .click();
-  await page.getByRole('tab', { name: '日程', exact: true }).click();
+  await page.getByRole('button', { name: '切换到日程', exact: true }).click();
   await page.getByRole('button', { name: '新增日程', exact: true }).click();
   await page.getByLabel('日程标题').fill('量子化学（H）');
   await page.getByLabel('日程类型').selectOption('course');
@@ -36,7 +36,7 @@ test('Shanghai course stays 08:00 on a UTC-4 device and shows Sunday 20:00 with 
     .getByRole('navigation', { name: '主导航' })
     .getByRole('button', { name: '安排', exact: true })
     .click();
-  await page.getByRole('tab', { name: '日程', exact: true }).click();
+  await page.getByRole('button', { name: '切换到日程', exact: true }).click();
   await expect(
     page.locator('.arrangement-event').filter({ hasText: '量子化学（H）' }),
   ).toBeVisible();
@@ -117,7 +117,7 @@ test('phone course and time destinations stay within screen width', async ({ pag
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
   await page.getByRole('button', { name: '手机安排', exact: true }).click();
-  await page.getByRole('tab', { name: '日程' }).click();
+  await page.getByRole('button', { name: '切换到日程', exact: true }).click();
   await expect(page.getByRole('region', { name: '日程安排' })).toBeVisible();
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
