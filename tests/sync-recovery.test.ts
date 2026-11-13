@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { emptyState, newTask } from '../src/model.js';
 import { SyncClient, fetchEnvelope } from '../src/sync/client.js';
 import { toDocument } from '../src/sync/document.js';
-import { randomKey, syncEndpoint } from '../src/sync/crypto.js';
-import type { SyncConfig } from '../src/sync/types.js';
+import { openEnvelope, randomKey, seal, syncEndpoint } from '../src/sync/crypto.js';
+import type { SyncConfig, SyncRequest } from '../src/sync/types.js';
 
 test('HTTPS transport preserves prefix and refuses redirects without changing encrypted payload', async (context) => {
   const body = await import('../src/sync/crypto.js').then(({ seal }) =>
@@ -123,4 +123,60 @@ test('journal replays after process death without losing local edits or conflict
   assert.equal(restarted.config.deviceId, oldIdentity);
   assert.equal(restarted.config.key, oldKey);
   assert.equal(restarted.config.base, oldBase);
+});
+
+test('idle polls leave the configuration untouched and sequences stay ahead after restart', async () => {
+  const key = randomKey();
+  let raw = JSON.stringify({
+    version: 1,
+    arrangementsVersion: 1,
+    deviceId: 'device',
+    name: 'Test',
+    enabled: true,
+    seq: 41,
+    endpoint: 'https://sync.example.com/dayweave',
+    hubId: 'hub',
+    key,
+    conflicts: [],
+    revision: 'hub:1',
+    lastSync: Date.now(),
+  } satisfies SyncConfig);
+  let writes = 0;
+  const sent: number[] = [];
+  const client = () =>
+    new SyncClient(
+      {
+        read: async () => raw,
+        write: async (value) => {
+          raw = value;
+          writes++;
+        },
+      },
+      { snapshot: async () => ({ state: emptyState() }), mutate: async () => {} },
+      async (_endpoint, _route, body) => {
+        const request = await openEnvelope<SyncRequest>(body, key, '/sync');
+        sent.push(request.seq);
+        return seal(
+          { protocol: 3, seq: request.seq, hubId: 'hub', revision: 'hub:1' },
+          key,
+          '/sync:reply',
+          'device',
+        );
+      },
+      'Test',
+    );
+  const first = client();
+  await first.load();
+  for (let index = 0; index < 5; index++) await first.now();
+  assert.equal(first.connected, true, first.error);
+  const afterPolls = writes;
+  for (let index = 0; index < 5; index++) await first.now();
+  assert.equal(writes, afterPolls, 'unchanged polls must not rewrite sync.json');
+  // A crash loses the in-memory counter; the reserved ceiling still exceeds every sent value.
+  const restarted = client();
+  await restarted.load();
+  await restarted.now();
+  assert.equal(restarted.connected, true, restarted.error);
+  assert.ok(sent.at(-1)! > Math.max(...sent.slice(0, -1)));
+  assert.ok((JSON.parse(raw) as SyncConfig).seq >= sent.at(-1)!);
 });

@@ -1,5 +1,4 @@
 import { createServer, type Server } from 'node:http';
-import { mkdir, readFile, open, rename } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import Bonjour from 'bonjour-service';
@@ -19,42 +18,15 @@ import type { StateService } from './state-service.js';
 import type { UsageReplica, UsageExchange } from '../src/usage/sync.js';
 import { CalendarSubscriptions } from './calendar-subscriptions.js';
 import { CalendarFeed } from './calendar-feed.js';
+import { preserveOnce, readOptional, writeAtomic } from './files.js';
 
 export function syncFiles(directory: string) {
   const file = path.join(directory, 'sync.json');
   return {
-    async preserve(content: string, name = 'sync.before-task-v2.json') {
-      try {
-        const handle = await open(path.join(directory, name), 'wx', 0o600);
-        try {
-          await handle.writeFile(content, 'utf8');
-          await handle.sync();
-        } finally {
-          await handle.close();
-        }
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
-      }
-    },
-    async read() {
-      try {
-        return await readFile(file, 'utf8');
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
-        throw error;
-      }
-    },
-    async write(content: string) {
-      await mkdir(directory, { recursive: true });
-      const handle = await open(file + '.tmp', 'w', 0o600);
-      try {
-        await handle.writeFile(content, 'utf8');
-        await handle.sync();
-      } finally {
-        await handle.close();
-      }
-      await rename(file + '.tmp', file);
-    },
+    preserve: (content: string, name = 'sync.before-task-v2.json') =>
+      preserveOnce(path.join(directory, name), content),
+    read: () => readOptional(file),
+    write: (content: string) => writeAtomic(file, content),
   };
 }
 export function lanAddresses(port: number) {
@@ -90,6 +62,7 @@ export class DesktopSync implements SyncBridge {
   private unsubscribe?: () => void;
   private generating = false;
   private repeatTimer?: ReturnType<typeof setInterval>;
+  private saveDue?: ReturnType<typeof setTimeout>;
   private readonly calendars: CalendarSubscriptions;
   constructor(
     readonly service: StateService,
@@ -108,49 +81,46 @@ export class DesktopSync implements SyncBridge {
     );
     this.scheduler = new SyncScheduler(() => this.client.now());
   }
+  private get activeHub() {
+    const c = this.client.config;
+    return !!(c.enabled && c.hub);
+  }
+  private readonly reportError = (error: unknown) => {
+    this.client.error = String(error);
+  };
+  /** Hub-owned maintenance after changes and each minute: calendars and recurring tasks. */
+  private maintain() {
+    if (!this.activeHub) return;
+    void this.calendars.refresh().catch(this.reportError);
+    if (this.generating) return;
+    this.generating = true;
+    void this.service
+      .mutate((state) => generateRepeatedTasks(state))
+      .catch(this.reportError)
+      .finally(() => {
+        this.generating = false;
+      });
+  }
+  /** Peer sequences from read-only polls are flushed in batches; replaying a poll changes nothing. */
+  private deferSave() {
+    this.saveDue ??= setTimeout(() => {
+      this.saveDue = undefined;
+      void this.client.exclusive(() => this.client.save()).catch(this.reportError);
+    }, 30000);
+    this.saveDue.unref();
+  }
   async initialize() {
     await this.client.load();
-    if (this.client.config.enabled && this.client.config.hub) await this.listen();
+    if (this.activeHub) await this.listen();
     this.unsubscribe = this.service.subscribe(() => {
       this.scheduler.request();
-      if (this.client.config.enabled && this.client.config.hub)
-        void this.calendars.refresh().catch((error) => {
-          this.client.error = String(error);
-        });
-      if (this.client.config.enabled && this.client.config.hub && !this.generating) {
-        this.generating = true;
-        void this.service
-          .mutate((state) => generateRepeatedTasks(state))
-          .catch((error) => {
-            this.client.error = String(error);
-          })
-          .finally(() => {
-            this.generating = false;
-          });
-      }
+      this.maintain();
     });
     this.scheduler.start();
-    {
-      if (this.client.config.hub)
-        await this.service.mutate((state) => generateRepeatedTasks(state));
-      this.repeatTimer = setInterval(() => {
-        if (this.client.config.enabled && this.client.config.hub)
-          void this.calendars.refresh().catch((error) => {
-            this.client.error = String(error);
-          });
-        if (this.client.config.enabled && this.client.config.hub)
-          void this.service
-            .mutate((state) => generateRepeatedTasks(state))
-            .catch((error) => {
-              this.client.error = String(error);
-            });
-      }, 60000);
-      this.repeatTimer.unref();
-      if (this.client.config.enabled && this.client.config.hub)
-        void this.calendars.refresh().catch((error) => {
-          this.client.error = String(error);
-        });
-    }
+    if (this.activeHub) await this.service.mutate((state) => generateRepeatedTasks(state));
+    this.repeatTimer = setInterval(() => this.maintain(), 60000);
+    this.repeatTimer.unref();
+    if (this.activeHub) void this.calendars.refresh().catch(this.reportError);
     return this;
   }
   async status(): Promise<SyncStatus> {
@@ -338,7 +308,9 @@ export class DesktopSync implements SyncBridge {
               peer.seq = value.seq;
               if (typeof value.name === 'string' && value.name.length <= 100)
                 peer.name = value.name;
-              await this.client.save();
+              // Writes persist the sequence before merging, so a replayed state is rejected.
+              if (value.state) await this.client.save();
+              else this.deferSave();
               let conflicts: ReturnType<typeof mergeDocuments>['conflicts'] = [];
               const snapshot = value.state
                 ? await this.service.mutate((current) => {
@@ -355,9 +327,11 @@ export class DesktopSync implements SyncBridge {
                       value.through,
                     );
                   })
-                : await this.service
-                    .mutate((current) => generateRepeatedTasks(current, value.through))
-                    .then(() => this.service.snapshot());
+                : value.through
+                  ? await this.service.mutate((current) =>
+                      generateRepeatedTasks(current, value.through),
+                    )
+                  : await this.service.snapshot();
               const changed = !!value.state || snapshot.revision !== value.revision;
               result = await seal(
                 {
@@ -428,6 +402,11 @@ export class DesktopSync implements SyncBridge {
     this.unsubscribe?.();
     await this.stopServer();
     // Includes queued authenticated requests and an exchange already started by the scheduler.
-    await this.client.exclusive(async () => {});
+    await this.client.exclusive(async () => {
+      if (!this.saveDue) return;
+      clearTimeout(this.saveDue);
+      this.saveDue = undefined;
+      await this.client.save();
+    });
   }
 }

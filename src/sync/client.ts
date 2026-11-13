@@ -12,6 +12,8 @@ import {
 import { invitationText } from './invitation.js';
 import type { SyncConfig, SyncReply, SyncState, SyncStatus, SyncStorage } from './types.js';
 
+const SEQUENCE_BLOCK = 1000;
+const LAST_SYNC_PERSIST_MS = 10 * 60_000;
 export class SyncClient {
   config!: SyncConfig;
   error = '';
@@ -21,6 +23,11 @@ export class SyncClient {
   private through?: string;
   private tail: Promise<unknown> = Promise.resolve();
   private inFlight?: Promise<SyncStatus>;
+  /** Last sequence sent. The persisted `config.seq` is a reserved ceiling above it. */
+  private sequence = 0;
+  get sentSequence() {
+    return this.sequence;
+  }
   constructor(
     readonly storage: SyncStorage,
     readonly state: SyncState,
@@ -68,6 +75,7 @@ export class SyncClient {
         }
       }
       this.config = value;
+      this.sequence = value.seq;
       this.lastSync = value.lastSync;
     } else {
       this.config = {
@@ -83,6 +91,23 @@ export class SyncClient {
   }
   save() {
     return this.storage.write(JSON.stringify(this.config));
+  }
+  /**
+   * The hub rejects any sequence it has seen. Reserving blocks keeps every sent value below the
+   * persisted ceiling across crashes without rewriting the whole configuration for each poll.
+   */
+  private async nextSequence() {
+    if (this.sequence >= this.config.seq) {
+      const reserved = this.config.seq;
+      this.config.seq = this.sequence + SEQUENCE_BLOCK;
+      try {
+        await this.save();
+      } catch (error) {
+        this.config.seq = reserved;
+        throw error;
+      }
+    }
+    return ++this.sequence;
   }
   exclusive<T>(run: () => Promise<T>): Promise<T> {
     const task = this.tail.then(run);
@@ -216,6 +241,7 @@ export class SyncClient {
         incoming: undefined,
         lastSync: undefined,
       };
+      this.sequence = 0;
       await this.save();
       this.error = '';
       this.connected = false;
@@ -266,18 +292,18 @@ export class SyncClient {
         };
         // Capture exactly the state sent, so edits during the request remain pending.
         const document = request.state ? toDocument(request.state) : sent;
+        let seq = 0;
         const reply = await this.request(
           '/sync',
           async () => {
-            c.seq++;
-            await this.save();
-            return seal({ ...request, seq: c.seq }, c.key!, '/sync', c.deviceId);
+            seq = await this.nextSequence();
+            return seal({ ...request, seq }, c.key!, '/sync', c.deviceId);
           },
           async (response) => {
             const value = await openEnvelope<SyncReply>(response, c.key!, '/sync:reply');
             if (value.protocol !== 3)
               throw new Error('安排模型版本不兼容，请先升级同步中心与所有客户端');
-            if (response.clientId !== c.deviceId || value.hubId !== c.hubId || value.seq !== c.seq)
+            if (response.clientId !== c.deviceId || value.hubId !== c.hubId || value.seq !== seq)
               throw new Error('同步响应身份或序号不符');
             return value;
           },
@@ -287,12 +313,19 @@ export class SyncClient {
           await this.applyIncoming();
         }
         if (this.through === through) this.through = undefined;
-        c.revision = reply.revision;
-        c.lastSync = Date.now();
-        await this.save();
+        this.lastSync = Date.now();
+        // An unchanged poll only refreshes the persisted timestamp occasionally.
+        if (
+          c.revision !== reply.revision ||
+          !c.lastSync ||
+          this.lastSync - c.lastSync > LAST_SYNC_PERSIST_MS
+        ) {
+          c.revision = reply.revision;
+          c.lastSync = this.lastSync;
+          await this.save();
+        }
         this.error = '';
         this.connected = true;
-        this.lastSync = c.lastSync;
       } catch (error) {
         this.connected = false;
         this.error = error instanceof Error ? error.message : String(error);
@@ -360,6 +393,14 @@ export class SyncClient {
   }
 }
 
+/** The user-facing reason for a failed hub response, shared by every transport. */
+export function syncHttpError(status: number) {
+  return status === 401
+    ? '配对已失效，请重新配对'
+    : status === 409
+      ? '同步协议版本不兼容，请升级同步中心与所有客户端'
+      : `同步中心返回 ${status}`;
+}
 export async function fetchEnvelope(endpoint: string, path: string, body: Envelope) {
   const response = await fetch(syncEndpoint(endpoint) + path, {
     method: 'POST',
@@ -368,14 +409,7 @@ export async function fetchEnvelope(endpoint: string, path: string, body: Envelo
     signal: AbortSignal.timeout(12000),
     redirect: 'error',
   });
-  if (!response.ok)
-    throw new Error(
-      response.status === 401
-        ? '配对已失效，请重新配对'
-        : response.status === 409
-          ? '任务模型版本不兼容，请升级同步中心与所有客户端'
-          : `同步中心返回 ${response.status}`,
-    );
+  if (!response.ok) throw new Error(syncHttpError(response.status));
   const text = await response.text();
   if (text.length > 70 * 1024 * 1024) throw new Error('同步消息过大');
   return JSON.parse(text) as Envelope;

@@ -9,11 +9,25 @@ import {
   type Task,
 } from './model';
 import { applyDelta, diffState, type StateDelta } from './state-delta';
+import { JsonRepository, localStorageFiles } from './persistence';
 import { assertTimeOccupancy } from './timelog/occupancy';
 import type { State as TimeState } from './timelog/domain';
 
 import { setDayStart, setTimeZone } from './timezone';
-const key = 'dayweave.v1';
+/** Browser preview storage uses the same repository policy as Android and desktop files. */
+let browserRepository: JsonRepository | undefined;
+const browserPath = '当前浏览器 · 本地存储';
+function browserStorage() {
+  const repository = (browserRepository ??= new JsonRepository(localStorageFiles('dayweave.v1')));
+  return {
+    load: async () => ({ ...(await repository.load()), path: browserPath }),
+    save: (state: AppState) => repository.save(state),
+    restore: async (value: unknown) => ({
+      ...(await repository.restore(value)),
+      path: browserPath,
+    }),
+  };
+}
 type Snapshot = {
   data: AppState;
   loaded: boolean;
@@ -71,12 +85,7 @@ function pump() {
           const result = await window.clearlist.patch(job.delta);
           acceptRemote(result);
         } else {
-          if (window.clearlist) await window.clearlist.save(job.data);
-          else {
-            const previous = localStorage.getItem(key);
-            if (previous) localStorage.setItem(`${key}.backup`, previous);
-            localStorage.setItem(key, JSON.stringify(job.data));
-          }
+          await (window.clearlist ?? browserStorage()).save(job.data);
           authoritative = job.data;
         }
         jobs.shift();
@@ -156,46 +165,16 @@ export const store = {
       });
     }
     try {
-      if (window.clearlist) {
-        const result = await window.clearlist.load();
-        acceptRemote(result);
-        emit({
-          data: authoritative,
-          loaded: true,
-          recovered: result.recovered,
-          path: result.path,
-          error: '',
-          errorKind: undefined,
-        });
-      } else {
-        const raw = localStorage.getItem(key);
-        let recovered = false,
-          data: AppState;
-        try {
-          data = raw ? stateSchema.parse(JSON.parse(raw)) : emptyState();
-          if (
-            raw &&
-            !('calendarEvents' in JSON.parse(raw)) &&
-            localStorage.getItem(`${key}.before-arrangements`) === null
-          )
-            localStorage.setItem(`${key}.before-arrangements`, raw);
-          if (
-            raw &&
-            JSON.parse(raw).version === 1 &&
-            localStorage.getItem(`${key}.before-task-v2`) === null
-          )
-            localStorage.setItem(`${key}.before-task-v2`, raw);
-        } catch (error) {
-          const backup = localStorage.getItem(`${key}.backup`);
-          if (!backup) throw error;
-          data = stateSchema.parse(JSON.parse(backup));
-          localStorage.setItem(`${key}.corrupt.${Date.now()}`, raw!);
-          localStorage.setItem(key, JSON.stringify(data));
-          recovered = true;
-        }
-        authoritative = data;
-        emit({ data, loaded: true, recovered, path: '当前浏览器 · 本地存储', error: '' });
-      }
+      const result = await (window.clearlist ?? browserStorage()).load();
+      acceptRemote(result);
+      emit({
+        data: authoritative,
+        loaded: true,
+        recovered: result.recovered,
+        path: result.path,
+        error: '',
+        errorKind: undefined,
+      });
     } catch (error) {
       emit({ error: `无法读取数据：${message(error)}`, loaded: false });
     }
@@ -241,13 +220,7 @@ export const store = {
     recovering = true;
     try {
       await pending;
-      const result = window.clearlist
-        ? await window.clearlist.load()
-        : {
-            state: stateSchema.parse(JSON.parse(localStorage.getItem(key) ?? 'null')),
-            recovered: false,
-            path: '当前浏览器 · 本地存储',
-          };
+      const result = await (window.clearlist ?? browserStorage()).load();
       acceptRemote(result);
       jobs.splice(0);
       failed = false;
@@ -308,15 +281,7 @@ export const store = {
     try {
       let result: { state: AppState; recovered: boolean; path: string; revision?: string } | null;
       if (window.clearlist) result = await window.clearlist.restoreData();
-      else {
-        const state = stateSchema.parse(value);
-        for (const name of [key, `${key}.backup`]) {
-          const raw = localStorage.getItem(name);
-          if (raw !== null) localStorage.setItem(`${name}.before-restore.${Date.now()}`, raw);
-        }
-        localStorage.setItem(key, JSON.stringify(state));
-        result = { state, recovered: true, path: '当前浏览器 · 本地存储' };
-      }
+      else result = await browserStorage().restore(value);
       if (result) {
         acceptRemote(result);
         jobs.splice(0);

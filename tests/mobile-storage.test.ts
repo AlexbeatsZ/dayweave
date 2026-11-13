@@ -57,3 +57,19 @@ test('theme follows the system only when requested', () => {
   assert.equal(resolveTheme('light', true), 'light');
   assert.equal(resolveTheme('dark', false), 'dark');
 });
+test('native replace keeps the backup on the device side and receives the saved state', async () => {
+  const disk = memoryFiles();
+  const replaced: string[] = [];
+  const repository = new JsonRepository({
+    ...disk,
+    replace: async (content, state) => {
+      assert.equal(state.tasks.at(-1)?.title, JSON.parse(content).tasks.at(-1).title);
+      replaced.push(content);
+    },
+  });
+  await repository.load();
+  await repository.save({ ...emptyState(), tasks: [newTask('First')] });
+  await repository.save({ ...emptyState(), tasks: [newTask('Second')] });
+  assert.equal(replaced.length, 2);
+  assert.equal(disk.files.has('data.backup.json'), false);
+});

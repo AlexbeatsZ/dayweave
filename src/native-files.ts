@@ -8,6 +8,8 @@ export interface NativeFiles {
   deviceInfo(): Promise<{ name: string }>;
   read(options: { name: string }): Promise<{ content: string | null }>;
   write(options: { name: string; content: string }): Promise<void>;
+  /** Saves data.json, keeping the previous primary as data.backup.json on the device side. */
+  saveState(options: { content: string; widget: boolean }): Promise<void>;
   pickBackup(): Promise<{ content: string | null }>;
   importFudan(): Promise<{ content: string | null }>;
   refreshFudan(options: { semesterId: string }): Promise<{ content: string }>;

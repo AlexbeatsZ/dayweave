@@ -237,9 +237,9 @@ test('real encrypted hub with two clients: pairing, offline merge, cross-device 
     await b.client.pair(await hub.invite(), endpoint);
     await b.client.now();
     assert.equal(b.client.connected, true, b.client.error);
-    const sequence = a.client.config.seq;
+    const sequence = a.client.sentSequence;
     await Promise.all(Array.from({ length: 20 }, () => a.client.now()));
-    assert.equal(a.client.config.seq, sequence + 1);
+    assert.equal(a.client.sentSequence, sequence + 1);
     const originalSnapshot = service.snapshot.bind(service);
     service.snapshot = async () => {
       throw new Error('simulated disk failure');

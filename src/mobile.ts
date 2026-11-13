@@ -2,7 +2,7 @@ import { Capacitor } from '@capacitor/core';
 import { App as NativeApp } from '@capacitor/app';
 import { JsonRepository } from './persistence';
 import { stateSchema } from './model';
-import { SyncClient } from './sync/client';
+import { SyncClient, syncHttpError } from './sync/client';
 import { SyncScheduler } from './sync/scheduler';
 import { store } from './store';
 import { invitationText, pendingPairingKey } from './sync/invitation';
@@ -33,9 +33,16 @@ export const isMobileApp = Capacitor.isNativePlatform();
 export async function initializeMobile() {
   if (!isMobileApp) return;
   document.documentElement.classList.add('native-mobile');
+  // The widget process reads its own projection; rebuild it only when its inputs change.
+  let widgetInputs: string | undefined;
   const repository = new JsonRepository({
     read: async (name) => (await files.read({ name })).content,
     write: (name, content) => files.write({ name, content }),
+    replace: async (content, state) => {
+      const inputs = JSON.stringify([state.schedule, state.calendarEvents]);
+      await files.saveState({ content, widget: inputs !== widgetInputs });
+      widgetInputs = inputs;
+    },
   });
   window.clearlist = {
     usage: {
@@ -95,7 +102,14 @@ export async function initializeMobile() {
       },
       mutate: (transform, receivedTime) => store.transact(transform, receivedTime),
     },
-    async (endpoint, path, body) => (await files.postSync({ endpoint, path, body })).body,
+    async (endpoint, path, body) => {
+      try {
+        return (await files.postSync({ endpoint, path, body })).body;
+      } catch (error) {
+        const status = /^HTTP_(\d{3})$/.exec(String((error as { code?: unknown }).code ?? ''));
+        throw status ? new Error(syncHttpError(Number(status[1]))) : error;
+      }
+    },
     deviceName,
   );
   try {

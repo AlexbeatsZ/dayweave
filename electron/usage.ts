@@ -1,4 +1,5 @@
-import { mkdir, readFile, readdir, stat, open, rename } from 'node:fs/promises';
+import { mkdir, readFile, readdir, stat } from 'node:fs/promises';
+import { writeAtomic } from './files.js';
 import { existsSync, createWriteStream } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -176,14 +177,7 @@ export class DesktopUsage implements UsageBridge {
         app_rules: [],
       },
     });
-    const handle = await open(file + '.tmp', 'w', 0o600);
-    try {
-      await handle.writeFile(content);
-      await handle.sync();
-    } finally {
-      await handle.close();
-    }
-    await rename(file + '.tmp', file);
+    await writeAtomic(file, content);
     if (this.child || this.closing) return;
     const log = createWriteStream(path.join(collector, 'collector.log'), {
       flags: 'a',

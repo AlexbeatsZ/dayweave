@@ -1,7 +1,8 @@
 import { handleExtendedRoute } from './extended-api.js';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { timingSafeEqual, randomBytes } from 'node:crypto';
-import { readFile, open, rename, chmod } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
+import { writeAtomic } from './files.js';
 import path from 'node:path';
 import { z } from 'zod';
 import {
@@ -552,16 +553,7 @@ export async function startApi(
   const port = (server.address() as { port: number }).port;
   const info: ApiInfo = { enabled: true, url: `http://127.0.0.1:${port}/api/v1`, token };
   try {
-    const temporary = credentialFile + '.tmp';
-    const handle = await open(temporary, 'w', 0o600);
-    try {
-      await handle.writeFile(JSON.stringify({ ...info, pid: process.pid }, null, 2));
-      await handle.sync();
-    } finally {
-      await handle.close();
-    }
-    await chmod(temporary, 0o600);
-    await rename(temporary, credentialFile);
+    await writeAtomic(credentialFile, JSON.stringify({ ...info, pid: process.pid }, null, 2));
   } catch (error) {
     await new Promise<void>((resolve) => server.close(() => resolve()));
     throw error;

@@ -24,6 +24,8 @@ import org.json.JSONObject;
 @CapacitorPlugin(name = "DayweaveFiles")
 public class DayweaveFilesPlugin extends Plugin {
     private static final int MAX_BYTES = 50 * 1024 * 1024;
+    /** Hub replies carry state plus its base document, so they share the hub's request limit. */
+    private static final int MAX_SYNC_BYTES = 70 * 1024 * 1024;
     private String exporting;
     private final java.util.concurrent.ExecutorService network = java.util.concurrent.Executors.newSingleThreadExecutor();
     private final java.util.concurrent.ExecutorService usageData = java.util.concurrent.Executors.newSingleThreadExecutor();
@@ -133,12 +135,14 @@ public class DayweaveFilesPlugin extends Plugin {
                 JSObject body=call.getObject("body");
                 if(body==null || body.length()!=3 || !body.has("clientId") || !body.has("iv") || !body.has("data"))throw new IllegalArgumentException("Encrypted sync envelope required");
                 byte[] bytes=body.toString().getBytes(StandardCharsets.UTF_8);
-                if(bytes.length>70*1024*1024)throw new IllegalArgumentException("Message too large");
+                if(bytes.length>MAX_SYNC_BYTES)throw new IllegalArgumentException("Message too large");
                 connection=(java.net.HttpURLConnection)new java.net.URL(endpoint(call.getString("endpoint"))+route).openConnection();
                 connection.setConnectTimeout(6000);connection.setReadTimeout(12000);connection.setInstanceFollowRedirects(false);connection.setRequestMethod("POST");connection.setDoOutput(true);connection.setRequestProperty("Content-Type","application/json");connection.setFixedLengthStreamingMode(bytes.length);
                 try(OutputStream output=connection.getOutputStream()){output.write(bytes);}
-                if(connection.getResponseCode()!=200)throw new IllegalStateException(connection.getResponseCode()==401?"Pairing expired; pair again":"Sync center returned "+connection.getResponseCode());
-                String content=text(connection.getInputStream());
+                int status=connection.getResponseCode();
+                // The shared sync client maps HTTP_<status> to the same messages as desktop.
+                if(status!=200){call.reject("Sync center returned "+status,"HTTP_"+status);return;}
+                String content=text(connection.getInputStream(),MAX_SYNC_BYTES);
                 call.resolve(new JSObject().put("body",new JSONObject(content)));
             }catch(Exception error){call.reject("Unable to reach sync center: "+error.getMessage(),error);}
             finally{if(connection!=null)connection.disconnect();}
@@ -218,12 +222,16 @@ public class DayweaveFilesPlugin extends Plugin {
     }
 
     private String text(InputStream stream) throws Exception {
+        return text(stream, MAX_BYTES);
+    }
+
+    private String text(InputStream stream, int limit) throws Exception {
         try (InputStream input = stream; ByteArrayOutputStream output = new ByteArrayOutputStream()) {
             if (input == null) throw new FileNotFoundException("Cannot open selected file");
             byte[] buffer = new byte[8192];
             int count;
             while ((count = input.read(buffer)) != -1) {
-                if (output.size() + count > MAX_BYTES) throw new IllegalArgumentException("File exceeds 50 MB");
+                if (output.size() + count > limit) throw new IllegalArgumentException("Content exceeds " + (limit / 1024 / 1024) + " MB");
                 output.write(buffer, 0, count);
             }
             return output.toString(StandardCharsets.UTF_8.name());
@@ -245,24 +253,60 @@ public class DayweaveFilesPlugin extends Plugin {
         } catch (Exception error) { call.reject("Unable to read data", error); }
     }
 
-    @PluginMethod
-    public void write(PluginCall call) {
-        FileOutputStream output = null;
-        AtomicFile target = null;
+    private static void writeAtomic(File file, byte[] bytes) throws Exception {
+        AtomicFile target = new AtomicFile(file);
+        FileOutputStream output = target.startWrite();
         try {
-            String content = call.getString("content");
-            if (content == null) throw new IllegalArgumentException("Missing content");
-            byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
-            if (bytes.length > MAX_BYTES) throw new IllegalArgumentException("File exceeds 50 MB");
-            target = new AtomicFile(file(call.getString("name")));
-            output = target.startWrite();
             output.write(bytes);
             target.finishWrite(output);
-            output = null;
-            if ("data.json".equals(call.getString("name"))) { CourseWidgetProvider.writeSnapshot(getContext(),content); CourseWidgetProvider.requestRefresh(getContext()); }
+        } catch (Exception error) {
+            target.failWrite(output);
+            throw error;
+        }
+    }
+
+    private static byte[] content(PluginCall call) {
+        String content = call.getString("content");
+        if (content == null) throw new IllegalArgumentException("Missing content");
+        byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
+        if (bytes.length > MAX_BYTES) throw new IllegalArgumentException("File exceeds 50 MB");
+        return bytes;
+    }
+
+    /** The widget is a projection of saved data; failing to refresh it must not fail the save. */
+    private void refreshWidget(String content) {
+        try {
+            CourseWidgetProvider.writeSnapshot(getContext(), content);
+            CourseWidgetProvider.requestRefresh(getContext());
+        } catch (Exception error) {
+            android.util.Log.w("Dayweave", "Course widget snapshot was not refreshed", error);
+        }
+    }
+
+    @PluginMethod
+    public void write(PluginCall call) {
+        try {
+            byte[] bytes = content(call);
+            writeAtomic(file(call.getString("name")), bytes);
+            // Recovery and restore rewrite data.json through this path.
+            if ("data.json".equals(call.getString("name"))) refreshWidget(call.getString("content"));
             call.resolve();
         } catch (Exception error) {
-            if (output != null && target != null) target.failWrite(output);
+            call.reject("Unable to save data", error);
+        }
+    }
+
+    /** One state save: the current primary becomes the backup here, so it never crosses the bridge. */
+    @PluginMethod
+    public void saveState(PluginCall call) {
+        try {
+            byte[] bytes = content(call);
+            AtomicFile primary = new AtomicFile(file("data.json"));
+            if (primary.getBaseFile().exists()) writeAtomic(file("data.backup.json"), primary.readFully());
+            writeAtomic(primary.getBaseFile(), bytes);
+            if (Boolean.TRUE.equals(call.getBoolean("widget", true))) refreshWidget(call.getString("content"));
+            call.resolve();
+        } catch (Exception error) {
             call.reject("Unable to save data", error);
         }
     }
