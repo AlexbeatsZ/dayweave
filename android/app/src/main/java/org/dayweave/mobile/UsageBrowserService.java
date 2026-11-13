@@ -14,8 +14,16 @@ import java.util.List;
 
 public final class UsageBrowserService extends AccessibilityService {
     private final Handler handler=new Handler(Looper.getMainLooper());
+    /** Database work leaves the main thread; observation order is kept by a single worker. */
+    private final java.util.concurrent.ExecutorService storage=java.util.concurrent.Executors.newSingleThreadExecutor();
     private String browser=null,url=null;
-    private long start=0,lastObserved=0;
+    private long start=0,lastObserved=0,settingsAt=0;
+    private JSONObject settings;
+    /** Settings change rarely; reread them at most every 15 seconds instead of on every tick. */
+    private JSONObject settings(long now) throws Exception {
+        if(settings==null||now-settingsAt>15000){settings=UsageDatabase.get(this).settings();settingsAt=now;}
+        return settings;
+    }
     private final Runnable tick=new Runnable(){@Override public void run(){observe();handler.postDelayed(this,2000);}};
     @Override protected void onServiceConnected(){handler.post(tick);UsageWorker.schedule(this);}
     @Override public void onAccessibilityEvent(AccessibilityEvent event){observe();}
@@ -25,8 +33,9 @@ public final class UsageBrowserService extends AccessibilityService {
         if(now-lastObserved>30000)finish(lastObserved);
         lastObserved=now;
         AccessibilityNodeInfo root=getRootInActiveWindow();
-        try(UsageDatabase database=new UsageDatabase(this)) {
-            JSONObject settings=database.settings();
+        try {
+            UsageDatabase database=UsageDatabase.get(this);
+            JSONObject settings=settings(now);
             if(!settings.getBoolean("enabled")||!settings.getBoolean("browser")||!((PowerManager)getSystemService(POWER_SERVICE)).isInteractive()||((KeyguardManager)getSystemService(KEYGUARD_SERVICE)).isKeyguardLocked()||root==null){finish(now);return;}
             String app=root.getPackageName()==null?"":root.getPackageName().toString();
             boolean via=app.equals("mark.via")||app.equals("mark.via.gp");
@@ -52,8 +61,8 @@ public final class UsageBrowserService extends AccessibilityService {
             if(!UsageCapture.filter(observation,settings)){finish(now);return;}
             found=observation.getString("url");if(found.isEmpty()){finish(now);return;}
             if(!app.equals(browser)||!found.equals(url)){finish(now);browser=app;url=found;start=now;}
-            save(now,database);
-        } catch(Exception error){try(UsageDatabase database=new UsageDatabase(this)){database.meta("error","浏览器采集暂不可用",database.getWritableDatabase());}}
+            save(now);
+        } catch(Exception error){storage.execute(()->{UsageDatabase database=UsageDatabase.get(this);database.meta("error","浏览器采集暂不可用",database.getWritableDatabase());});}
     }
     private boolean nativeToolbar(AccessibilityNodeInfo node) {
         AccessibilityNodeInfo parent=node.getParent();
@@ -67,12 +76,18 @@ public final class UsageBrowserService extends AccessibilityService {
         if(result.size()>=250||depth>24)return;result.add(node);
         for(int index=0;index<node.getChildCount()&&result.size()<250;index++){AccessibilityNodeInfo child=node.getChild(index);if(child!=null)collect(child,result,depth+1);}
     }
-    private void save(long end,UsageDatabase database) throws Exception {
+    private void save(long end) {
         if(url==null||end<=start)return;
-        JSONObject event=UsageCapture.event(database,"web",browser+":"+start,start,end,browser,"",url);
-        if(UsageCapture.filter(event,database.settings()))database.insert(new JSONArray().put(event));
+        String app=browser,address=url;long from=start;JSONObject rules=settings;
+        storage.execute(()->{
+            try {
+                UsageDatabase database=UsageDatabase.get(this);
+                JSONObject event=UsageCapture.event(database,"web",app+":"+from,from,end,app,"",address);
+                if(UsageCapture.filter(event,rules==null?database.settings():rules))database.insert(new JSONArray().put(event));
+            } catch(Exception ignored){}
+        });
     }
-    private void finish(long end){if(url!=null){try(UsageDatabase database=new UsageDatabase(this)){save(end,database);}catch(Exception ignored){}url=null;browser=null;}}
+    private void finish(long end){if(url!=null){save(end);url=null;browser=null;}}
     @Override public void onInterrupt(){finish(System.currentTimeMillis());}
-    @Override public void onDestroy(){handler.removeCallbacks(tick);finish(System.currentTimeMillis());super.onDestroy();}
+    @Override public void onDestroy(){handler.removeCallbacks(tick);finish(System.currentTimeMillis());storage.shutdown();super.onDestroy();}
 }

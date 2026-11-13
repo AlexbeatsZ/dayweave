@@ -33,28 +33,32 @@ final class UsageCapture {
         return true;
     }
     static synchronized void collect(Context context) throws Exception {
-        try(UsageDatabase database=new UsageDatabase(context)) {
+        UsageDatabase database=UsageDatabase.get(context);
+        {
             JSONObject settings=database.settings();if(!settings.getBoolean("enabled")||!allowed(context))return;
             long now=System.currentTimeMillis(),first=Long.parseLong(database.meta("captureSince","0"));
             if(first==0){first=now;database.meta("captureSince",String.valueOf(first),database.getWritableDatabase());}
             long previous=Long.parseLong(database.meta("lastScan",String.valueOf(first)));
             if(now-previous<1000)return;
-            long since=Math.max(first,previous-7L*86400000);
+            long since=UsageSessions.scanStart(now,first,previous,Long.parseLong(database.meta("openSince",String.valueOf(UsageSessions.OPEN_UNKNOWN))));
             UsageStatsManager manager=(UsageStatsManager)context.getSystemService(Context.USAGE_STATS_SERVICE);
             UsageEvents usage=manager.queryEvents(since,now);if(usage==null)throw new IllegalStateException("使用情况数据暂不可用，请解锁后重试");
             List<UsageSessions.Event> events=new ArrayList<>();JSONArray stored=new JSONArray();
             while(usage.hasNextEvent()) {
                 UsageEvents.Event item=new UsageEvents.Event();usage.getNextEvent(item);
                 events.add(new UsageSessions.Event(item.getTimeStamp(),item.getEventType(),item.getPackageName()));
-                if(item.getEventType()==18)stored.put(event(database,"unlock",String.valueOf(item.getTimeStamp()),item.getTimeStamp(),item.getTimeStamp(),"","",""));
+                if(item.getEventType()==UsageSessions.KEYGUARD_HIDDEN)stored.put(event(database,"unlock",String.valueOf(item.getTimeStamp()),item.getTimeStamp(),item.getTimeStamp(),"","",""));
             }
+            long open=0;
             for(UsageSessions.Session session:UsageSessions.build(events,now)) {
+                if(session.end==now)open=session.start;
                 if(context.getPackageName().equals(session.app))continue;
                 String label=session.app;try{label=context.getPackageManager().getApplicationLabel(context.getPackageManager().getApplicationInfo(session.app,0)).toString();}catch(Exception ignored){}
                 JSONObject record=event(database,"app",session.app+":"+session.start,session.start,session.end,label,"","");
                 if(filter(record,settings,session.app))stored.put(record);
             }
             database.insert(stored);database.meta("lastScan",String.valueOf(now),database.getWritableDatabase());
+            database.meta("openSince",String.valueOf(open),database.getWritableDatabase());
         }
     }
 }

@@ -35,7 +35,8 @@ public class DayweaveFilesPlugin extends Plugin {
     public void usage(PluginCall call) {
         String action=call.getString("action");
         ("sync".equals(action)?usageNetwork:usageData).execute(() -> {
-            try (UsageDatabase database = new UsageDatabase(getContext())) {
+            try {
+                UsageDatabase database = UsageDatabase.get(getContext());
                 JSObject value=call.getObject("value",new JSObject());
                 if("applications".equals(action)){call.resolve(new JSObject().put("applications",UsageApplications.list(getContext())));return;}
                 if("query".equals(action)||"status".equals(action))UsageCapture.collect(getContext());

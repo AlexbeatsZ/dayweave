@@ -16,7 +16,7 @@ public class UsageSessionsTest {
         assertEquals(1,result.size());assertEquals(10,result.get(0).start);assertEquals(20,result.get(0).end);
     }
     @Test public void screenOffEndsSessionAndDoesNotFillSleepGap() {
-        List<UsageSessions.Session> result=UsageSessions.build(Arrays.asList(new UsageSessions.Event(10,1,"editor"),new UsageSessions.Event(20,15,""),new UsageSessions.Event(1000,1,"browser")),1010);
+        List<UsageSessions.Session> result=UsageSessions.build(Arrays.asList(new UsageSessions.Event(10,1,"editor"),new UsageSessions.Event(20,16,""),new UsageSessions.Event(1000,1,"browser")),1010);
         assertEquals(2,result.size());assertEquals(20,result.get(0).end);assertEquals(1000,result.get(1).start);
     }
     @Test public void runningSessionRetainsStableStartForRevisionUpdates() {
@@ -26,5 +26,17 @@ public class UsageSessionsTest {
     @Test public void browserParserRejectsTitlesInputAndCredentials() {
         assertNull(BrowserAddress.parse("Example page title",false));assertNull(BrowserAddress.parse("example.com",true));assertNull(BrowserAddress.parse("https://user:password@example.com",false));
         assertEquals("example.com/read",BrowserAddress.parse("https://example.com/read",false));
+    }
+    @Test public void screenOnDoesNotEndTheForegroundSession() {
+        List<UsageSessions.Session> result=UsageSessions.build(Arrays.asList(new UsageSessions.Event(10,1,"editor"),new UsageSessions.Event(20,15,""),new UsageSessions.Event(30,2,"editor")),40);
+        assertEquals(1,result.size());assertEquals(10,result.get(0).start);assertEquals(30,result.get(0).end);
+    }
+    @Test public void scanWindowCoversOnlyTheMarginAndTheStillOpenSession() {
+        long day=UsageSessions.DAY,now=30*day,first=10*day,previous=now-60000;
+        assertEquals(previous-UsageSessions.RESCAN_MARGIN,UsageSessions.scanStart(now,first,previous,0));
+        assertEquals(now-3*3600000L,UsageSessions.scanStart(now,first,previous,now-3*3600000L));
+        assertEquals(now-7*day,UsageSessions.scanStart(now,first,previous,UsageSessions.OPEN_UNKNOWN));
+        assertEquals(now-7*day,UsageSessions.scanStart(now,first,previous,now-9*day));
+        assertEquals(first,UsageSessions.scanStart(12*day,first,first,0));
     }
 }

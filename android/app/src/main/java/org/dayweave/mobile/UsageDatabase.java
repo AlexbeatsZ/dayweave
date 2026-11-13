@@ -9,7 +9,14 @@ import org.json.JSONObject;
 import java.util.UUID;
 
 final class UsageDatabase extends SQLiteOpenHelper {
-    UsageDatabase(Context context) { super(context, "usage.db", null, 1); setWriteAheadLoggingEnabled(true); }
+    private static UsageDatabase instance;
+    private String deviceId;
+    /** One process-wide helper: the plugin pools, WorkManager and the accessibility service share one connection pool. Never closed. */
+    static synchronized UsageDatabase get(Context context) {
+        if (instance == null) instance = new UsageDatabase(context.getApplicationContext());
+        return instance;
+    }
+    private UsageDatabase(Context context) { super(context, "usage.db", null, 1); setWriteAheadLoggingEnabled(true); }
     @Override public void onCreate(SQLiteDatabase database) {
         database.execSQL("CREATE TABLE usage_events(seq INTEGER PRIMARY KEY AUTOINCREMENT,id TEXT UNIQUE NOT NULL,device TEXT NOT NULL,start INTEGER NOT NULL,end INTEGER NOT NULL,payload TEXT NOT NULL,pending INTEGER NOT NULL,deleted INTEGER NOT NULL DEFAULT 0)");
         database.execSQL("CREATE INDEX usage_time ON usage_events(start,end)");
@@ -21,9 +28,10 @@ final class UsageDatabase extends SQLiteOpenHelper {
         try (Cursor cursor = getReadableDatabase().rawQuery("SELECT value FROM usage_meta WHERE key=?", new String[]{key})) { return cursor.moveToFirst() ? cursor.getString(0) : fallback; }
     }
     void meta(String key, String value, SQLiteDatabase database) { database.execSQL("INSERT OR REPLACE INTO usage_meta VALUES(?,?)", new Object[]{key,value}); }
-    String deviceId() {
+    synchronized String deviceId() {
+        if (deviceId != null) return deviceId;
         SQLiteDatabase database = getWritableDatabase(); database.beginTransaction();
-        try { String id = meta("deviceId", ""); if (id.isEmpty()) { id = UUID.randomUUID().toString(); meta("deviceId", id, database); } database.setTransactionSuccessful(); return id; } finally { database.endTransaction(); }
+        try { String id = meta("deviceId", ""); if (id.isEmpty()) { id = UUID.randomUUID().toString(); meta("deviceId", id, database); } database.setTransactionSuccessful(); deviceId = id; return id; } finally { database.endTransaction(); }
     }
     static JSONObject defaults() throws Exception {
         return new JSONObject().put("enabled", false).put("sampleSeconds", 10).put("idleMinutes", 5).put("browser", false)
@@ -68,15 +76,28 @@ final class UsageDatabase extends SQLiteOpenHelper {
         SQLiteDatabase database=getWritableDatabase();database.beginTransaction();int changed=0;
         try { for(int index=0;index<events.length();index++)if(put(events.getJSONObject(index),true,database))changed++;database.setTransactionSuccessful();return changed; } finally { database.endTransaction(); }
     }
+    static boolean matches(JSONObject event,String search) {
+        return search.isEmpty()||(event.optString("app")+" "+event.optString("title")+" "+event.optString("url")).toLowerCase(java.util.Locale.ROOT).contains(search);
+    }
+    /**
+     * Newest-first by start (the time index). `next` is the start of the last row, and every row
+     * sharing it stays on the same page, so revised rows (new seq) are neither skipped nor repeated.
+     */
     JSONObject query(JSONObject query) throws Exception {
         long start=query.getLong("start"),end=query.getLong("end");int limit=Math.min(5000,Math.max(1,query.optInt("limit",500)));
         if(start<0 || end<=start || end-start>366L*86400000)throw new IllegalArgumentException("Invalid query range");
         String device=query.optString("deviceId",""),search=query.optString("search","").toLowerCase(java.util.Locale.ROOT);
-        JSONArray events=new JSONArray();long next=0;boolean more=false;
-        try(Cursor cursor=getReadableDatabase().rawQuery("SELECT seq,payload FROM usage_events WHERE deleted=0 AND start<? AND end>=? AND (?='' OR device=?) AND seq<? AND (?='' OR instr(lower(payload),?)>0) ORDER BY seq DESC LIMIT ?",new String[]{String.valueOf(end),String.valueOf(start),device,device,String.valueOf(query.optLong("before",Long.MAX_VALUE)),search,search,String.valueOf(limit+1)})) {
-            while(cursor.moveToNext()) { JSONObject event=new JSONObject(cursor.getString(1));if(event.optBoolean("deleted"))continue;if(events.length()==limit){more=true;break;}events.put(event);next=cursor.getLong(0); }
+        JSONArray events=new JSONArray();long boundary=0;boolean more=false;
+        try(Cursor cursor=getReadableDatabase().rawQuery("SELECT start,payload FROM usage_events WHERE deleted=0 AND start<? AND end>=? AND (?='' OR device=?) AND start<? ORDER BY start DESC,id",new String[]{String.valueOf(end),String.valueOf(start),device,device,String.valueOf(query.optLong("before",Long.MAX_VALUE))})) {
+            while(cursor.moveToNext()) {
+                long rowStart=cursor.getLong(0);
+                if(events.length()>=limit&&rowStart!=boundary){more=true;break;}
+                JSONObject event=new JSONObject(cursor.getString(1));
+                if(event.optBoolean("deleted")||!matches(event,search))continue;
+                events.put(event);boundary=rowStart;
+            }
         }
-        JSONObject result=new JSONObject().put("events",events).put("complete",!more);if(more)result.put("next",next);return result;
+        JSONObject result=new JSONObject().put("events",events).put("complete",!more);if(more)result.put("next",boundary);return result;
     }
     JSONArray pending() throws Exception {
         JSONArray events=new JSONArray();try(Cursor cursor=getReadableDatabase().rawQuery("SELECT payload FROM usage_events WHERE pending=1 ORDER BY seq LIMIT 300",null)){while(cursor.moveToNext())events.put(new JSONObject(cursor.getString(0)));}return events;

@@ -64,7 +64,8 @@ final class UsageSync {
         if(!config.optBoolean("enabled")||!config.has("key")||!config.has("endpoint")||!config.has("hubId"))return;
         java.util.List<String> addresses=endpoints(config);
         String id=config.getString("deviceId"),key=config.getString("key"),hub=config.getString("hubId");
-        try(UsageDatabase database=new UsageDatabase(context)) {
+        UsageDatabase database=UsageDatabase.get(context);
+        {
             for(int batch=0;batch<20;batch++) {
                 JSONObject current=new JSONObject(new String(atomic.readFully(),StandardCharsets.UTF_8));
                 if(!current.optBoolean("enabled")||!addresses.equals(endpoints(current))||!key.equals(current.optString("key"))||!hub.equals(current.optString("hubId")))return;

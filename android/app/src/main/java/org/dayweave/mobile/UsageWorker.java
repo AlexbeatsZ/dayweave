@@ -18,7 +18,8 @@ public final class UsageWorker extends Worker {
         manager.enqueueUniqueWork("dayweave-usage-now",ExistingWorkPolicy.KEEP,new OneTimeWorkRequest.Builder(UsageWorker.class).build());
     }
     @Override public Result doWork() {
-        try {UsageCapture.collect(getApplicationContext());UsageSync.run(getApplicationContext());try(UsageDatabase database=new UsageDatabase(getApplicationContext())){database.meta("error","",database.getWritableDatabase());}return Result.success();}
-        catch(Exception error){try(UsageDatabase database=new UsageDatabase(getApplicationContext())){database.meta("error",error.getMessage()==null?error.getClass().getSimpleName():error.getMessage(),database.getWritableDatabase());}return Result.retry();}
+        UsageDatabase database=UsageDatabase.get(getApplicationContext());
+        try {UsageCapture.collect(getApplicationContext());UsageSync.run(getApplicationContext());database.meta("error","",database.getWritableDatabase());return Result.success();}
+        catch(Exception error){database.meta("error",error.getMessage()==null?error.getClass().getSimpleName():error.getMessage(),database.getWritableDatabase());return Result.retry();}
     }
 }

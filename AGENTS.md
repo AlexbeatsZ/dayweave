@@ -130,6 +130,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Durable Lessons
 
+- Android Gradle on this Mac needs JDK 21+: Homebrew's default 17 fails with `invalid source release: 21`. Run `JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" ./gradlew testDebugUnitTest --offline` from `android/`; do not install or switch the global JDK.
+
 - ical.js 2.2.1 normalizes implicit yearly February 29 to March 1 on non-leap years. Add RFC default BYMONTH/BYMONTHDAY before iteration. Normalize minute and zero-second DTSTART forms to one occurrence key before allocating IDs. See arrangements.md and arrangements.test.ts.
 
 - A Windows build from a temporary checkout can typecheck with node_modules junctioned to another checkout while electron-builder silently omits transitive packages. Use real project-local dependencies for packaging and smoke the packaged executable before upgrading users.
