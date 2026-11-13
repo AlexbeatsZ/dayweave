@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { mkdtemp, rm, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, readFile, writeFile } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import { createServer } from 'node:http';
 import ICAL from 'ical.js';
 import { emptyState, newTask, stateSchema, mergeImport } from '../src/model.js';
@@ -443,7 +445,7 @@ test('Cron conversion is explicit and keeps unsupported Cron semantics available
 });
 
 test('calendar feed is revocable, Event-only and preserves original pre-migration bytes', async () => {
-  const directory = await mkdtemp('/tmp/.agents/dayweave-arrangements-');
+  const directory = await tempDirectory('dayweave-arrangements-');
   const service = new StateService(new FileStore(directory));
   let server: ReturnType<typeof createServer> | undefined;
   try {
@@ -488,7 +490,7 @@ test('calendar feed is revocable, Event-only and preserves original pre-migratio
 });
 
 test('encrypted hub exchange generates once and converges two offline Event editors', async () => {
-  const directory = await mkdtemp('/tmp/.agents/dayweave-arrangements-sync-');
+  const directory = await tempDirectory('dayweave-arrangements-sync-');
   const service = new StateService(new FileStore(directory));
   const hub = await new DesktopSync(service, directory, false).initialize();
   hub.client.config.hub = { port: 0, clients: {} };
@@ -570,7 +572,7 @@ test('encrypted hub exchange generates once and converges two offline Event edit
 });
 
 test('hub calendar polling follows HTTPS redirects, deduplicates refreshes and retains Events after errors', async () => {
-  const directory = await mkdtemp('/tmp/.agents/dayweave-arrangements-poll-');
+  const directory = await tempDirectory('dayweave-arrangements-poll-');
   const service = new StateService(new FileStore(directory));
   let calls = 0;
   const manager = new CalendarSubscriptions(service, async () => {
@@ -625,3 +627,9 @@ test('hub calendar polling follows HTTPS redirects, deduplicates refreshes and r
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+async function tempDirectory(prefix: string) {
+  const base = path.join(os.tmpdir(), '.agents');
+  await mkdir(base, { recursive: true });
+  return mkdtemp(path.join(base, prefix));
+}
