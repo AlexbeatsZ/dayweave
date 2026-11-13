@@ -58,6 +58,53 @@
   flex: 1;
   min-width: 0;
 }
+.arrangement-event-week {
+  grid-template-rows: auto auto auto auto;
+}
+.arrangement-event-week .arrangement-day {
+  display: grid;
+  grid-row: 1 / span 4;
+  grid-template-rows: subgrid;
+}
+.arrangement-all-day {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 5px 2px;
+  border-top: 1px solid var(--line);
+}
+.arrangement-time-column {
+  position: relative;
+  min-width: 0;
+}
+.arrangement-hour-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px solid var(--line);
+  pointer-events: none;
+}
+.arrangement-timed-event {
+  position: absolute;
+  min-width: 0;
+}
+.arrangement-timed-event .arrangement-event {
+  height: 100%;
+  overflow: hidden;
+  padding: 3px;
+  gap: 2px;
+}
+.arrangement-timed-event .arrangement-event > * {
+  flex-shrink: 0;
+  line-height: 1.2;
+}
+.arrangement-timed-event .arrangement-event strong {
+  font-size: 12px;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
 .arrangement-event,
 .week-task {
   display: flex;

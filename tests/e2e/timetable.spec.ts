@@ -116,9 +116,7 @@ test('a late file selection after leaving the timetable cannot reopen a preview 
   expect(await page.evaluate(() => localStorage.getItem('dayweave.v1'))).toBe(before);
 });
 
-test('event week uses independent cards and seven fitting columns at every phone width', async ({
-  page,
-}) => {
+test('event week keeps seven time-aligned columns fitting every phone width', async ({ page }) => {
   await seed(page, true, true);
   await mkdir('.local/preview/arrangements', { recursive: true });
   for (const width of [360, 390, 430, 1440]) {
@@ -133,6 +131,119 @@ test('event week uses independent cards and seven fitting columns at every phone
   }
   await page.getByRole('button', { name: '下一周', exact: true }).click();
   await expect(page.locator('.arrangement-event').filter({ hasText: '周末实验' })).toBeVisible();
+});
+
+test('event cards align by real time and duration beneath a shared all-day row', async ({
+  page,
+}) => {
+  const initial = await seed(page);
+  await page.evaluate(async (monday) => {
+    const storePath = '/src/store.ts',
+      domainPath = '/src/event-domain.ts',
+      zonePath = '/src/timezone.ts';
+    const { store } = await import(storePath);
+    const { newEvent } = await import(domainPath);
+    const { shiftDay } = await import(zonePath);
+    store.update((state: typeof initial) => ({
+      ...state,
+      calendarEvents: [
+        ...state.calendarEvents,
+        newEvent({
+          title: '实验展示',
+          date: shiftDay(monday, 1),
+          periods: [
+            ['08:00', '08:45'],
+            ['08:55', '09:40'],
+          ],
+        }),
+        newEvent({ title: '短会', date: shiftDay(monday, 2), periods: [['08:00', '08:50']] }),
+        newEvent({ title: '稍后会议', date: shiftDay(monday, 1), periods: [['10:00', '10:30']] }),
+        newEvent({
+          title: '跨时区会议',
+          date: shiftDay(monday, 3),
+          timeZone: 'UTC',
+          periods: [['00:00', '01:00']],
+        }),
+        newEvent({ title: '全天学术活动', date: monday, allDay: true }),
+        newEvent({ title: '全天考试准备与材料整理', date: shiftDay(monday, 3), allDay: true }),
+      ],
+    }));
+  }, initial.schedule.semesterStart);
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(page.locator('.arrangement-time-column')).toHaveCount(5);
+    // Read one layout snapshot so responsive navigation cannot move the page between measurements.
+    const cards = await page
+      .locator('.arrangement-timed-event .arrangement-event')
+      .evaluateAll((nodes) =>
+        Object.fromEntries(
+          nodes.map((node) => [
+            node.getAttribute('aria-label')!.replace('编辑日程 ', ''),
+            node.getBoundingClientRect().toJSON(),
+          ]),
+        ),
+      );
+    const course = cards['量子化学'],
+      multi = cards['实验展示'];
+    const short = cards['短会'],
+      later = cards['稍后会议'],
+      foreign = cards['跨时区会议'];
+    expect(Math.abs(course.y - multi.y)).toBeLessThan(1);
+    expect(Math.abs(multi.y - short.y)).toBeLessThan(1);
+    expect(Math.abs(foreign.y - short.y)).toBeLessThan(1);
+    expect(Math.abs(multi.height - course.height)).toBeLessThan(1);
+    expect(multi.height / short.height).toBeCloseTo(2, 1);
+    expect(later.y - multi.y).toBeCloseTo(120 * 1.35, 0);
+    expect(later.height).toBeCloseTo(30 * 1.35, 0);
+    const tops = await page
+      .locator('.arrangement-time-column')
+      .evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().top));
+    expect(Math.max(...tops) - Math.min(...tops)).toBeLessThan(1);
+    await page.screenshot({ path: `.local/preview/arrangements/events-time-aligned-${width}.png` });
+  }
+});
+
+test('cross-day and overlapping Events retain clipped time positions and independent lanes', async ({
+  page,
+}) => {
+  const initial = await seed(page);
+  await page.evaluate(async (monday) => {
+    const storePath = '/src/store.ts',
+      domainPath = '/src/event-domain.ts',
+      zonePath = '/src/timezone.ts';
+    const { store } = await import(storePath);
+    const { newEvent } = await import(domainPath);
+    const { shiftDay } = await import(zonePath);
+    store.update((state: typeof initial) => ({
+      ...state,
+      calendarEvents: [
+        ...state.calendarEvents,
+        newEvent({
+          title: '跨夜实验',
+          date: monday,
+          durationDays: 2,
+          periods: [['23:00', '01:00']],
+        }),
+        newEvent({ title: '重叠会议', date: shiftDay(monday, 1), periods: [['00:30', '01:30']] }),
+        newEvent({ title: '相接会议', date: shiftDay(monday, 1), periods: [['01:30', '02:00']] }),
+      ],
+    }));
+  }, initial.schedule.semesterStart);
+  const cards = page.getByRole('button', { name: '编辑日程 跨夜实验', exact: true });
+  await expect(cards).toHaveCount(2);
+  const monday = (await cards.nth(0).boundingBox())!,
+    tuesday = (await cards.nth(1).boundingBox())!;
+  expect(monday.y - tuesday.y).toBeCloseTo(23 * 60 * 1.35, 0);
+  expect(monday.height).toBeCloseTo(60 * 1.35, 0);
+  expect(tuesday.height).toBeCloseTo(monday.height, 0);
+  const overlap = (await page
+    .getByRole('button', { name: '编辑日程 重叠会议', exact: true })
+    .boundingBox())!;
+  const adjacent = (await page
+    .getByRole('button', { name: '编辑日程 相接会议', exact: true })
+    .boundingBox())!;
+  expect(overlap.x).toBeGreaterThan(tuesday.x + tuesday.width);
+  expect(adjacent.width).toBeGreaterThan(overlap.width * 1.8);
 });
 
 test('one Event keeps multiple periods and supports independent edits, cancellation and reload', async ({
