@@ -80,7 +80,6 @@ export async function initializeMobile() {
           theme === 'dark' ||
           (theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches),
       }),
-    notify: async () => {},
     onBeforeClose: () => {},
     readyToClose: () => {},
   };

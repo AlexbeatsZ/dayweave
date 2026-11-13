@@ -4,7 +4,6 @@ import {
   dialog,
   ipcMain,
   Menu,
-  Notification,
   nativeTheme,
   Tray,
   nativeImage,
@@ -13,17 +12,9 @@ import {
 import { readFile, writeFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { lockProfile } from './profile-lock.js';
 import { stateSchema } from '../src/model.js';
-import { FileStore } from './storage.js';
-import { StateService } from './state-service.js';
-import { startApi } from './api.js';
-import { diffState } from '../src/state-delta.js';
-import { DesktopSync } from './sync.js';
 import { importFudan } from './fudan-import.js';
-import { UsageStore } from './usage-store.js';
-import { DesktopUsage } from './usage.js';
-import { startScriptJudge, type ScriptJudge } from './script-judge.js';
+import { Runtime } from './headless-runtime.js';
 
 app.setName('Dayweave');
 app.setPath(
@@ -37,17 +28,15 @@ const appIconPath = path.join(
   directory,
   process.platform === 'darwin' ? '../../dist/tray-macos.png' : '../../dist/tray.png',
 );
-const service = new StateService(new FileStore(app.getPath('userData')));
 let window: BrowserWindow | null = null;
 let allowClose = false,
   closing = false,
   quitting = false;
-let api: Awaited<ReturnType<typeof startApi>> | undefined;
-let apiError = '';
-let sync: DesktopSync | undefined;
-let usage: DesktopUsage | undefined;
-let judge: ScriptJudge | undefined;
-let syncError = '';
+/** Shared with the server and AI tools: lock, state queue, sync, records, goals and API. */
+let runtime: Runtime | undefined;
+/** A second launch before the first window exists is answered once startup finishes. */
+let started = false,
+  showWhenStarted = false;
 const trayMode = process.argv.includes('--tray');
 let tray: Tray | undefined;
 let shutdown: Promise<void> | undefined;
@@ -126,27 +115,44 @@ else {
   };
   app.on('second-instance', (_event, argv) => {
     if (argv.includes('--tray')) return;
-    showWindow();
+    if (started) showWindow();
+    else showWhenStarted = true;
   });
   app.on('before-quit', (event) => {
     quitting = true;
-    if ((!window || allowClose) && !shutdownComplete) {
+    if ((!window || allowClose) && !shutdownComplete && runtime) {
       event.preventDefault();
-      shutdown ??= (async () => {
-        await judge?.close();
-        await sync?.close();
-        await usage?.close();
-        await api?.close();
-        shutdownComplete = true;
-        app.quit();
-      })();
+      shutdown ??= runtime
+        .close()
+        .catch((error) => {
+          console.error('Dayweave shutdown failed:', error);
+        })
+        .then(() => {
+          shutdownComplete = true;
+          app.quit();
+        });
     }
   });
   app.whenReady().then(async () => {
-    const unlock = await lockProfile(app.getPath('userData'));
-    app.once('will-quit', () => {
-      void unlock();
-    });
+    try {
+      runtime = await Runtime.open({
+        directory: app.getPath('userData'),
+        apiPort: Number(process.env.DAYWEAVE_API_PORT ?? 49731),
+        api: process.env.DAYWEAVE_API_DISABLE !== '1',
+        binary: path.join(
+          app.isPackaged ? process.resourcesPath : app.getAppPath(),
+          'native-bin',
+          process.platform === 'win32' ? 'work-review-agent.exe' : 'work-review-agent',
+        ),
+      });
+    } catch (error) {
+      // Without the profile lock no window may open; say why instead of idling invisibly.
+      dialog.showErrorBox('时织无法启动', (error as Error).message);
+      app.exit(1);
+      return;
+    }
+    const service = runtime.service;
+    const usage = () => runtime?.usage;
     try {
       const snapshot = await service.snapshot();
       nativeTheme.themeSource = snapshot.state.settings.theme;
@@ -194,8 +200,9 @@ else {
     ] as const) {
       ipcMain.handle(`usage:${method}`, (event, ...args) => {
         trusted(event);
-        if (!usage) throw new Error('自动记录存储尚未启动');
-        return (usage[method] as (...args: unknown[]) => unknown).apply(usage, args);
+        const target = usage();
+        if (!target) throw new Error(runtime?.errors.usage || '自动记录存储尚未启动');
+        return (target[method] as (...args: unknown[]) => unknown).apply(target, args);
       });
     }
     ipcMain.handle('usage:permission', (event, kind: unknown) => {
@@ -242,12 +249,6 @@ else {
       trusted(event);
       return service.patch(delta);
     });
-    // Only the legacy compatibility method uses a fresh snapshot; current UI uses field deltas.
-    ipcMain.handle('store:save', async (event, value: unknown) => {
-      trusted(event);
-      const snapshot = await service.snapshot();
-      return service.patch(diffState(snapshot.state, stateSchema.parse(value)));
-    });
     ipcMain.handle('theme:set', (event, theme: unknown) => {
       trusted(event);
       if (theme === 'light' || theme === 'dark' || theme === 'system') {
@@ -257,7 +258,14 @@ else {
     });
     ipcMain.handle('api:info', (event) => {
       trusted(event);
-      return api?.info ?? { enabled: false, url: '', token: '', error: apiError };
+      return (
+        runtime?.api?.info ?? {
+          enabled: false,
+          url: '',
+          token: '',
+          error: runtime?.errors.api ?? '',
+        }
+      );
     });
     for (const method of [
       'status',
@@ -274,7 +282,8 @@ else {
     ] as const) {
       ipcMain.handle(`sync:${method}`, (event, ...args) => {
         trusted(event);
-        if (!sync) throw new Error(syncError || '同步尚未启动');
+        const sync = runtime?.sync;
+        if (!sync) throw new Error(runtime?.errors.sync || runtime?.errors.state || '同步尚未启动');
         const fn = sync[method] as (...args: unknown[]) => unknown;
         return fn.apply(sync, args);
       });
@@ -303,19 +312,9 @@ else {
       const data = await readBackup();
       if (!data) return null;
       const result = await service.restore(data);
-      await initializeApi();
+      // Sync, records, goal scripts and the API could not start on unreadable data; start them now.
+      await runtime!.start(false);
       return result;
-    });
-    ipcMain.handle('notice', (event, title: string, body: string) => {
-      trusted(event);
-      if (
-        typeof title !== 'string' ||
-        typeof body !== 'string' ||
-        title.length > 200 ||
-        body.length > 500
-      )
-        return;
-      if (Notification.isSupported()) new Notification({ title, body }).show();
     });
     ipcMain.on('window:ready-close', async (event, success: unknown) => {
       trusted(event);
@@ -336,7 +335,7 @@ else {
           return;
         }
       }
-      if ((trayMode || usage?.store.settings().enabled) && !quitting) {
+      if ((trayMode || usage()?.store.settings().enabled) && !quitting) {
         closing = false;
         window?.hide();
       } else {
@@ -348,23 +347,8 @@ else {
       nativeTheme.themeSource = snapshot.state.settings.theme;
       window?.webContents.send('store:changed', snapshot);
     });
-    await initializeApi();
-    try {
-      sync = await new DesktopSync(service, app.getPath('userData')).initialize();
-      usage = await new DesktopUsage(
-        new UsageStore(path.join(app.getPath('userData'), 'usage.db')),
-        sync,
-        app.getPath('userData'),
-        path.join(
-          app.isPackaged ? process.resourcesPath : app.getAppPath(),
-          'native-bin',
-          process.platform === 'win32' ? 'work-review-agent.exe' : 'work-review-agent',
-        ),
-      ).initialize();
-      judge = startScriptJudge(service, sync, () => usage?.store);
-    } catch (error) {
-      syncError = (error as Error).message;
-    }
+    // Each part records its own failure; the window opens even when data needs recovery.
+    await runtime.start(false);
     createWindow(!trayMode);
     {
       const icon = nativeImage.createFromPath(appIconPath).resize({ width: 20, height: 20 });
@@ -383,7 +367,7 @@ else {
           {
             label: '立即同步',
             click: () => {
-              void sync?.now();
+              void runtime?.sync?.now();
             },
           },
           { type: 'separator' },
@@ -396,21 +380,13 @@ else {
       if (!window) createWindow();
       else window.show();
     });
+    started = true;
+    if (showWhenStarted) showWindow();
   });
-  async function initializeApi() {
-    if (api || process.env.DAYWEAVE_API_DISABLE === '1') return;
-    try {
-      const port = Number(process.env.DAYWEAVE_API_PORT ?? 49731);
-      if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error('Invalid API port');
-      api = await startApi(service, port, () => sync);
-    } catch (error) {
-      apiError = (error as Error).message;
-    }
-  }
   app.on('window-all-closed', () => {
     if (
       process.platform !== 'darwin' &&
-      ((!trayMode && !usage?.store.settings().enabled) || quitting)
+      ((!trayMode && !runtime?.usage?.store.settings().enabled) || quitting)
     )
       app.quit();
   });

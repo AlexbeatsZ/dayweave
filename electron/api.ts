@@ -101,6 +101,8 @@ export async function startApi(
   getSync?: () => SyncBridge | undefined,
   options: ApiOptions = {},
 ) {
+  if (!Number.isInteger(requestedPort) || requestedPort < 0 || requestedPort > 65535)
+    throw new Error('Invalid API port');
   await service.snapshot();
   const credentialFile = path.join(service.storage.directory, 'api.json');
   let token: string;

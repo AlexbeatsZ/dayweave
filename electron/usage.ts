@@ -16,7 +16,7 @@ import {
   type UsageQuery,
   type UsageBridge,
 } from '../src/usage/domain.js';
-import type { DesktopSync } from './sync.js';
+import type { SyncClient } from '../src/sync/client.js';
 
 const FULL_SCAN_MS = 60 * 60_000;
 export class DesktopUsage implements UsageBridge {
@@ -31,14 +31,12 @@ export class DesktopUsage implements UsageBridge {
   private rowCursors = new Map<string, { cursor?: bigint; fullAt: number }>();
   constructor(
     readonly store: UsageStore,
-    readonly syncEngine: DesktopSync,
+    /** Only the pairing identity and transport are needed, not the business-sync engine. */
+    readonly client: SyncClient,
     readonly directory: string,
     readonly binary: string,
     readonly localCapture = true,
-  ) {
-    syncEngine.usage = store;
-    syncEngine.refreshUsage = () => this.sync();
-  }
+  ) {}
   async initialize(background = true) {
     await this.applyCollector();
     if (background) this.startBackground();
@@ -96,7 +94,7 @@ export class DesktopUsage implements UsageBridge {
       : await this.store.statusAsync(() => this.closing);
     return {
       ...status,
-      pending: this.syncEngine.client.config.hub ? 0 : status.pending,
+      pending: this.client.config.hub ? 0 : status.pending,
       capture,
       error,
       permissionRequired: process.platform === 'darwin' && capture === '请在系统设置中授权辅助功能',
@@ -161,7 +159,7 @@ export class DesktopUsage implements UsageBridge {
     const content = JSON.stringify({
       ...config,
       device: {
-        id: this.syncEngine.client.config.deviceId,
+        id: this.client.config.deviceId,
         name: os.hostname(),
         platform: process.platform,
       },
@@ -370,7 +368,7 @@ export class DesktopUsage implements UsageBridge {
         await scan(sources['work-review'], () => this.importWorkReview(sources['work-review']));
       if (sources.activitywatch)
         await scan(sources.activitywatch, () => this.importActivityWatch(sources.activitywatch));
-      if (!this.closing) await syncUsage(this.syncEngine.client, this.store);
+      if (!this.closing) await syncUsage(this.client, this.store);
       if (failures.length) throw new Error(failures.join('; '));
       if (this.error.startsWith('同步或载入失败')) this.error = '';
     })()

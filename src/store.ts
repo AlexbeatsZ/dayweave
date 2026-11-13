@@ -85,7 +85,9 @@ function pump() {
           const result = await window.clearlist.patch(job.delta);
           acceptRemote(result);
         } else {
-          await (window.clearlist ?? browserStorage()).save(job.data);
+          const target = window.clearlist ?? browserStorage();
+          if (!target.save) throw new Error('当前平台没有保存通道');
+          await target.save(job.data);
           authoritative = job.data;
         }
         jobs.shift();

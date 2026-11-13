@@ -36,7 +36,11 @@ async function fixture(run: (root: string, pkg: string) => Promise<void>) {
   const root = await mkdtemp(path.join(base, 'dayweave-server-'));
   const pkg = path.join(root, 'relocated-package');
   try {
-    await cp(path.resolve('release/Dayweave-Server'), pkg, { recursive: true });
+    await cp(
+      process.env.DAYWEAVE_TEST_SERVER_PACKAGE ?? path.resolve('release/Dayweave-Server'),
+      pkg,
+      { recursive: true },
+    );
     await run(root, pkg);
   } finally {
     assert.ok(root.startsWith(base + path.sep));

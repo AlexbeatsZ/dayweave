@@ -271,7 +271,9 @@ test('global desktop sync exchanges local observations and refreshes application
     );
     await client.client.load();
     await client.client.pair(await hub.invite(), `http://127.0.0.1:${address.port}`);
-    const usage = new DesktopUsage(local, client, clientDirectory, 'missing');
+    const usage = new DesktopUsage(local, client.client, clientDirectory, 'missing');
+    client.usage = local;
+    client.refreshUsage = () => usage.sync();
     local.import([event()]);
     central.import([event({ id: 'remote-event', deviceId: 'other', app: 'Remote editor' })]);
     await client.now();
@@ -337,7 +339,7 @@ test('Work Review source is read-only, imports late historical rows and survives
     false,
   ).initialize();
   const store = new UsageStore(path.join(directory, 'usage.db'));
-  const usage = new DesktopUsage(store, sync, directory, 'missing');
+  const usage = new DesktopUsage(store, sync.client, directory, 'missing');
   try {
     await usage.connectSource('work-review', path.join(directory, 'legacy.db'));
     assert.equal(store.status().count, 2);
