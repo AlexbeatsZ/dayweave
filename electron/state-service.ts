@@ -1,9 +1,8 @@
 import { setDayStart, setTimeZone } from '../src/timezone.js';
 import { randomUUID } from 'node:crypto';
-import { stateSchema, normalizeTaskChanges, type AppState } from '../src/model.js';
-import { applyDelta, type StateDelta } from '../src/state-delta.js';
+import { stateSchema, type AppState } from '../src/model.js';
+import { applyDelta, commitState, type StateDelta } from '../src/state-delta.js';
 import { finishDueTimer, type State as TimeState } from '../src/timelog/domain.js';
-import { assertTimeOccupancy } from '../src/timelog/occupancy.js';
 import { FileStore } from './storage.js';
 
 export type StateSnapshot = { state: AppState; revision: string; path: string; recovered: boolean };
@@ -79,12 +78,11 @@ export class StateService {
         throw Object.assign(new Error('Revision does not match; reload before retrying'), {
           status: 409,
         });
-      const state = normalizeTaskChanges(
-        transform(structuredClone(snapshot.state)),
+      const next = commitState(
         snapshot.state,
+        transform(structuredClone(snapshot.state)),
+        receivedTime,
       );
-      const next = stateSchema.parse({ ...state, timelog: finishDueTimer(state.timelog) });
-      assertTimeOccupancy(receivedTime ?? snapshot.state.timelog, next.timelog);
       if (JSON.stringify(next) === JSON.stringify(snapshot.state)) {
         this.scheduleDeadline();
         return snapshot;

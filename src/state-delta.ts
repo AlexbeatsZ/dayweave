@@ -1,7 +1,21 @@
 import { z } from 'zod';
 import { mergeTaskEntity } from './task-merge.js';
-import { stateSchema, stateFields, type AppState } from './model.js';
+import { normalizeTaskChanges, stateSchema, stateFields, type AppState } from './model.js';
 import { stable } from './sync/document.js';
+import { finishDueTimer, type State as TimeState } from './timelog/domain.js';
+import { assertTimeOccupancy } from './timelog/occupancy.js';
+
+/**
+ * The single validation for a state transition, shared by the window store and the main-process
+ * StateService: task normalization, due countdown completion, schema and time occupancy.
+ * `receivedTime` is the occupancy baseline an incoming sync exchange is measured against.
+ */
+export function commitState(previous: AppState, next: AppState, receivedTime?: TimeState) {
+  const normalized = normalizeTaskChanges(next, previous);
+  const state = stateSchema.parse({ ...normalized, timelog: finishDueTimer(normalized.timelog) });
+  assertTimeOccupancy(receivedTime ?? previous.timelog, state.timelog);
+  return state;
+}
 
 const jsonObject = z.record(z.string().max(100), z.unknown());
 export const deltaSchema = z

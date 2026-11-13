@@ -4,7 +4,9 @@
 
 自动设备观察是独立领域，不属于手动 timelog 状态副本：`src/usage` 定义导入/校验/统计和原生桥，`electron/usage-store.ts`、Android `UsageDatabase` 各自拥有本机 SQLite 和交付队列。只读投影进入同一时间线和记录统计，不创建第二套导航。设备本机采集设置与权限不参与共享业务 JSON。详细契约见 `automatic-records.md`。
 
-正式服务器与AI-tools共用 `headless-runtime.ts` 的资源生命周期和原业务所有者，server目录仅拥有独立发行、配置/CLI/运维入口。本机采集禁用是DesktopUsage的显式策略，远端usage与旧来源导入独立保留。详见 `server.md`。
+桌面应用、正式服务器与 AI-tools 共用 `headless-runtime.ts` 的 `Runtime`：同一套锁、状态队列、同步、自动记录、目标脚本与 API 的启动和关闭顺序。服务器与 AI-tools 严格启动（任一失败即释放锁退出）；桌面逐项记录失败，数据损坏时仍打开恢复界面，恢复备份后再次 `start` 补齐其余部分。server 目录仅拥有独立发行、配置/CLI/运维入口。本机采集禁用是 DesktopUsage 的显式策略，远端 usage 与旧来源导入独立保留。详见 `server.md`。
+
+保存数据的加载、主备恢复、损坏留档、迁移前留档与恢复前备份只由 `src/persistence.ts` 的 `JsonRepository` 决定；桌面 `FileStore`（`electron/files.ts` 原子写入）、Android 原生文件与浏览器 localStorage 只是适配。所有写入（窗口 store 与主进程 `StateService`）都经过 `state-delta.ts` 的 `commitState`：任务规范化、到期倒计时收尾、schema 与时间占用检查。平台文件操作（选择文本、导出、复旦导入）由各平台安装的 `window.clearlist` 提供，`files.ts` 只在没有桥时退回浏览器实现。
 
 ## 原则
 
@@ -24,34 +26,36 @@
 
 跨平台同步的触发、合并和运行中后续交换由 `sync/scheduler.ts` 集中维护；桌面与 Android 仅提供保存/前后台触发，`sync/client.ts` 负责交换与同轮请求去重。导入必须通过 `store.transact` 等待落盘，界面不能把乐观状态当作保存成功。同步协议与后台限制见 sync.md。
 
-同一中心的有序地址由私有 SyncConfig 保存，手动业务与桌面自动记录共用 SyncClient.request 的逐项尝试；Android 原生自动记录通过既有 SyncEndpoint 执行同一顺序。实际成功地址仅为连接状态，不成为排序依据；发现结果不自动覆盖用户配置。
+同一中心的有序地址由私有 SyncConfig 保存，手动业务与桌面自动记录共用 SyncClient.request 的逐项尝试；Android 原生自动记录通过既有 SyncEndpoint 执行同一顺序。自动记录交换使用独立于业务同步的串行锁，中心的 `/usage` 也不排在业务同步锁中。客户端序号按段预留，空闲轮询不重写 sync.json；中心对只读轮询批量保存序号。Java 与 TS 的地址解析、信封 AAD、课表展开和学校浏览器常量由 `tests/fixtures/platform-contract.json` 两端测试约束。实际成功地址仅为连接状态，不成为排序依据；发现结果不自动覆盖用户配置。
 
-| 模块                                                | 所属行为                                                          | 主要接口                                                      |
-| --------------------------------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------- |
-| `model.ts`                                          | 统一状态、任务范围/顺序、清单活动映射与任务启动计时               | `stateSchema` / `selectTasks` / `startTaskTimer`              |
-| `store.ts` / `state-delta.ts`                       | 唯一前台状态、校验、增量保存队列、并发合并与错误恢复              | `useStore` / `transact` / `diffState` / `applyDelta`          |
-| `electron/state-service.ts`                         | 桌面、AI API、同步中心共用写入队列与倒计时截止调度                | `snapshot` / `mutate` / `patch`                               |
-| `runtime.ts`                                        | 全应用一个秒时钟、主题响应、前台倒计时到期收尾                    | `useClock` / `useApplicationTheme` / `useCountdownCompletion` |
-| `phone/MobileApp.tsx`                               | 全宽共用主导航、待办范围、选中任务与子页协调                      | App 唯一页面入口；响应式布局不重挂载                          |
-| `phone/Navigation.tsx`                              | 共用顶栏、子页点击/水平手势与加号                                 | `PhoneTopbar` / `PhoneTabs` / `useSwipeTabs` / `FloatingAdd`  |
-| `phone/DateNavigator.tsx`                           | 日视图、时间线和每日统计共用日期控件                              | `DateNavigator` / `calendarWeek`                              |
-| `phone/Sidebar.tsx`                                 | 按当前模块显示清单/标签或活动/标签及设置入口                      | 同一个分类组件在手机抽屉、PC 常驻侧栏内呈现                   |
-| `phone/TaskComposer.tsx`                            | 新建和编辑任务的同一个草稿与显式保存流程                          | `TaskComposer`，可传已有 task                                 |
-| `components/TaskRow.tsx`                            | 共用任务行、清单色确认框、视图序号                                | 行操作及排序回调                                              |
-| `phone/useSortDrag.ts` / `order.ts`                 | 任务、活动、目标共用的鼠标移动/触屏长按排序与 `moveOrder` 重编号  | `data-sort-id`/`data-sort-group`；`moveOrder` / `byOrder`     |
-| `components/ColorPicker.tsx`                        | 清单、课程和两类标签共用颜色选择；活动沿用原生颜色输入            | `ColorPicker`                                                 |
-| `components/Modal.tsx`                              | 原生 modal 生命周期、焦点、最顶层 Android 返回                    | `Modal` 的普通/底部/侧栏呈现                                  |
-| `phone/Statistics.tsx`                              | 每日任务与记录汇总、全部待办/记录统计入口                         | `PhoneStatistics`                                             |
-| `timelog/Workspace.tsx`                             | 时间模块事务协调、编辑与受控子页                                  | `TimeLog` 传入子页，所有宽度共用时间线/计时/目标              |
-| `timelog/components/TimerPanel.tsx`                 | 一个计时面板：活动选择/长按编辑、运行控制、预设、关联、下一活动   | 已保存 state 与共用 commit 回调                               |
-| `phone/useTimelineDays.ts`                          | 历史窗口锚点、追加天数、跳转与可见日投影                          | `list` / `dates` / `jump`                                     |
-| `timelog/components/TimelineEntries.tsx`            | 手机和桌面共用时间边界、空档与运行记录                            | entries、明确日期、编辑回调                                   |
-| `timelog/components/Goals.tsx`                      | 当前日/周分组、目标卡片、阶段进度与组内拖动排序                   | state、date、edit、remove、move                               |
-| `timelog/components/GoalRules.tsx` / `TagChips.tsx` | 计时目标的计入规则编辑；记录/计时/规则共用标签块与新增输入        | `GoalRules`；`TagToggles` / `TagAdder`                        |
-| `timelog/components/GoalHeatmap.tsx`                | 统计 › 记录 › 目标的完成热力图                                    | state、tasks、date                                            |
-| `timelog/script-runner.ts`、`script-api.ts`         | 目标脚本 Worker、数据接口与按设备缓存的结果（见 goal-scripts.md） | goal、period key、store data                                  |
-| `timelog/domain.ts` / `timeline.ts` / `timezone.ts` | 片段、截止、目标、并集、空档和日程日期的唯一计算                  | 共用领域函数                                                  |
-| `sync/document.ts`                                  | 统一实体与未结束记录的同步表示、三方合并                          | `toDocument` / `fromDocument` / `mergeDocuments`              |
+| 模块                                                | 所属行为                                                          | 主要接口                                                             |
+| --------------------------------------------------- | ----------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `model.ts`                                          | 统一状态、任务范围/顺序、清单活动映射与任务启动计时               | `stateSchema` / `selectTasks` / `startTaskTimer`                     |
+| `store.ts` / `state-delta.ts`                       | 唯一前台状态、校验、增量保存队列、并发合并与错误恢复              | `useStore` / `transact` / `commitState` / `diffState` / `applyDelta` |
+| `persistence.ts`                                    | 三端共用的保存文件恢复策略                                        | `JsonRepository` / `localStorageFiles`                               |
+| `electron/headless-runtime.ts`                      | 桌面、服务器、AI-tools 共用的服务生命周期                         | `Runtime.open` / `start` / `close`、`startHeadless`                  |
+| `electron/state-service.ts`                         | 桌面、AI API、同步中心共用写入队列与倒计时截止调度                | `snapshot` / `mutate` / `patch`                                      |
+| `runtime.ts`                                        | 全应用一个秒时钟、主题响应、前台倒计时到期收尾                    | `useClock` / `useApplicationTheme` / `useCountdownCompletion`        |
+| `phone/MobileApp.tsx`                               | 全宽共用主导航、待办范围、选中任务与子页协调                      | App 唯一页面入口；响应式布局不重挂载                                 |
+| `phone/Navigation.tsx`                              | 共用顶栏、子页点击/水平手势与加号                                 | `PhoneTopbar` / `PhoneTabs` / `useSwipeTabs` / `FloatingAdd`         |
+| `phone/DateNavigator.tsx`                           | 日视图、时间线和每日统计共用日期控件                              | `DateNavigator` / `calendarWeek`                                     |
+| `phone/Sidebar.tsx`                                 | 按当前模块显示清单/标签或活动/标签及设置入口                      | 同一个分类组件在手机抽屉、PC 常驻侧栏内呈现                          |
+| `phone/TaskComposer.tsx`                            | 新建和编辑任务的同一个草稿与显式保存流程                          | `TaskComposer`，可传已有 task                                        |
+| `components/TaskRow.tsx`                            | 共用任务行、清单色确认框、视图序号                                | 行操作及排序回调                                                     |
+| `phone/useSortDrag.ts` / `order.ts`                 | 任务、活动、目标共用的鼠标移动/触屏长按排序与 `moveOrder` 重编号  | `data-sort-id`/`data-sort-group`；`moveOrder` / `byOrder`            |
+| `components/ColorPicker.tsx`                        | 清单、课程和两类标签共用颜色选择；活动沿用原生颜色输入            | `ColorPicker`                                                        |
+| `components/Modal.tsx`                              | 原生 modal 生命周期、焦点、最顶层 Android 返回                    | `Modal` 的普通/底部/侧栏呈现                                         |
+| `phone/Statistics.tsx`                              | 每日任务与记录汇总、全部待办/记录统计入口                         | `PhoneStatistics`                                                    |
+| `timelog/Workspace.tsx`                             | 时间模块事务协调、编辑与受控子页                                  | `TimeLog` 传入子页，所有宽度共用时间线/计时/目标                     |
+| `timelog/components/TimerPanel.tsx`                 | 一个计时面板：活动选择/长按编辑、运行控制、预设、关联、下一活动   | 已保存 state 与共用 commit 回调                                      |
+| `phone/useTimelineDays.ts`                          | 历史窗口锚点、追加天数、跳转与可见日投影                          | `list` / `dates` / `jump`                                            |
+| `timelog/components/TimelineEntries.tsx`            | 手机和桌面共用时间边界、空档与运行记录                            | entries、明确日期、编辑回调                                          |
+| `timelog/components/Goals.tsx`                      | 当前日/周分组、目标卡片、阶段进度与组内拖动排序                   | state、date、edit、remove、move                                      |
+| `timelog/components/GoalRules.tsx` / `TagChips.tsx` | 计时目标的计入规则编辑；记录/计时/规则共用标签块与新增输入        | `GoalRules`；`TagToggles` / `TagAdder`                               |
+| `timelog/components/GoalHeatmap.tsx`                | 统计 › 记录 › 目标的完成热力图                                    | state、tasks、date                                                   |
+| `timelog/script-runner.ts`、`script-api.ts`         | 目标脚本 Worker、数据接口与按设备缓存的结果（见 goal-scripts.md） | goal、period key、store data                                         |
+| `timelog/domain.ts` / `timeline.ts` / `timezone.ts` | 片段、截止、目标、并集、空档和日程日期的唯一计算                  | 共用领域函数                                                         |
+| `sync/document.ts`                                  | 统一实体与未结束记录的同步表示、三方合并                          | `toDocument` / `fromDocument` / `mergeDocuments`                     |
 
 Workspace 直接使用统一 store，不建立 `readState → setState → subscribe` 的异步副本。`timelog/storage.ts` 仅适配原模块事务/导入，不能再创建独立数据库或第二条写入通道。手机与桌面共享整个页面、任务编辑、时间线、计时和目标，而非保留两套页面再分别修补。`App.tsx` 只安装应用级运行逻辑并渲染一个应用壳；700 px 断点只改变呈现，不能重新挂载应用或复制导航状态。PC 常驻侧栏、不提供折叠，主导航与上下文分类保持可见；手机使用底部主导航与分类抽屉。宽屏样式集中在 `desktop.css`。
 

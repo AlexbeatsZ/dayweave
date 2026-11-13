@@ -4,6 +4,18 @@ import { taskSchema, listSchema, planGroupSchema, stateFields, subtaskSchema } f
 import { eventInputSchema, eventChangesSchema, recurrenceInputSchema } from './event-contract.js';
 import { calendarEventSchema, calendarSubscriptionSchema } from './event-model.js';
 
+/** An API failure with its HTTP status; every route reports errors through it. */
+export class ApiError extends Error {
+  constructor(
+    public status: number,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+export function fail(status: number, message: string): never {
+  throw new ApiError(status, message);
+}
 export const taskInputSchema = taskSchema
   .pick({
     title: true,

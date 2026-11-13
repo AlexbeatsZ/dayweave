@@ -1,0 +1,150 @@
+{
+  "note": "Shared by tests/platform-contract.test.ts and android PlatformContractTest; regenerate only with an intentional protocol change.",
+  "syncEndpoints": [
+    {
+      "input": "https://sync.example.com/dayweave/",
+      "output": "https://sync.example.com/dayweave"
+    },
+    {
+      "input": "https://sync.example.com:63573/",
+      "output": "https://sync.example.com:63573"
+    },
+    {
+      "input": "https://SYNC.example.com:443/a_b/c-d",
+      "output": "https://sync.example.com/a_b/c-d"
+    },
+    {
+      "input": "http://192.168.31.32:49732",
+      "output": "http://192.168.31.32:49732"
+    },
+    {
+      "input": "http://100.106.169.46:49732",
+      "output": "http://100.106.169.46:49732"
+    },
+    {
+      "input": "http://10.0.0.2",
+      "output": "http://10.0.0.2"
+    },
+    {
+      "input": "http://8.8.8.8",
+      "output": null
+    },
+    {
+      "input": "http://example.com",
+      "output": null
+    },
+    {
+      "input": "http://192.168.1.1/path",
+      "output": null
+    },
+    {
+      "input": "https://user:password@example.com",
+      "output": null
+    },
+    {
+      "input": "https://example.com/?token=secret",
+      "output": null
+    },
+    {
+      "input": "https://example.com/#fragment",
+      "output": null
+    },
+    {
+      "input": "https://example.com/a/../b",
+      "output": null
+    },
+    {
+      "input": "https://example.com/%2fprivate",
+      "output": null
+    },
+    {
+      "input": "https://example.com:99999",
+      "output": null
+    },
+    {
+      "input": "ftp://192.168.1.1",
+      "output": null
+    }
+  ],
+  "usageEnvelope": {
+    "key": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+    "clientId": "device-1",
+    "path": "/usage:reply",
+    "aad": "dayweave:1:/usage:reply:device-1",
+    "plaintext": {
+      "requestId": "00000000-0000-4000-8000-000000000001",
+      "accepted": [],
+      "events": [],
+      "cursor": 42,
+      "more": false
+    },
+    "envelope": {
+      "clientId": "device-1",
+      "iv": "gHa28v7RgGMe9Y6z",
+      "data": "a98_1Gn5J7Dvp-ukZfdgVo5WcOZbus6AGFumKobX8mS4J1xcTsmcLoOIEt1F7t87dxnnhQAe8p9zWy-VPzVIX0j3uHPPblDK2uOkpdyGBNnSZ376fG-zd1Ehs11DxaflKNipb-ZdKldKhxyyxMNmE6S7Z9uuixg"
+    }
+  },
+  "courses": {
+    "semesterStart": "2026-09-07",
+    "timeZone": "America/New_York",
+    "holidays": ["2026-09-14"],
+    "now": 1788739200000,
+    "courses": [
+      {
+        "name": "高等数学",
+        "location": "H3109",
+        "teacher": "张",
+        "weekday": 1,
+        "start": "08:00",
+        "end": "09:40",
+        "weeks": [1, 2, 3, 4],
+        "excludedDates": ["2026-09-28"]
+      },
+      {
+        "name": "Physics",
+        "location": "",
+        "teacher": "",
+        "weekday": 7,
+        "start": "23:30",
+        "end": "23:59",
+        "weeks": [1, 3],
+        "excludedDates": []
+      }
+    ],
+    "occurrences": [
+      {
+        "name": "高等数学",
+        "start": 1788782400000,
+        "end": 1788788400000
+      },
+      {
+        "name": "Physics",
+        "start": 1789356600000,
+        "end": 1789358340000
+      },
+      {
+        "name": "高等数学",
+        "start": 1789992000000,
+        "end": 1789998000000
+      },
+      {
+        "name": "Physics",
+        "start": 1790566200000,
+        "end": 1790567940000
+      }
+    ]
+  },
+  "fudan": {
+    "loginUrl": "https://fdjwgl.fudan.edu.cn/student/sso/login?targetUrl=/student/for-std/course-table",
+    "tableUrl": "https://fdjwgl.fudan.edu.cn/student/for-std/course-table",
+    "hosts": ["fdjwgl.fudan.edu.cn", "id.fudan.edu.cn", "uis.fudan.edu.cn"],
+    "errors": {
+      "x [FUDAN_PAGE]": "请先登录并打开复旦教务系统的课程表页面。 [FUDAN_PAGE]",
+      "x [FUDAN_SEMESTER_DATA]": "未读到当前学期的日期信息，请重新选择学期后重试。 [FUDAN_SEMESTER_DATA]",
+      "x [FUDAN_REQUEST_503]": "学校课表接口返回错误，请稍后重试。 [FUDAN_REQUEST_503]",
+      "x [FUDAN_SIZE]": "课表数据过大，请换一个学期或使用文件导入。 [FUDAN_SIZE]",
+      "x [FUDAN_UNKNOWN]": "课表读取程序执行失败。 [FUDAN_SCRIPT]",
+      "nothing": "课表读取程序执行失败。 [FUDAN_SCRIPT]"
+    }
+  }
+}

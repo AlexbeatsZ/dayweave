@@ -2,8 +2,8 @@ import { Capacitor } from '@capacitor/core';
 import { nativeFiles as native } from './native-files';
 export const isMobileApp = Capacitor.isNativePlatform();
 
+/** Platform file actions come from the installed bridge (desktop preload or Android); browser fallback last. */
 export async function pickText(accept = '.json,.csv,.ics'): Promise<string | null> {
-  if (isMobileApp) return (await native.pickBackup()).content;
   if (window.clearlist?.pickText) return window.clearlist.pickText();
   return new Promise((resolve, reject) => {
     const input = document.createElement('input');
@@ -24,13 +24,8 @@ export async function exportText(
   data: string,
   mime = 'application/json',
 ): Promise<void> {
-  if (isMobileApp) {
-    if (!(await native.exportBackup({ name, content: data, mime })).saved)
-      throw new Error('已取消导出');
-    return;
-  }
   if (window.clearlist?.exportText) {
-    if (!(await window.clearlist.exportText(name, data))) throw new Error('已取消导出');
+    if (!(await window.clearlist.exportText(name, data, mime))) throw new Error('已取消导出');
     return;
   }
   const url = URL.createObjectURL(new Blob([data], { type: mime }));
@@ -45,7 +40,6 @@ export async function requestWidget() {
 }
 
 export async function importFudan(): Promise<string | null> {
-  if (isMobileApp) return (await native.importFudan()).content;
   if (window.clearlist?.importFudan) return window.clearlist.importFudan();
   throw new Error('网站导入需要使用 Windows、macOS 或 Android 安装版；浏览器版请使用文件导入。');
 }

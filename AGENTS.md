@@ -130,7 +130,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Durable Lessons
 
-- Android Gradle on this Mac needs JDK 21+: Homebrew's default 17 fails with `invalid source release: 21`. Run `JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" ./gradlew testDebugUnitTest --offline` from `android/`; do not install or switch the global JDK.
+- Android Gradle 8.14 on this Mac: javac needs JDK 21+ (Homebrew 17 fails with `invalid source release: 21`), but Groovy build scripts cannot compile on the Studio JBR (Java 25, `Unsupported class file major version 69`). After any build.gradle change, compile scripts once with `JAVA_HOME=/opt/homebrew/opt/openjdk@17 ./gradlew help --offline`, stop the daemon, then run `JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" ./gradlew testDebugUnitTest --offline` from `android/`. Do not install or switch the global JDK.
+- `tests/fixtures/platform-contract.json` is read by both `tests/platform-contract.test.ts` and Android `PlatformContractTest`: sync addresses, the usage envelope AAD, widget course expansion and school-browser URLs/errors. Change both implementations together and regenerate the fixture only for an intentional protocol change.
 
 - ical.js 2.2.1 normalizes implicit yearly February 29 to March 1 on non-leap years. Add RFC default BYMONTH/BYMONTHDAY before iteration. Normalize minute and zero-second DTSTART forms to one occurrence key before allocating IDs. See arrangements.md and arrangements.test.ts.
 

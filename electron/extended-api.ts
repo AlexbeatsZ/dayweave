@@ -18,6 +18,7 @@ import {
 } from '../src/schedule.js';
 import { importCourses } from '../src/course-import.js';
 import { handleApi, linkedTaskId } from '../src/timelog/api.js';
+import { fail } from '../src/api-contract.js';
 import {
   startTimer,
   finishTimer,
@@ -58,9 +59,6 @@ type Context = {
   mutate: (fn: (s: AppState) => AppState) => Promise<StateSnapshot>;
   send: (data: unknown, snapshot: StateSnapshot) => void;
   readBody: (r: IncomingMessage, limit?: number) => Promise<unknown>;
-};
-const fail = (status: number, message: string): never => {
-  throw Object.assign(new Error(message), { status });
 };
 function activityId(state: AppState, requested?: string) {
   const activity = state.timelog.activities.find(

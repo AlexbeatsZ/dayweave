@@ -1,4 +1,3 @@
-import { Capacitor } from '@capacitor/core';
 import { App as NativeApp } from '@capacitor/app';
 import { JsonRepository } from './persistence';
 import { stateSchema } from './model';
@@ -28,7 +27,7 @@ async function nativeUsageSync() {
 let syncStarted = false;
 
 import { nativeFiles as files } from './native-files';
-export const isMobileApp = Capacitor.isNativePlatform();
+import { isMobileApp } from './files';
 
 export async function initializeMobile() {
   if (!isMobileApp) return;
@@ -55,6 +54,10 @@ export async function initializeMobile() {
       applications: async () => (await files.usage({ action: 'applications' })).applications,
     },
     platform: 'android',
+    pickText: async () => (await files.pickBackup()).content,
+    exportText: async (name, content, mime) =>
+      (await files.exportBackup({ name, content, mime })).saved,
+    importFudan: async () => (await files.importFudan()).content,
     load: async () => ({ ...(await repository.load()), path: '此设备 · 应用私有存储' }),
     save: (state) => repository.save(state),
     exportData: async (state) =>

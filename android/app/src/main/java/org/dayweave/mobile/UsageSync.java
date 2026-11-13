@@ -18,17 +18,23 @@ import javax.crypto.spec.SecretKeySpec;
 
 final class UsageSync {
     private static final int FLAGS=Base64.URL_SAFE|Base64.NO_WRAP|Base64.NO_PADDING;
+    /** Additional authenticated data: identical to aad() in src/sync/crypto.ts. */
+    static String aad(String path,String id){return "dayweave:1:"+path+":"+id;}
+    /** AES-GCM step shared by seal/open, free of android.util so the JVM contract test runs it. */
+    static byte[] crypt(int mode,byte[] key,byte[] iv,byte[] input,String aad) throws Exception {
+        Cipher cipher=Cipher.getInstance("AES/GCM/NoPadding");cipher.init(mode,new SecretKeySpec(key,"AES"),new GCMParameterSpec(128,iv));
+        cipher.updateAAD(aad.getBytes(StandardCharsets.UTF_8));
+        return cipher.doFinal(input);
+    }
     static JSONObject seal(JSONObject value,String key,String id) throws Exception {
         byte[] iv=new byte[12];new SecureRandom().nextBytes(iv);
-        Cipher cipher=Cipher.getInstance("AES/GCM/NoPadding");cipher.init(Cipher.ENCRYPT_MODE,new SecretKeySpec(Base64.decode(key,FLAGS),"AES"),new GCMParameterSpec(128,iv));
-        cipher.updateAAD(("dayweave:1:/usage:"+id).getBytes(StandardCharsets.UTF_8));
-        return new JSONObject().put("clientId",id).put("iv",Base64.encodeToString(iv,FLAGS)).put("data",Base64.encodeToString(cipher.doFinal(value.toString().getBytes(StandardCharsets.UTF_8)),FLAGS));
+        byte[] data=crypt(Cipher.ENCRYPT_MODE,Base64.decode(key,FLAGS),iv,value.toString().getBytes(StandardCharsets.UTF_8),aad("/usage",id));
+        return new JSONObject().put("clientId",id).put("iv",Base64.encodeToString(iv,FLAGS)).put("data",Base64.encodeToString(data,FLAGS));
     }
     static JSONObject open(JSONObject value,String key,String id) throws Exception {
         if(!id.equals(value.getString("clientId")))throw new IllegalArgumentException("自动记录回执身份不符");
-        Cipher cipher=Cipher.getInstance("AES/GCM/NoPadding");cipher.init(Cipher.DECRYPT_MODE,new SecretKeySpec(Base64.decode(key,FLAGS),"AES"),new GCMParameterSpec(128,Base64.decode(value.getString("iv"),FLAGS)));
-        cipher.updateAAD(("dayweave:1:/usage:reply:"+id).getBytes(StandardCharsets.UTF_8));
-        return new JSONObject(new String(cipher.doFinal(Base64.decode(value.getString("data"),FLAGS)),StandardCharsets.UTF_8));
+        byte[] plain=crypt(Cipher.DECRYPT_MODE,Base64.decode(key,FLAGS),Base64.decode(value.getString("iv"),FLAGS),Base64.decode(value.getString("data"),FLAGS),aad("/usage:reply",id));
+        return new JSONObject(new String(plain,StandardCharsets.UTF_8));
     }
     private static java.util.List<String> endpoints(JSONObject config) throws Exception {
         java.util.List<String> configured=null;

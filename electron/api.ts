@@ -36,6 +36,7 @@ import {
   planGroupPatchSchema,
   settingsPatchSchema,
   openapi,
+  fail,
 } from '../src/api-contract.js';
 import { configureRepeat } from '../src/task-repeat.js';
 import { StateConflict } from '../src/state-delta.js';
@@ -56,9 +57,6 @@ export type ApiOptions = {
     shutdown(): void;
   };
 };
-function fail(status: number, message: string): never {
-  throw Object.assign(new Error(message), { status });
-}
 /** A task may name only a live section of its own day. */
 function planGroupFits(state: AppState, task: Task) {
   for (const [date, id] of Object.entries(task.dates)) {

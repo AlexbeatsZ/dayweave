@@ -1,16 +1,7 @@
 import { useSyncExternalStore } from 'react';
-import {
-  emptyState,
-  mergeImport,
-  now,
-  normalizeTaskChanges,
-  stateSchema,
-  type AppState,
-  type Task,
-} from './model';
-import { applyDelta, diffState, type StateDelta } from './state-delta';
+import { emptyState, mergeImport, now, stateSchema, type AppState, type Task } from './model';
+import { applyDelta, commitState, diffState, type StateDelta } from './state-delta';
 import { JsonRepository, localStorageFiles } from './persistence';
-import { assertTimeOccupancy } from './timelog/occupancy';
 import type { State as TimeState } from './timelog/domain';
 
 import { setDayStart, setTimeZone } from './timezone';
@@ -137,9 +128,7 @@ function enqueue(data: AppState) {
 }
 
 function validateMutation(transform: (state: AppState) => AppState, receivedTime?: TimeState) {
-  const next = stateSchema.parse(normalizeTaskChanges(transform(snapshot.data), snapshot.data));
-  assertTimeOccupancy(receivedTime ?? snapshot.data.timelog, next.timelog);
-  return next;
+  return commitState(snapshot.data, transform(snapshot.data), receivedTime);
 }
 
 export const store = {

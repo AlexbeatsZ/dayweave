@@ -1,5 +1,6 @@
 import { buildTimeline, fillAdjacentGap, lastRecordEnd } from './timeline.js';
 import { TimeOverlap } from './occupancy.js';
+import { ApiError, fail } from '../api-contract.js';
 import {
   activeActivity,
   adjustTimerStart,
@@ -35,17 +36,6 @@ import {
 
 export type ApiRequest = { method: string; path: string; body?: unknown };
 export type ApiResult = { status: number; body: unknown };
-class ApiError extends Error {
-  constructor(
-    public status: number,
-    message: string,
-  ) {
-    super(message);
-  }
-}
-const fail = (status: number, message: string): never => {
-  throw new ApiError(status, message);
-};
 type TaskReference = { id: string; deletedAt: string | null };
 /** Validate explicit API links in the same transaction as the record/timer write. */
 export function linkedTaskId(value: unknown, tasks: readonly TaskReference[]) {
