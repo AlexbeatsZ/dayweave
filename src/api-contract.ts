@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { extraPaths } from './extra-contract.js';
 import { taskSchema, listSchema, planGroupSchema, stateFields, subtaskSchema } from './model.js';
+import { eventInputSchema, eventChangesSchema, recurrenceInputSchema } from './event-contract.js';
+import { calendarEventSchema, calendarSubscriptionSchema } from './event-model.js';
 
 export const taskInputSchema = taskSchema
   .pick({
@@ -9,6 +11,7 @@ export const taskInputSchema = taskSchema
     estimatedMinutes: true,
     actualMinutes: true,
     difficulty: true,
+    priority: true,
     listId: true,
     dates: true,
     tags: true,
@@ -115,7 +118,7 @@ export const openapi = {
   openapi: '3.0.3',
   info: {
     title: 'Dayweave AI API',
-    version: '2.2.0',
+    version: '2.3.0',
     description:
       '时织 Windows/macOS 本机接口。应用运行时可用；实际地址与令牌见设置或用户数据目录 api.json。默认不对局域网开放。所有写入先持久化再通知界面；DELETE 任务为软删除。',
   },
@@ -139,6 +142,7 @@ export const openapi = {
     },
     schemas: {
       Task: json(taskSchema),
+      Event: json(calendarEventSchema),
       List: json(listSchema),
       PlanGroup: json(planGroupSchema),
       State: json(stateFields),
@@ -214,6 +218,48 @@ export const openapi = {
       delete: operation('软删除子任务', undefined, ['id', 'subtaskId']),
     },
     '/repeat-rules': { get: operation('读取重复规则与触发实例对应关系') },
+    '/events': {
+      get: operation('读取独立日程，支持 date 日期过滤'),
+      post: operation('创建日程实例', eventInputSchema),
+    },
+    '/events/{id}': {
+      get: operation('读取日程实例', undefined, true),
+      patch: operation(
+        '修改单次日程，scope=all&confirm=true 可显式批量修改系列属性',
+        eventChangesSchema,
+        true,
+      ),
+      delete: operation('取消日程并保留原始发生标识与排除记录', undefined, true),
+    },
+    '/events/{id}/recurrence': {
+      put: operation(
+        '配置同系列 RRULE、RDATE、EXDATE，保留已生成实例',
+        recurrenceInputSchema,
+        true,
+      ),
+      delete: operation('停止日程系列的后续生成', undefined, true),
+    },
+    '/tasks/{id}/recurrence': {
+      put: operation('配置待办 RRULE、RDATE、EXDATE，保留多日期偏移', recurrenceInputSchema, true),
+      delete: operation('停止待办系列的后续生成', undefined, true),
+    },
+    '/recurrences': { get: operation('读取共用重复规则与稳定实例账本') },
+    '/arrangements/migration': { get: operation('读取课程迁移计数及无法确定语义的待核对任务') },
+    '/calendar-subscriptions': {
+      get: operation('读取日历订阅'),
+      post: operation(
+        '添加由中心自动导入 Event 的日历订阅',
+        calendarSubscriptionSchema.omit({
+          id: true,
+          updatedAt: true,
+          checkedAt: true,
+          error: true,
+        }),
+      ),
+    },
+    '/calendar-subscriptions/{id}': {
+      delete: operation('停用订阅并保留已导入日程', undefined, true),
+    },
     '/repeat-rules/generate': {
       post: operation('请求中心扩展生成窗口', z.object({ through: z.string() }).strict()),
     },

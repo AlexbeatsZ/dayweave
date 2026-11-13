@@ -59,6 +59,7 @@ export function createGateway({
       throw new Error('Invalid loopback port');
   const server = http.createServer((request, response) => {
     const automatic = request.url?.startsWith('/dayweave');
+    const calendar = /^\/dayweave\/calendar\/[a-f0-9]{64}\.ics$/.test(request.url ?? '');
     const rawPath = (request.url ?? '').split('?')[0];
     const mcpPath = mcpRoutes.get(rawPath);
     const mcpNamespace =
@@ -69,14 +70,15 @@ export function createGateway({
       request.resume();
       response.writeHead(status, { 'Cache-Control': 'no-store', Connection: 'close' }).end();
     };
-    if (automatic && !routes.has(request.url)) return reject(404);
+    if (automatic && !routes.has(request.url) && !calendar) return reject(404);
     if (mcpNamespace && !mcpPath) return reject(404);
-    if (automatic && (request.method !== 'POST' || request.headers.origin)) return reject(403);
+    if (automatic && !calendar && (request.method !== 'POST' || request.headers.origin))
+      return reject(403);
+    if (calendar && !['GET', 'HEAD'].includes(request.method)) return reject(405);
     const limit = automatic ? 70 * 1024 * 1024 : mcpPath ? 1024 * 1024 : 2 * 1024 * 1024;
     if (Number(request.headers['content-length'] ?? 0) > limit) return reject(413);
-    const headers = automatic
-      ? { 'Content-Type': 'application/json' }
-      : headersFor(request.headers);
+    const headers =
+      automatic && !calendar ? { 'Content-Type': 'application/json' } : headersFor(request.headers);
     const upstreamPort = automatic ? syncPort : mcpPath ? mcpPort : subscriptionPort;
     const upstream = http.request(
       {

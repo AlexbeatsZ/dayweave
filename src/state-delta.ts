@@ -10,7 +10,16 @@ export const deltaSchema = z
       .array(
         z
           .object({
-            collection: z.enum(['tasks', 'lists', 'sessions', 'planGroups', 'repeatRules']),
+            collection: z.enum([
+              'tasks',
+              'lists',
+              'sessions',
+              'planGroups',
+              'repeatRules',
+              'calendarEvents',
+              'recurrences',
+              'calendarSubscriptions',
+            ]),
             id: z.string().min(1).max(100),
             before: jsonObject.nullable(),
             after: jsonObject.nullable(),
@@ -44,7 +53,16 @@ function diffRows(before: Row[], after: Row[]) {
 
 export function diffState(before: AppState, after: AppState): StateDelta {
   const delta: StateDelta = { entities: [] };
-  for (const collection of ['tasks', 'lists', 'sessions', 'planGroups', 'repeatRules'] as const) {
+  for (const collection of [
+    'tasks',
+    'lists',
+    'sessions',
+    'planGroups',
+    'repeatRules',
+    'calendarEvents',
+    'recurrences',
+    'calendarSubscriptions',
+  ] as const) {
     delta.entities.push(
       ...diffRows(before[collection], after[collection]).map((change) => ({
         collection,
@@ -126,7 +144,11 @@ export function applyDelta(state: AppState, value: StateDelta, strict = true): A
     }
   };
   for (const change of delta.entities)
-    applyChange(next[change.collection], change, change.collection === 'tasks');
+    applyChange(
+      next[change.collection],
+      change,
+      change.collection === 'tasks' || change.collection === 'calendarEvents',
+    );
   if (delta.settings) patch(next.settings, delta.settings.before, delta.settings.after);
   if (delta.timer) {
     if (strict && !equal(next.timer, delta.timer.before) && !equal(next.timer, delta.timer.after))

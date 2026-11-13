@@ -26,7 +26,20 @@ public class CourseWidgetProvider extends AppWidgetProvider {
     static final int MAX_BYTES=8*1024*1024;
     public static void writeSnapshot(Context context,String content) throws Exception {
         JSONObject data=new JSONObject(content);
-        String snapshot=new JSONObject().put("schedule",data.getJSONObject("schedule")).toString();
+        JSONObject projection=new JSONObject().put("schedule",data.getJSONObject("schedule"));
+        if(data.has("calendarEvents")){
+            JSONArray sourceEvents=data.getJSONArray("calendarEvents"),widgetEvents=new JSONArray();
+            String[] fields={"title","location","teacher","timeZone","date","periods","allDay","durationDays","deletedAt","precision"};
+            for(int index=0;index<sourceEvents.length();index++){
+                JSONObject sourceEvent=sourceEvents.getJSONObject(index);
+                if(!sourceEvent.isNull("deletedAt"))continue;
+                JSONObject widgetEvent=new JSONObject();
+                for(String field:fields)if(sourceEvent.has(field))widgetEvent.put(field,sourceEvent.get(field));
+                widgetEvents.put(widgetEvent);
+            }
+            projection.put("calendarEvents",widgetEvents);
+        }
+        String snapshot=projection.toString();
         android.util.AtomicFile file=new android.util.AtomicFile(new File(context.getFilesDir(),"widget-schedule.json"));
         FileOutputStream output=file.startWrite();
         try {output.write(snapshot.getBytes(StandardCharsets.UTF_8));file.finishWrite(output);}catch(Exception error){file.failWrite(output);throw error;}
@@ -72,6 +85,33 @@ public class CourseWidgetProvider extends AppWidgetProvider {
         try{
             data=read(context);if(data!=null){
                 schedule=data.getJSONObject("schedule");zone=schedule.getString("timeZone");
+                if(data.has("calendarEvents")){
+                    JSONArray unified=data.getJSONArray("calendarEvents");
+                    for(int index=0;index<unified.length();index++){
+                        JSONObject event=unified.getJSONObject(index);
+                        if(!event.isNull("deletedAt"))continue;
+                        ZoneId eventZone=ZoneId.of(event.getString("timeZone"));
+                        LocalDate date=LocalDate.parse(event.getString("date"));
+                        int days=event.optInt("durationDays",1);
+                        long start,end;
+                        if(event.getBoolean("allDay")){
+                            start=date.atStartOfDay(eventZone).toInstant().toEpochMilli();
+                            end=date.plusDays(days).atStartOfDay(eventZone).toInstant().toEpochMilli();
+                        }else{
+                            JSONArray periods=event.getJSONArray("periods");
+                            LocalTime first=LocalTime.parse(periods.getJSONArray(0).getString(0));
+                            LocalTime last=LocalTime.parse(periods.getJSONArray(periods.length()-1).getString(1));
+                            start=date.atTime(first).atZone(eventZone).toInstant().toEpochMilli();
+                            end=date.plusDays(days-1).atTime(last).atZone(eventZone).toInstant().toEpochMilli();
+                            JSONObject precision=event.optJSONObject("precision");
+                            if(precision!=null){start+=precision.optLong("start");end+=precision.optLong("end");}
+                        }
+                        if(end>now)events.add(new CourseSchedule.Event(
+                            event.getString("title"),event.optString("location"),event.optString("teacher"),
+                            event.getString("timeZone"),start,end));
+                    }
+                    events.sort(Comparator.comparingLong(e->e.start));
+                }else{
                 JSONArray raw=schedule.getJSONArray("courses"),fixed=schedule.getJSONArray("events");List<CourseSchedule.Course> courses=new ArrayList<>();
                 if(raw.length()>2000||fixed.length()>15000)throw new IOException("Invalid course count");
                 for(int i=0;i<raw.length();i++){
@@ -81,6 +121,7 @@ public class CourseWidgetProvider extends AppWidgetProvider {
                 }
                 for(int i=0;i<fixed.length();i++){JSONObject e=fixed.getJSONObject(i);events.add(new CourseSchedule.Event(e.getString("name"),e.optString("location"),e.optString("teacher"),e.getString("timeZone"),e.getLong("start"),e.getLong("end")));}
                 events=CourseSchedule.expand(schedule.getString("semesterStart"),zone,courses,events,strings(schedule.optJSONArray("holidays")),now);
+                }
             }
         }catch(Exception e){error="请打开时织检查课程数据";}
         CourseSchedule.Event current=CourseSchedule.current(events,now),next=CourseSchedule.next(events,now),item=current!=null?current:next;

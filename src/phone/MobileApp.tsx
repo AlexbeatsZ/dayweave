@@ -40,7 +40,8 @@ import { Settings } from '../components/Settings';
 import { PlanGroupModal } from '../components/PlanGroupModal';
 import { Modal } from '../components/Modal';
 import { StorageRecovery } from '../components/StorageRecovery';
-import { Timetable, NextClass } from '../components/Timetable';
+import { NextClass } from '../components/Timetable';
+import { Arrangements } from '../components/Arrangements';
 import { Calendar } from '../components/Calendar';
 import { TimeLog } from '../components/TimeLog';
 import { pendingPairingKey } from '../sync/invitation';
@@ -189,8 +190,8 @@ export function MobileApp() {
     { id: 'goals' as const, label: '目标' },
   ];
   const arrangementTabs = [
-    { id: 'calendar', label: '月历' },
-    { id: 'timetable', label: '课程表' },
+    { id: 'calendar', label: '待办' },
+    { id: 'timetable', label: '日程' },
   ];
   const statisticsTabs = [
     { id: 'daily', label: '每日' },
@@ -458,17 +459,16 @@ export function MobileApp() {
             taskDates={live.flatMap(finiteTaskDates)}
           />
         )}
-        {view === 'today' &&
-          (data.schedule.courses.length > 0 || data.schedule.events.length > 0) && (
-            <NextClass
-              clock={clock}
-              compact
-              onOpen={() => {
-                setArrangement('timetable');
-                navigate('timetable');
-              }}
-            />
-          )}
+        {view === 'today' && data.calendarEvents.some((event) => !event.deletedAt) && (
+          <NextClass
+            clock={clock}
+            compact
+            onOpen={() => {
+              setArrangement('timetable');
+              navigate('timetable');
+            }}
+          />
+        )}
         {taskView && (
           <section className="phone-tasks">
             <div className="phone-section-heading">
@@ -560,41 +560,22 @@ export function MobileApp() {
             filter={recordFilter}
           />
         )}
-        {view === 'timetable' &&
-          (arrangement === 'timetable' ? (
-            <Timetable clock={clock} />
-          ) : (
-            <div className="arrangement-calendar">
-              <Calendar
-                tasks={data.tasks.filter((task) => !task.deletedAt)}
-                selectedDate={day}
-                onDate={setDay}
-                onAdd={(date) => {
-                  setDay(date);
-                  setComposer(true);
-                }}
-                onOpenDay={(date) => {
-                  setDay(date);
-                  navigate('today');
-                }}
-                onSelect={setSelected}
-                onWindow={(through) => {
-                  void window.clearlist?.sync
-                    ?.ensureTasks?.(through)
-                    .catch((error) => notice(String(error)));
-                }}
-                onDrop={(id, date, from) => {
-                  const task = store.get().tasks.find((row) => row.id === id);
-                  if (task) {
-                    const dates = { ...task.dates };
-                    if (from) delete dates[from];
-                    dates[date] = null;
-                    store.patchTask(id, { dates });
-                  }
-                }}
-              />
-            </div>
-          ))}
+        {view === 'timetable' && (
+          <Arrangements
+            mode={arrangement === 'calendar' ? 'task' : 'event'}
+            date={day}
+            onDate={setDay}
+            onTask={setSelected}
+            onAddTask={(date) => {
+              setDay(date);
+              setComposer(true);
+            }}
+            onOpenDay={(date) => {
+              setDay(date);
+              navigate('today');
+            }}
+          />
+        )}
         {view === 'calendar' && (
           <Calendar
             tasks={data.tasks.filter((task) => !task.deletedAt)}

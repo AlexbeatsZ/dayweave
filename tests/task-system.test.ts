@@ -542,6 +542,7 @@ test('v1 migration preserves all tasks/references, exact subtask IDs and unknown
   const migrated = stateSchema.parse(legacy);
   assert.equal(migrated.version, 2);
   assert.equal(migrated.tasks.length, 3);
+  assert.ok(migrated.tasks.every((row) => row.priority === 1));
   assert.equal(migrated.sessions[0].taskId, migrated.tasks[0].id);
   assert.equal(migrated.timelog.records[0].taskId, migrated.tasks[1].id);
   assert.equal(migrated.timelog.timer?.taskId, migrated.tasks[0].id);

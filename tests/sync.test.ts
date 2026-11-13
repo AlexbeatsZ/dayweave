@@ -54,7 +54,7 @@ test('coalesced in-flight exchange preserves later edits and uses one outgoing s
       }
       return seal(
         {
-          protocol: 2,
+          protocol: 3,
           seq: request.seq,
           hubId: 'hub',
           revision: String(posts),

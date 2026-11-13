@@ -1,8 +1,11 @@
 import { CronExpressionParser } from 'cron-parser';
 import { newTask, type AppState, type RepeatRule, type Task, taskTemplateSchema } from './model.js';
-import { taskPrefix, taskSequence, finiteTaskDates } from './task-domain.js';
+import { taskPrefix, finiteTaskDates } from './task-domain.js';
 import { businessDateKey, businessDayStart, shiftDay, zoneClock, zoneDateKey } from './timezone.js';
 import { cronZone, validateCron } from './task-cron.js';
+import { generateRecurrences } from './event-domain.js';
+import { nextInstanceId, cronToRecurrence, recurrenceDates } from './recurrence.js';
+import { wallTime } from './timezone.js';
 export { validateCron } from './task-cron.js';
 const triggerKey = (at: number, zone: string) => `${zoneDateKey(at, zone)}T${zoneClock(at, zone)}`;
 
@@ -74,6 +77,9 @@ export function configureRepeat(
   return {
     ...state,
     repeatRules: [...state.repeatRules.filter((row) => row.prefix !== prefix), rule],
+    recurrences: state.recurrences.map((row) =>
+      row.prefix === prefix ? { ...row, enabled: false, updatedAt: at } : row,
+    ),
   };
 }
 
@@ -102,18 +108,25 @@ export function generateRepeatedTasks(
         : businessDayStart(today, zone, start) - 1,
     );
     if (from >= end || generated >= 256) return rule;
-    const iterator = CronExpressionParser.parse(rule.cron, {
-      currentDate: new Date(from),
-      tz: cronZone(zone),
-    });
-    const occurrences = { ...rule.occurrences };
-    let sequence = Math.max(
-      -1,
-      ...tasks
-        .filter((task) => taskPrefix(task.id) === rule.prefix)
-        .map((task) => taskSequence(task.id)),
-      ...Object.values(occurrences).map(taskSequence),
+    const recurrence = cronToRecurrence(
+      rule.cron,
+      zoneDateKey(Date.parse(rule.startAt), zone),
+      zone,
+      start,
     );
+    const rruleDates = recurrence
+      ? recurrenceDates(recurrence, shiftDay(target, 1))
+          .map((value) => wallTime(value.slice(0, 10), value.slice(11), zone))
+          .filter((instant) => instant > from)
+      : [];
+    let index = 0;
+    const iterator = recurrence
+      ? { next: () => ({ getTime: () => rruleDates[index++] ?? Infinity }) }
+      : CronExpressionParser.parse(rule.cron, {
+          currentDate: new Date(from),
+          tz: cronZone(zone),
+        });
+    const occurrences = { ...rule.occurrences };
     let cursor = from;
     while (generated < 256) {
       const instant = iterator.next().getTime();
@@ -125,7 +138,12 @@ export function generateRepeatedTasks(
       const trigger = triggerKey(instant, zone);
       if (occurrences[trigger]) continue;
       const day = businessDateKey(instant, zone, start);
-      const id = `${rule.prefix}-${++sequence}`;
+      const id = nextInstanceId(rule.prefix, [
+        ...tasks.map((task) => task.id),
+        ...state.calendarEvents.map((event) => event.id),
+        ...Object.values(occurrences),
+        ...state.recurrences.flatMap((row) => Object.values(row.occurrences)),
+      ]);
       const task = newTask(rule.template.title, {
         ...rule.template,
         id,
@@ -147,10 +165,16 @@ export function generateRepeatedTasks(
     }
     return {
       ...rule,
+      ...(recurrence
+        ? { recurrence, migrationWarning: undefined }
+        : {
+            recurrence: undefined,
+            migrationWarning: '此 Cron 暂无已验证的等价 RRULE，继续保留原规则并由兼容引擎执行',
+          }),
       occurrences,
       generatedThrough: new Date(cursor).toISOString(),
       updatedAt: new Date(at).toISOString(),
     };
   });
-  return { ...state, tasks, repeatRules: rules };
+  return generateRecurrences({ ...state, tasks, repeatRules: rules }, through, at);
 }

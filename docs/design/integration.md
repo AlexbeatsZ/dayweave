@@ -2,6 +2,8 @@
 
 ## Data and migration
 
+Arrangements now stores independent Events in `calendarEvents` and shared RFC 5545 rules in `recurrences`. Existing Task IDs and every original field remain readable. The encrypted business protocol is 3. Legacy course rows remain as migration/import provenance, while the new month/week UI and calendar feed use persisted Events. See `arrangements.md` for periods, precision, stable occurrence ledgers, source imports, export subscriptions and rollback checkpoints.
+
 Automatic device observations are deliberately outside this JSON: local WAL SQLite stores events and upload/download cursors, and the existing encrypted hub gains a separate `/usage` exchange. AW/Work Review imports are explicit and read-only against the selected external source. The timeline and records-statistics pages project both domains without creating manual records, points or task completion. See `automatic-records.md` for source identity, native permission, backup and rollout boundaries.
 
 One validated v2 JSON file owns tasks/lists/tag colors, timelog and schedule. v1 backups migrate deterministically before validation; Task IDs and every linked taskId migrate together. See task-system.md for the field inventory, original checkpoint and coordinated upgrade. Legacy Pomodoro fields are read only for old backup compatibility; the feature and API routes are removed. Original Clearlist v1 files are accepted by defaulting new fields. Open Timelog backup merges through its original conflict-aware domain implementation. All imports are explicit; original apps and profiles are not accessed. Module edits use whole-module optimistic compare-and-swap; task fields retain independent field merges.

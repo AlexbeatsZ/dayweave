@@ -81,7 +81,7 @@ test('each exchange starts at the first configured address without promoting a f
     if (endpoint === addresses[0] && !firstAvailable) throw new Error('unreachable');
     const request = await openEnvelope<SyncRequest>(body, client.config.key!, route);
     return seal(
-      { protocol: 2, seq: request.seq, hubId: 'hub', revision: 'r1' },
+      { protocol: 3, seq: request.seq, hubId: 'hub', revision: 'r1' },
       client.config.key!,
       '/sync:reply',
       'device',

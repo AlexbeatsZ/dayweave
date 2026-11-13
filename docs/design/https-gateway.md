@@ -1,5 +1,9 @@
 # ROG 公网同步入口
 
+## 安排重构的日程订阅接口
+
+源码新增精确 `GET/HEAD /dayweave/calendar/<64位十六进制密钥>.ics`，转发至中心 `49732/calendar/<密钥>.ics`。中心核对可撤销日历密钥后只输出 Event ICS。网关拒绝其他方法、查询串和不匹配的自动路径，原同步路由继续要求 POST。中心和网关需要配套升级，Google/Outlook/Apple 使用用户复制的 HTTPS 订阅链接。此源码改动仍处于界面审阅与交付门禁阶段，实际公网账户订阅验收单独记录。数据与映射契约见 arrangements.md。
+
 ## 2026-11-08 AI Decision MCP
 
 复用当前 Web 隧道的 HTTPS 入口，固定将 `/ai-decision/mcp` 转发到回环 `18783/mcp`，并转发该命名空间的 authorize/token/register/revoke/consent 与 OAuth 发现元数据。参数查询串和 OAuth/MCP 请求头原样保留，未列出的 `/ai-decision` 路径返回404，请求体限制1MiB。只有经过独立 MCP OAuth 验证的调用才能访问原业务工具；没有路由到 decisiond 的8766端口。

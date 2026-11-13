@@ -16,6 +16,11 @@ export class JsonRepository {
       if (raw === null) throw new Error('Missing primary');
       state = stateSchema.parse(JSON.parse(raw));
       if (
+        !('calendarEvents' in JSON.parse(raw)) &&
+        (await this.files.read('data.before-arrangements.json')) === null
+      )
+        await this.files.write('data.before-arrangements.json', raw);
+      if (
         JSON.parse(raw).version === 1 &&
         (await this.files.read('data.before-task-v2.json')) === null
       )

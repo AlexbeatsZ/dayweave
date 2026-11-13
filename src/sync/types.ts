@@ -5,6 +5,7 @@ import type { State as TimeState } from '../timelog/domain.js';
 export type Peer = { name: string; endpoint: string; hubId: string };
 export type SyncConfig = {
   version: 1;
+  arrangementsVersion?: 1;
   deviceId: string;
   name: string;
   enabled: boolean;
@@ -42,7 +43,7 @@ export type SyncStatus = {
   conflicts: SyncConflict[];
 };
 export type SyncRequest = {
-  protocol?: 2;
+  protocol?: 3;
   through?: string;
   seq: number;
   name?: string;
@@ -51,7 +52,7 @@ export type SyncRequest = {
   base?: SyncDocument;
 };
 export type SyncReply = {
-  protocol?: 2;
+  protocol?: 3;
   seq: number;
   hubId: string;
   revision: string;
@@ -62,7 +63,7 @@ export type SyncReply = {
 export interface SyncStorage {
   read(): Promise<string | null>;
   write(content: string): Promise<void>;
-  preserve?(content: string): Promise<void>;
+  preserve?(content: string, name?: string): Promise<void>;
 }
 export interface SyncState {
   snapshot(): Promise<{ state: AppState }>;

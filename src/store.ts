@@ -175,6 +175,12 @@ export const store = {
           data = raw ? stateSchema.parse(JSON.parse(raw)) : emptyState();
           if (
             raw &&
+            !('calendarEvents' in JSON.parse(raw)) &&
+            localStorage.getItem(`${key}.before-arrangements`) === null
+          )
+            localStorage.setItem(`${key}.before-arrangements`, raw);
+          if (
+            raw &&
             JSON.parse(raw).version === 1 &&
             localStorage.getItem(`${key}.before-task-v2`) === null
           )

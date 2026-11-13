@@ -154,7 +154,14 @@ export async function startApi(
         version: appVersion(),
         storage: 'ready',
         ...options.health,
-        capabilities: { taskRecordLinks: true, timeOverlapProtection: true },
+        capabilities: {
+          taskRecordLinks: true,
+          timeOverlapProtection: true,
+          calendarEvents: true,
+          rrule: true,
+          eventCalendarFeed: true,
+          syncProtocol: 3,
+        },
       };
       if (options.management) {
         if (route === '/server/status' && method === 'GET')
@@ -261,7 +268,10 @@ export async function startApi(
         const input = taskInputSchema.parse(await body(request));
         let id = '';
         snapshot = await mutate((s) => {
-          if (input.id !== undefined && s.tasks.some((task) => task.id === input.id))
+          if (
+            input.id !== undefined &&
+            [...s.tasks, ...s.calendarEvents].some((task) => task.id === input.id)
+          )
             fail(409, 'Task ID already exists; read the existing task before deciding');
           const task = newTask(input.title, input);
           planGroupFits(s, task);

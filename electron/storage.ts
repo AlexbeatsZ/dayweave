@@ -18,6 +18,23 @@ export class FileStore {
     const raw = await readFile(file, 'utf8');
     const input = JSON.parse(raw);
     const state = stateSchema.parse(input);
+    if (!('calendarEvents' in input)) {
+      try {
+        const handle = await open(
+          path.join(this.directory, 'data.before-arrangements.json'),
+          'wx',
+          0o600,
+        );
+        try {
+          await handle.writeFile(raw, 'utf8');
+          await handle.sync();
+        } finally {
+          await handle.close();
+        }
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+      }
+    }
     if (input.version === 1) {
       try {
         const handle = await open(

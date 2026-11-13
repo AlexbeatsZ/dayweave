@@ -67,6 +67,7 @@ export function migrateTaskState(input: unknown): unknown {
         notes: old.notes,
         estimatedMinutes: old.estimatedMinutes,
         difficulty: 'easy',
+        ...(old.priority === undefined ? {} : { priority: old.priority }),
         listId: old.listId,
         tags: old.tags,
         subtasks: old.subtasks.map((row: Row) => ({
@@ -125,6 +126,7 @@ export function migrateTaskState(input: unknown): unknown {
       id: mapped.get(old.id),
       dates: due ? { [due]: planGroupId ?? null } : {},
       difficulty: 'easy',
+      ...(priority === undefined ? {} : { priority }),
       subtasks: old.subtasks.map((row: Row) => ({
         ...row,
         done: old.completedAt ? true : row.done,

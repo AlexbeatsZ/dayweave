@@ -28,7 +28,16 @@ export function stable(value: unknown): string {
   );
 }
 const entityKey = (collection: string, id: string) => collection + '/' + encodeURIComponent(id);
-const ROOT_COLLECTIONS = ['tasks', 'lists', 'sessions', 'planGroups', 'repeatRules'] as const;
+const ROOT_COLLECTIONS = [
+  'tasks',
+  'lists',
+  'sessions',
+  'planGroups',
+  'repeatRules',
+  'calendarEvents',
+  'recurrences',
+  'calendarSubscriptions',
+] as const;
 const TIMELOG_COLLECTIONS = [
   'activities',
   'goals',
@@ -118,6 +127,7 @@ export function toDocument(state: AppState): SyncDocument {
     taskTagColors: state.tagColors.tasks,
     recordTagColors: state.tagColors.records,
     timeZone: state.settings.timeZone,
+    ...(state.settings.calendarFeed ? { calendarFeed: state.settings.calendarFeed } : {}),
     ...(state.settings.dayStartsAt ? { dayStartsAt: state.settings.dayStartsAt } : {}),
     timerPresets: state.timelog.settings.timerPresets ?? [5, 30, 45, 60],
     timerPresetsUpdatedAt: state.timelog.settings.updatedAt,
@@ -136,6 +146,9 @@ export function fromDocument(doc: SyncDocument, local: AppState): AppState {
   next.sessions = rows('sessions') as AppState['sessions'];
   next.planGroups = rows('planGroups') as AppState['planGroups'];
   next.repeatRules = rows('repeatRules') as AppState['repeatRules'];
+  next.calendarEvents = rows('calendarEvents') as AppState['calendarEvents'];
+  next.recurrences = rows('recurrences') as AppState['recurrences'];
+  next.calendarSubscriptions = rows('calendarSubscriptions') as AppState['calendarSubscriptions'];
   if (!next.lists.some((x) => x.id === 'inbox'))
     next.lists.unshift({ id: 'inbox', name: '未分组', color: '#7e8b8b', order: 0 });
   for (const task of next.tasks)
@@ -229,7 +242,7 @@ export function mergeDocuments(base: SyncDocument, local: SyncDocument, remote: 
       current = remote[key];
     if (equal(before, after)) continue;
     if (equal(current, after)) continue;
-    if (key.startsWith('tasks/') && after && current) {
+    if ((key.startsWith('tasks/') || key.startsWith('calendarEvents/')) && after && current) {
       doc[key] = mergeTaskEntity(before, after, current);
       continue;
     }
@@ -372,7 +385,7 @@ export function overlayNewEdits(
       result[key] = structuredClone(current[key]);
       continue;
     }
-    if (key.startsWith('tasks/') && result[key]) {
+    if ((key.startsWith('tasks/') || key.startsWith('calendarEvents/')) && result[key]) {
       result[key] = mergeTaskEntity(sent[key], current[key], result[key]);
       continue;
     }

@@ -127,3 +127,37 @@ test('HTTPS gateway routes native MCP and OAuth without exposing the controller 
     ]);
   }
 });
+
+test('HTTPS gateway forwards only exact read-only Event calendar capabilities', async () => {
+  const received: string[] = [];
+  const upstream = http.createServer((request, response) => {
+    received.push(request.url ?? '');
+    response
+      .writeHead(200, { 'Content-Type': 'text/calendar' })
+      .end('BEGIN:VCALENDAR\r\nEND:VCALENDAR\r\n');
+  });
+  await new Promise<void>((resolve) => upstream.listen(0, '127.0.0.1', resolve));
+  const gateway = createGateway({
+    port: 0,
+    syncPort: (upstream.address() as { port: number }).port,
+  });
+  const address = await gateway.listen();
+  const base = `http://127.0.0.1:${address.port}`;
+  const route = `/dayweave/calendar/${'a'.repeat(64)}.ics`;
+  try {
+    assert.equal((await fetch(base + route)).status, 200);
+    assert.equal(received[0], `/calendar/${'a'.repeat(64)}.ics`);
+    assert.equal((await fetch(base + route, { method: 'HEAD' })).status, 200);
+    assert.equal((await fetch(base + route, { method: 'POST' })).status, 405);
+    assert.equal((await fetch(base + route + '?other=1')).status, 404);
+    assert.equal((await fetch(base + '/dayweave/calendar/short.ics')).status, 404);
+    assert.equal(received.length, 2);
+  } finally {
+    gateway.server.closeAllConnections();
+    upstream.closeAllConnections();
+    await Promise.all([
+      new Promise<void>((resolve) => gateway.server.close(() => resolve())),
+      new Promise<void>((resolve) => upstream.close(() => resolve())),
+    ]);
+  }
+});

@@ -3,6 +3,13 @@ import { mergeTaskEntity } from './task-merge.js';
 import { migrateTaskState } from './task-migration.js';
 import { validateCron } from './task-cron.js';
 import {
+  calendarEventSchema,
+  eventTemplateSchema,
+  recurrenceDefinitionSchema,
+  calendarSubscriptionSchema,
+} from './event-model.js';
+import { migrateArrangements } from './event-migration.js';
+import {
   activeTask,
   finiteTaskDates,
   normalizeTask,
@@ -98,6 +105,7 @@ export const taskSchema = z
     estimatedMinutes: z.number().finite().nonnegative().nullable().optional(),
     actualMinutes: z.number().finite().nonnegative().nullable().optional(),
     difficulty: z.enum(['easy', 'medium', 'hard']).default('easy'),
+    priority: z.number().int().min(0).max(3).optional(),
     listId: idSchema,
     dates: datesSchema,
     tags: z.array(z.string().trim().min(1).max(40)).max(30),
@@ -116,6 +124,7 @@ export const taskTemplateSchema = taskSchema.pick({
   notes: true,
   estimatedMinutes: true,
   difficulty: true,
+  priority: true,
   listId: true,
   tags: true,
   subtasks: true,
@@ -138,6 +147,8 @@ export const repeatRuleSchema = z
           return false;
         }
       }, 'Cron 无效，请使用五字段表达式'),
+    recurrence: recurrenceDefinitionSchema.optional(),
+    migrationWarning: z.string().max(500).optional(),
     dateOffsets: z.array(z.number().int().min(0).max(365)).min(1).max(366),
     template: taskTemplateSchema,
     startAt: instant,
@@ -148,6 +159,25 @@ export const repeatRuleSchema = z
     updatedAt: instant,
   })
   .strict();
+export const recurrenceRuleSchema = z
+  .object({
+    prefix: idSchema,
+    target: z.enum(['task', 'event']),
+    definitions: z.array(recurrenceDefinitionSchema).min(1).max(100),
+    taskTemplate: taskTemplateSchema.optional(),
+    eventTemplate: eventTemplateSchema.optional(),
+    dateOffsets: z.array(z.number().int().min(0).max(365)).min(1).max(366).default([0]),
+    occurrences: z.record(z.string().max(150), idSchema),
+    enabled: z.boolean(),
+    createdAt: instant,
+    updatedAt: instant,
+  })
+  .strict()
+  .refine(
+    (rule) => (rule.target === 'task' ? !!rule.taskTemplate : !!rule.eventTemplate),
+    '重复规则缺少对应模板',
+  );
+export type RecurrenceRule = z.infer<typeof recurrenceRuleSchema>;
 /** A section of one day's plan, such as "午饭前"; each task date maps to its own section. */
 export const planGroupSchema = z
   .object({
@@ -203,6 +233,9 @@ export const stateFields = z
       .strict()
       .default(() => ({ tasks: {}, records: {} })),
     tasks: z.array(taskSchema).max(50000),
+    calendarEvents: z.array(calendarEventSchema).max(100000).default([]),
+    recurrences: z.array(recurrenceRuleSchema).max(5000).default([]),
+    calendarSubscriptions: z.array(calendarSubscriptionSchema).max(100).default([]),
     repeatRules: z
       .array(repeatRuleSchema)
       .max(5000)
@@ -226,6 +259,28 @@ export const stateFields = z
         focusMinutes: z.number().int().min(1).max(180),
         breakMinutes: z.number().int().min(1).max(60),
         showCompleted: z.boolean(),
+        calendarFeed: z
+          .object({
+            enabled: z.boolean(),
+            token: z.string().regex(/^[a-f0-9]{64}$/),
+            baseUrl: z
+              .string()
+              .url()
+              .max(8000)
+              .refine((value) => {
+                const url = new URL(value);
+                return (
+                  ['http:', 'https:'].includes(url.protocol) &&
+                  !url.username &&
+                  !url.password &&
+                  !url.search &&
+                  !url.hash
+                );
+              }, '请输入有效的中心 HTTP / HTTPS 地址')
+              .optional(),
+          })
+          .strict()
+          .optional(),
       })
       .strict(),
   })
@@ -242,6 +297,18 @@ export const stateFields = z
     unique(
       state.tasks.map((x) => x.id),
       'tasks',
+    );
+    unique(
+      [...state.tasks.map((row) => row.id), ...state.calendarEvents.map((row) => row.id)],
+      'calendarEvents',
+    );
+    unique(
+      state.recurrences.map((row) => row.prefix),
+      'recurrences',
+    );
+    unique(
+      state.calendarSubscriptions.map((row) => row.id),
+      'calendarSubscriptions',
     );
     unique(
       state.repeatRules.map((row) => row.prefix),
@@ -273,7 +340,7 @@ export const stateSchema = z.preprocess(migrateTaskState, stateFields).transform
   const groups = new Map(
     state.planGroups.filter((row) => !row.deletedAt).map((row) => [row.id, row]),
   );
-  return {
+  return migrateArrangements({
     ...state,
     timelog: retireUnusedActivityPresets(
       state.timelog,
@@ -290,7 +357,7 @@ export const stateSchema = z.preprocess(migrateTaskState, stateFields).transform
         ),
       }),
     ),
-  };
+  });
 });
 export type RepeatRule = z.infer<typeof repeatRuleSchema>;
 export type AppState = z.infer<typeof stateSchema>;
@@ -349,6 +416,9 @@ export function emptyState(): AppState {
     lists: [{ id: 'inbox', name: '未分组', color: '#7e8b8b', order: 0 }],
     tagColors: { tasks: {}, records: {} },
     tasks: [],
+    calendarEvents: [],
+    recurrences: [],
+    calendarSubscriptions: [],
     repeatRules: [],
     planGroups: [],
     sessions: [],
@@ -520,6 +590,7 @@ export function copyTask(task: Task): Task {
     listId: task.listId,
     tags: [...task.tags],
     difficulty: task.difficulty,
+    priority: task.priority,
     estimatedMinutes: task.estimatedMinutes,
     actualMinutes: null,
     pinned: task.pinned,
@@ -683,6 +754,40 @@ export function mergeImport(
         : preferred.generatedThrough,
     });
   }
+  const events = new Map(local.calendarEvents.map((row) => [row.id, row]));
+  for (const row of imported.calendarEvents) {
+    const previous = events.get(row.id);
+    events.set(
+      row.id,
+      previous
+        ? (mergeTaskEntity(
+            undefined,
+            previous.updatedAt < row.updatedAt ? row : previous,
+            previous.updatedAt < row.updatedAt ? previous : row,
+          ) as typeof row)
+        : row,
+    );
+  }
+  const recurrences = new Map(local.recurrences.map((row) => [row.prefix, row]));
+  for (const row of imported.recurrences) {
+    const previous = recurrences.get(row.prefix);
+    if (!previous) {
+      recurrences.set(row.prefix, row);
+      continue;
+    }
+    for (const [key, id] of Object.entries(row.occurrences))
+      if (previous.occurrences[key] && previous.occurrences[key] !== id)
+        throw new Error('重复实例身份冲突，请核对备份中的发生台账');
+    const preferred = row.updatedAt > previous.updatedAt ? row : previous;
+    recurrences.set(row.prefix, {
+      ...preferred,
+      occurrences: { ...previous.occurrences, ...row.occurrences },
+    });
+  }
+  const subscriptions = new Map(local.calendarSubscriptions.map((row) => [row.id, row]));
+  for (const row of imported.calendarSubscriptions)
+    if (!subscriptions.has(row.id) || subscriptions.get(row.id)!.updatedAt < row.updatedAt)
+      subscriptions.set(row.id, row);
   return stateSchema.parse({
     ...local,
     timelog:
@@ -702,6 +807,9 @@ export function mergeImport(
     planGroups: [...planGroups.values()],
     sessions: [...sessions.values()],
     repeatRules: [...repeatRules.values()],
+    calendarEvents: [...events.values()],
+    recurrences: [...recurrences.values()],
+    calendarSubscriptions: [...subscriptions.values()],
   });
 }
 export function statistics(state: AppState, today = dateKey()) {

@@ -419,8 +419,8 @@ test('light, system theme, 360px goals and desktop breakpoint remain usable', as
   await expect(page.locator('.goal-card')).toContainText('每天读一点');
   await page.screenshot({ path: info.outputPath('phone-goals.png') });
   await page.getByRole('button', { name: '手机安排', exact: true }).tap();
-  await page.getByRole('tab', { name: '课程表' }).tap();
-  await expect(page.getByRole('region', { name: '每周课程表' })).toBeVisible();
+  await page.getByRole('tab', { name: '日程' }).tap();
+  await expect(page.getByRole('region', { name: '日程安排' })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.getByRole('button', { name: '打开导航' }).tap();
   await page.getByRole('button', { name: '设置与同步', exact: true }).tap();
@@ -432,9 +432,9 @@ test('light, system theme, 360px goals and desktop breakpoint remain usable', as
   await expect(page.locator('[data-layout="desktop"]')).toBeVisible();
   await expect(page.getByRole('navigation', { name: '主导航' })).toBeVisible();
   await expect(page.getByRole('button', { name: '打开导航', exact: true })).toHaveCount(0);
-  await expect(page.getByRole('tab', { name: '课程表', exact: true })).toHaveAttribute(
+  await expect(page.getByRole('tab', { name: '日程', exact: true })).toHaveAttribute(
     'aria-selected',
     'true',
   );
-  await expect(page.getByRole('region', { name: '每周课程表' })).toBeVisible();
+  await expect(page.getByRole('region', { name: '日程安排' })).toBeVisible();
 });

@@ -218,9 +218,9 @@ test('permanent desktop navigation and shared pages fit widescreen, 16:10 and co
         path: path.join(screenshots, `goals-${viewport.width}x${viewport.height}.png`),
       });
     await navigate(page, '安排');
-    await page.getByRole('tab', { name: '课程表', exact: true }).click();
-    await expect(page.getByRole('region', { name: '每周课程表', exact: true })).toBeVisible();
-    await expect(page.locator('.timetable-day-heading')).toHaveCount(5);
+    await page.getByRole('tab', { name: '日程', exact: true }).click();
+    await expect(page.getByRole('region', { name: '日程安排', exact: true })).toBeVisible();
+    await expect(page.locator('.arrangement-day-heading')).toHaveCount(5);
     await withinViewport(page);
     if (viewport.width === 1920 || viewport.width === 900)
       await page.screenshot({

@@ -17,13 +17,15 @@ import { dateSchema, stateSchema } from '../src/model.js';
 import type { Peer, SyncBridge, SyncRequest, SyncStatus } from '../src/sync/types.js';
 import type { StateService } from './state-service.js';
 import type { UsageReplica, UsageExchange } from '../src/usage/sync.js';
+import { CalendarSubscriptions } from './calendar-subscriptions.js';
+import { CalendarFeed } from './calendar-feed.js';
 
 export function syncFiles(directory: string) {
   const file = path.join(directory, 'sync.json');
   return {
-    async preserve(content: string) {
+    async preserve(content: string, name = 'sync.before-task-v2.json') {
       try {
-        const handle = await open(path.join(directory, 'sync.before-task-v2.json'), 'wx', 0o600);
+        const handle = await open(path.join(directory, name), 'wx', 0o600);
         try {
           await handle.writeFile(content, 'utf8');
           await handle.sync();
@@ -88,11 +90,13 @@ export class DesktopSync implements SyncBridge {
   private unsubscribe?: () => void;
   private generating = false;
   private repeatTimer?: ReturnType<typeof setInterval>;
+  private readonly calendars: CalendarSubscriptions;
   constructor(
     readonly service: StateService,
     readonly directory: string,
     readonly discovery = true,
   ) {
+    this.calendars = new CalendarSubscriptions(service);
     this.client = new SyncClient(
       syncFiles(directory),
       {
@@ -109,6 +113,10 @@ export class DesktopSync implements SyncBridge {
     if (this.client.config.enabled && this.client.config.hub) await this.listen();
     this.unsubscribe = this.service.subscribe(() => {
       this.scheduler.request();
+      if (this.client.config.enabled && this.client.config.hub)
+        void this.calendars.refresh().catch((error) => {
+          this.client.error = String(error);
+        });
       if (this.client.config.enabled && this.client.config.hub && !this.generating) {
         this.generating = true;
         void this.service
@@ -127,6 +135,10 @@ export class DesktopSync implements SyncBridge {
         await this.service.mutate((state) => generateRepeatedTasks(state));
       this.repeatTimer = setInterval(() => {
         if (this.client.config.enabled && this.client.config.hub)
+          void this.calendars.refresh().catch((error) => {
+            this.client.error = String(error);
+          });
+        if (this.client.config.enabled && this.client.config.hub)
           void this.service
             .mutate((state) => generateRepeatedTasks(state))
             .catch((error) => {
@@ -134,6 +146,10 @@ export class DesktopSync implements SyncBridge {
             });
       }, 60000);
       this.repeatTimer.unref();
+      if (this.client.config.enabled && this.client.config.hub)
+        void this.calendars.refresh().catch((error) => {
+          this.client.error = String(error);
+        });
     }
     return this;
   }
@@ -236,9 +252,23 @@ export class DesktopSync implements SyncBridge {
   }
   private async listen() {
     const c = this.client.config;
+    const calendar = new CalendarFeed(this.service);
     const server = createServer((request, response) => {
       response.setHeader('Cache-Control', 'no-store');
       response.setHeader('X-Content-Type-Options', 'nosniff');
+      if (request.url?.startsWith('/calendar/')) {
+        request.resume();
+        void calendar
+          .serve(request, response)
+          .then((handled) => {
+            if (!handled) response.writeHead(404).end();
+          })
+          .catch(() => {
+            if (!response.headersSent) response.writeHead(500).end();
+            else response.destroy();
+          });
+        return;
+      }
       if (
         request.method !== 'POST' ||
         !['/pair', '/sync', '/usage'].includes(request.url ?? '') ||
@@ -299,7 +329,7 @@ export class DesktopSync implements SyncBridge {
               const value = await openEnvelope<SyncRequest>(envelope, peer.key, route);
               if (!Number.isSafeInteger(value.seq) || value.seq <= peer.seq)
                 throw new Error('拒绝重放消息');
-              if (value.protocol !== 2) {
+              if (value.protocol !== 3) {
                 response.writeHead(409).end();
                 return;
               }
@@ -331,7 +361,7 @@ export class DesktopSync implements SyncBridge {
               const changed = !!value.state || snapshot.revision !== value.revision;
               result = await seal(
                 {
-                  protocol: 2,
+                  protocol: 3,
                   seq: value.seq,
                   hubId: c.deviceId,
                   revision: snapshot.revision,
@@ -392,6 +422,7 @@ export class DesktopSync implements SyncBridge {
     if (server) await new Promise<void>((resolve) => server.close(() => resolve()));
   }
   async close() {
+    await this.calendars.close();
     this.scheduler.stop();
     clearInterval(this.repeatTimer);
     this.unsubscribe?.();

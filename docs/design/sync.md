@@ -89,4 +89,4 @@ ROG 保持现有同步端口/协议。2026-10-28 已部署 Sakura Web HTTPS 下�
 
 ## 任务协议 2
 
-业务 state.version=2，/sync 请求及响应带 protocol=2，旧业务请求返回409且不消耗已接受序号；旧响应显示升级提示，不把格式不兼容当作配对失效。usage 与邀请凭据协议不变。同步基线用统一完整状态迁移（包含任务引用），不能丢弃基线并把整份旧快照当新任务上传。中心每分钟以及业务写入/交换后扩展默认14天窗口；客户端 ensureTasks 通过原密文交换传 through 请求远期窗口，最多一年。规则触发账本和普通实例同次业务提交。升级与原始恢复点见 task-system.md。
+业务 state.version=2，安排重构的 /sync 请求及响应带 protocol=3。旧业务请求返回409且不消耗已接受序号，旧响应显示升级提示。Event、RRULE 与日历订阅分别展开为 `calendarEvents`、`recurrences`、`calendarSubscriptions` 实体，Event 复用 Task 的三方字段和删除语义。发布配置属于 preferences，源订阅 URL 随加密状态与备份保存。首次读取旧同步配置保留 `sync.before-arrangements.json`，既有任务身份迁移和 incoming 恢复入口继续使用。中心每分钟以及业务写入/交换后生成实例，客户端 ensureTasks 通过原密文交换请求至未来一年的窗口。迁移、发布日历及恢复契约见 arrangements.md。

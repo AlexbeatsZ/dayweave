@@ -14,8 +14,6 @@ import {
   coursePeriodsSchema,
   courseSchema,
   occurrenceSchema,
-  courseOccurrences,
-  nextClasses,
   mergeSchedule,
 } from '../src/schedule.js';
 import { importCourses } from '../src/course-import.js';
@@ -31,6 +29,23 @@ import {
 } from '../src/timelog/domain.js';
 import { toDocument } from '../src/sync/document.js';
 import type { StateService, StateSnapshot } from './state-service.js';
+import { calendarEventSchema, calendarSubscriptionSchema } from '../src/event-model.js';
+import {
+  eventInputSchema,
+  eventChangesSchema,
+  recurrenceInputSchema,
+} from '../src/event-contract.js';
+import {
+  newEvent,
+  saveEvent,
+  deleteEvent,
+  configureRecurrence,
+  eventsOnDate,
+  eventBounds,
+  calendarOccurrences,
+} from '../src/event-domain.js';
+import { arrangementMigrationReport } from '../src/event-migration.js';
+import { taskPrefix } from '../src/task-domain.js';
 
 type Context = {
   route: string;
@@ -71,6 +86,16 @@ function goalContext(state: AppState, today: string, now: number) {
       };
     });
 }
+function currentCourses(state: AppState, at = Date.now()) {
+  const events = calendarOccurrences(
+    state.calendarEvents.filter((row) => row.type === 'course'),
+    at,
+  );
+  return {
+    current: events.filter((row) => row.start <= at),
+    next: events.find((row) => row.start > at) ?? null,
+  };
+}
 export function decisionContext(state: AppState, now = Date.now()) {
   const today = dateKey(new Date(now));
   return {
@@ -87,13 +112,144 @@ export function decisionContext(state: AppState, now = Date.now()) {
     timeTimer: state.timelog.timer,
     simultaneousTimers: state.timelog.conflictedTimers ?? [],
     timeElapsedMs: state.timelog.timer ? duration(liveSpans(state.timelog.timer, now)) : 0,
-    ...nextClasses(state.schedule, now),
-    classes: courseOccurrences(state.schedule, now, now + 7 * 86400000).slice(0, 150),
+    ...currentCourses(state, now),
+    classes: calendarOccurrences(
+      state.calendarEvents.filter((row) => row.type === 'course'),
+      now,
+      now + 7 * 86400000,
+    ).slice(0, 150),
+    events: state.calendarEvents
+      .filter(
+        (row) =>
+          !row.deletedAt &&
+          eventBounds(row).end > now &&
+          eventBounds(row).start < now + 7 * 86400000,
+      )
+      .slice(0, 150),
   };
 }
 export async function handleExtendedRoute(c: Context): Promise<boolean> {
   let { route, method, snapshot } = c;
   const { send, mutate } = c;
+  if (route === '/events' && method === 'GET') {
+    const date = c.url.searchParams.get('date');
+    send(
+      date
+        ? eventsOnDate(snapshot.state.calendarEvents, date, snapshot.state.schedule.timeZone)
+        : snapshot.state.calendarEvents,
+      snapshot,
+    );
+    return true;
+  }
+  if (route === '/events' && method === 'POST') {
+    const input = eventInputSchema.parse(await c.readBody(c.request));
+    const event = newEvent(input);
+    snapshot = await mutate((state) => saveEvent(state, event));
+    send(
+      snapshot.state.calendarEvents.find((row) => row.id === event.id),
+      snapshot,
+    );
+    return true;
+  }
+  const eventRoute = route.match(/^\/events\/([^/]+)$/);
+  if (eventRoute && ['GET', 'PATCH', 'DELETE'].includes(method)) {
+    const id = decodeURIComponent(eventRoute[1]);
+    const input = method === 'PATCH' ? eventChangesSchema.parse(await c.readBody(c.request)) : null;
+    const scope = z
+      .enum(['single', 'future', 'all'])
+      .parse(c.url.searchParams.get('scope') ?? 'single');
+    if (scope === 'all' && c.url.searchParams.get('confirm') !== 'true')
+      fail(400, '批量修改需要 confirm=true');
+    if (method !== 'GET')
+      snapshot = await mutate((state) => {
+        const event = state.calendarEvents.find((row) => row.id === id);
+        if (!event) return fail(404, '日程不存在');
+        return method === 'DELETE'
+          ? deleteEvent(state, id, scope === 'all')
+          : saveEvent(
+              state,
+              calendarEventSchema.parse({ ...event, ...input }),
+              event.updatedAt,
+              scope,
+            );
+      });
+    const event = snapshot.state.calendarEvents.find((row) => row.id === id);
+    if (!event) fail(404, '日程不存在');
+    send(event, snapshot);
+    return true;
+  }
+  if (route === '/recurrences' && method === 'GET') {
+    send(snapshot.state.recurrences, snapshot);
+    return true;
+  }
+  const recurrenceRoute = route.match(/^\/(events|tasks)\/([^/]+)\/recurrence$/);
+  if (recurrenceRoute && ['PUT', 'DELETE'].includes(method)) {
+    const id = decodeURIComponent(recurrenceRoute[2]);
+    const target = recurrenceRoute[1] === 'events' ? 'event' : 'task';
+    const input =
+      method === 'PUT' ? recurrenceInputSchema.parse(await c.readBody(c.request)) : null;
+    snapshot = await mutate((state) => {
+      const entity = (target === 'task' ? state.tasks : state.calendarEvents).find(
+        (row) => row.id === id && !row.deletedAt,
+      );
+      if (!entity) return fail(404, '实例不存在');
+      if (input)
+        return configureRecurrence(
+          state,
+          entity,
+          target,
+          input.definitions,
+          input.enabled,
+          input.dateOffsets,
+        );
+      return {
+        ...state,
+        recurrences: state.recurrences.map((row) =>
+          row.prefix === taskPrefix(id)
+            ? { ...row, enabled: false, updatedAt: new Date().toISOString() }
+            : row,
+        ),
+      };
+    });
+    send(snapshot.state.recurrences.find((row) => row.prefix === taskPrefix(id)) ?? null, snapshot);
+    return true;
+  }
+  if (route === '/arrangements/migration' && method === 'GET') {
+    send(arrangementMigrationReport(snapshot.state), snapshot);
+    return true;
+  }
+  if (route === '/calendar-subscriptions' && method === 'GET') {
+    send(snapshot.state.calendarSubscriptions, snapshot);
+    return true;
+  }
+  if (route === '/calendar-subscriptions' && method === 'POST') {
+    const input = calendarSubscriptionSchema
+      .omit({ id: true, updatedAt: true, checkedAt: true, error: true })
+      .parse(await c.readBody(c.request));
+    const source = calendarSubscriptionSchema.parse({
+      ...input,
+      id: uid(),
+      updatedAt: new Date().toISOString(),
+    });
+    snapshot = await mutate((state) => ({
+      ...state,
+      calendarSubscriptions: [...state.calendarSubscriptions, source],
+    }));
+    send(source, snapshot);
+    return true;
+  }
+  const sourceRoute = route.match(/^\/calendar-subscriptions\/([^/]+)$/);
+  if (sourceRoute && method === 'DELETE') {
+    const id = decodeURIComponent(sourceRoute[1]);
+    snapshot = await mutate((state) => ({
+      ...state,
+      calendarSubscriptions: state.calendarSubscriptions.map((row) =>
+        row.id === id ? { ...row, enabled: false, updatedAt: new Date().toISOString() } : row,
+      ),
+    }));
+    send(snapshot.state.calendarSubscriptions.find((row) => row.id === id) ?? null, snapshot);
+    return true;
+  }
   if (route === '/context' && method === 'GET') {
     send(decisionContext(snapshot.state), snapshot);
     return true;
@@ -278,7 +434,7 @@ export async function handleExtendedRoute(c: Context): Promise<boolean> {
     return true;
   }
   if (route === '/schedule/next' && method === 'GET') {
-    send(nextClasses(snapshot.state.schedule), snapshot);
+    send(currentCourses(snapshot.state), snapshot);
     return true;
   }
   if (route === '/schedule/occurrences' && method === 'GET') {
@@ -292,7 +448,14 @@ export async function handleExtendedRoute(c: Context): Promise<boolean> {
       .finite()
       .parse(c.url.searchParams.get('until') ?? from + 7 * 86400000);
     if (until <= from || until - from > 400 * 86400000) fail(400, '查询范围须在 1 到 400 天内');
-    send(courseOccurrences(snapshot.state.schedule, from, until), snapshot);
+    send(
+      calendarOccurrences(
+        snapshot.state.calendarEvents.filter((row) => row.type === 'course'),
+        from,
+        until,
+      ),
+      snapshot,
+    );
     return true;
   }
   if (route === '/schedule/import' && method === 'POST') {

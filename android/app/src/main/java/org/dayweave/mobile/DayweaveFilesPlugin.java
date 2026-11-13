@@ -211,7 +211,7 @@ public class DayweaveFilesPlugin extends Plugin {
     }
 
     private File file(String name) {
-        if (name == null || !name.matches("^((data|sync)\\.before-task-v2\\.json|sync\\.json|data\\.json|data\\.backup\\.json|data\\.corrupt-[0-9]+\\.json|data\\.(json|backup\\.json)\\.before-restore-[0-9]+)$")) {
+        if (name == null || !name.matches("^((data|sync)\\.before-(task-v2|arrangements)\\.json|sync\\.json|data\\.json|data\\.backup\\.json|data\\.corrupt-[0-9]+\\.json|data\\.(json|backup\\.json)\\.before-restore-[0-9]+)$")) {
             throw new IllegalArgumentException("Unsupported data file");
         }
         return new File(getContext().getFilesDir(), name);

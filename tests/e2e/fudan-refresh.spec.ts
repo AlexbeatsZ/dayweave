@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { emptyState, type AppState } from '../../src/model';
+import { emptyState, stateSchema, type AppState } from '../../src/model';
 import { parseFudanCourses } from '../../src/fudan-import';
 import { fudanSource, type FudanSource } from '../../src/fudan-refresh';
 
@@ -271,7 +271,7 @@ async function boot(page: Page) {
     { state, source, sourceKey },
   );
   await page.goto('/#timetable');
-  await expect(page.getByRole('region', { name: '每周课程表' })).toBeVisible();
+  await expect(page.getByRole('region', { name: '日程安排' })).toBeVisible();
   await expect(page.locator('html')).toHaveClass(/native-mobile/);
   await expect.poll(() => page.evaluate(() => window.__fudanTest.requests.length)).toBe(1);
   expect(
@@ -296,7 +296,7 @@ const checked = (page: Page) =>
     sourceKey,
   );
 const course = (page: Page, name: string) =>
-  page.getByRole('button', { name: '编辑课程 ' + name, exact: true });
+  page.getByRole('button', { name: '编辑日程 ' + name, exact: true });
 const journal = (page: Page): Promise<FudanSource | null> =>
   page.evaluate((key) => JSON.parse(localStorage.getItem(key) ?? 'null'), sourceKey);
 const optimistic = (page: Page): Promise<AppState> =>
@@ -327,8 +327,8 @@ async function respond(page: Page, index: number, content = capture(), error?: s
   await flushUi(page);
 }
 async function more(page: Page) {
-  await page.getByRole('button', { name: '课程操作', exact: true }).click();
-  const menu = page.getByRole('dialog', { name: '课程操作', exact: true });
+  await page.getByRole('button', { name: '日程操作', exact: true }).click();
+  const menu = page.getByRole('dialog', { name: '日程操作', exact: true });
   await menu.getByText('更多', { exact: true }).click();
   return menu;
 }
@@ -342,13 +342,13 @@ for (const outcome of ['cancel', 'invalid'] as const) {
       window.__fudanTest.cancelMode = 'late';
       window.__fudanTest.importContent = outcome === 'cancel' ? null : 'invalid';
     }, outcome);
-    await page.getByRole('button', { name: '课程操作', exact: true }).click();
+    await page.getByRole('button', { name: '日程操作', exact: true }).click();
     await page
-      .getByRole('dialog', { name: '课程操作', exact: true })
+      .getByRole('dialog', { name: '日程操作', exact: true })
       .getByRole('button', { name: /网站导入/ })
       .click();
     await expect.poll(() => page.evaluate(() => window.__fudanTest.imports)).toBe(1);
-    await expect(page.getByRole('button', { name: '课程操作', exact: true })).toBeEnabled();
+    await expect(page.getByRole('button', { name: '日程操作', exact: true })).toBeEnabled();
     await expect(page.getByRole('dialog', { name: '预览导入课程', exact: true })).toHaveCount(0);
     expect(await saved(page)).toEqual(initial);
     expect(await primaryWrites(page)).toBe(0);
@@ -363,21 +363,21 @@ for (const outcome of ['cancel', 'invalid'] as const) {
 test('startup and resume refresh preserve manual edits made during capture', async ({ page }) => {
   await boot(page);
   await course(page, '合成·手动研讨').click();
-  const editor = page.getByRole('dialog', { name: '编辑课程', exact: true });
-  await editor.getByLabel('课程名称').fill('合成·读取中手动修改');
-  await editor.getByLabel('教室 / 地点').fill('手动保留教室');
-  await editor.getByRole('button', { name: '保存课程', exact: true }).click();
+  const editor = page.getByRole('dialog', { name: '编辑日程', exact: true });
+  await editor.getByLabel('日程标题').fill('合成·读取中手动修改');
+  await editor.getByLabel('日程地点').fill('手动保留教室');
+  await editor.getByRole('button', { name: '保存', exact: true }).click();
   await expect(editor).toHaveCount(0);
-  const manual = (await saved(page)).schedule.courses.find((row) => row.id === 'manual-course')!;
-  expect(manual.name).toBe('合成·读取中手动修改');
+  const manual = (await saved(page)).calendarEvents.find(
+    (row) => row.title === '合成·读取中手动修改',
+  )!;
+  expect(manual.title).toBe('合成·读取中手动修改');
   await respond(page, 0, changed);
   await expect.poll(() => checked(page)).toBe(now);
-  expect((await saved(page)).schedule.courses.find((row) => row.id === 'manual-course')).toEqual(
-    manual,
-  );
+  expect((await saved(page)).calendarEvents.find((row) => row.id === manual.id)).toEqual(manual);
   await expect(course(page, '合成·撤回课程')).toHaveCount(0);
   await expect(course(page, '合成·物理化学')).toContainText('合成新教室');
-  await expect(course(page, manual.name)).toBeVisible();
+  await expect(course(page, manual.title)).toBeVisible();
   expect(await primaryWrites(page)).toBe(2);
   await page.evaluate(() => window.__fudanTest.appState(true));
   await flushUi(page);
@@ -390,9 +390,7 @@ test('startup and resume refresh preserve manual edits made during capture', asy
   await expect.poll(() => page.evaluate(() => window.__fudanTest.requests.length)).toBe(2);
   await respond(page, 1, changed);
   await expect.poll(() => checked(page)).toBe(now + 16 * 60000);
-  expect((await saved(page)).schedule.courses.find((row) => row.id === 'manual-course')).toEqual(
-    manual,
-  );
+  expect((await saved(page)).calendarEvents.find((row) => row.id === manual.id)).toEqual(manual);
   expect(await primaryWrites(page)).toBe(2);
 });
 
@@ -445,7 +443,7 @@ test('disabling subscription cancels native refresh and discards a late successf
   await respond(page, 0, changed);
   expect(await saved(page)).toEqual(initial);
   expect(await primaryWrites(page)).toBe(0);
-  await page.getByRole('button', { name: '关闭课程操作', exact: true }).click();
+  await page.getByRole('button', { name: '关闭日程操作', exact: true }).click();
   await page.clock.setFixedTime(new Date(now + 16 * 60000));
   await page.evaluate(() => window.__fudanTest.appState(true));
   await flushUi(page);
@@ -498,9 +496,9 @@ test('explicit same-semester website re-import replaces rescheduled and withdraw
   const before = await saved(page);
   const expectedSchool = parseFudanCourses(changed, initial.schedule, now).schedule.courses;
   for (let repeat = 0; repeat < 2; repeat++) {
-    await page.getByRole('button', { name: '课程操作', exact: true }).click();
+    await page.getByRole('button', { name: '日程操作', exact: true }).click();
     await page
-      .getByRole('dialog', { name: '课程操作', exact: true })
+      .getByRole('dialog', { name: '日程操作', exact: true })
       .getByRole('button', { name: /网站导入/ })
       .click();
     const preview = page.getByRole('dialog', { name: '预览导入课程', exact: true });
@@ -600,7 +598,7 @@ test('failed native write keeps A union B ownership across an optimistic no-op u
   expect((await journal(page))?.courseIds.slice().sort()).toEqual(b);
   expect(await saved(page)).toEqual(pendingB);
   expect(await primaryAttempts(page)).toBe(2);
-  await page.getByRole('button', { name: '关闭课程操作', exact: true }).click();
+  await page.getByRole('button', { name: '关闭日程操作', exact: true }).click();
   await expect(page.locator('.error-banner')).toHaveCount(0);
   await expect(course(page, '合成·物理化学')).toContainText('合成新教室');
 });
@@ -621,9 +619,9 @@ test('explicit B confirmation ignores old refresh C while native persistence is 
     window.__fudanTest.writeMode = 'defer';
     window.__fudanTest.importContent = content;
   }, changed);
-  await page.getByRole('button', { name: '课程操作', exact: true }).click();
+  await page.getByRole('button', { name: '日程操作', exact: true }).click();
   await page
-    .getByRole('dialog', { name: '课程操作', exact: true })
+    .getByRole('dialog', { name: '日程操作', exact: true })
     .getByRole('button', { name: /网站导入/ })
     .click();
   const preview = page.getByRole('dialog', { name: '预览导入课程', exact: true });
@@ -711,7 +709,7 @@ test('rapid pause and resume schedules a retry after the old callback finally co
   await respond(page, 0, changed);
   await expect.poll(() => page.evaluate(() => window.__fudanTest.requests.length)).toBe(2);
   expect(await saved(page)).toEqual(initial);
-  expect(await optimistic(page)).toEqual(initial);
+  expect(await optimistic(page)).toEqual(stateSchema.parse(initial));
   expect(await checked(page)).toBe(0);
   expect(await primaryWrites(page)).toBe(0);
   await respond(page, 1, changed);

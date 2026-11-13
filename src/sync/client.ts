@@ -31,6 +31,10 @@ export class SyncClient {
     const raw = await this.storage.read();
     if (raw !== null) {
       const value = JSON.parse(raw) as SyncConfig;
+      if (!value.arrangementsVersion) {
+        await this.storage.preserve?.(raw, 'sync.before-arrangements.json');
+        value.arrangementsVersion = 1;
+      }
       if (
         value.version !== 1 ||
         typeof value.deviceId !== 'string' ||
@@ -254,7 +258,7 @@ export class SyncClient {
         const dirty = !c.base || stable(sent) !== stable(c.base);
         const through = this.through;
         const request = {
-          protocol: 2,
+          protocol: 3,
           ...(through ? { through } : {}),
           name: c.name,
           revision: c.revision,
@@ -271,8 +275,8 @@ export class SyncClient {
           },
           async (response) => {
             const value = await openEnvelope<SyncReply>(response, c.key!, '/sync:reply');
-            if (value.protocol !== 2)
-              throw new Error('任务模型版本不兼容，请先升级同步中心与所有客户端');
+            if (value.protocol !== 3)
+              throw new Error('安排模型版本不兼容，请先升级同步中心与所有客户端');
             if (response.clientId !== c.deviceId || value.hubId !== c.hubId || value.seq !== c.seq)
               throw new Error('同步响应身份或序号不符');
             return value;

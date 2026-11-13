@@ -82,9 +82,8 @@ export async function initializeMobile() {
     {
       read: async () => (await files.read({ name: 'sync.json' })).content,
       write: (content) => files.write({ name: 'sync.json', content }),
-      preserve: async (content) => {
-        if ((await files.read({ name: 'sync.before-task-v2.json' })).content === null)
-          await files.write({ name: 'sync.before-task-v2.json', content });
+      preserve: async (content, name = 'sync.before-task-v2.json') => {
+        if ((await files.read({ name })).content === null) await files.write({ name, content });
       },
     },
     {

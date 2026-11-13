@@ -34,7 +34,8 @@ test('create a list, edit a task, complete and reopen it, undo deletion and reta
   await editor.getByLabel('任务备注').fill('先看摘要和方法');
   await editor.getByLabel('添加子任务').fill('阅读摘要');
   await editor.getByLabel('添加子任务').press('Enter');
-  await expect(editor.getByLabel('重复频率')).toBeDisabled();
+  await expect(editor.getByLabel('重复频率')).toBeEnabled();
+  await expect(editor.getByLabel('重复频率')).toHaveValue('');
   await editor.getByRole('button', { name: '保存任务', exact: true }).click();
   await page.getByRole('checkbox', { name: '完成 阅读论文', exact: true }).click();
   await expect(page.locator('.completed-plans .task-row')).toHaveCount(1);

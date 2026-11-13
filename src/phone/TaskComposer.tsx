@@ -17,6 +17,8 @@ import { PlanGroupModal } from '../components/PlanGroupModal';
 import { TaskDatesEditor } from '../components/TaskDatesEditor';
 import { configureRepeat } from '../task-repeat';
 import { TaskCheck } from '../components/TaskCheck';
+import { RecurrenceEditor } from '../components/RecurrenceEditor';
+import { configureRecurrence } from '../event-domain';
 import { usePhone } from './usePhone';
 
 export function TaskComposer({
@@ -57,7 +59,18 @@ export function TaskComposer({
     offsets: rule?.dateOffsets.join(', ') ?? '0',
   });
   const [cron, setCron] = useState(rule?.enabled ? rule.cron : '');
-  const [offsetText, setOffsetText] = useState(rule?.dateOffsets.join(', ') ?? '0');
+  const unifiedRule = task
+    ? data.recurrences.find((row) => row.target === 'task' && row.prefix === taskPrefix(task.id))
+    : undefined;
+  const [unifiedBaseline] = useState(unifiedRule?.updatedAt);
+  const [definitions, setDefinitions] = useState(
+    unifiedRule?.enabled ? unifiedRule.definitions : [],
+  );
+  const [seriesScope, setSeriesScope] = useState(false);
+  const [seriesConfirmed, setSeriesConfirmed] = useState(false);
+  const [offsetText, setOffsetText] = useState(
+    unifiedRule?.dateOffsets.join(', ') ?? rule?.dateOffsets.join(', ') ?? '0',
+  );
   const [repeatAvailable, setRepeatAvailable] = useState(false);
   useEffect(() => {
     let live = true;
@@ -76,6 +89,7 @@ export function TaskComposer({
   );
   const [actualMinutes, setActualMinutes] = useState(task?.actualMinutes?.toString() ?? '');
   const [difficulty, setDifficulty] = useState<TaskDifficulty>(task?.difficulty ?? 'easy');
+  const [priority, setPriority] = useState(task?.priority ?? 0);
   const recordedMinutes = task ? recordedTaskMinutes(data, task.id) : 0;
   const [busy, setBusy] = useState(false),
     [error, setError] = useState('');
@@ -95,6 +109,7 @@ export function TaskComposer({
         estimatedMinutes: estimatedMinutes.trim() === '' ? null : Number(estimatedMinutes),
         actualMinutes: actualMinutes.trim() === '' ? null : Number(actualMinutes),
         difficulty,
+        priority,
         tags: [
           ...new Set([
             ...tags,
@@ -121,6 +136,38 @@ export function TaskComposer({
         ],
       });
       await store.transact((state) => {
+        const unifiedChanged =
+          JSON.stringify(definitions) !==
+            JSON.stringify(unifiedRule?.enabled ? unifiedRule.definitions : []) ||
+          (definitions.length > 0 && offsetText !== (unifiedRule?.dateOffsets.join(', ') ?? '0'));
+        if (
+          unifiedChanged &&
+          task &&
+          state.recurrences.find((row) => row.prefix === taskPrefix(task.id))?.updatedAt !==
+            unifiedBaseline
+        )
+          throw new Error('重复规则已在其他位置修改，请重新打开后编辑');
+        if (seriesScope && !seriesConfirmed) throw new Error('请确认批量修改关联实例');
+        const applyRepeat = (next: typeof state, entity: Task) => {
+          if (!unifiedChanged) return next;
+          if (definitions.length)
+            return configureRecurrence(
+              next,
+              entity,
+              'task',
+              definitions,
+              true,
+              offsetText.split(/[,，]/).map((value) => Number(value.trim())),
+            );
+          return {
+            ...next,
+            recurrences: next.recurrences.map((row) =>
+              row.prefix === taskPrefix(entity.id)
+                ? { ...row, enabled: false, updatedAt: new Date().toISOString() }
+                : row,
+            ),
+          };
+        };
         if (!state.lists.some((item) => item.id === list))
           throw new Error('清单已变化，请重新选择。');
         for (const [day, group] of Object.entries(dates))
@@ -130,8 +177,10 @@ export function TaskComposer({
           )
             throw new Error('时段已变化，请重新选择。');
         const offsets = offsetText.split(/[,，]/).map((value) => Number(value.trim()));
-        const repeatChanged = cron !== repeatBaseline.cron || offsetText !== repeatBaseline.offsets;
-        if (!repeatAvailable && repeatChanged) throw new Error('修改重复规则需要连接同步中心');
+        const repeatChanged =
+          cron !== repeatBaseline.cron || (!!cron && offsetText !== repeatBaseline.offsets);
+        if (!repeatAvailable && repeatChanged && !unifiedChanged)
+          throw new Error('修改旧 Cron 规则需要连接同步中心');
         if (
           repeatChanged &&
           task &&
@@ -145,7 +194,7 @@ export function TaskComposer({
           const latest = state.tasks.find((item) => item.id === task.id);
           if (!latest || latest.deletedAt || latest.updatedAt !== revision)
             throw new Error('任务已在其他位置修改，请重新打开后编辑。');
-          const next = {
+          let next = {
             ...state,
             tasks: state.tasks.map((item) =>
               item.id === task.id
@@ -153,6 +202,7 @@ export function TaskComposer({
                     ...item,
                     dates,
                     difficulty,
+                    priority,
                     title: created.title,
                     notes: created.notes,
                     estimatedMinutes: created.estimatedMinutes,
@@ -165,6 +215,53 @@ export function TaskComposer({
                 : item,
             ),
           };
+          if (seriesScope) {
+            const patch = Object.fromEntries(
+              (
+                [
+                  'title',
+                  'notes',
+                  'estimatedMinutes',
+                  'difficulty',
+                  'priority',
+                  'listId',
+                  'tags',
+                ] as const
+              )
+                .filter((key) => JSON.stringify(created[key]) !== JSON.stringify(task[key]))
+                .map((key) => [key, created[key]]),
+            );
+            next = {
+              ...next,
+              tasks: next.tasks.map((row) =>
+                row.id !== task.id && !row.deletedAt && taskPrefix(row.id) === taskPrefix(task.id)
+                  ? { ...row, ...patch, updatedAt: new Date().toISOString() }
+                  : row,
+              ),
+              recurrences: next.recurrences.map((row) =>
+                row.prefix === taskPrefix(task.id) && row.taskTemplate
+                  ? {
+                      ...row,
+                      taskTemplate: { ...row.taskTemplate, ...patch },
+                      updatedAt: new Date().toISOString(),
+                    }
+                  : row,
+              ),
+              repeatRules: next.repeatRules.map((row) =>
+                row.prefix === taskPrefix(task.id)
+                  ? {
+                      ...row,
+                      template: { ...row.template, ...patch },
+                      updatedAt: new Date().toISOString(),
+                    }
+                  : row,
+              ),
+            };
+          }
+          next = applyRepeat(
+            next,
+            next.tasks.find((row) => row.id === task.id)!,
+          );
           return repeatChanged
             ? configureRepeat(
                 next,
@@ -174,11 +271,14 @@ export function TaskComposer({
               )
             : next;
         }
-        return configureRepeat(
-          { ...state, tasks: [...state.tasks, created] },
+        return applyRepeat(
+          configureRepeat(
+            { ...state, tasks: [...state.tasks, created] },
+            created,
+            cron || null,
+            offsets,
+          ),
           created,
-          cron || null,
-          offsets,
         );
       });
       saved();
@@ -381,17 +481,32 @@ export function TaskComposer({
         )}
         <div className="phone-form-options">
           <label>
-            <Repeat2 size={17} />
+            <span className="phone-form-option-name">优先级</span>
             <select
-              aria-label="重复频率"
-              disabled={!repeatAvailable && !cron}
-              value={cron ? 'cron' : ''}
-              onChange={(event) => setCron(event.target.value ? '0 4 * * *' : '')}
+              aria-label="任务优先级"
+              value={priority}
+              onChange={(event) => setPriority(Number(event.target.value))}
             >
-              <option value="">不重复</option>
-              <option value="cron">Cron 重复</option>
+              <option value={0}>无</option>
+              <option value={1}>低</option>
+              <option value={2}>中</option>
+              <option value={3}>高</option>
             </select>
           </label>
+          {rule?.enabled && (
+            <label>
+              <Repeat2 size={17} />
+              <select
+                aria-label="旧 Cron 重复"
+                disabled={!repeatAvailable && !cron}
+                value={cron ? 'cron' : ''}
+                onChange={(event) => setCron(event.target.value ? '0 4 * * *' : '')}
+              >
+                <option value="">不重复</option>
+                <option value="cron">Cron 重复</option>
+              </select>
+            </label>
+          )}
           <label>
             <span className="phone-form-option-name">任务难度</span>
             <select
@@ -407,7 +522,69 @@ export function TaskComposer({
             </select>
           </label>
         </div>
-        {!repeatAvailable && <p className="muted">重复任务需要连接同步中心</p>}
+        <RecurrenceEditor
+          value={definitions}
+          onChange={(value) => {
+            if (!definitions.length && value.length) {
+              const finite = Object.keys(dates)
+                .filter((key) => key !== '∞')
+                .sort();
+              setOffsetText(
+                finite.length
+                  ? finite
+                      .map((day) => (Date.parse(day) - Date.parse(finite[0])) / 86400000)
+                      .join(', ')
+                  : '0',
+              );
+            }
+            setDefinitions(value);
+            if (value.length) setCron('');
+          }}
+          date={
+            Object.keys(dates)
+              .filter((key) => key !== '∞')
+              .sort()[0] ?? today
+          }
+          timeZone={data.settings.timeZone}
+        />
+        {definitions.length > 0 && !cron && (
+          <label className="form-label">
+            日期偏移
+            <input
+              className="text-input"
+              aria-label="日期偏移"
+              value={offsetText}
+              onChange={(event) => setOffsetText(event.target.value)}
+            />
+            <span className="field-hint">每次发生可安排多个日期，0 为发生日，1 为次日。</span>
+          </label>
+        )}
+        {task && (
+          <details>
+            <summary>关联系列批量修改</summary>
+            <label>
+              <input
+                type="checkbox"
+                checked={seriesScope}
+                onChange={(event) => {
+                  setSeriesScope(event.target.checked);
+                  setSeriesConfirmed(false);
+                }}
+              />
+              应用本次更改的标题、备注、清单、标签、难度、优先级与预计用时到关联系列
+            </label>
+            {seriesScope && (
+              <label>
+                <input
+                  type="checkbox"
+                  checked={seriesConfirmed}
+                  onChange={(event) => setSeriesConfirmed(event.target.checked)}
+                />
+                确认更新包含关联实例的独立修改
+              </label>
+            )}
+          </details>
+        )}
         {cron && (
           <div className="task-repeat-options">
             <label className="form-label">

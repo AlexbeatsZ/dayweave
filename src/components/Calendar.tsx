@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import type { CalendarEvent } from '../event-model';
+import { eventsOnDate } from '../event-domain';
 import {
   civilDateKey,
   dateKey,
@@ -12,6 +14,8 @@ import {
 
 export function Calendar({
   tasks,
+  events,
+  timeZone = 'Asia/Shanghai',
   selectedDate,
   onDate,
   onAdd,
@@ -21,6 +25,8 @@ export function Calendar({
   onWindow,
 }: {
   tasks: Task[];
+  events?: CalendarEvent[];
+  timeZone?: string;
   selectedDate: string;
   onDate: (date: string) => void;
   onAdd?: (date: string) => void;
@@ -80,6 +86,7 @@ export function Calendar({
                 a.order - b.order,
             );
           const out = fromDateKey(day).getMonth() !== month.getMonth();
+          const dayEvents = events ? eventsOnDate(events, day, timeZone) : [];
           return (
             <div
               className={`calendar-day ${out ? 'outside' : ''} ${day === selectedDate ? 'selected-day' : ''}`}
@@ -107,31 +114,46 @@ export function Calendar({
                 {Number(day.slice(-2))}
               </button>
               <div className="calendar-events">
-                {dayTasks.slice(0, 3).map((task) => (
-                  <button
-                    key={task.id}
-                    className={`calendar-event ${(day < dateKey() ? taskDoneOn(task, day) : taskCompleted(task)) ? 'event-done' : ''}`}
-                    draggable
-                    onDragStart={(e) => {
-                      e.dataTransfer.setData('application/clearlist-task', task.id);
-                      e.dataTransfer.setData('application/dayweave-task-date', day);
-                    }}
-                    onClick={() => onSelect(task.id)}
-                    title={task.title}
-                  >
-                    <i />
-                    {task.title}
-                  </button>
-                ))}
-                {dayTasks.length > 3 && (
+                {events
+                  ? dayEvents.slice(0, 3).map((event) => (
+                      <button
+                        key={event.id}
+                        className="calendar-event"
+                        onClick={() => onSelect(event.id)}
+                        title={event.title}
+                      >
+                        <i style={{ background: event.color }} />
+                        {!event.allDay && (
+                          <span className="calendar-event-clock">{event.periods[0][0]} </span>
+                        )}
+                        {event.title}
+                      </button>
+                    ))
+                  : dayTasks.slice(0, 3).map((task) => (
+                      <button
+                        key={task.id}
+                        className={`calendar-event ${(day < dateKey() ? taskDoneOn(task, day) : taskCompleted(task)) ? 'event-done' : ''}`}
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData('application/clearlist-task', task.id);
+                          e.dataTransfer.setData('application/dayweave-task-date', day);
+                        }}
+                        onClick={() => onSelect(task.id)}
+                        title={task.title}
+                      >
+                        <i />
+                        {task.title}
+                      </button>
+                    ))}
+                {(events ? dayEvents.length : dayTasks.length) > 3 && (
                   <button className="calendar-more" onClick={() => (onOpenDay ?? onDate)(day)}>
-                    还有 {dayTasks.length - 3} 件
+                    还有 {(events ? dayEvents.length : dayTasks.length) - 3} 件
                   </button>
                 )}
               </div>
               <button
                 className="day-add"
-                aria-label={`在 ${day} 添加任务`}
+                aria-label={`在 ${day} 添加${events ? '日程' : '任务'}`}
                 onClick={() => (onAdd ? onAdd(day) : onDate(day))}
               >
                 <Plus size={13} />
@@ -140,7 +162,6 @@ export function Calendar({
           );
         })}
       </div>
-      <p className="calendar-hint">点击日期安排任务 · 拖动任务调整日期</p>
     </section>
   );
 }

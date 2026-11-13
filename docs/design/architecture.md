@@ -1,5 +1,7 @@
 # 结构与状态归属
 
+安排当前采用 Task/Event 两种模式及各自月、周视图。`event-model.ts`、`event-domain.ts`、`recurrence.ts` 与 `event-migration.ts` 集中处理日程、共用实例分配、RRULE 和旧课程适配。`Arrangements` 复用原月历、Modal、TaskCheck 与拖动 hook，`Timetable` 只保留下一个日程投影和旧课程导入设置。`calendar-feed` 提供 Event 专属订阅，`calendar-subscriptions` 在中心保存队列外读取网络并在原事务内导入。当前详细边界见 [arrangements.md](arrangements.md)。下文旧二维课程网格与协议 2 的描述保留为迁移背景。
+
 自动设备观察是独立领域，不属于手动 timelog 状态副本：`src/usage` 定义导入/校验/统计和原生桥，`electron/usage-store.ts`、Android `UsageDatabase` 各自拥有本机 SQLite 和交付队列。只读投影进入同一时间线和记录统计，不创建第二套导航。设备本机采集设置与权限不参与共享业务 JSON。详细契约见 `automatic-records.md`。
 
 正式服务器与AI-tools共用 `headless-runtime.ts` 的资源生命周期和原业务所有者，server目录仅拥有独立发行、配置/CLI/运维入口。本机采集禁用是DesktopUsage的显式策略，远端usage与旧来源导入独立保留。详见 `server.md`。

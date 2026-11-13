@@ -4,6 +4,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Current State
 
+- Arrangement refactor source adds independent `calendarEvents`, shared RRULE/instance allocation, task/event month/week modes and revocable Event-only ICS subscriptions for Google/Outlook/Apple. Optional inbound ICS subscriptions are also implemented following the user's clarification to retain that work. New business sync protocol is 3, JSON remains version 2. Existing production clients/center still require a coordinated upgrade after UI review. Read `docs/design/arrangements.md` before changing these paths.
+
 - 2026-11-11 ROG boot recovery restored Dayweave Server 0.2.3 and the shared HTTPS gateway. Both original tasks retain enabled boot triggers. DayweaveHub now runs `.local/server/start-with-boot-recovery.ps1` before launching the original server and config. It preserves and clears a pre-boot owner lock when the recorded PID belongs to a post-boot process. The gateway uses the existing WebObsidian wrapper with the Mojian route and Dayweave module after KeePass retirement. Mac sync completed with no pending changes or conflicts, and authenticated public Mojian and WebObsidian manifests returned 200. A full machine reboot after the repair remains unverified. See docs/log/2026-11.md.
 
 - Client 0.5.7/code30 and Server 0.2.4 are published as prereleases with 12/3 assets. Daily behavior rules have a P/Q description and a dropdown that saves immediately or clears the current day's answer. Reviews close at the configured business day boundary, sync independently by rule and date, and remain read-only in history. No production deployment was performed. Upgrade the center before using the feature on paired clients. See docs/design/planning-goals.md and docs/design/timelog-interface.md.
@@ -87,6 +89,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Active Work
 
+- Arrangement source is ready for UI review after 224 Node tests, type/format checks and 32 focused browser scenarios passed. Full browser runs retain the known timer Shift+F10 failure; a usage background-refresh DOM-identity assertion also fluctuated once and passed its isolated/final focused reruns. Review `.local/preview/arrangements/` before authorizing CI push, packaging, publication or deployment under the existing delivery gate. One early local Web/Electron build passed before that review. Account subscription/notifications and physical-device acceptance remain pending.
+
 - 2026-11-11 activity catalog correction is ready for UI review. New profiles start without activities, and the upgrade retires only unused old presets with unchanged fingerprints. Task timers use an actual activity or prompt for a choice. Behavior review dropdown is inset 16 px. Previews: `.local/preview/user-activities/`. Await explicit authorization after UI review before any build, CI push, packaging or release.
 
 - AI Decision link_task (target=record|timer) and create→complete adapter run against production OpenAPI2.1.0, gated on GET /health data.capabilities.taskRecordLinks===true; AI owns its ledger/fingerprint/unknown-result reconciliation (docs/design/api.md). No live association was test-written; the first natural AI association/backfill remains unaccepted.
@@ -98,7 +102,7 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 - Preserve original conflict candidates and identities during real device acceptance; installation and protocol exchange do not establish gesture/background behavior.
 - Mac native capture still needs the user's Accessibility/browser-capture/Automation approval; do not grant permissions or refresh system icon caches automatically. Historical Work Review observations do not prove the new collector is accepted.
 - Real installed-app Fudan capture, long-term ROG Server performance/whole-machine reboot without login, and physical multi-network/mDNS behavior remain separate acceptance. Existing campus sessions and gateway dependencies stay preserved.
-- Current source, installed0.5.4 clients and center use task schema/protocol2. AI external identities are mapped and original automation has resumed; independent Meta/Muse services and course overlay remain unchanged.
+- Arrangement source uses task JSON version2 and business sync protocol3. Previously deployed clients/center use protocol2 and require coordinated upgrade before accepting the new Event collections. AI external identity migration and original automation recovery are historical accepted work.
 
 # Build / Run / Test
 
@@ -126,6 +130,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Durable Lessons
 
+- ical.js 2.2.1 normalizes implicit yearly February 29 to March 1 on non-leap years. Add RFC default BYMONTH/BYMONTHDAY before iteration. Normalize minute and zero-second DTSTART forms to one occurrence key before allocating IDs. See arrangements.md and arrangements.test.ts.
+
 - A Windows build from a temporary checkout can typecheck with node_modules junctioned to another checkout while electron-builder silently omits transitive packages. Use real project-local dependencies for packaging and smoke the packaged executable before upgrading users.
 
 - macOS owner.lock currently checks only PID liveness. After reboot a reused PID can belong to an unrelated system process and block storage/API startup while the new app process remains alive. First quit the new app normally, verify the recorded PID's executable and absence of another Dayweave owner, then preserve/move the stale lock before restarting. A closed window or dead API alone does not establish a stale lock. Actual0.5.3 deployment recovered oldPID524 reused by accessoryupdaterd without touching data.
@@ -151,6 +157,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 - For sideloaded builds, omit Xiaomi-market miuiWidget/miuiWidgetVersion markers: the standard Android picker then exposes both variants on the tested Pad 6 Pro. A successful requestPinAppWidget result does not prove Xiaomi showed a confirmation; keep manual picker instructions.
 
 # Docs Index
+
+- `docs/design/arrangements.md` — Task/Event modes, periods, RRULE, stable instances, migration and Event-only calendar export/import.
 
 - docs/design/task-system.md: Task field inventory, dates/difficulty/history, hub Cron, fine-grained LWW, v1 identity/reference migration, protocol2 and coordinated rollback.
 

@@ -19,31 +19,26 @@ test('Shanghai course stays 08:00 on a UTC-4 device and shows Sunday 20:00 with 
     .getByRole('navigation', { name: '主导航' })
     .getByRole('button', { name: '安排', exact: true })
     .click();
-  await page.getByRole('tab', { name: '课程表', exact: true }).click();
-  await page.getByRole('button', { name: '课程操作', exact: true }).click();
-  await page.getByText('更多', { exact: true }).click();
-  await page.getByRole('button', { name: '学期与时区', exact: true }).click();
-  await page.getByLabel('第一周的周一').fill('2026-09-07');
-  await page.getByLabel('学期周数').fill('18');
-  await page.getByRole('button', { name: '保存学期', exact: true }).click();
-  await page.getByRole('button', { name: '课程操作', exact: true }).click();
-  await page.getByRole('button', { name: '手动添加课程', exact: true }).click();
-  await page.getByLabel('课程名称', { exact: true }).fill('量子化学（H）');
-  await page.getByLabel('教室 / 地点').fill('H4306');
-  await page.getByLabel('下课时间', { exact: true }).fill('09:40');
-  await page.getByLabel('教学周', { exact: true }).fill('1-16');
-  await page.getByRole('button', { name: '保存课程', exact: true }).click();
+  await page.getByRole('tab', { name: '日程', exact: true }).click();
+  await page.getByRole('button', { name: '新增日程', exact: true }).click();
+  await page.getByLabel('日程标题').fill('量子化学（H）');
+  await page.getByLabel('日程类型').selectOption('course');
+  await page.getByLabel('日程日期').fill('2026-09-07');
+  await page.getByLabel('日程地点').fill('H4306');
+  await page.getByLabel('开始时间 1', { exact: true }).fill('08:00');
+  await page.getByLabel('结束时间 1', { exact: true }).fill('09:40');
+  await page.getByRole('button', { name: '保存', exact: true }).click();
   await expect(
-    page.getByRole('button', { name: '编辑课程 量子化学（H）', exact: true }),
+    page.locator('.arrangement-event').filter({ hasText: '量子化学（H）' }),
   ).toBeVisible();
   await page.reload();
   await page
     .getByRole('navigation', { name: '主导航' })
     .getByRole('button', { name: '安排', exact: true })
     .click();
-  await page.getByRole('tab', { name: '课程表', exact: true }).click();
+  await page.getByRole('tab', { name: '日程', exact: true }).click();
   await expect(
-    page.getByRole('button', { name: '编辑课程 量子化学（H）', exact: true }),
+    page.locator('.arrangement-event').filter({ hasText: '量子化学（H）' }),
   ).toBeVisible();
   await page
     .getByRole('navigation', { name: '主导航' })
@@ -122,8 +117,8 @@ test('phone course and time destinations stay within screen width', async ({ pag
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
   await page.getByRole('button', { name: '手机安排', exact: true }).click();
-  await page.getByRole('tab', { name: '课程表' }).click();
-  await expect(page.getByRole('region', { name: '每周课程表' })).toBeVisible();
+  await page.getByRole('tab', { name: '日程' }).click();
+  await expect(page.getByRole('region', { name: '日程安排' })).toBeVisible();
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
   ).toBeTruthy();

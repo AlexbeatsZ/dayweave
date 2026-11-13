@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Dayweave AI API",
-    "version": "2.2.0",
+    "version": "2.3.0",
     "description": "时织 Windows/macOS 本机接口。应用运行时可用；实际地址与令牌见设置或用户数据目录 api.json。默认不对局域网开放。所有写入先持久化再通知界面；DELETE 任务为软删除。"
   },
   "servers": [
@@ -33,6 +33,7 @@
           "estimatedMinutes": { "nullable": true, "type": "number", "minimum": 0 },
           "actualMinutes": { "nullable": true, "type": "number", "minimum": 0 },
           "difficulty": { "default": "easy", "type": "string", "enum": ["easy", "medium", "hard"] },
+          "priority": { "type": "integer", "minimum": 0, "maximum": 3 },
           "listId": { "type": "string", "minLength": 1, "maxLength": 100 },
           "dates": {
             "type": "object",
@@ -155,6 +156,101 @@
           "completedAt",
           "deletedAt",
           "history"
+        ],
+        "additionalProperties": false
+      },
+      "Event": {
+        "type": "object",
+        "properties": {
+          "title": { "type": "string", "minLength": 1, "maxLength": 500 },
+          "type": {
+            "type": "string",
+            "enum": ["course", "exam", "presentation", "meeting", "other"]
+          },
+          "notes": { "default": "", "type": "string", "maxLength": 50000 },
+          "location": { "default": "", "type": "string", "maxLength": 500 },
+          "teacher": { "default": "", "type": "string", "maxLength": 300 },
+          "color": { "default": "#4264b2", "type": "string", "pattern": "^#[\\da-f]{6}$" },
+          "allDay": { "type": "boolean" },
+          "periods": {
+            "maxItems": 30,
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" },
+                  { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" }
+                ]
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "precision": {
+            "type": "object",
+            "properties": {
+              "start": { "type": "integer", "minimum": 0, "maximum": 59999 },
+              "end": { "type": "integer", "minimum": 0, "maximum": 59999 }
+            },
+            "required": ["start", "end"],
+            "additionalProperties": false
+          },
+          "durationDays": { "default": 1, "type": "integer", "minimum": 1, "maximum": 366 },
+          "timeZone": { "type": "string", "maxLength": 100 },
+          "id": { "type": "string", "minLength": 1, "maxLength": 100 },
+          "date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+          "recurrenceId": { "default": null, "nullable": true, "type": "string", "maxLength": 150 },
+          "source": {
+            "default": null,
+            "nullable": true,
+            "type": "object",
+            "properties": {
+              "kind": { "type": "string", "enum": ["legacy-course", "legacy-event", "calendar"] },
+              "id": { "type": "string", "maxLength": 500 },
+              "uid": { "type": "string", "maxLength": 2000 },
+              "fingerprint": { "type": "string", "maxLength": 100000 },
+              "revision": { "type": "string", "maxLength": 100000 },
+              "cancelled": { "type": "boolean" }
+            },
+            "required": ["kind", "id", "uid", "fingerprint"],
+            "additionalProperties": false
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "deletedAt": {
+            "nullable": true,
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": [
+          "title",
+          "type",
+          "notes",
+          "location",
+          "teacher",
+          "color",
+          "allDay",
+          "periods",
+          "durationDays",
+          "timeZone",
+          "id",
+          "date",
+          "recurrenceId",
+          "source",
+          "createdAt",
+          "updatedAt",
+          "deletedAt"
         ],
         "additionalProperties": false
       },
@@ -440,6 +536,7 @@
                   "type": "string",
                   "enum": ["easy", "medium", "hard"]
                 },
+                "priority": { "type": "integer", "minimum": 0, "maximum": 3 },
                 "listId": { "type": "string", "minLength": 1, "maxLength": 100 },
                 "dates": {
                   "type": "object",
@@ -566,6 +663,432 @@
               "additionalProperties": false
             }
           },
+          "calendarEvents": {
+            "default": [],
+            "maxItems": 100000,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "title": { "type": "string", "minLength": 1, "maxLength": 500 },
+                "type": {
+                  "type": "string",
+                  "enum": ["course", "exam", "presentation", "meeting", "other"]
+                },
+                "notes": { "default": "", "type": "string", "maxLength": 50000 },
+                "location": { "default": "", "type": "string", "maxLength": 500 },
+                "teacher": { "default": "", "type": "string", "maxLength": 300 },
+                "color": { "default": "#4264b2", "type": "string", "pattern": "^#[\\da-f]{6}$" },
+                "allDay": { "type": "boolean" },
+                "periods": {
+                  "maxItems": 30,
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "anyOf": [
+                        { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" },
+                        { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" }
+                      ]
+                    },
+                    "minItems": 2,
+                    "maxItems": 2
+                  }
+                },
+                "precision": {
+                  "type": "object",
+                  "properties": {
+                    "start": { "type": "integer", "minimum": 0, "maximum": 59999 },
+                    "end": { "type": "integer", "minimum": 0, "maximum": 59999 }
+                  },
+                  "required": ["start", "end"],
+                  "additionalProperties": false
+                },
+                "durationDays": { "default": 1, "type": "integer", "minimum": 1, "maximum": 366 },
+                "timeZone": { "type": "string", "maxLength": 100 },
+                "id": { "type": "string", "minLength": 1, "maxLength": 100 },
+                "date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+                "recurrenceId": {
+                  "default": null,
+                  "nullable": true,
+                  "type": "string",
+                  "maxLength": 150
+                },
+                "source": {
+                  "default": null,
+                  "nullable": true,
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": ["legacy-course", "legacy-event", "calendar"]
+                    },
+                    "id": { "type": "string", "maxLength": 500 },
+                    "uid": { "type": "string", "maxLength": 2000 },
+                    "fingerprint": { "type": "string", "maxLength": 100000 },
+                    "revision": { "type": "string", "maxLength": 100000 },
+                    "cancelled": { "type": "boolean" }
+                  },
+                  "required": ["kind", "id", "uid", "fingerprint"],
+                  "additionalProperties": false
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                },
+                "deletedAt": {
+                  "nullable": true,
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                }
+              },
+              "required": [
+                "title",
+                "type",
+                "notes",
+                "location",
+                "teacher",
+                "color",
+                "allDay",
+                "periods",
+                "durationDays",
+                "timeZone",
+                "id",
+                "date",
+                "recurrenceId",
+                "source",
+                "createdAt",
+                "updatedAt",
+                "deletedAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "recurrences": {
+            "default": [],
+            "maxItems": 5000,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "prefix": { "type": "string", "minLength": 1, "maxLength": 100 },
+                "target": { "type": "string", "enum": ["task", "event"] },
+                "definitions": {
+                  "minItems": 1,
+                  "maxItems": 100,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "dtstart": { "type": "string", "maxLength": 30 },
+                      "rrule": {
+                        "default": null,
+                        "nullable": true,
+                        "type": "string",
+                        "maxLength": 2000
+                      },
+                      "rdate": {
+                        "default": [],
+                        "maxItems": 20000,
+                        "type": "array",
+                        "items": { "type": "string", "maxLength": 30 }
+                      },
+                      "exdate": {
+                        "default": [],
+                        "maxItems": 20000,
+                        "type": "array",
+                        "items": { "type": "string", "maxLength": 30 }
+                      },
+                      "timeZone": { "type": "string", "maxLength": 100 },
+                      "eventTemplate": {
+                        "type": "object",
+                        "properties": {
+                          "title": { "type": "string", "minLength": 1, "maxLength": 500 },
+                          "type": {
+                            "type": "string",
+                            "enum": ["course", "exam", "presentation", "meeting", "other"]
+                          },
+                          "notes": { "default": "", "type": "string", "maxLength": 50000 },
+                          "location": { "default": "", "type": "string", "maxLength": 500 },
+                          "teacher": { "default": "", "type": "string", "maxLength": 300 },
+                          "color": {
+                            "default": "#4264b2",
+                            "type": "string",
+                            "pattern": "^#[\\da-f]{6}$"
+                          },
+                          "allDay": { "type": "boolean" },
+                          "periods": {
+                            "maxItems": 30,
+                            "type": "array",
+                            "items": {
+                              "type": "array",
+                              "items": {
+                                "anyOf": [
+                                  { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" },
+                                  { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" }
+                                ]
+                              },
+                              "minItems": 2,
+                              "maxItems": 2
+                            }
+                          },
+                          "precision": {
+                            "type": "object",
+                            "properties": {
+                              "start": { "type": "integer", "minimum": 0, "maximum": 59999 },
+                              "end": { "type": "integer", "minimum": 0, "maximum": 59999 }
+                            },
+                            "required": ["start", "end"],
+                            "additionalProperties": false
+                          },
+                          "durationDays": {
+                            "default": 1,
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 366
+                          },
+                          "timeZone": { "type": "string", "maxLength": 100 }
+                        },
+                        "required": [
+                          "title",
+                          "type",
+                          "notes",
+                          "location",
+                          "teacher",
+                          "color",
+                          "allDay",
+                          "periods",
+                          "durationDays",
+                          "timeZone"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": ["dtstart", "rrule", "rdate", "exdate", "timeZone"],
+                    "additionalProperties": false
+                  }
+                },
+                "taskTemplate": {
+                  "type": "object",
+                  "properties": {
+                    "title": { "type": "string", "minLength": 1, "maxLength": 500 },
+                    "notes": { "type": "string", "maxLength": 50000 },
+                    "estimatedMinutes": { "nullable": true, "type": "number", "minimum": 0 },
+                    "difficulty": {
+                      "default": "easy",
+                      "type": "string",
+                      "enum": ["easy", "medium", "hard"]
+                    },
+                    "priority": { "type": "integer", "minimum": 0, "maximum": 3 },
+                    "listId": { "type": "string", "minLength": 1, "maxLength": 100 },
+                    "tags": {
+                      "maxItems": 30,
+                      "type": "array",
+                      "items": { "type": "string", "minLength": 1, "maxLength": 40 }
+                    },
+                    "subtasks": {
+                      "maxItems": 200,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "string", "minLength": 1, "maxLength": 100 },
+                          "title": { "type": "string", "minLength": 1, "maxLength": 500 },
+                          "done": { "type": "boolean" },
+                          "completedAt": {
+                            "default": null,
+                            "nullable": true,
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "deletedAt": {
+                            "default": null,
+                            "nullable": true,
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "history": {
+                            "default": [],
+                            "maxItems": 100000,
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": { "type": "string", "minLength": 1, "maxLength": 100 },
+                                "at": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                },
+                                "done": { "type": "boolean" }
+                              },
+                              "required": ["id", "at", "done"],
+                              "additionalProperties": false
+                            }
+                          }
+                        },
+                        "required": ["id", "title", "done", "completedAt", "deletedAt", "history"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "pinned": { "type": "boolean" },
+                    "order": { "type": "number" }
+                  },
+                  "required": [
+                    "title",
+                    "notes",
+                    "difficulty",
+                    "listId",
+                    "tags",
+                    "subtasks",
+                    "pinned",
+                    "order"
+                  ],
+                  "additionalProperties": false
+                },
+                "eventTemplate": {
+                  "type": "object",
+                  "properties": {
+                    "title": { "type": "string", "minLength": 1, "maxLength": 500 },
+                    "type": {
+                      "type": "string",
+                      "enum": ["course", "exam", "presentation", "meeting", "other"]
+                    },
+                    "notes": { "default": "", "type": "string", "maxLength": 50000 },
+                    "location": { "default": "", "type": "string", "maxLength": 500 },
+                    "teacher": { "default": "", "type": "string", "maxLength": 300 },
+                    "color": {
+                      "default": "#4264b2",
+                      "type": "string",
+                      "pattern": "^#[\\da-f]{6}$"
+                    },
+                    "allDay": { "type": "boolean" },
+                    "periods": {
+                      "maxItems": 30,
+                      "type": "array",
+                      "items": {
+                        "type": "array",
+                        "items": {
+                          "anyOf": [
+                            { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" },
+                            { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" }
+                          ]
+                        },
+                        "minItems": 2,
+                        "maxItems": 2
+                      }
+                    },
+                    "precision": {
+                      "type": "object",
+                      "properties": {
+                        "start": { "type": "integer", "minimum": 0, "maximum": 59999 },
+                        "end": { "type": "integer", "minimum": 0, "maximum": 59999 }
+                      },
+                      "required": ["start", "end"],
+                      "additionalProperties": false
+                    },
+                    "durationDays": {
+                      "default": 1,
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 366
+                    },
+                    "timeZone": { "type": "string", "maxLength": 100 }
+                  },
+                  "required": [
+                    "title",
+                    "type",
+                    "notes",
+                    "location",
+                    "teacher",
+                    "color",
+                    "allDay",
+                    "periods",
+                    "durationDays",
+                    "timeZone"
+                  ],
+                  "additionalProperties": false
+                },
+                "dateOffsets": {
+                  "default": [0],
+                  "minItems": 1,
+                  "maxItems": 366,
+                  "type": "array",
+                  "items": { "type": "integer", "minimum": 0, "maximum": 365 }
+                },
+                "occurrences": {
+                  "type": "object",
+                  "additionalProperties": { "type": "string", "minLength": 1, "maxLength": 100 }
+                },
+                "enabled": { "type": "boolean" },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                }
+              },
+              "required": [
+                "prefix",
+                "target",
+                "definitions",
+                "dateOffsets",
+                "occurrences",
+                "enabled",
+                "createdAt",
+                "updatedAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "calendarSubscriptions": {
+            "default": [],
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string", "minLength": 1, "maxLength": 100 },
+                "name": { "type": "string", "minLength": 1, "maxLength": 200 },
+                "provider": { "type": "string", "enum": ["google", "microsoft", "apple", "ics"] },
+                "url": { "type": "string", "maxLength": 8000 },
+                "timeZone": { "type": "string", "maxLength": 100 },
+                "enabled": { "type": "boolean" },
+                "updatedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                },
+                "checkedAt": { "default": 0, "type": "number", "minimum": 0 },
+                "error": { "default": "", "type": "string", "maxLength": 1000 }
+              },
+              "required": [
+                "id",
+                "name",
+                "provider",
+                "url",
+                "timeZone",
+                "enabled",
+                "updatedAt",
+                "checkedAt",
+                "error"
+              ],
+              "additionalProperties": false
+            }
+          },
           "repeatRules": {
             "default": [],
             "maxItems": 5000,
@@ -575,6 +1098,97 @@
               "properties": {
                 "prefix": { "type": "string", "minLength": 1, "maxLength": 100 },
                 "cron": { "type": "string", "minLength": 9, "maxLength": 120 },
+                "recurrence": {
+                  "type": "object",
+                  "properties": {
+                    "dtstart": { "type": "string", "maxLength": 30 },
+                    "rrule": {
+                      "default": null,
+                      "nullable": true,
+                      "type": "string",
+                      "maxLength": 2000
+                    },
+                    "rdate": {
+                      "default": [],
+                      "maxItems": 20000,
+                      "type": "array",
+                      "items": { "type": "string", "maxLength": 30 }
+                    },
+                    "exdate": {
+                      "default": [],
+                      "maxItems": 20000,
+                      "type": "array",
+                      "items": { "type": "string", "maxLength": 30 }
+                    },
+                    "timeZone": { "type": "string", "maxLength": 100 },
+                    "eventTemplate": {
+                      "type": "object",
+                      "properties": {
+                        "title": { "type": "string", "minLength": 1, "maxLength": 500 },
+                        "type": {
+                          "type": "string",
+                          "enum": ["course", "exam", "presentation", "meeting", "other"]
+                        },
+                        "notes": { "default": "", "type": "string", "maxLength": 50000 },
+                        "location": { "default": "", "type": "string", "maxLength": 500 },
+                        "teacher": { "default": "", "type": "string", "maxLength": 300 },
+                        "color": {
+                          "default": "#4264b2",
+                          "type": "string",
+                          "pattern": "^#[\\da-f]{6}$"
+                        },
+                        "allDay": { "type": "boolean" },
+                        "periods": {
+                          "maxItems": 30,
+                          "type": "array",
+                          "items": {
+                            "type": "array",
+                            "items": {
+                              "anyOf": [
+                                { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" },
+                                { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" }
+                              ]
+                            },
+                            "minItems": 2,
+                            "maxItems": 2
+                          }
+                        },
+                        "precision": {
+                          "type": "object",
+                          "properties": {
+                            "start": { "type": "integer", "minimum": 0, "maximum": 59999 },
+                            "end": { "type": "integer", "minimum": 0, "maximum": 59999 }
+                          },
+                          "required": ["start", "end"],
+                          "additionalProperties": false
+                        },
+                        "durationDays": {
+                          "default": 1,
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 366
+                        },
+                        "timeZone": { "type": "string", "maxLength": 100 }
+                      },
+                      "required": [
+                        "title",
+                        "type",
+                        "notes",
+                        "location",
+                        "teacher",
+                        "color",
+                        "allDay",
+                        "periods",
+                        "durationDays",
+                        "timeZone"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["dtstart", "rrule", "rdate", "exdate", "timeZone"],
+                  "additionalProperties": false
+                },
+                "migrationWarning": { "type": "string", "maxLength": 500 },
                 "dateOffsets": {
                   "minItems": 1,
                   "maxItems": 366,
@@ -592,6 +1206,7 @@
                       "type": "string",
                       "enum": ["easy", "medium", "hard"]
                     },
+                    "priority": { "type": "integer", "minimum": 0, "maximum": 3 },
                     "listId": { "type": "string", "minLength": 1, "maxLength": 100 },
                     "tags": {
                       "maxItems": 30,
@@ -795,7 +1410,17 @@
               "dayStartsAt": { "type": "string", "pattern": "^0[0-6]:[0-5]\\d$" },
               "focusMinutes": { "type": "integer", "minimum": 1, "maximum": 180 },
               "breakMinutes": { "type": "integer", "minimum": 1, "maximum": 60 },
-              "showCompleted": { "type": "boolean" }
+              "showCompleted": { "type": "boolean" },
+              "calendarFeed": {
+                "type": "object",
+                "properties": {
+                  "enabled": { "type": "boolean" },
+                  "token": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+                  "baseUrl": { "type": "string", "maxLength": 8000, "format": "uri" }
+                },
+                "required": ["enabled", "token"],
+                "additionalProperties": false
+              }
             },
             "required": ["theme", "timeZone", "focusMinutes", "breakMinutes", "showCompleted"],
             "additionalProperties": false
@@ -808,6 +1433,9 @@
           "lists",
           "tagColors",
           "tasks",
+          "calendarEvents",
+          "recurrences",
+          "calendarSubscriptions",
           "repeatRules",
           "planGroups",
           "sessions",
@@ -2175,6 +2803,7 @@
                     "type": "string",
                     "enum": ["easy", "medium", "hard"]
                   },
+                  "priority": { "type": "integer", "minimum": 0, "maximum": 3 },
                   "listId": { "type": "string", "minLength": 1, "maxLength": 100 },
                   "dates": {
                     "type": "object",
@@ -2295,6 +2924,7 @@
                   "estimatedMinutes": { "nullable": true, "type": "number", "minimum": 0 },
                   "actualMinutes": { "nullable": true, "type": "number", "minimum": 0 },
                   "difficulty": { "type": "string", "enum": ["easy", "medium", "hard"] },
+                  "priority": { "type": "integer", "minimum": 0, "maximum": 3 },
                   "listId": { "type": "string", "minLength": 1, "maxLength": 100 },
                   "dates": {
                     "type": "object",
@@ -2706,6 +3336,787 @@
     "/repeat-rules": {
       "get": {
         "summary": "读取重复规则与触发实例对应关系",
+        "responses": {
+          "200": {
+            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "revision"],
+                  "properties": { "data": {}, "revision": { "type": "string" } }
+                }
+              }
+            },
+            "headers": {
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
+            }
+          },
+          "400": { "description": "参数或 JSON 无效" },
+          "401": { "description": "缺少或错误的 Bearer 令牌" },
+          "403": { "description": "拒绝跨站或非本机请求" },
+          "404": { "description": "未找到对象" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
+        }
+      }
+    },
+    "/events": {
+      "get": {
+        "summary": "读取独立日程，支持 date 日期过滤",
+        "responses": {
+          "200": {
+            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "revision"],
+                  "properties": { "data": {}, "revision": { "type": "string" } }
+                }
+              }
+            },
+            "headers": {
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
+            }
+          },
+          "400": { "description": "参数或 JSON 无效" },
+          "401": { "description": "缺少或错误的 Bearer 令牌" },
+          "403": { "description": "拒绝跨站或非本机请求" },
+          "404": { "description": "未找到对象" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
+        }
+      },
+      "post": {
+        "summary": "创建日程实例",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": { "type": "string", "minLength": 1, "maxLength": 500 },
+                  "date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+                  "type": {
+                    "type": "string",
+                    "enum": ["course", "exam", "presentation", "meeting", "other"]
+                  },
+                  "notes": { "type": "string", "maxLength": 50000 },
+                  "location": { "type": "string", "maxLength": 500 },
+                  "teacher": { "type": "string", "maxLength": 300 },
+                  "color": { "type": "string", "pattern": "^#[\\da-f]{6}$" },
+                  "allDay": { "type": "boolean" },
+                  "periods": {
+                    "maxItems": 30,
+                    "type": "array",
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "anyOf": [
+                          { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" },
+                          { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" }
+                        ]
+                      },
+                      "minItems": 2,
+                      "maxItems": 2
+                    }
+                  },
+                  "precision": {
+                    "type": "object",
+                    "properties": {
+                      "start": { "type": "integer", "minimum": 0, "maximum": 59999 },
+                      "end": { "type": "integer", "minimum": 0, "maximum": 59999 }
+                    },
+                    "required": ["start", "end"],
+                    "additionalProperties": false
+                  },
+                  "durationDays": { "type": "integer", "minimum": 1, "maximum": 366 },
+                  "timeZone": { "type": "string", "maxLength": 100 }
+                },
+                "required": ["title", "date"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "revision"],
+                  "properties": { "data": {}, "revision": { "type": "string" } }
+                }
+              }
+            },
+            "headers": {
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
+            }
+          },
+          "400": { "description": "参数或 JSON 无效" },
+          "401": { "description": "缺少或错误的 Bearer 令牌" },
+          "403": { "description": "拒绝跨站或非本机请求" },
+          "404": { "description": "未找到对象" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
+        },
+        "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
+      }
+    },
+    "/events/{id}": {
+      "get": {
+        "summary": "读取日程实例",
+        "parameters": [
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "revision"],
+                  "properties": { "data": {}, "revision": { "type": "string" } }
+                }
+              }
+            },
+            "headers": {
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
+            }
+          },
+          "400": { "description": "参数或 JSON 无效" },
+          "401": { "description": "缺少或错误的 Bearer 令牌" },
+          "403": { "description": "拒绝跨站或非本机请求" },
+          "404": { "description": "未找到对象" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
+        }
+      },
+      "patch": {
+        "summary": "修改单次日程，scope=all&confirm=true 可显式批量修改系列属性",
+        "parameters": [
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } },
+          { "$ref": "#/components/parameters/IfMatch" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": { "type": "string", "minLength": 1, "maxLength": 500 },
+                  "date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+                  "type": {
+                    "type": "string",
+                    "enum": ["course", "exam", "presentation", "meeting", "other"]
+                  },
+                  "notes": { "type": "string", "maxLength": 50000 },
+                  "location": { "type": "string", "maxLength": 500 },
+                  "teacher": { "type": "string", "maxLength": 300 },
+                  "color": { "type": "string", "pattern": "^#[\\da-f]{6}$" },
+                  "allDay": { "type": "boolean" },
+                  "periods": {
+                    "maxItems": 30,
+                    "type": "array",
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "anyOf": [
+                          { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" },
+                          { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" }
+                        ]
+                      },
+                      "minItems": 2,
+                      "maxItems": 2
+                    }
+                  },
+                  "precision": {
+                    "type": "object",
+                    "properties": {
+                      "start": { "type": "integer", "minimum": 0, "maximum": 59999 },
+                      "end": { "type": "integer", "minimum": 0, "maximum": 59999 }
+                    },
+                    "required": ["start", "end"],
+                    "additionalProperties": false
+                  },
+                  "durationDays": { "type": "integer", "minimum": 1, "maximum": 366 },
+                  "timeZone": { "type": "string", "maxLength": 100 }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "revision"],
+                  "properties": { "data": {}, "revision": { "type": "string" } }
+                }
+              }
+            },
+            "headers": {
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
+            }
+          },
+          "400": { "description": "参数或 JSON 无效" },
+          "401": { "description": "缺少或错误的 Bearer 令牌" },
+          "403": { "description": "拒绝跨站或非本机请求" },
+          "404": { "description": "未找到对象" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
+        }
+      },
+      "delete": {
+        "summary": "取消日程并保留原始发生标识与排除记录",
+        "parameters": [
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } },
+          { "$ref": "#/components/parameters/IfMatch" }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "revision"],
+                  "properties": { "data": {}, "revision": { "type": "string" } }
+                }
+              }
+            },
+            "headers": {
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
+            }
+          },
+          "400": { "description": "参数或 JSON 无效" },
+          "401": { "description": "缺少或错误的 Bearer 令牌" },
+          "403": { "description": "拒绝跨站或非本机请求" },
+          "404": { "description": "未找到对象" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
+        }
+      }
+    },
+    "/events/{id}/recurrence": {
+      "put": {
+        "summary": "配置同系列 RRULE、RDATE、EXDATE，保留已生成实例",
+        "parameters": [
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } },
+          { "$ref": "#/components/parameters/IfMatch" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "definitions": {
+                    "minItems": 1,
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "dtstart": { "type": "string", "maxLength": 30 },
+                        "rrule": {
+                          "default": null,
+                          "nullable": true,
+                          "type": "string",
+                          "maxLength": 2000
+                        },
+                        "rdate": {
+                          "default": [],
+                          "maxItems": 20000,
+                          "type": "array",
+                          "items": { "type": "string", "maxLength": 30 }
+                        },
+                        "exdate": {
+                          "default": [],
+                          "maxItems": 20000,
+                          "type": "array",
+                          "items": { "type": "string", "maxLength": 30 }
+                        },
+                        "timeZone": { "type": "string", "maxLength": 100 },
+                        "eventTemplate": {
+                          "type": "object",
+                          "properties": {
+                            "title": { "type": "string", "minLength": 1, "maxLength": 500 },
+                            "type": {
+                              "type": "string",
+                              "enum": ["course", "exam", "presentation", "meeting", "other"]
+                            },
+                            "notes": { "default": "", "type": "string", "maxLength": 50000 },
+                            "location": { "default": "", "type": "string", "maxLength": 500 },
+                            "teacher": { "default": "", "type": "string", "maxLength": 300 },
+                            "color": {
+                              "default": "#4264b2",
+                              "type": "string",
+                              "pattern": "^#[\\da-f]{6}$"
+                            },
+                            "allDay": { "type": "boolean" },
+                            "periods": {
+                              "maxItems": 30,
+                              "type": "array",
+                              "items": {
+                                "type": "array",
+                                "items": {
+                                  "anyOf": [
+                                    { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" },
+                                    { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" }
+                                  ]
+                                },
+                                "minItems": 2,
+                                "maxItems": 2
+                              }
+                            },
+                            "precision": {
+                              "type": "object",
+                              "properties": {
+                                "start": { "type": "integer", "minimum": 0, "maximum": 59999 },
+                                "end": { "type": "integer", "minimum": 0, "maximum": 59999 }
+                              },
+                              "required": ["start", "end"],
+                              "additionalProperties": false
+                            },
+                            "durationDays": {
+                              "default": 1,
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 366
+                            },
+                            "timeZone": { "type": "string", "maxLength": 100 }
+                          },
+                          "required": [
+                            "title",
+                            "type",
+                            "notes",
+                            "location",
+                            "teacher",
+                            "color",
+                            "allDay",
+                            "periods",
+                            "durationDays",
+                            "timeZone"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": ["dtstart", "rrule", "rdate", "exdate", "timeZone"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "enabled": { "default": true, "type": "boolean" },
+                  "dateOffsets": {
+                    "default": [0],
+                    "minItems": 1,
+                    "maxItems": 366,
+                    "type": "array",
+                    "items": { "type": "integer", "minimum": 0, "maximum": 365 }
+                  }
+                },
+                "required": ["definitions", "enabled", "dateOffsets"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "revision"],
+                  "properties": { "data": {}, "revision": { "type": "string" } }
+                }
+              }
+            },
+            "headers": {
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
+            }
+          },
+          "400": { "description": "参数或 JSON 无效" },
+          "401": { "description": "缺少或错误的 Bearer 令牌" },
+          "403": { "description": "拒绝跨站或非本机请求" },
+          "404": { "description": "未找到对象" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
+        }
+      },
+      "delete": {
+        "summary": "停止日程系列的后续生成",
+        "parameters": [
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } },
+          { "$ref": "#/components/parameters/IfMatch" }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "revision"],
+                  "properties": { "data": {}, "revision": { "type": "string" } }
+                }
+              }
+            },
+            "headers": {
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
+            }
+          },
+          "400": { "description": "参数或 JSON 无效" },
+          "401": { "description": "缺少或错误的 Bearer 令牌" },
+          "403": { "description": "拒绝跨站或非本机请求" },
+          "404": { "description": "未找到对象" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
+        }
+      }
+    },
+    "/tasks/{id}/recurrence": {
+      "put": {
+        "summary": "配置待办 RRULE、RDATE、EXDATE，保留多日期偏移",
+        "parameters": [
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } },
+          { "$ref": "#/components/parameters/IfMatch" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "definitions": {
+                    "minItems": 1,
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "dtstart": { "type": "string", "maxLength": 30 },
+                        "rrule": {
+                          "default": null,
+                          "nullable": true,
+                          "type": "string",
+                          "maxLength": 2000
+                        },
+                        "rdate": {
+                          "default": [],
+                          "maxItems": 20000,
+                          "type": "array",
+                          "items": { "type": "string", "maxLength": 30 }
+                        },
+                        "exdate": {
+                          "default": [],
+                          "maxItems": 20000,
+                          "type": "array",
+                          "items": { "type": "string", "maxLength": 30 }
+                        },
+                        "timeZone": { "type": "string", "maxLength": 100 },
+                        "eventTemplate": {
+                          "type": "object",
+                          "properties": {
+                            "title": { "type": "string", "minLength": 1, "maxLength": 500 },
+                            "type": {
+                              "type": "string",
+                              "enum": ["course", "exam", "presentation", "meeting", "other"]
+                            },
+                            "notes": { "default": "", "type": "string", "maxLength": 50000 },
+                            "location": { "default": "", "type": "string", "maxLength": 500 },
+                            "teacher": { "default": "", "type": "string", "maxLength": 300 },
+                            "color": {
+                              "default": "#4264b2",
+                              "type": "string",
+                              "pattern": "^#[\\da-f]{6}$"
+                            },
+                            "allDay": { "type": "boolean" },
+                            "periods": {
+                              "maxItems": 30,
+                              "type": "array",
+                              "items": {
+                                "type": "array",
+                                "items": {
+                                  "anyOf": [
+                                    { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" },
+                                    { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" }
+                                  ]
+                                },
+                                "minItems": 2,
+                                "maxItems": 2
+                              }
+                            },
+                            "precision": {
+                              "type": "object",
+                              "properties": {
+                                "start": { "type": "integer", "minimum": 0, "maximum": 59999 },
+                                "end": { "type": "integer", "minimum": 0, "maximum": 59999 }
+                              },
+                              "required": ["start", "end"],
+                              "additionalProperties": false
+                            },
+                            "durationDays": {
+                              "default": 1,
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 366
+                            },
+                            "timeZone": { "type": "string", "maxLength": 100 }
+                          },
+                          "required": [
+                            "title",
+                            "type",
+                            "notes",
+                            "location",
+                            "teacher",
+                            "color",
+                            "allDay",
+                            "periods",
+                            "durationDays",
+                            "timeZone"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": ["dtstart", "rrule", "rdate", "exdate", "timeZone"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "enabled": { "default": true, "type": "boolean" },
+                  "dateOffsets": {
+                    "default": [0],
+                    "minItems": 1,
+                    "maxItems": 366,
+                    "type": "array",
+                    "items": { "type": "integer", "minimum": 0, "maximum": 365 }
+                  }
+                },
+                "required": ["definitions", "enabled", "dateOffsets"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "revision"],
+                  "properties": { "data": {}, "revision": { "type": "string" } }
+                }
+              }
+            },
+            "headers": {
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
+            }
+          },
+          "400": { "description": "参数或 JSON 无效" },
+          "401": { "description": "缺少或错误的 Bearer 令牌" },
+          "403": { "description": "拒绝跨站或非本机请求" },
+          "404": { "description": "未找到对象" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
+        }
+      },
+      "delete": {
+        "summary": "停止待办系列的后续生成",
+        "parameters": [
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } },
+          { "$ref": "#/components/parameters/IfMatch" }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "revision"],
+                  "properties": { "data": {}, "revision": { "type": "string" } }
+                }
+              }
+            },
+            "headers": {
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
+            }
+          },
+          "400": { "description": "参数或 JSON 无效" },
+          "401": { "description": "缺少或错误的 Bearer 令牌" },
+          "403": { "description": "拒绝跨站或非本机请求" },
+          "404": { "description": "未找到对象" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
+        }
+      }
+    },
+    "/recurrences": {
+      "get": {
+        "summary": "读取共用重复规则与稳定实例账本",
+        "responses": {
+          "200": {
+            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "revision"],
+                  "properties": { "data": {}, "revision": { "type": "string" } }
+                }
+              }
+            },
+            "headers": {
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
+            }
+          },
+          "400": { "description": "参数或 JSON 无效" },
+          "401": { "description": "缺少或错误的 Bearer 令牌" },
+          "403": { "description": "拒绝跨站或非本机请求" },
+          "404": { "description": "未找到对象" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
+        }
+      }
+    },
+    "/arrangements/migration": {
+      "get": {
+        "summary": "读取课程迁移计数及无法确定语义的待核对任务",
+        "responses": {
+          "200": {
+            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "revision"],
+                  "properties": { "data": {}, "revision": { "type": "string" } }
+                }
+              }
+            },
+            "headers": {
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
+            }
+          },
+          "400": { "description": "参数或 JSON 无效" },
+          "401": { "description": "缺少或错误的 Bearer 令牌" },
+          "403": { "description": "拒绝跨站或非本机请求" },
+          "404": { "description": "未找到对象" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
+        }
+      }
+    },
+    "/calendar-subscriptions": {
+      "get": {
+        "summary": "读取日历订阅",
+        "responses": {
+          "200": {
+            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "revision"],
+                  "properties": { "data": {}, "revision": { "type": "string" } }
+                }
+              }
+            },
+            "headers": {
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
+            }
+          },
+          "400": { "description": "参数或 JSON 无效" },
+          "401": { "description": "缺少或错误的 Bearer 令牌" },
+          "403": { "description": "拒绝跨站或非本机请求" },
+          "404": { "description": "未找到对象" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
+        }
+      },
+      "post": {
+        "summary": "添加由中心自动导入 Event 的日历订阅",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "minLength": 1, "maxLength": 200 },
+                  "provider": { "type": "string", "enum": ["google", "microsoft", "apple", "ics"] },
+                  "url": { "type": "string", "maxLength": 8000 },
+                  "timeZone": { "type": "string", "maxLength": 100 },
+                  "enabled": { "type": "boolean" }
+                },
+                "required": ["name", "provider", "url", "timeZone", "enabled"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "revision"],
+                  "properties": { "data": {}, "revision": { "type": "string" } }
+                }
+              }
+            },
+            "headers": {
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
+            }
+          },
+          "400": { "description": "参数或 JSON 无效" },
+          "401": { "description": "缺少或错误的 Bearer 令牌" },
+          "403": { "description": "拒绝跨站或非本机请求" },
+          "404": { "description": "未找到对象" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
+        },
+        "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
+      }
+    },
+    "/calendar-subscriptions/{id}": {
+      "delete": {
+        "summary": "停用订阅并保留已导入日程",
+        "parameters": [
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } },
+          { "$ref": "#/components/parameters/IfMatch" }
+        ],
         "responses": {
           "200": {
             "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
@@ -3151,7 +4562,17 @@
                   "theme": { "type": "string", "enum": ["light", "dark", "system"] },
                   "timeZone": { "default": "Asia/Shanghai", "type": "string", "maxLength": 100 },
                   "dayStartsAt": { "type": "string", "pattern": "^0[0-6]:[0-5]\\d$" },
-                  "showCompleted": { "type": "boolean" }
+                  "showCompleted": { "type": "boolean" },
+                  "calendarFeed": {
+                    "type": "object",
+                    "properties": {
+                      "enabled": { "type": "boolean" },
+                      "token": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+                      "baseUrl": { "type": "string", "maxLength": 8000, "format": "uri" }
+                    },
+                    "required": ["enabled", "token"],
+                    "additionalProperties": false
+                  }
                 },
                 "additionalProperties": false
               }
@@ -3482,6 +4903,7 @@
                           "type": "string",
                           "enum": ["easy", "medium", "hard"]
                         },
+                        "priority": { "type": "integer", "minimum": 0, "maximum": 3 },
                         "listId": { "type": "string", "minLength": 1, "maxLength": 100 },
                         "dates": {
                           "type": "object",
@@ -3615,6 +5037,473 @@
                       "additionalProperties": false
                     }
                   },
+                  "calendarEvents": {
+                    "default": [],
+                    "maxItems": 100000,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "title": { "type": "string", "minLength": 1, "maxLength": 500 },
+                        "type": {
+                          "type": "string",
+                          "enum": ["course", "exam", "presentation", "meeting", "other"]
+                        },
+                        "notes": { "default": "", "type": "string", "maxLength": 50000 },
+                        "location": { "default": "", "type": "string", "maxLength": 500 },
+                        "teacher": { "default": "", "type": "string", "maxLength": 300 },
+                        "color": {
+                          "default": "#4264b2",
+                          "type": "string",
+                          "pattern": "^#[\\da-f]{6}$"
+                        },
+                        "allDay": { "type": "boolean" },
+                        "periods": {
+                          "maxItems": 30,
+                          "type": "array",
+                          "items": {
+                            "type": "array",
+                            "items": {
+                              "anyOf": [
+                                { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" },
+                                { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" }
+                              ]
+                            },
+                            "minItems": 2,
+                            "maxItems": 2
+                          }
+                        },
+                        "precision": {
+                          "type": "object",
+                          "properties": {
+                            "start": { "type": "integer", "minimum": 0, "maximum": 59999 },
+                            "end": { "type": "integer", "minimum": 0, "maximum": 59999 }
+                          },
+                          "required": ["start", "end"],
+                          "additionalProperties": false
+                        },
+                        "durationDays": {
+                          "default": 1,
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 366
+                        },
+                        "timeZone": { "type": "string", "maxLength": 100 },
+                        "id": { "type": "string", "minLength": 1, "maxLength": 100 },
+                        "date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+                        "recurrenceId": {
+                          "default": null,
+                          "nullable": true,
+                          "type": "string",
+                          "maxLength": 150
+                        },
+                        "source": {
+                          "default": null,
+                          "nullable": true,
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": ["legacy-course", "legacy-event", "calendar"]
+                            },
+                            "id": { "type": "string", "maxLength": 500 },
+                            "uid": { "type": "string", "maxLength": 2000 },
+                            "fingerprint": { "type": "string", "maxLength": 100000 },
+                            "revision": { "type": "string", "maxLength": 100000 },
+                            "cancelled": { "type": "boolean" }
+                          },
+                          "required": ["kind", "id", "uid", "fingerprint"],
+                          "additionalProperties": false
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        "deletedAt": {
+                          "nullable": true,
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        }
+                      },
+                      "required": [
+                        "title",
+                        "type",
+                        "notes",
+                        "location",
+                        "teacher",
+                        "color",
+                        "allDay",
+                        "periods",
+                        "durationDays",
+                        "timeZone",
+                        "id",
+                        "date",
+                        "recurrenceId",
+                        "source",
+                        "createdAt",
+                        "updatedAt",
+                        "deletedAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "recurrences": {
+                    "default": [],
+                    "maxItems": 5000,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "prefix": { "type": "string", "minLength": 1, "maxLength": 100 },
+                        "target": { "type": "string", "enum": ["task", "event"] },
+                        "definitions": {
+                          "minItems": 1,
+                          "maxItems": 100,
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "dtstart": { "type": "string", "maxLength": 30 },
+                              "rrule": {
+                                "default": null,
+                                "nullable": true,
+                                "type": "string",
+                                "maxLength": 2000
+                              },
+                              "rdate": {
+                                "default": [],
+                                "maxItems": 20000,
+                                "type": "array",
+                                "items": { "type": "string", "maxLength": 30 }
+                              },
+                              "exdate": {
+                                "default": [],
+                                "maxItems": 20000,
+                                "type": "array",
+                                "items": { "type": "string", "maxLength": 30 }
+                              },
+                              "timeZone": { "type": "string", "maxLength": 100 },
+                              "eventTemplate": {
+                                "type": "object",
+                                "properties": {
+                                  "title": { "type": "string", "minLength": 1, "maxLength": 500 },
+                                  "type": {
+                                    "type": "string",
+                                    "enum": ["course", "exam", "presentation", "meeting", "other"]
+                                  },
+                                  "notes": { "default": "", "type": "string", "maxLength": 50000 },
+                                  "location": { "default": "", "type": "string", "maxLength": 500 },
+                                  "teacher": { "default": "", "type": "string", "maxLength": 300 },
+                                  "color": {
+                                    "default": "#4264b2",
+                                    "type": "string",
+                                    "pattern": "^#[\\da-f]{6}$"
+                                  },
+                                  "allDay": { "type": "boolean" },
+                                  "periods": {
+                                    "maxItems": 30,
+                                    "type": "array",
+                                    "items": {
+                                      "type": "array",
+                                      "items": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string",
+                                            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                                          },
+                                          {
+                                            "type": "string",
+                                            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                                          }
+                                        ]
+                                      },
+                                      "minItems": 2,
+                                      "maxItems": 2
+                                    }
+                                  },
+                                  "precision": {
+                                    "type": "object",
+                                    "properties": {
+                                      "start": {
+                                        "type": "integer",
+                                        "minimum": 0,
+                                        "maximum": 59999
+                                      },
+                                      "end": { "type": "integer", "minimum": 0, "maximum": 59999 }
+                                    },
+                                    "required": ["start", "end"],
+                                    "additionalProperties": false
+                                  },
+                                  "durationDays": {
+                                    "default": 1,
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 366
+                                  },
+                                  "timeZone": { "type": "string", "maxLength": 100 }
+                                },
+                                "required": [
+                                  "title",
+                                  "type",
+                                  "notes",
+                                  "location",
+                                  "teacher",
+                                  "color",
+                                  "allDay",
+                                  "periods",
+                                  "durationDays",
+                                  "timeZone"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": ["dtstart", "rrule", "rdate", "exdate", "timeZone"],
+                            "additionalProperties": false
+                          }
+                        },
+                        "taskTemplate": {
+                          "type": "object",
+                          "properties": {
+                            "title": { "type": "string", "minLength": 1, "maxLength": 500 },
+                            "notes": { "type": "string", "maxLength": 50000 },
+                            "estimatedMinutes": {
+                              "nullable": true,
+                              "type": "number",
+                              "minimum": 0
+                            },
+                            "difficulty": {
+                              "default": "easy",
+                              "type": "string",
+                              "enum": ["easy", "medium", "hard"]
+                            },
+                            "priority": { "type": "integer", "minimum": 0, "maximum": 3 },
+                            "listId": { "type": "string", "minLength": 1, "maxLength": 100 },
+                            "tags": {
+                              "maxItems": 30,
+                              "type": "array",
+                              "items": { "type": "string", "minLength": 1, "maxLength": 40 }
+                            },
+                            "subtasks": {
+                              "maxItems": 200,
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "id": { "type": "string", "minLength": 1, "maxLength": 100 },
+                                  "title": { "type": "string", "minLength": 1, "maxLength": 500 },
+                                  "done": { "type": "boolean" },
+                                  "completedAt": {
+                                    "default": null,
+                                    "nullable": true,
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                  },
+                                  "deletedAt": {
+                                    "default": null,
+                                    "nullable": true,
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                  },
+                                  "history": {
+                                    "default": [],
+                                    "maxItems": 100000,
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "id": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 100
+                                        },
+                                        "at": {
+                                          "type": "string",
+                                          "format": "date-time",
+                                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                        },
+                                        "done": { "type": "boolean" }
+                                      },
+                                      "required": ["id", "at", "done"],
+                                      "additionalProperties": false
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "title",
+                                  "done",
+                                  "completedAt",
+                                  "deletedAt",
+                                  "history"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "pinned": { "type": "boolean" },
+                            "order": { "type": "number" }
+                          },
+                          "required": [
+                            "title",
+                            "notes",
+                            "difficulty",
+                            "listId",
+                            "tags",
+                            "subtasks",
+                            "pinned",
+                            "order"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "eventTemplate": {
+                          "type": "object",
+                          "properties": {
+                            "title": { "type": "string", "minLength": 1, "maxLength": 500 },
+                            "type": {
+                              "type": "string",
+                              "enum": ["course", "exam", "presentation", "meeting", "other"]
+                            },
+                            "notes": { "default": "", "type": "string", "maxLength": 50000 },
+                            "location": { "default": "", "type": "string", "maxLength": 500 },
+                            "teacher": { "default": "", "type": "string", "maxLength": 300 },
+                            "color": {
+                              "default": "#4264b2",
+                              "type": "string",
+                              "pattern": "^#[\\da-f]{6}$"
+                            },
+                            "allDay": { "type": "boolean" },
+                            "periods": {
+                              "maxItems": 30,
+                              "type": "array",
+                              "items": {
+                                "type": "array",
+                                "items": {
+                                  "anyOf": [
+                                    { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" },
+                                    { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" }
+                                  ]
+                                },
+                                "minItems": 2,
+                                "maxItems": 2
+                              }
+                            },
+                            "precision": {
+                              "type": "object",
+                              "properties": {
+                                "start": { "type": "integer", "minimum": 0, "maximum": 59999 },
+                                "end": { "type": "integer", "minimum": 0, "maximum": 59999 }
+                              },
+                              "required": ["start", "end"],
+                              "additionalProperties": false
+                            },
+                            "durationDays": {
+                              "default": 1,
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 366
+                            },
+                            "timeZone": { "type": "string", "maxLength": 100 }
+                          },
+                          "required": [
+                            "title",
+                            "type",
+                            "notes",
+                            "location",
+                            "teacher",
+                            "color",
+                            "allDay",
+                            "periods",
+                            "durationDays",
+                            "timeZone"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "dateOffsets": {
+                          "default": [0],
+                          "minItems": 1,
+                          "maxItems": 366,
+                          "type": "array",
+                          "items": { "type": "integer", "minimum": 0, "maximum": 365 }
+                        },
+                        "occurrences": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 100
+                          }
+                        },
+                        "enabled": { "type": "boolean" },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        }
+                      },
+                      "required": [
+                        "prefix",
+                        "target",
+                        "definitions",
+                        "dateOffsets",
+                        "occurrences",
+                        "enabled",
+                        "createdAt",
+                        "updatedAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "calendarSubscriptions": {
+                    "default": [],
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string", "minLength": 1, "maxLength": 100 },
+                        "name": { "type": "string", "minLength": 1, "maxLength": 200 },
+                        "provider": {
+                          "type": "string",
+                          "enum": ["google", "microsoft", "apple", "ics"]
+                        },
+                        "url": { "type": "string", "maxLength": 8000 },
+                        "timeZone": { "type": "string", "maxLength": 100 },
+                        "enabled": { "type": "boolean" },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        "checkedAt": { "default": 0, "type": "number", "minimum": 0 },
+                        "error": { "default": "", "type": "string", "maxLength": 1000 }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "provider",
+                        "url",
+                        "timeZone",
+                        "enabled",
+                        "updatedAt",
+                        "checkedAt",
+                        "error"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
                   "repeatRules": {
                     "default": [],
                     "maxItems": 5000,
@@ -3624,6 +5513,103 @@
                       "properties": {
                         "prefix": { "type": "string", "minLength": 1, "maxLength": 100 },
                         "cron": { "type": "string", "minLength": 9, "maxLength": 120 },
+                        "recurrence": {
+                          "type": "object",
+                          "properties": {
+                            "dtstart": { "type": "string", "maxLength": 30 },
+                            "rrule": {
+                              "default": null,
+                              "nullable": true,
+                              "type": "string",
+                              "maxLength": 2000
+                            },
+                            "rdate": {
+                              "default": [],
+                              "maxItems": 20000,
+                              "type": "array",
+                              "items": { "type": "string", "maxLength": 30 }
+                            },
+                            "exdate": {
+                              "default": [],
+                              "maxItems": 20000,
+                              "type": "array",
+                              "items": { "type": "string", "maxLength": 30 }
+                            },
+                            "timeZone": { "type": "string", "maxLength": 100 },
+                            "eventTemplate": {
+                              "type": "object",
+                              "properties": {
+                                "title": { "type": "string", "minLength": 1, "maxLength": 500 },
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["course", "exam", "presentation", "meeting", "other"]
+                                },
+                                "notes": { "default": "", "type": "string", "maxLength": 50000 },
+                                "location": { "default": "", "type": "string", "maxLength": 500 },
+                                "teacher": { "default": "", "type": "string", "maxLength": 300 },
+                                "color": {
+                                  "default": "#4264b2",
+                                  "type": "string",
+                                  "pattern": "^#[\\da-f]{6}$"
+                                },
+                                "allDay": { "type": "boolean" },
+                                "periods": {
+                                  "maxItems": 30,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "array",
+                                    "items": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                                        },
+                                        {
+                                          "type": "string",
+                                          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                                        }
+                                      ]
+                                    },
+                                    "minItems": 2,
+                                    "maxItems": 2
+                                  }
+                                },
+                                "precision": {
+                                  "type": "object",
+                                  "properties": {
+                                    "start": { "type": "integer", "minimum": 0, "maximum": 59999 },
+                                    "end": { "type": "integer", "minimum": 0, "maximum": 59999 }
+                                  },
+                                  "required": ["start", "end"],
+                                  "additionalProperties": false
+                                },
+                                "durationDays": {
+                                  "default": 1,
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 366
+                                },
+                                "timeZone": { "type": "string", "maxLength": 100 }
+                              },
+                              "required": [
+                                "title",
+                                "type",
+                                "notes",
+                                "location",
+                                "teacher",
+                                "color",
+                                "allDay",
+                                "periods",
+                                "durationDays",
+                                "timeZone"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": ["dtstart", "rrule", "rdate", "exdate", "timeZone"],
+                          "additionalProperties": false
+                        },
+                        "migrationWarning": { "type": "string", "maxLength": 500 },
                         "dateOffsets": {
                           "minItems": 1,
                           "maxItems": 366,
@@ -3645,6 +5631,7 @@
                               "type": "string",
                               "enum": ["easy", "medium", "hard"]
                             },
+                            "priority": { "type": "integer", "minimum": 0, "maximum": 3 },
                             "listId": { "type": "string", "minLength": 1, "maxLength": 100 },
                             "tags": {
                               "maxItems": 30,
@@ -3882,7 +5869,17 @@
                       "dayStartsAt": { "type": "string", "pattern": "^0[0-6]:[0-5]\\d$" },
                       "focusMinutes": { "type": "integer", "minimum": 1, "maximum": 180 },
                       "breakMinutes": { "type": "integer", "minimum": 1, "maximum": 60 },
-                      "showCompleted": { "type": "boolean" }
+                      "showCompleted": { "type": "boolean" },
+                      "calendarFeed": {
+                        "type": "object",
+                        "properties": {
+                          "enabled": { "type": "boolean" },
+                          "token": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+                          "baseUrl": { "type": "string", "maxLength": 8000, "format": "uri" }
+                        },
+                        "required": ["enabled", "token"],
+                        "additionalProperties": false
+                      }
                     },
                     "required": [
                       "theme",
@@ -3901,6 +5898,9 @@
                   "lists",
                   "tagColors",
                   "tasks",
+                  "calendarEvents",
+                  "recurrences",
+                  "calendarSubscriptions",
                   "repeatRules",
                   "planGroups",
                   "sessions",

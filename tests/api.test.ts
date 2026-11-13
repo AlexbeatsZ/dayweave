@@ -10,6 +10,62 @@ import { startApi } from '../electron/api';
 import { applyDelta, diffState, StateConflict } from '../src/state-delta';
 import { emptyState, newTask, now } from '../src/model';
 
+test('Event CRUD, RRULE and stale writes share the original authenticated state service', async () =>
+  fixture(async ({ request }) => {
+    const created = await request('POST', '/events', {
+      title: '公开报告',
+      date: '2026-11-05',
+      type: 'presentation',
+      periods: [
+        ['08:00', '08:45'],
+        ['08:55', '09:40'],
+      ],
+    });
+    assert.equal(created.status, 200);
+    const etag = created.headers.get('etag')!;
+    const { data: event } = await created.json();
+    assert.match(event.id, /-0$/);
+    const configured = await request('PUT', `/events/${event.id}/recurrence`, {
+      definitions: [
+        {
+          dtstart: '2026-11-05T08:00',
+          rrule: 'FREQ=WEEKLY;INTERVAL=2;COUNT=8',
+          rdate: [],
+          exdate: [],
+          timeZone: 'Asia/Shanghai',
+        },
+      ],
+    });
+    assert.equal(configured.status, 200);
+    assert.equal(
+      (await request('PATCH', `/events/${event.id}`, { location: '旧修改' }, { 'If-Match': etag }))
+        .status,
+      409,
+    );
+    assert.equal(
+      (await request('PATCH', `/events/${event.id}`, { location: '会议室' })).status,
+      200,
+    );
+    assert.equal(
+      (await request('PATCH', `/events/${event.id}?scope=all`, { type: 'exam' })).status,
+      400,
+    );
+    assert.equal(
+      (await request('PATCH', `/events/${event.id}?scope=all&confirm=true`, { type: 'exam' }))
+        .status,
+      200,
+    );
+    const after = await (await request('GET', `/events/${event.id}`)).json();
+    assert.deepEqual(after.data.periods, event.periods);
+    assert.equal(after.data.location, '会议室');
+    assert.equal(after.data.type, 'exam');
+    assert.equal((await request('DELETE', `/events/${event.id}`)).status, 200);
+    const cancelled = await (await request('GET', `/events/${event.id}`)).json();
+    assert.ok(cancelled.data.deletedAt);
+    const tasks = await (await request('GET', '/tasks')).json();
+    assert.equal(tasks.data.total, 0);
+  }));
+
 test('start-only record is a live timer and stopping closes the same record ID', async () =>
   fixture(async ({ request }) => {
     assert.equal((await request('POST', '/timelog/activities', { name: '专注记录' })).status, 201);

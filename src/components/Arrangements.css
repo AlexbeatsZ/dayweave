@@ -1,0 +1,240 @@
+.arrangements {
+  min-width: 0;
+  padding-bottom: 90px;
+}
+.arrangement-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.arrangement-controls .phone-tabs {
+  width: auto;
+  min-width: 180px;
+}
+.arrangement-week {
+  display: grid;
+  grid-template-columns: repeat(var(--arrangement-days, 7), minmax(0, 1fr));
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  min-height: 420px;
+}
+.arrangement-day {
+  min-width: 0;
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+}
+.arrangement-day:last-child {
+  border-right: 0;
+}
+.arrangement-day-heading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 12px 1px;
+  width: 100%;
+  border: 0;
+  color: inherit;
+  background: transparent;
+}
+.arrangement-day-heading span {
+  font-size: 11px;
+  color: var(--muted);
+}
+.arrangement-day.is-today .arrangement-day-heading {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+}
+.arrangement-day-items {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 5px;
+  flex: 1;
+  min-width: 0;
+}
+.arrangement-event,
+.week-task {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  min-width: 0;
+  width: 100%;
+  padding: 9px 7px;
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: inherit;
+  background: var(--bg);
+  overflow-wrap: anywhere;
+}
+.arrangement-event {
+  border-top: 3px solid var(--event-color);
+}
+.arrangement-event strong,
+.week-task-title {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.arrangement-event span,
+.arrangement-event small,
+.week-task small {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+.week-task {
+  user-select: none;
+  -webkit-user-select: none;
+}
+.week-task-title {
+  background: none;
+  border: 0;
+  color: inherit;
+  padding: 0;
+  text-align: left;
+  width: 100%;
+  overflow-wrap: anywhere;
+}
+.arrangement-day-add {
+  min-height: 44px;
+  width: 100%;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+}
+.event-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.event-form form,
+.recurrence-editor,
+.recurrence-definition {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.event-form label,
+.recurrence-editor label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+.event-form input:not([type='checkbox']):not([type='color']),
+.event-form select,
+.event-form textarea,
+.recurrence-editor input,
+.recurrence-editor select,
+.recurrence-editor textarea {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  font-size: 16px;
+  padding: 9px;
+  color: inherit;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+}
+.event-form .event-checkbox {
+  flex-direction: row;
+  align-items: center;
+}
+.event-form-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.event-form fieldset,
+.recurrence-editor {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  min-width: 0;
+}
+.event-period {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 10px;
+}
+.event-period input {
+  flex: 1;
+}
+.event-period .button {
+  padding: 8px;
+}
+.event-form footer {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 12px;
+  background: var(--bg);
+}
+.event-form footer .danger {
+  margin-right: auto;
+}
+.event-day-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.calendar-source {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+.calendar-source p,
+.event-form p {
+  overflow-wrap: anywhere;
+}
+.calendar-event-clock {
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 700px) {
+  .arrangement-day-items {
+    padding: 3px 2px;
+    gap: 5px;
+  }
+  .arrangement-week {
+    border-radius: 8px;
+  }
+  .arrangement-event,
+  .week-task {
+    padding: 6px 3px;
+    border-radius: 4px;
+    gap: 4px;
+  }
+  .arrangement-event strong,
+  .week-task-title {
+    font-size: 12px;
+  }
+  .arrangement-event span,
+  .arrangement-event small,
+  .week-task small {
+    font-size: 10px;
+  }
+  .arrangement-controls {
+    margin-bottom: 8px;
+  }
+  .event-form footer .primary {
+    flex: 1;
+  }
+}
