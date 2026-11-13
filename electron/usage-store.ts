@@ -28,6 +28,15 @@ export class UsageStore implements UsageReplica {
       CREATE INDEX IF NOT EXISTS usage_time ON usage_events(start,end);
       CREATE INDEX IF NOT EXISTS usage_pending ON usage_events(pending,seq);
       CREATE TABLE IF NOT EXISTS usage_meta(key TEXT PRIMARY KEY,value TEXT NOT NULL);`);
+    // A column mirrors payload.deleted (as on Android), so status and queries use an index
+    // instead of parsing every JSON payload.
+    const columns = this.database.prepare('PRAGMA table_info(usage_events)').all();
+    if (!columns.some((column) => column.name === 'deleted'))
+      this.transaction(() =>
+        this.database.exec(`ALTER TABLE usage_events ADD COLUMN deleted INTEGER NOT NULL DEFAULT 0;
+          UPDATE usage_events SET deleted=1 WHERE json_extract(payload,'$.deleted')=1;`),
+      );
+    this.database.exec('CREATE INDEX IF NOT EXISTS usage_live ON usage_events(deleted,device,end)');
   }
   meta(key: string) {
     const row = this.database.prepare('SELECT value FROM usage_meta WHERE key=?').get(key);
@@ -59,13 +68,14 @@ export class UsageStore implements UsageReplica {
         (key) => ['revision', 'deviceName', 'platform'].includes(key) || old[key] === event[key],
       );
       if (same) return false;
-      if (existing.owner !== owner && owner !== '@hub')
-        throw new Error('此来源的记录由其他设备管理，不能覆盖');
+      // Another device owns this observation. Keep its copy and continue the batch: failing
+      // here would roll back every other row and block the same pending batch forever.
+      if (existing.owner !== owner && owner !== '@hub') return false;
       if (old.revision >= event.revision) return false;
     }
     this.database
       .prepare(
-        'INSERT OR REPLACE INTO usage_events(id,device,start,end,payload,owner,pending) VALUES(?,?,?,?,?,?,?)',
+        'INSERT OR REPLACE INTO usage_events(id,device,start,end,payload,owner,pending,deleted) VALUES(?,?,?,?,?,?,?,?)',
       )
       .run(
         event.id,
@@ -75,6 +85,7 @@ export class UsageStore implements UsageReplica {
         JSON.stringify(event),
         owner,
         pending ? 1 : 0,
+        event.deleted ? 1 : 0,
       );
     return true;
   }
@@ -89,37 +100,61 @@ export class UsageStore implements UsageReplica {
     if (!events.length) return;
     const exists = this.database.prepare('SELECT 1 FROM usage_events WHERE id=?');
     const insert = this.database.prepare(
-      "INSERT INTO usage_events(id,device,start,end,payload,owner,pending) VALUES(?,?,?,?,?,'@local',1)",
+      "INSERT INTO usage_events(id,device,start,end,payload,owner,pending,deleted) VALUES(?,?,?,?,?,'@local',1,?)",
     );
     this.transaction(() => {
       for (const event of events)
         if (!exists.get(event.id))
-          insert.run(event.id, event.deviceId, event.start, event.end, JSON.stringify(event));
+          insert.run(
+            event.id,
+            event.deviceId,
+            event.start,
+            event.end,
+            JSON.stringify(event),
+            event.deleted ? 1 : 0,
+          );
     });
   }
+  /**
+   * Pages newest-first by start time, the order the time index serves. `next` is the start of
+   * the last page row; every row sharing that start is returned on the same page, so revised
+   * rows (which receive a new seq for replication) can neither be skipped nor repeated.
+   */
   query(value: UsageQuery) {
     const query = usageQuerySchema.parse(value),
       limit = query.limit ?? 500;
+    const filter = `start<? AND end>=? AND (?='' OR device=?)
+      AND (?='' OR instr(lower(coalesce(json_extract(payload,'$.app'),'')||' '||coalesce(json_extract(payload,'$.title'),'')||' '||coalesce(json_extract(payload,'$.url'),'')),lower(?))>0)
+      AND deleted=0`;
+    const parameters = [
+      query.end,
+      query.start,
+      query.deviceId ?? '',
+      query.deviceId ?? '',
+      query.search ?? '',
+      query.search ?? '',
+    ];
     const rows = this.database
       .prepare(
-        `SELECT seq,payload FROM usage_events WHERE start<? AND end>=? AND (?='' OR device=?) AND seq<? AND (?='' OR instr(lower(payload),lower(?))>0) AND json_extract(payload,'$.deleted')=0 ORDER BY seq DESC LIMIT ?`,
+        `SELECT start,payload FROM usage_events WHERE ${filter} AND start<? ORDER BY start DESC,id LIMIT ?`,
       )
-      .all(
-        query.end,
-        query.start,
-        query.deviceId ?? '',
-        query.deviceId ?? '',
-        query.before ?? Number.MAX_SAFE_INTEGER,
-        query.search ?? '',
-        query.search ?? '',
-        limit + 1,
-      );
-    const more = rows.length > limit;
-    rows.length = Math.min(rows.length, limit);
+      .all(...parameters, query.before ?? Number.MAX_SAFE_INTEGER, limit + 1);
+    if (rows.length <= limit)
+      return {
+        events: rows.map((row) => JSON.parse(String(row.payload)) as UsageEvent),
+        next: undefined,
+        complete: true,
+      };
+    const boundary = Number(rows[limit - 1].start);
+    const ties = this.database
+      .prepare(`SELECT payload FROM usage_events WHERE ${filter} AND start=? ORDER BY id`)
+      .all(...parameters, boundary);
     return {
-      events: rows.map((row) => JSON.parse(String(row.payload)) as UsageEvent),
-      next: more ? Number(rows.at(-1)!.seq) : undefined,
-      complete: !more,
+      events: [...rows.filter((row) => Number(row.start) > boundary), ...ties].map(
+        (row) => JSON.parse(String(row.payload)) as UsageEvent,
+      ),
+      next: boundary,
+      complete: false,
     };
   }
   settings() {
@@ -131,7 +166,9 @@ export class UsageStore implements UsageReplica {
   status(): UsageStatus {
     const rows = this.database
       .prepare(
-        `SELECT device,MAX(end) lastEvent,payload FROM usage_events WHERE json_extract(payload,'$.deleted')=0 GROUP BY device`,
+        `SELECT e.device,m.lastEvent,e.payload FROM usage_events e
+          JOIN (SELECT device,MAX(end) lastEvent FROM usage_events WHERE deleted=0 GROUP BY device) m
+          ON e.device=m.device AND e.end=m.lastEvent AND e.deleted=0 GROUP BY e.device`,
       )
       .all();
     return {
@@ -139,11 +176,8 @@ export class UsageStore implements UsageReplica {
       capture: '未启用',
       error: '',
       count: Number(
-        this.database
-          .prepare(
-            "SELECT count(*) count FROM usage_events WHERE json_extract(payload,'$.deleted')=0",
-          )
-          .get()!.count,
+        this.database.prepare('SELECT count(*) count FROM usage_events WHERE deleted=0').get()!
+          .count,
       ),
       pending: Number(
         this.database.prepare('SELECT count(*) count FROM usage_events WHERE pending=1').get()!

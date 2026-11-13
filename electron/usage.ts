@@ -18,6 +18,7 @@ import {
 } from '../src/usage/domain.js';
 import type { DesktopSync } from './sync.js';
 
+const FULL_SCAN_MS = 60 * 60_000;
 export class DesktopUsage implements UsageBridge {
   private timer?: ReturnType<typeof setInterval>;
   private initialSync?: ReturnType<typeof setImmediate>;
@@ -26,6 +27,8 @@ export class DesktopUsage implements UsageBridge {
   private closing = false;
   private error = '';
   private sourceScans = new Map<string, { checkedAt: number; error: string }>();
+  /** Per-source rowid position; a full pass repeats hourly or when the source shrinks. */
+  private rowCursors = new Map<string, { cursor?: bigint; fullAt: number }>();
   constructor(
     readonly store: UsageStore,
     readonly syncEngine: DesktopSync,
@@ -232,9 +235,21 @@ export class DesktopUsage implements UsageBridge {
           .all()
           .map((device) => [String(device.id), device]),
       );
-      let cursor: bigint | undefined,
-        imported = 0;
+      const position = this.rowCursors.get(file) ?? { fullAt: 0 };
+      this.rowCursors.set(file, position);
+      const top = database.prepare('SELECT max(rowid) AS top FROM events');
+      top.setReadBigInts(true);
+      const last = top.get()?.top as bigint | null | undefined;
+      // VACUUM or a replaced source renumbers rows below the cursor; rescan it from the start.
+      if (
+        position.cursor !== undefined &&
+        (last == null || last < position.cursor || Date.now() - position.fullAt > FULL_SCAN_MS)
+      )
+        position.cursor = undefined;
+      if (position.cursor === undefined) position.fullAt = Date.now();
+      let imported = 0;
       while (!this.closing && imported < 2000) {
+        const cursor = position.cursor;
         const rows = cursor === undefined ? firstPage.all() : page.all(cursor);
         if (!rows.length) break;
         const events = rows.flatMap((row) => {
@@ -249,17 +264,17 @@ export class DesktopUsage implements UsageBridge {
         });
         this.store.importMissing(events);
         imported += events.length;
-        cursor = rows.at(-1)!.cursor as bigint;
+        position.cursor = rows.at(-1)!.cursor as bigint;
         await yieldToIO();
       }
       if (file === path.join(this.directory, 'collector', 'agent.db') && !this.closing) {
         const local = new DatabaseSync(file);
         try {
           const pending = local.prepare(
-            'SELECT rowid AS cursor,id,device_id,synced FROM events WHERE rowid>? ORDER BY rowid LIMIT 200',
+            'SELECT rowid AS cursor,id,device_id,synced FROM events WHERE synced=0 AND rowid>? ORDER BY rowid LIMIT 200',
           );
           const firstPending = local.prepare(
-            'SELECT rowid AS cursor,id,device_id,synced FROM events ORDER BY rowid LIMIT 200',
+            'SELECT rowid AS cursor,id,device_id,synced FROM events WHERE synced=0 ORDER BY rowid LIMIT 200',
           );
           pending.setReadBigInts(true);
           firstPending.setReadBigInts(true);

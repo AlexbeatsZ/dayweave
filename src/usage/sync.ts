@@ -26,36 +26,50 @@ export interface UsageReplica {
   receive(hubId: string, reply: UsageReply): Promise<void>;
   exchange(owner: string, request: UsageExchange): Promise<UsageReply>;
 }
-export async function syncUsage(client: SyncClient, replica: UsageReplica) {
-  return client.exclusive(async () => {
-    const config = client.config;
-    if (!config.enabled || config.hub || !config.key || !config.endpoint || !config.hubId) return;
-    for (let batch = 0; batch < 20; batch++) {
-      const request: UsageExchange = {
-        requestId: crypto.randomUUID(),
-        events: await replica.pending(300),
-        cursor: await replica.cursor(config.hubId),
-        limit: 500,
-      };
-      const reply = await client.request(
-        '/usage',
-        () => seal(request, config.key!, '/usage', config.deviceId),
-        async (result) => {
-          if (result.clientId !== config.deviceId) throw new Error('自动记录回执身份不符');
-          const value = usageReplySchema.parse(
-            await openEnvelope(result, config.key!, '/usage:reply'),
-          );
-          if (value.requestId !== request.requestId) throw new Error('自动记录回执不匹配');
-          if (value.cursor < request.cursor || (value.more && value.cursor === request.cursor))
-            throw new Error('自动记录同步游标无进展');
-          const sent = new Map(request.events.map((event) => [event.id, event.revision]));
-          if (value.accepted.some((item) => sent.get(item.id) !== item.revision))
-            throw new Error('自动记录回执包含未发送的记录');
-          return value;
-        },
-      );
-      await replica.receive(config.hubId, reply);
-      if (!reply.more && request.events.length < 300) break;
-    }
-  });
+const running = new WeakMap<SyncClient, Promise<void>>();
+/**
+ * Serialized per client but independent of the business-sync lock: an observation backlog never
+ * delays task exchanges. Credentials are captured once; re-pairing or disconnecting stops the run.
+ */
+export function syncUsage(client: SyncClient, replica: UsageReplica) {
+  const task = (running.get(client) ?? Promise.resolve()).then(() => exchange(client, replica));
+  running.set(
+    client,
+    task.catch(() => {}),
+  );
+  return task;
+}
+async function exchange(client: SyncClient, replica: UsageReplica) {
+  const config = client.config;
+  if (!config.enabled || config.hub || !config.key || !config.endpoint || !config.hubId) return;
+  const { key, deviceId, hubId } = config;
+  const endpoints = config.endpoints ?? [config.endpoint];
+  for (let batch = 0; batch < 20; batch++) {
+    const current = client.config;
+    if (!current.enabled || current.key !== key || current.hubId !== hubId) return;
+    const request: UsageExchange = {
+      requestId: crypto.randomUUID(),
+      events: await replica.pending(300),
+      cursor: await replica.cursor(hubId),
+      limit: 500,
+    };
+    const reply = await client.request(
+      '/usage',
+      () => seal(request, key, '/usage', deviceId),
+      async (result) => {
+        if (result.clientId !== deviceId) throw new Error('自动记录回执身份不符');
+        const value = usageReplySchema.parse(await openEnvelope(result, key, '/usage:reply'));
+        if (value.requestId !== request.requestId) throw new Error('自动记录回执不匹配');
+        if (value.cursor < request.cursor || (value.more && value.cursor === request.cursor))
+          throw new Error('自动记录同步游标无进展');
+        const sent = new Map(request.events.map((event) => [event.id, event.revision]));
+        if (value.accepted.some((item) => sent.get(item.id) !== item.revision))
+          throw new Error('自动记录回执包含未发送的记录');
+        return value;
+      },
+      endpoints,
+    );
+    await replica.receive(hubId, reply);
+    if (!reply.more && request.events.length < 300) break;
+  }
 }

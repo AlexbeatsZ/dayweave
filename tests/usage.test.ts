@@ -97,15 +97,25 @@ test('hub increments delivery cursor for revisions and protects source ownership
     });
     assert.ok(corrected.cursor > first.cursor);
     assert.equal(corrected.events[0].end, 91000);
-    await assert.rejects(
-      store.exchange('peer-b', {
-        requestId: crypto.randomUUID(),
-        events: [event({ end: 101000, revision: 3 })],
-        cursor: 0,
-        limit: 1,
-      }),
-    );
-    assert.equal(store.query({ start: 0, end: 200000 }).events[0].end, 91000);
+    // A foreign copy is acknowledged without overwriting, and the rest of its batch still lands.
+    const foreign = await store.exchange('peer-b', {
+      requestId: crypto.randomUUID(),
+      events: [
+        event({ end: 101000, revision: 3 }),
+        event({
+          id: 'dayweave:peer-b:app:own',
+          deviceId: 'dayweave:peer-b',
+          start: 150000,
+          end: 160000,
+        }),
+      ],
+      cursor: 0,
+      limit: 5,
+    });
+    assert.equal(foreign.accepted.length, 2);
+    const rows = store.query({ start: 0, end: 200000 }).events;
+    assert.equal(rows.find((row) => row.id === event().id)?.end, 91000);
+    assert.ok(rows.some((row) => row.id === 'dayweave:peer-b:app:own'));
   } finally {
     store.close();
   }
@@ -129,22 +139,17 @@ test('duplicate historical imports tolerate device display aliases but cannot ch
     assert.deepEqual(reply.accepted, [{ id: duplicate.id, revision: 2 }]);
     assert.equal(store.status().count, 1);
     assert.equal(reply.events[0].deviceName, 'OMEN');
-    await assert.rejects(
-      store.exchange('peer-a', {
+    // Changing an observation owned by this device is ignored, not fatal to the exchange.
+    for (const change of [{ end: duplicate.end + 1 }, { title: 'different observation' }]) {
+      const ignored = await store.exchange('peer-a', {
         requestId: crypto.randomUUID(),
-        events: [{ ...duplicate, end: duplicate.end + 1 }],
+        events: [{ ...duplicate, ...change, revision: 3 }],
         cursor: 0,
         limit: 10,
-      }),
-    );
-    await assert.rejects(
-      store.exchange('peer-a', {
-        requestId: crypto.randomUUID(),
-        events: [{ ...duplicate, title: 'different observation' }],
-        cursor: 0,
-        limit: 10,
-      }),
-    );
+      });
+      assert.equal(ignored.events[0].end, duplicate.end);
+      assert.equal(ignored.events[0].title, duplicate.title);
+    }
     assert.equal(store.status().count, 1);
   } finally {
     store.close();
@@ -362,4 +367,66 @@ test('desktop browser URLs contribute to websites without inflating app or devic
   assert.equal(summary.websites[0].duration, 60000);
   assert.equal(summary.active, 60000);
   assert.equal(summary.deviceTime, 60000);
+});
+test('time-ordered pages keep ties together and survive revisions between pages', () => {
+  const store = new UsageStore(':memory:');
+  try {
+    const rows = [
+      event({ id: 'a', start: 5000, end: 6000 }),
+      event({ id: 'b', start: 4000, end: 4500 }),
+      event({ id: 'c', start: 4000, end: 4800 }),
+      event({ id: 'd', start: 4000, end: 4900 }),
+      event({ id: 'e', start: 2000, end: 3000, title: 'Needle report' }),
+    ];
+    store.import(rows);
+    const first = store.query({ start: 0, end: 10000, limit: 2 });
+    assert.deepEqual(
+      first.events.map((row) => row.id),
+      ['a', 'b', 'c', 'd'],
+    );
+    // A revision gets a new seq for replication; time paging must neither skip nor repeat it.
+    store.import([event({ id: 'e', start: 2000, end: 3500, title: 'Needle report', revision: 2 })]);
+    const second = store.query({ start: 0, end: 10000, limit: 2, before: first.next });
+    assert.deepEqual(
+      second.events.map((row) => [row.id, row.end]),
+      [['e', 3500]],
+    );
+    assert.equal(second.complete, true);
+    // Search matches observation text, not JSON field names.
+    assert.equal(store.query({ start: 0, end: 10000, search: 'needle' }).events.length, 1);
+    assert.equal(store.query({ start: 0, end: 10000, search: 'revision' }).events.length, 0);
+  } finally {
+    store.close();
+  }
+});
+test('an existing database gains the indexed deleted column without losing tombstones', async () => {
+  const root = path.join(os.tmpdir(), '.agents');
+  await mkdir(root, { recursive: true });
+  const directory = await mkdtemp(path.join(root, 'dayweave-usage-migrate-'));
+  const file = path.join(directory, 'usage.db');
+  try {
+    const legacy = new DatabaseSync(file);
+    legacy.exec(
+      'CREATE TABLE usage_events(seq INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT UNIQUE NOT NULL, device TEXT NOT NULL, start INTEGER NOT NULL, end INTEGER NOT NULL, payload TEXT NOT NULL, owner TEXT NOT NULL, pending INTEGER NOT NULL)',
+    );
+    const insert = legacy.prepare(
+      "INSERT INTO usage_events(id,device,start,end,payload,owner,pending) VALUES(?,?,?,?,?,'@local',0)",
+    );
+    for (const row of [event(), event({ id: 'gone', deleted: true })])
+      insert.run(row.id, row.deviceId, row.start, row.end, JSON.stringify(row));
+    legacy.close();
+    const store = new UsageStore(file);
+    try {
+      assert.equal(store.status().count, 1);
+      assert.deepEqual(
+        store.query({ start: 0, end: 100000 }).events.map((row) => row.id),
+        ['event-1'],
+      );
+    } finally {
+      store.close();
+    }
+  } finally {
+    assert.ok(path.resolve(directory).startsWith(path.resolve(root) + path.sep));
+    await rm(directory, { recursive: true, force: true });
+  }
 });

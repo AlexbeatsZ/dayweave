@@ -63,6 +63,7 @@ export class DesktopSync implements SyncBridge {
   private generating = false;
   private repeatTimer?: ReturnType<typeof setInterval>;
   private saveDue?: ReturnType<typeof setTimeout>;
+  private readonly usageRequests = new Set<Promise<void>>();
   private readonly calendars: CalendarSubscriptions;
   constructor(
     readonly service: StateService,
@@ -257,7 +258,7 @@ export class DesktopSync implements SyncBridge {
         else chunks.push(chunk);
       });
       request.on('end', () => {
-        void this.client.exclusive(async () => {
+        const handle = async () => {
           let failureStatus = 401;
           try {
             const envelope = JSON.parse(Buffer.concat(chunks).toString('utf8')) as Envelope;
@@ -354,7 +355,14 @@ export class DesktopSync implements SyncBridge {
           } catch {
             response.writeHead(failureStatus).end();
           }
-        });
+        };
+        // Observation exchanges touch only the usage store, never business state or pairing,
+        // so a large backlog cannot hold up task sync for other devices.
+        if (route !== '/usage') void this.client.exclusive(handle);
+        else {
+          const running = handle().finally(() => this.usageRequests.delete(running));
+          this.usageRequests.add(running);
+        }
       });
     });
     server.requestTimeout = 20000;
@@ -401,6 +409,7 @@ export class DesktopSync implements SyncBridge {
     clearInterval(this.repeatTimer);
     this.unsubscribe?.();
     await this.stopServer();
+    await Promise.all(this.usageRequests);
     // Includes queued authenticated requests and an exchange already started by the scheduler.
     await this.client.exclusive(async () => {
       if (!this.saveDue) return;
