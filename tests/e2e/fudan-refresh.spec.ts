@@ -45,6 +45,8 @@ interface NativeRequest {
 interface NativeWrite {
   name: string;
   content: string;
+  /** saveState keeps the previous primary as data.backup.json when it commits. */
+  rotate?: boolean;
   settled: boolean;
   resolve(): void;
   reject(error: Error): void;
@@ -127,6 +129,10 @@ async function boot(page: Page) {
           write.settled = true;
           if (error) write.reject(new Error(error));
           else {
+            if (write.rotate && this.files['data.json'] !== undefined) {
+              this.files['data.backup.json'] = this.files['data.json'];
+              this.writes.push({ name: 'data.backup.json', content: this.files['data.json'] });
+            }
             this.files[write.name] = write.content;
             this.writes.push({ name: write.name, content: write.content });
             write.resolve();
@@ -160,6 +166,7 @@ async function boot(page: Page) {
       const promiseMethods = [
         'read',
         'write',
+        'saveState',
         'deviceInfo',
         'appearance',
         'discoverSync',
@@ -202,6 +209,32 @@ async function boot(page: Page) {
             }
             if (plugin === 'DayweaveFiles') {
               if (method === 'read') return { content: harness.files[options.name] ?? null };
+              if (method === 'saveState') {
+                // Native primary save: same controls as a data.json write, plus backup rotation.
+                harness.writeAttempts.push({ name: 'data.json', content: options.content });
+                if (harness.writeMode === 'fail') throw new Error('合成测试：原生主文件写入失败');
+                if (harness.writeMode === 'defer')
+                  return new Promise<void>((resolve, reject) => {
+                    harness.pendingWrites.push({
+                      name: 'data.json',
+                      content: options.content,
+                      rotate: true,
+                      settled: false,
+                      resolve,
+                      reject,
+                    });
+                  });
+                if (harness.files['data.json'] !== undefined) {
+                  harness.files['data.backup.json'] = harness.files['data.json'];
+                  harness.writes.push({
+                    name: 'data.backup.json',
+                    content: harness.files['data.json'],
+                  });
+                }
+                harness.files['data.json'] = options.content;
+                harness.writes.push({ name: 'data.json', content: options.content });
+                return;
+              }
               if (method === 'write') {
                 harness.writeAttempts.push({ name: options.name, content: options.content });
                 // Only primary business writes are controlled; backups and sync still run normally.
