@@ -35,6 +35,13 @@ async function launch() {
   await expect(page.getByRole('heading', { name: '待办', level: 1 })).toBeVisible();
   return page;
 }
+async function closeWindow() {
+  const closed = app.waitForEvent('close', { timeout: 30000 });
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].close());
+  if (process.platform === 'darwin') await app.evaluate(({ app }) => app.quit());
+  await closed;
+  app = undefined;
+}
 try {
   let page = await launch();
   assert.equal(
@@ -74,11 +81,7 @@ try {
   await page.getByLabel('任务备注').fill('关闭窗口前的最后一次编辑');
   await page.getByRole('button', { name: '保存任务', exact: true }).click();
   // Exercise the real window close handshake rather than terminating the process.
-  const closed = app.waitForEvent('close');
-  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].close());
-  if (process.platform === 'darwin') await app.evaluate(({ app }) => app.quit());
-  await closed;
-  app = undefined;
+  await closeWindow();
   let saved = JSON.parse(await readFile(path.join(profile, 'data.json'), 'utf8'));
   assert.equal(saved.tasks[0].notes, '关闭窗口前的最后一次编辑');
   page = await launch();
@@ -90,8 +93,7 @@ try {
   await page.getByLabel('任务备注').fill('生成新备份');
   await page.getByRole('button', { name: '保存任务', exact: true }).click();
   await expect.poll(async () => (await readSavedState())?.tasks[0]?.notes).toBe('生成新备份');
-  await app.close();
-  app = undefined;
+  await closeWindow();
   await writeFile(path.join(profile, 'data.json'), '{corrupt', 'utf8');
   page = await launch();
   await expect(page.locator('.recovery-banner')).toBeVisible();
@@ -106,7 +108,7 @@ try {
     }),
   );
 } finally {
-  if (app) await app.close();
+  if (app) await closeWindow();
   assert.ok(path.resolve(profile).startsWith(path.resolve(base) + path.sep));
   await rm(profile, { recursive: true, force: true });
 }

@@ -1,4 +1,5 @@
-import { open, readFile, rename, mkdir } from 'node:fs/promises';
+import fs, { open, readFile, mkdir } from 'node:fs/promises';
+import { setTimeout as delay } from 'node:timers/promises';
 import path from 'node:path';
 import type { JsonFiles } from '../src/persistence.js';
 
@@ -15,7 +16,21 @@ export async function writeAtomic(file: string, content: string, mode = 0o600) {
   } finally {
     await handle.close();
   }
-  await rename(temporary, file);
+  for (let attempt = 0; attempt < 10; attempt++) {
+    try {
+      await fs.rename(temporary, file);
+      return;
+    } catch (error) {
+      if (
+        process.platform !== 'win32' ||
+        !['EACCES', 'EPERM', 'EBUSY'].includes((error as NodeJS.ErrnoException).code ?? '') ||
+        attempt === 9
+      )
+        throw error;
+      // A reader or scanner can briefly deny replacement on Windows.
+      await delay(100);
+    }
+  }
 }
 
 /** Keep the first copy of a migration source; later calls leave it untouched. */
