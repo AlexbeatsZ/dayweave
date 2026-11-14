@@ -11,6 +11,7 @@ import {
 } from './document.js';
 import { invitationText } from './invitation.js';
 import type { SyncConfig, SyncReply, SyncState, SyncStatus, SyncStorage } from './types.js';
+import type { CalendarAccountCommand, CalendarAccountReply } from '../calendar-accounts.js';
 
 const SEQUENCE_BLOCK = 1000;
 const LAST_SYNC_PERSIST_MS = 10 * 60_000;
@@ -254,6 +255,35 @@ export class SyncClient {
     });
     return this.inFlight;
   }
+  calendarAccounts(command: CalendarAccountCommand) {
+    return this.exclusive(async () => {
+      const c = this.config;
+      if (!c.enabled || c.hub || !c.key || !c.hubId) throw new Error('请先连接同步中心');
+      const requestId = crypto.randomUUID();
+      let seq = 0;
+      const reply = await this.request(
+        '/calendar-accounts',
+        async () => {
+          seq = await this.nextSequence();
+          return seal({ command, requestId, seq }, c.key!, '/calendar-accounts', c.deviceId);
+        },
+        async (envelope) => {
+          const value = await openEnvelope<{
+            seq: number;
+            hubId: string;
+            result?: CalendarAccountReply;
+            error?: string;
+          }>(envelope, c.key!, '/calendar-accounts:reply');
+          if (envelope.clientId !== c.deviceId || value.hubId !== c.hubId || value.seq !== seq)
+            throw new Error('日历连接响应身份或序号不符');
+          return value;
+        },
+      );
+      if (reply.error) throw new Error(reply.error);
+      if (!reply.result) throw new Error('请先升级同步中心以使用账号登录');
+      return reply.result;
+    });
+  }
   async request<T>(
     path: string,
     createBody: () => Promise<Envelope>,
@@ -394,7 +424,9 @@ export class SyncClient {
 }
 
 /** The user-facing reason for a failed hub response, shared by every transport. */
-export function syncHttpError(status: number) {
+export function syncHttpError(status: number, route?: string) {
+  if (route === '/calendar-accounts' && (status === 403 || status === 404))
+    return '同步中心或网关尚不支持日历账号连接，请先升级。';
   return status === 401
     ? '配对已失效，请重新配对'
     : status === 409
@@ -406,10 +438,10 @@ export async function fetchEnvelope(endpoint: string, path: string, body: Envelo
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(12000),
+    signal: AbortSignal.timeout(path === '/calendar-accounts' ? 60000 : 12000),
     redirect: 'error',
   });
-  if (!response.ok) throw new Error(syncHttpError(response.status));
+  if (!response.ok) throw new Error(syncHttpError(response.status, path));
   const text = await response.text();
   if (text.length > 70 * 1024 * 1024) throw new Error('同步消息过大');
   return JSON.parse(text) as Envelope;

@@ -26,7 +26,7 @@ test('HTTPS gateway preserves subscription responses and limits encrypted sync t
     const subscription = await fetch(base + '/s/existing/file.yaml');
     assert.equal(subscription.status, 200);
     assert.equal(subscription.headers.get('subscription-userinfo'), 'total=100');
-    for (const route of ['pair', 'sync', 'usage']) {
+    for (const route of ['pair', 'sync', 'usage', 'calendar-accounts']) {
       const reply = await fetch(base + '/dayweave/' + route, {
         method: 'POST',
         body: '{"encrypted":true}',
@@ -51,7 +51,13 @@ test('HTTPS gateway preserves subscription responses and limits encrypted sync t
       ).status,
       403,
     );
-    assert.deepEqual(received, ['/s/existing/file.yaml', '/pair', '/sync', '/usage']);
+    assert.deepEqual(received, [
+      '/s/existing/file.yaml',
+      '/pair',
+      '/sync',
+      '/usage',
+      '/calendar-accounts',
+    ]);
     await new Promise<void>((resolve) => upstream.close(() => resolve()));
     assert.equal((await fetch(base + '/dayweave/sync', { method: 'POST' })).status, 502);
   } finally {
@@ -152,6 +158,39 @@ test('HTTPS gateway forwards only exact read-only Event calendar capabilities', 
     assert.equal((await fetch(base + route + '?other=1')).status, 404);
     assert.equal((await fetch(base + '/dayweave/calendar/short.ics')).status, 404);
     assert.equal(received.length, 2);
+  } finally {
+    gateway.server.closeAllConnections();
+    upstream.closeAllConnections();
+    await Promise.all([
+      new Promise<void>((resolve) => gateway.server.close(() => resolve())),
+      new Promise<void>((resolve) => upstream.close(() => resolve())),
+    ]);
+  }
+});
+
+test('HTTPS gateway preserves the exact OAuth callback query and rejects other calendar paths', async () => {
+  const received: string[] = [];
+  const upstream = http.createServer((request, response) => {
+    received.push(request.url!);
+    response.end('callback');
+  });
+  await new Promise<void>((resolve) => upstream.listen(0, '127.0.0.1', resolve));
+  const gateway = createGateway({
+    port: 0,
+    syncPort: (upstream.address() as { port: number }).port,
+  });
+  const address = await gateway.listen(),
+    base = `http://127.0.0.1:${address.port}`;
+  try {
+    const callback = '/dayweave/calendar-oauth/callback?state=opaque&code=authorization-code';
+    assert.equal((await fetch(base + callback)).status, 200);
+    assert.equal(received[0], callback.replace('/dayweave', ''));
+    assert.equal((await fetch(base + callback, { method: 'POST' })).status, 405);
+    assert.equal((await fetch(base + '/dayweave/calendar-oauth/token')).status, 404);
+    assert.equal(
+      (await fetch(base + '/dayweave/calendar-accounts?other=1', { method: 'POST' })).status,
+      404,
+    );
   } finally {
     gateway.server.closeAllConnections();
     upstream.closeAllConnections();

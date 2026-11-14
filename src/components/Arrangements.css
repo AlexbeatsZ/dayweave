@@ -293,6 +293,28 @@
 .event-form p {
   overflow-wrap: anywhere;
 }
+.calendar-provider-actions,
+.calendar-connected-account {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.calendar-provider-actions .button {
+  text-align: left;
+}
+.calendar-account-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.calendar-connected-account fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.calendar-connected-account strong {
+  overflow-wrap: anywhere;
+}
 .calendar-event-clock {
   font-variant-numeric: tabular-nums;
 }

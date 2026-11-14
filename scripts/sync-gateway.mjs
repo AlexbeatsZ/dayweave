@@ -2,7 +2,12 @@ import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const routes = new Set(['/dayweave/pair', '/dayweave/sync', '/dayweave/usage']);
+const routes = new Set([
+  '/dayweave/pair',
+  '/dayweave/sync',
+  '/dayweave/usage',
+  '/dayweave/calendar-accounts',
+]);
 // Fixed MCP facade only. The private decisiond REST API is never routed here.
 const mcpRoutes = new Map([
   ['/ai-decision/mcp', '/mcp'],
@@ -61,6 +66,7 @@ export function createGateway({
     const automatic = request.url?.startsWith('/dayweave');
     const calendar = /^\/dayweave\/calendar\/[a-f0-9]{64}\.ics$/.test(request.url ?? '');
     const rawPath = (request.url ?? '').split('?')[0];
+    const callback = rawPath === '/dayweave/calendar-oauth/callback';
     const mcpPath = mcpRoutes.get(rawPath);
     const mcpNamespace =
       rawPath.startsWith('/ai-decision') ||
@@ -70,15 +76,23 @@ export function createGateway({
       request.resume();
       response.writeHead(status, { 'Cache-Control': 'no-store', Connection: 'close' }).end();
     };
-    if (automatic && !routes.has(request.url) && !calendar) return reject(404);
+    if (automatic && !routes.has(request.url) && !calendar && !callback) return reject(404);
     if (mcpNamespace && !mcpPath) return reject(404);
-    if (automatic && !calendar && (request.method !== 'POST' || request.headers.origin))
+    if (
+      automatic &&
+      !calendar &&
+      !callback &&
+      (request.method !== 'POST' || request.headers.origin)
+    )
       return reject(403);
+    if (callback && request.method !== 'GET') return reject(405);
     if (calendar && !['GET', 'HEAD'].includes(request.method)) return reject(405);
     const limit = automatic ? 70 * 1024 * 1024 : mcpPath ? 1024 * 1024 : 2 * 1024 * 1024;
     if (Number(request.headers['content-length'] ?? 0) > limit) return reject(413);
     const headers =
-      automatic && !calendar ? { 'Content-Type': 'application/json' } : headersFor(request.headers);
+      automatic && !calendar && !callback
+        ? { 'Content-Type': 'application/json' }
+        : headersFor(request.headers);
     const upstreamPort = automatic ? syncPort : mcpPath ? mcpPort : subscriptionPort;
     const upstream = http.request(
       {

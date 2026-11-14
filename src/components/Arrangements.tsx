@@ -4,6 +4,7 @@ import { Calendar } from './Calendar';
 import { EventComposer } from './EventComposer';
 import { CalendarSources } from './CalendarSources';
 import { CalendarExport } from './CalendarExport';
+import { CalendarConnections } from './CalendarConnections';
 import { Modal } from './Modal';
 import { TaskCheck } from './TaskCheck';
 import { SemesterEditor, PeriodEditor } from './Timetable';
@@ -281,6 +282,7 @@ export function Arrangements({
     [periods, setPeriods] = useState(false);
   const [dayPopup, setDayPopup] = useState<string>();
   const [publishing, setPublishing] = useState(false);
+  const [connections, setConnections] = useState(false);
   const [error, setError] = useState('');
   const imports = useCourseImport(() => setMenu(false));
   const fudan = useFudanSource();
@@ -530,6 +532,15 @@ export function Arrangements({
         <Modal title="日程操作" closeLabel="关闭日程操作" close={() => setMenu(false)}>
           <div className="event-form">
             <button
+              className="button primary"
+              onClick={() => {
+                setMenu(false);
+                setConnections(true);
+              }}
+            >
+              连接日历账号
+            </button>
+            <button
               className="button"
               onClick={() => {
                 setMenu(false);
@@ -668,6 +679,7 @@ export function Arrangements({
       )}
       {sources && <CalendarSources close={() => setSources(false)} />}
       {publishing && <CalendarExport close={() => setPublishing(false)} />}
+      {connections && <CalendarConnections close={() => setConnections(false)} />}
       {semester && <SemesterEditor close={() => setSemester(false)} />}
       {periods && <PeriodEditor close={() => setPeriods(false)} />}
       <CourseImportDialog workflow={imports} />

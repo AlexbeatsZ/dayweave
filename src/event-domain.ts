@@ -304,7 +304,12 @@ export function configureRecurrence(
 }
 
 /** Only the elected hub invokes this inside the original serialized StateService write. */
-export function generateRecurrences(state: AppState, through?: string, at = Date.now()): AppState {
+export function generateRecurrences(
+  state: AppState,
+  through?: string,
+  at = Date.now(),
+  publishEvents = false,
+): AppState {
   const today = zoneDateKey(at, state.settings.timeZone),
     target = through ?? shiftDay(today, 42);
   if (target > shiftDay(today, 366)) throw new Error('最多提前生成一年内的重复实例');
@@ -319,7 +324,9 @@ export function generateRecurrences(state: AppState, through?: string, at = Date
     const occurrences = { ...rule.occurrences };
     for (const definition of rule.definitions) {
       const window =
-        rule.target === 'event' && state.settings.calendarFeed?.enabled && !through
+        rule.target === 'event' &&
+        (state.settings.calendarFeed?.enabled || publishEvents) &&
+        !through
           ? shiftDay(today, 366)
           : target;
       const datesThrough =

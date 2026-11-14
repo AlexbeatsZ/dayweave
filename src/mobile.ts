@@ -58,6 +58,7 @@ export async function initializeMobile() {
     exportText: async (name, content, mime) =>
       (await files.exportBackup({ name, content, mime })).saved,
     importFudan: async () => (await files.importFudan()).content,
+    openCalendarLink: (url) => files.openCalendarLink({ url }),
     load: async () => ({ ...(await repository.load()), path: '此设备 · 应用私有存储' }),
     save: (state) => repository.save(state),
     exportData: async (state) =>
@@ -109,7 +110,7 @@ export async function initializeMobile() {
         return (await files.postSync({ endpoint, path, body })).body;
       } catch (error) {
         const status = /^HTTP_(\d{3})$/.exec(String((error as { code?: unknown }).code ?? ''));
-        throw status ? new Error(syncHttpError(Number(status[1]))) : error;
+        throw status ? new Error(syncHttpError(Number(status[1]), path)) : error;
       }
     },
     deviceName,
@@ -123,6 +124,7 @@ export async function initializeMobile() {
     const client = syncClient;
     window.clearlist.sync = {
       status: () => client.readStatus(),
+      calendarAccounts: (command) => client.calendarAccounts(command),
       discover: async () => (await files.discoverSync()).peers,
       pair: async (invitation, endpoint) => {
         await client.pair(invitation, endpoint);

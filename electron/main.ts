@@ -213,6 +213,11 @@ else {
         'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility',
       );
     });
+    ipcMain.handle('calendar:login', async (event, url: string) => {
+      trusted(event);
+      const { calendarExternalUrl } = await import('../src/calendar-accounts.js');
+      await shell.openExternal(calendarExternalUrl(url));
+    });
     ipcMain.handle('text:pick', async (event) => {
       trusted(event);
       const result = await dialog.showOpenDialog(window!, {
@@ -279,6 +284,7 @@ else {
       'invite',
       'revoke',
       'resolve',
+      'calendarAccounts',
     ] as const) {
       ipcMain.handle(`sync:${method}`, (event, ...args) => {
         trusted(event);

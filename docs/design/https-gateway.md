@@ -1,8 +1,12 @@
 # ROG 公网同步入口
 
+## 账号日历授权回调
+
+2026-11-14 源码增加精确 `POST /dayweave/calendar-accounts`，转发到中心同名路径，校验沿用已有配对密钥和 peer 序号。精确 `GET /dayweave/calendar-oauth/callback` 保留 OAuth 查询串并转发到中心，中心检查一次性 state、PKCE 和发起设备权限。其他 calendar-oauth 路径与 callback 方法拒绝。客户端、中心与网关等待本轮界面审阅后构建交付。详细首次配置、凭据所有者和数据边界见 arrangements.md。
+
 ## 安排重构的日程订阅接口
 
-源码新增精确 `GET/HEAD /dayweave/calendar/<64位十六进制密钥>.ics`，转发至中心 `49732/calendar/<密钥>.ics`。中心核对可撤销日历密钥后只输出 Event ICS。网关拒绝其他方法、查询串和不匹配的自动路径，原同步路由继续要求 POST。中心和网关需要配套升级，Google/Outlook/Apple 使用用户复制的 HTTPS 订阅链接。此源码改动仍处于界面审阅与交付门禁阶段，实际公网账户订阅验收单独记录。数据与映射契约见 arrangements.md。
+精确 `GET/HEAD /dayweave/calendar/<64位十六进制密钥>.ics` 转发至中心 `49732/calendar/<密钥>.ics`。中心核对可撤销日历密钥后只输出 Event ICS。网关拒绝其他方法、查询串和不匹配的自动路径，原同步路由继续要求 POST。该 ICS 路由已随 0.5.9 与 Server 0.2.6 交付，Google/Outlook/Apple 使用用户复制的 HTTPS 订阅链接。实际公网账户订阅验收单独记录。数据与映射契约见 arrangements.md。
 
 ## 2026-11-08 AI Decision MCP
 

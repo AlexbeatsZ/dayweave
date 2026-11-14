@@ -127,18 +127,35 @@ public class DayweaveFilesPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void openCalendarLink(PluginCall call) {
+        try {
+            java.net.URI uri = new java.net.URI(call.getString("url"));
+            boolean google = "accounts.google.com".equals(uri.getHost()) && "/o/oauth2/v2/auth".equals(uri.getPath());
+            boolean microsoft = "login.microsoftonline.com".equals(uri.getHost()) && "/common/oauth2/v2.0/authorize".equals(uri.getPath());
+            boolean setup = java.util.Arrays.asList("https://console.cloud.google.com/apis/credentials", "https://console.cloud.google.com/apis/library/calendar-json.googleapis.com", "https://entra.microsoft.com/", "https://account.apple.com/").contains(uri.toString());
+            if (!"https".equals(uri.getScheme()) || uri.getUserInfo() != null || uri.getPort() != -1 || !(google || microsoft || setup)) throw new IllegalArgumentException("Invalid calendar authorization URL");
+            getActivity().runOnUiThread(() -> {
+                try {
+                    getActivity().startActivity(new Intent(Intent.ACTION_VIEW, android.net.Uri.parse(uri.toString())));
+                    call.resolve();
+                } catch (Exception error) { call.reject("Unable to open calendar login", error); }
+            });
+        } catch (Exception error) { call.reject("Invalid calendar authorization URL", error); }
+    }
+
+    @PluginMethod
     public void postSync(PluginCall call) {
         network.execute(() -> {
             java.net.HttpURLConnection connection=null;
             try {
                 String route=call.getString("path");
-                if(!"/pair".equals(route)&&!"/sync".equals(route)&&!"/usage".equals(route))throw new IllegalArgumentException("Invalid sync route");
+                if(!"/pair".equals(route)&&!"/sync".equals(route)&&!"/usage".equals(route)&&!"/calendar-accounts".equals(route))throw new IllegalArgumentException("Invalid sync route");
                 JSObject body=call.getObject("body");
                 if(body==null || body.length()!=3 || !body.has("clientId") || !body.has("iv") || !body.has("data"))throw new IllegalArgumentException("Encrypted sync envelope required");
                 byte[] bytes=body.toString().getBytes(StandardCharsets.UTF_8);
                 if(bytes.length>MAX_SYNC_BYTES)throw new IllegalArgumentException("Message too large");
                 connection=(java.net.HttpURLConnection)new java.net.URL(endpoint(call.getString("endpoint"))+route).openConnection();
-                connection.setConnectTimeout(6000);connection.setReadTimeout(12000);connection.setInstanceFollowRedirects(false);connection.setRequestMethod("POST");connection.setDoOutput(true);connection.setRequestProperty("Content-Type","application/json");connection.setFixedLengthStreamingMode(bytes.length);
+                connection.setConnectTimeout(6000);connection.setReadTimeout("/calendar-accounts".equals(route)?60000:12000);connection.setInstanceFollowRedirects(false);connection.setRequestMethod("POST");connection.setDoOutput(true);connection.setRequestProperty("Content-Type","application/json");connection.setFixedLengthStreamingMode(bytes.length);
                 try(OutputStream output=connection.getOutputStream()){output.write(bytes);}
                 int status=connection.getResponseCode();
                 // The shared sync client maps HTTP_<status> to the same messages as desktop.
