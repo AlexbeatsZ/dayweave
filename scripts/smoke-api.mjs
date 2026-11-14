@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { closeDesktopWindow } from './close-desktop-window.mjs';
 
 const base = path.join(os.tmpdir(), '.agents');
 await mkdir(base, { recursive: true });
@@ -96,7 +97,7 @@ try {
     JSON.stringify({ apiToUi: true, uiToApi: true, concurrentFields: true, persisted: true }),
   );
 } finally {
-  await app?.close();
+  if (app) await closeDesktopWindow(app);
   assert.ok(profile.startsWith(base + path.sep));
   await rm(profile, { recursive: true, force: true });
 }

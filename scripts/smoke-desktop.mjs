@@ -4,6 +4,7 @@ import { mkdir, mkdtemp, readFile, writeFile, readdir, rm } from 'node:fs/promis
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { closeDesktopWindow } from './close-desktop-window.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const base = path.join(os.tmpdir(), '.agents');
@@ -34,13 +35,6 @@ async function launch() {
   const page = await app.firstWindow();
   await expect(page.getByRole('heading', { name: '待办', level: 1 })).toBeVisible();
   return page;
-}
-async function closeWindow() {
-  const closed = app.waitForEvent('close', { timeout: 30000 });
-  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].close());
-  if (process.platform === 'darwin') await app.evaluate(({ app }) => app.quit());
-  await closed;
-  app = undefined;
 }
 try {
   let page = await launch();
@@ -81,7 +75,8 @@ try {
   await page.getByLabel('任务备注').fill('关闭窗口前的最后一次编辑');
   await page.getByRole('button', { name: '保存任务', exact: true }).click();
   // Exercise the real window close handshake rather than terminating the process.
-  await closeWindow();
+  await closeDesktopWindow(app);
+  app = undefined;
   let saved = JSON.parse(await readFile(path.join(profile, 'data.json'), 'utf8'));
   assert.equal(saved.tasks[0].notes, '关闭窗口前的最后一次编辑');
   page = await launch();
@@ -93,7 +88,8 @@ try {
   await page.getByLabel('任务备注').fill('生成新备份');
   await page.getByRole('button', { name: '保存任务', exact: true }).click();
   await expect.poll(async () => (await readSavedState())?.tasks[0]?.notes).toBe('生成新备份');
-  await closeWindow();
+  await closeDesktopWindow(app);
+  app = undefined;
   await writeFile(path.join(profile, 'data.json'), '{corrupt', 'utf8');
   page = await launch();
   await expect(page.locator('.recovery-banner')).toBeVisible();
@@ -108,7 +104,7 @@ try {
     }),
   );
 } finally {
-  if (app) await closeWindow();
+  if (app) await closeDesktopWindow(app);
   assert.ok(path.resolve(profile).startsWith(path.resolve(base) + path.sep));
   await rm(profile, { recursive: true, force: true });
 }
