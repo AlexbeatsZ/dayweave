@@ -1,4 +1,4 @@
-import { useMemo, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, type CSSProperties } from 'react';
 import {
   Check,
   FileCode2,
@@ -29,7 +29,101 @@ import '../../phone/sort.css';
 const periodLength = (goal: Goal) => (goal.period === 'week' ? 7 : 1);
 const periodName = (goal: Goal) => (goal.period === 'week' ? '本周' : '今天');
 type Status = ReturnType<typeof goalStatus>;
-type SubmitReview = (ruleId: string, date: string, counter: BehaviorCounter) => Promise<boolean>;
+type SubmitReview = (
+  ruleId: string,
+  date: string,
+  counter: BehaviorCounter,
+  step?: 1 | -1,
+) => Promise<boolean>;
+
+function BehaviorCounterButton({
+  label,
+  name,
+  value,
+  disabled,
+  count,
+}: {
+  label: string;
+  name: string;
+  value: number;
+  disabled: boolean;
+  count: (step: 1 | -1) => Promise<boolean>;
+}) {
+  const hold = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const pointer = useRef<{ id: number; x: number; y: number } | undefined>(undefined);
+  const consumed = useRef(false);
+  const clear = () => {
+    clearTimeout(hold.current);
+    hold.current = undefined;
+    pointer.current = undefined;
+  };
+  useEffect(() => {
+    if (disabled) clear();
+    return clear;
+  }, [disabled]);
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      aria-label={`${label} ${name} ${value} 次`}
+      aria-description="点击加一，长按减一"
+      title="点击加一，长按减一"
+      onPointerDown={(event) => {
+        if (event.button !== 0 || !event.isPrimary) return;
+        clear();
+        consumed.current = false;
+        pointer.current = { id: event.pointerId, x: event.clientX, y: event.clientY };
+        event.currentTarget.setPointerCapture(event.pointerId);
+        hold.current = setTimeout(() => {
+          hold.current = undefined;
+          consumed.current = true;
+          void count(-1);
+        }, 450);
+      }}
+      onPointerMove={(event) => {
+        const origin = pointer.current;
+        if (
+          origin &&
+          origin.id === event.pointerId &&
+          Math.hypot(event.clientX - origin.x, event.clientY - origin.y) > 9
+        ) {
+          consumed.current = true;
+          clear();
+        }
+      }}
+      onPointerUp={(event) => {
+        if (pointer.current?.id === event.pointerId) clear();
+      }}
+      onPointerCancel={(event) => {
+        if (pointer.current?.id !== event.pointerId) return;
+        consumed.current = true;
+        clear();
+      }}
+      onLostPointerCapture={(event) => {
+        if (pointer.current?.id !== event.pointerId) return;
+        consumed.current = true;
+        clear();
+      }}
+      onContextMenu={(event) => event.preventDefault()}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          clear();
+          consumed.current = false;
+        }
+      }}
+      onClick={(event) => {
+        if (consumed.current && event.detail > 0) {
+          consumed.current = false;
+          return;
+        }
+        void count(1);
+      }}
+    >
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </button>
+  );
+}
 function gapText(minutes: number) {
   return formatDuration(Math.ceil(Math.abs(minutes)) * 60000);
 }
@@ -269,24 +363,22 @@ function GoalCard({
       </button>
       {goal.kind === 'behaviorRule' && (
         <div className="behavior-counters" role="group" aria-label={`今日行为回顾 ${goal.name}`}>
-          <button
-            type="button"
+          <BehaviorCounterButton
+            key={`trigger:${date}`}
+            label="触发条件"
+            name={goal.name}
+            value={current.triggered ?? 0}
             disabled={current.settled}
-            aria-label={`触发条件 ${goal.name} ${current.triggered ?? 0} 次`}
-            onClick={() => void review(goal.id, date, 'trigger')}
-          >
-            <span>触发条件</span>
-            <strong>{current.triggered ?? 0}</strong>
-          </button>
-          <button
-            type="button"
+            count={(step) => review(goal.id, date, 'trigger', step)}
+          />
+          <BehaviorCounterButton
+            key={`action:${date}`}
+            label="目标行为"
+            name={goal.name}
+            value={current.executed ?? 0}
             disabled={current.settled}
-            aria-label={`目标行为 ${goal.name} ${current.executed ?? 0} 次`}
-            onClick={() => void review(goal.id, date, 'action')}
-          >
-            <span>目标行为</span>
-            <strong>{current.executed ?? 0}</strong>
-          </button>
+            count={(step) => review(goal.id, date, 'action', step)}
+          />
         </div>
       )}
       {goal.kind === 'manual' && (

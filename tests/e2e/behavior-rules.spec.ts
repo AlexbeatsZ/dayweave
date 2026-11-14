@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { emptyState } from '../../src/model';
 import { mkdir } from 'node:fs/promises';
 
-test.use({ viewport: { width: 390, height: 844 } });
+test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
 
 test('a behavior rule counts triggers and actions side by side and resets on the next business day', async ({
   page,
@@ -43,6 +43,44 @@ test('a behavior rule counts triggers and actions side by side and resets on the
   expect(Math.abs(triggerBox!.y - actionBox!.y)).toBeLessThan(1);
   expect(actionBox!.x).toBeGreaterThan(triggerBox!.x + triggerBox!.width - 1);
   await trigger.click();
+  await action.click();
+  await expect(trigger).toHaveText('触发条件2');
+  await expect(action).toHaveText('目标行为1');
+  const moved = (await trigger.boundingBox())!;
+  await page.mouse.move(moved.x + moved.width / 2, moved.y + moved.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(moved.x + moved.width / 2 + 20, moved.y + moved.height / 2);
+  await page.waitForTimeout(520);
+  await page.mouse.up();
+  await expect(trigger).toHaveText('触发条件2');
+  const touch = await page.context().newCDPSession(page);
+  const actionTouch = (await action.boundingBox())!;
+  await touch.send('Input.dispatchTouchEvent', {
+    type: 'touchStart',
+    touchPoints: [
+      { x: actionTouch.x + actionTouch.width / 2, y: actionTouch.y + actionTouch.height / 2 },
+    ],
+  });
+  await expect(action).toHaveText('目标行为0');
+  await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await expect(action).toHaveText('目标行为0');
+  await action.click();
+  await touch.detach();
+  await expect(trigger).toHaveText('触发条件2');
+  await expect(action).toHaveText('目标行为1');
+  const hold = async (button: typeof trigger, expected: string) => {
+    const box = (await button.boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await expect(button).toHaveText(expected);
+    await page.mouse.up();
+    await expect(button).toHaveText(expected);
+  };
+  await hold(trigger, '触发条件1');
+  await expect(action).toHaveText('目标行为1');
+  await trigger.click();
+  await hold(action, '目标行为0');
+  await expect(trigger).toHaveText('触发条件1');
   await action.click();
   await expect(trigger).toHaveText('触发条件2');
   await expect(action).toHaveText('目标行为1');

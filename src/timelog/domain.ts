@@ -489,13 +489,18 @@ export const shiftDay = (key: string, offset: number) => zoneShiftDay(key, offse
 export function dayRange(key: string): Span {
   return { start: dayStart(key), end: dayStart(shiftDay(key, 1)) };
 }
-/** The trigger button counts an occurrence; the action button counts an occurrence handled well. */
+/**
+ * The trigger button counts an occurrence; the action button counts an occurrence handled
+ * well. step -1 undoes the same button: action removes from both, trigger only from
+ * unhandled occurrences. Reaching 0/0 removes the row.
+ */
 export function countBehavior(
   state: State,
   ruleId: string,
   date: string,
   counter: BehaviorCounter,
   now = Date.now(),
+  step: 1 | -1 = 1,
 ): State {
   const goal = state.goals.find((row) => row.id === ruleId);
   if (goal?.kind !== 'behaviorRule' || goal.archived)
@@ -503,9 +508,15 @@ export function countBehavior(
   if (date !== dayKey(now) || now < dayStart(date) || now >= dayRange(date).end)
     throw new Error('只能在当天结算前记录行为回顾。');
   const prior = behaviorReview(state, ruleId, date);
-  const triggered = (prior?.triggered ?? 0) + 1,
-    executed = (prior?.executed ?? 0) + (counter === 'action' ? 1 : 0);
+  const triggered = (prior?.triggered ?? 0) + step,
+    executed = (prior?.executed ?? 0) + (counter === 'action' ? step : 0);
   if (triggered > MAX_BEHAVIOR_COUNT) throw new Error('今日计数已达上限。');
+  const reviews = state.behaviorReviews ?? [];
+  if (step < 0) {
+    if (!prior || executed < 0 || triggered < executed) return state;
+    if (triggered === 0)
+      return { ...state, behaviorReviews: reviews.filter((row) => row !== prior) };
+  }
   const row: BehaviorReview = {
     id: behaviorReviewId(ruleId, date),
     ruleId,
@@ -515,7 +526,6 @@ export function countBehavior(
     executed,
     updatedAt: now,
   };
-  const reviews = state.behaviorReviews ?? [];
   return {
     ...state,
     behaviorReviews: prior

@@ -509,6 +509,9 @@
   background: var(--surface);
   font-size: 12px;
   touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 .timelog-module .behavior-counters span {
   overflow: hidden;

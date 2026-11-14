@@ -382,8 +382,11 @@ export default function Workspace({
                 tasks={data.tasks}
                 date={dayKey(now)}
                 now={now}
-                review={(ruleId, date, counter) =>
-                  commit((current) => countBehavior(current, ruleId, date, counter), '')
+                review={(ruleId, date, counter, step = 1) =>
+                  commit(
+                    (current) => countBehavior(current, ruleId, date, counter, Date.now(), step),
+                    '',
+                  )
                 }
                 check={(goal, done) => {
                   void commit(

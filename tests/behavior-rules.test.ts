@@ -80,6 +80,33 @@ test('legacy single answers read as counts and invalid counts are rejected', () 
   assert.throws(() => validateState(row({ status: 'missed', triggered: 1, executed: 2 })), /次数/);
 });
 
+test('counter undo reverses each button, preserves count bounds and removes a zero row', () => {
+  const { start, end } = dayRange(date);
+  const empty = { ...emptyState().timelog, goals: [rule] };
+  assert.equal(countBehavior(empty, rule.id, date, 'trigger', start, -1), empty);
+  assert.equal(countBehavior(empty, rule.id, date, 'action', start, -1), empty);
+  let state = countBehavior(empty, rule.id, date, 'trigger', start);
+  assert.equal(countBehavior(state, rule.id, date, 'action', start, -1), state);
+  state = countBehavior(state, rule.id, date, 'action', start);
+  assert.deepEqual(
+    [state.behaviorReviews![0].triggered, state.behaviorReviews![0].executed],
+    [2, 1],
+  );
+  state = countBehavior(state, rule.id, date, 'trigger', start, -1);
+  assert.deepEqual(
+    [state.behaviorReviews![0].triggered, state.behaviorReviews![0].executed],
+    [1, 1],
+  );
+  assert.equal(countBehavior(state, rule.id, date, 'trigger', start, -1), state);
+  assert.throws(() => countBehavior(state, rule.id, date, 'action', end, -1), /结算前/);
+  state = countBehavior(state, rule.id, date, 'action', start, -1);
+  assert.equal(state.behaviorReviews!.length, 0);
+  state = countBehavior(state, rule.id, date, 'trigger', start);
+  state = countBehavior(state, rule.id, date, 'trigger', start, -1);
+  assert.equal(state.behaviorReviews!.length, 0);
+  validateState(state);
+});
+
 test('counts from different days merge independently and sync', () => {
   const base = stateSchema.parse({
     ...emptyState(),
