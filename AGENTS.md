@@ -4,6 +4,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Current State
 
+- 2026-11-14 客户端 0.5.11/code34 与 Server 0.2.8 已覆盖部署 Mac、OMEN、ROG 桌面/原中心、Redmi K70，原共享 HTTPS 网关的日历账号与 OAuth 回调路由已更新。Mac/OMEN 恢复托盘运行，ROG 桌面保持关闭；平板继续按用户此前决定跳过。Google/Microsoft 首次应用注册引导与浏览器授权、iCloud 应用专用密码连接，以及行为双计数/长按撤销已交付。入口为安排 → 日程 → 日程操作 → 连接日历账号。真实应用注册、账号授权和长期刷新仍待首次设置。用户明确要求停止继续测试并尽快部署，因此取消后续 Check CI，直接完成 Windows 构建与覆盖安装，仅核对安装版本和中心启动。数据/配对沿用原 profile，Android 沿用原签名；恢复数据在各机临时 `.agents/dayweave-upgrade-0.5.11`，ROG 中心完整恢复 profile 在 `.agents/dayweave-deploy-0.5.11/recovery/profile`。正式客户端/服务端 Release 为 v0.5.11 / server-v0.2.8。
+
 - 2026-11-14（UTC+8，Mac本地11月13日）客户端0.5.9/code32与Server0.2.6基于b0362c1已部署Mac、OMEN、ROG桌面/原中心及Redmi K70。平板离线，用户明确跳过；用户要求停止后续验收。Mac辅助功能条目由用户重加后内置采集器recording，真实记录出现Chrome/ChatGPT/Sefirah切换。旧WorkReviewHub/Agent任务、MacLaunchAgent、40001监听和防火墙规则已移除，旧仓库确认GitHub完整后移入各机临时.agents/.trash；历史events逐ID导入Dayweave，0缺失。ROG既有DayweaveHub/网关保留并增加ICS路由，原配对与任务/记录身份保留。OMEN有原2条及本次迁移产生24条课程颜色/生成时间冲突候选，保留待用户处理。DecisionNode0.1.48仅从Dayweave读取桌面/手机；1251投递/823动作保留且paused=false。Gadgetbridge与AW独立数据已迁出旧仓库。
 
 - Arrangement refactor source adds independent `calendarEvents`, shared RRULE/instance allocation, task/event month/week modes and revocable Event-only ICS subscriptions for Google/Outlook/Apple. Optional inbound ICS subscriptions are also implemented following the user's clarification to retain that work. New business sync protocol is 3, JSON remains version 2. Production center and reachable clients now use protocol 3. The offline tablet remains pending. Read `docs/design/arrangements.md` before changing these paths.
@@ -91,11 +93,7 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Active Work
 
-- 2026-11-14 用户已审阅日历账号与行为计数界面，明确授权构建并发布。正在准备客户端 0.5.11/code34 与 Server 0.2.8，沿用协议 3 与原 Android 签名。初始构建暴露 Windows 文件占用与自动化关闭等待，已补齐有界替换重试。持久化与 API 检查共用真实关窗验收，后续 CI 只更新测试脚本，应用代码与 0.5.11 标签一致。真实 OAuth 应用注册和账号授权待首次配置后验证，生产部署另行记录。
-
-- 2026-11-14 日历账号登录源码已加入，Google/Microsoft 使用系统浏览器 OAuth 与续期，Apple 使用应用专用密码和 CalDAV。首次应用注册、私人凭据所有者、账号选择与发布规则见 docs/design/arrangements.md。用户确认尚无应用注册，先完成首次配置流程。中心/客户端/网关需配套升级，本轮构建发布已获授权，真实账号授权待注册后验证。
-
-- 2026-11-14 行为规则双计数已补齐长按 450 ms 减一，触发条件只减少未执行次数，目标行为同时减少两边，归零清除当天回顾。鼠标与触屏共用手势，松手消费点击，移动取消。周视图按有效学期显示教学周。界面已审阅并授权构建发布，部署先升级中心再升级客户端。详见 planning-goals.md 与 timelog-interface.md。
+- 日历真实账号的应用注册、首次授权与长期刷新待首次配置后验证。功能与生产部署已完成，Google/Microsoft 在连接页配置应用 ID/密钥，iCloud 使用应用专用密码。
 
 - 2026-11-13 three-platform review fixes are committed and pushed on this branch (cc20077..cf708be): shared JsonRepository/Runtime/commitState, sync.json no longer rewritten per poll (reserved sequence blocks; compatible with protocol-3 hubs, no protocol change), usage ownership/paging/deleted-index fixes (desktop usage.db migrates once on open, ~0.4 s for 311k rows), Android screen-off constant 16, incremental UsageStats window, singleton DB, saveState backup rotation and a Java/TS contract fixture. Verified: 235 Node, 108/108 browser, 28 Android JVM, 7 server tests against a temporary bundle; after authorization `npm run build` and desktop/API/tray smoke also pass. Not run: packaging or devices (delivery gate). Not done: API route table, Rust monitor.rs split/dead modules.
 
