@@ -73,3 +73,9 @@
 - Node >=24；运行 `npm run build:collector` 使用已安装 Rust 工具链生成本平台原生二进制和依赖许可集合，再运行桌面打包。macOS arm64/x64 必须使用对应目标二进制。CI Windows/macOS 运行 Rust 单元测试并构建采集器。
 - `THIRD_PARTY_NOTICES.md` 记录两个源项目及固定来源 commit；Via 两个衍生 Java 文件保留 MPL-2.0 范围和完整许可，不能被根目录 MIT 声明覆盖。
 - 测试使用独立临时 profile/数据库。源码测试与隔离 Electron 流程不等于真实系统授权、原生前台窗口采集、Android 后台保活、已安装五端升级或公网同步验收。已部署的版本与验收事实记录在 AGENTS 和部署日志；不得改动旧采集器或伪造系统授权。
+
+## 2026-11-13 Mac 前台读数与旧服务退役
+
+用户明确移除独立 Work Review 服务、旧 HTTP 接口及其 Mac/Windows/ROG 残留。历史已导入观察继续由 Dayweave usage.db 保有。切换时先核对源记录已入库，再移除原来源配置与旧启动项。AI Decision 的桌面/Android 证据统一只读中心 usage.db。
+
+真实隔离采样复现无 AppKit 事件循环的采样线程持续返回旧 NSWorkspace.frontmostApplication，Chrome 已在使用时一分钟 29 条仍全部为 Windows App。采样改为每次通过系统 GetFrontProcess/GetProcessPID 获取实时 PID，再用 NSRunningApplication 取该进程元数据，AX 继续读取窗口和原隐私边界。修复构建的一分钟真实采样已得到 Chrome 和当前标题。内置二进制的 work-review-agent 名称来自原生依赖，生命周期归 Dayweave 所有。

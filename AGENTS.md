@@ -4,6 +4,9 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Current State
 
+- 2026-11-13 用户已明确授权部署 11 月 13 日新代码，并删除旧 Work Review 服务器、接口及 Mac/OMEN/ROG 残留，代码确认上传 GitHub 后可清理旧仓库。当前准备客户端0.5.9/code32、Server0.2.6，在1a47121基础上修复Mac前台应用缓存。旧/新采样隔离复现与235 Node/类型/Web/Electron通过，生产切换与设备验收进行中。此授权覆盖本次打包、发布、部署，替代下方历史未授权状态。
+
+
 - Arrangement refactor source adds independent `calendarEvents`, shared RRULE/instance allocation, task/event month/week modes and revocable Event-only ICS subscriptions for Google/Outlook/Apple. Optional inbound ICS subscriptions are also implemented following the user's clarification to retain that work. New business sync protocol is 3, JSON remains version 2. Existing production clients/center still require a coordinated upgrade after UI review. Read `docs/design/arrangements.md` before changing these paths.
 
 - 2026-11-11 ROG boot recovery restored Dayweave Server 0.2.3 and the shared HTTPS gateway. Both original tasks retain enabled boot triggers. DayweaveHub now runs `.local/server/start-with-boot-recovery.ps1` before launching the original server and config. It preserves and clears a pre-boot owner lock when the recorded PID belongs to a post-boot process. The gateway uses the existing WebObsidian wrapper with the Mojian route and Dayweave module after KeePass retirement. Mac sync completed with no pending changes or conflicts, and authenticated public Mojian and WebObsidian manifests returned 200. A full machine reboot after the repair remains unverified. See docs/log/2026-11.md.

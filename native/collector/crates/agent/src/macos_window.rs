@@ -40,6 +40,8 @@ fn note_window_read(ok: bool) {
 
 #[link(name = "ApplicationServices", kind = "framework")]
 extern "C" {
+    fn GetFrontProcess(process: *mut ProcessSerialNumber) -> i32;
+    fn GetProcessPID(process: *const ProcessSerialNumber, pid: *mut i32) -> i32;
     fn AXUIElementCreateApplication(pid: i32) -> CFTypeRef;
     fn AXUIElementCopyAttributeValue(
         element: CFTypeRef,
@@ -50,6 +52,13 @@ extern "C" {
     fn AXUIElementGetTypeID() -> usize;
     fn AXValueGetTypeID() -> usize;
     fn AXValueGetValue(value: CFTypeRef, kind: i32, result: *mut c_void) -> bool;
+}
+
+#[repr(C)]
+#[derive(Default)]
+struct ProcessSerialNumber {
+    high: u32,
+    low: u32,
 }
 
 struct OwnedCF(CFTypeRef);
@@ -136,12 +145,25 @@ unsafe fn attribute(element: CFTypeRef, name: &str) -> Result<Option<OwnedCF>> {
 pub fn frontmost_window() -> Result<FrontmostWindow> {
     unsafe {
         let _pool = Pool(msg_send![class!(NSAutoreleasePool), new]);
-        let workspace: id = msg_send![class!(NSWorkspace), sharedWorkspace];
-        let app: id = msg_send![workspace, frontmostApplication];
+        // This sampler has no AppKit event loop. NSWorkspace can keep returning an old
+        // frontmost application, so obtain the current process directly on every sample.
+        let mut process = ProcessSerialNumber::default();
+        let mut pid = 0;
+        let error = GetFrontProcess(&mut process);
+        if error != 0 {
+            return Err(AppError::Unknown(format!(
+                "GetFrontProcess failed: {error}"
+            )));
+        }
+        let error = GetProcessPID(&process, &mut pid);
+        if error != 0 || pid <= 0 {
+            return Err(AppError::Unknown(format!("GetProcessPID failed: {error}")));
+        }
+        let app: id =
+            msg_send![class!(NSRunningApplication), runningApplicationWithProcessIdentifier: pid];
         if app == nil {
             return Err(AppError::Unknown("没有前台应用".into()));
         }
-        let pid: i32 = msg_send![app, processIdentifier];
         let app_name = ns_string(msg_send![app, localizedName]);
         let bundle_identifier = ns_string(msg_send![app, bundleIdentifier]);
         let url: id = msg_send![app, bundleURL];
@@ -156,7 +178,7 @@ pub fn frontmost_window() -> Result<FrontmostWindow> {
         }
         let application = OwnedCF(element);
         AXUIElementSetMessagingTimeout(application.0, 0.8);
-        // The application itself is known from NSWorkspace; a failed window read only loses
+        // The application itself is known from the current process; a failed window read only loses
         // the title, so the activity is still recorded under the application name.
         let window = (|| -> Result<(String, Option<WindowBounds>)> {
             let Some(window) = attribute(application.0, "AXFocusedWindow")? else {
