@@ -10,7 +10,6 @@ import {
 } from 'lucide-react';
 import {
   formatDuration,
-  behaviorReviewLabels,
   goalPeriodKey,
   goalStatus,
   goalTargetText,
@@ -18,7 +17,7 @@ import {
   sortGoals,
   describeRules,
   type Goal,
-  type BehaviorReviewStatus,
+  type BehaviorCounter,
   type GoalTask,
   scriptResult,
   type ScriptOutcome,
@@ -30,11 +29,7 @@ import '../../phone/sort.css';
 const periodLength = (goal: Goal) => (goal.period === 'week' ? 7 : 1);
 const periodName = (goal: Goal) => (goal.period === 'week' ? '本周' : '今天');
 type Status = ReturnType<typeof goalStatus>;
-type SubmitReview = (
-  ruleId: string,
-  date: string,
-  status: BehaviorReviewStatus | null,
-) => Promise<boolean>;
+type SubmitReview = (ruleId: string, date: string, counter: BehaviorCounter) => Promise<boolean>;
 function gapText(minutes: number) {
   return formatDuration(Math.ceil(Math.abs(minutes)) * 60000);
 }
@@ -273,24 +268,26 @@ function GoalCard({
         )}
       </button>
       {goal.kind === 'behaviorRule' && (
-        <select
-          key={date}
-          className="behavior-review-select"
-          aria-label={`今日行为回顾 ${goal.name}`}
-          value={current.reviewStatus ?? ''}
-          disabled={current.settled}
-          onChange={(event) => {
-            const value = event.target.value as BehaviorReviewStatus | '';
-            void review(goal.id, date, value || null);
-          }}
-        >
-          <option value="">未选择</option>
-          {Object.entries(behaviorReviewLabels).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
+        <div className="behavior-counters" role="group" aria-label={`今日行为回顾 ${goal.name}`}>
+          <button
+            type="button"
+            disabled={current.settled}
+            aria-label={`触发条件 ${goal.name} ${current.triggered ?? 0} 次`}
+            onClick={() => void review(goal.id, date, 'trigger')}
+          >
+            <span>触发条件</span>
+            <strong>{current.triggered ?? 0}</strong>
+          </button>
+          <button
+            type="button"
+            disabled={current.settled}
+            aria-label={`目标行为 ${goal.name} ${current.executed ?? 0} 次`}
+            onClick={() => void review(goal.id, date, 'action')}
+          >
+            <span>目标行为</span>
+            <strong>{current.executed ?? 0}</strong>
+          </button>
+        </div>
       )}
       {goal.kind === 'manual' && (
         <button

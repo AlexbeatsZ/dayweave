@@ -1,9 +1,10 @@
 import { expect, test } from '@playwright/test';
 import { emptyState } from '../../src/model';
+import { mkdir } from 'node:fs/promises';
 
 test.use({ viewport: { width: 390, height: 844 } });
 
-test('a behavior rule saves the selected answer and starts unselected on the next business day', async ({
+test('a behavior rule counts triggers and actions side by side and resets on the next business day', async ({
   page,
 }) => {
   test.setTimeout(90_000);
@@ -34,32 +35,42 @@ test('a behavior rule saves the selected answer and starts unselected on the nex
   const card = page.locator('.goal-card').filter({ hasText: '停止重复思考' });
   await expect(card).toContainText('触发条件：第二次重复考虑已经想过的理由');
   await expect(card).toContainText('目标行为：立即打开速记，写下问题与下一步');
-  const review = card.getByRole('combobox');
-  await expect(review).toHaveValue('');
-  await expect(review.locator('option')).toHaveText([
-    '未选择',
-    '未触发',
-    '已触发，未全部执行',
-    '已触发，全部执行',
-  ]);
-  await review.selectOption('executed');
-  await review.selectOption('');
+  const trigger = card.getByRole('button', { name: /^触发条件 停止重复思考/ });
+  const action = card.getByRole('button', { name: /^目标行为 停止重复思考/ });
+  await expect(trigger).toHaveText('触发条件0');
+  await expect(action).toHaveText('目标行为0');
+  const [triggerBox, actionBox] = await Promise.all([trigger.boundingBox(), action.boundingBox()]);
+  expect(Math.abs(triggerBox!.y - actionBox!.y)).toBeLessThan(1);
+  expect(actionBox!.x).toBeGreaterThan(triggerBox!.x + triggerBox!.width - 1);
+  await trigger.click();
+  await action.click();
+  await expect(trigger).toHaveText('触发条件2');
+  await expect(action).toHaveText('目标行为1');
   await expect
     .poll(() =>
-      page.evaluate(() => JSON.parse(localStorage.getItem('dayweave.v1')!).timelog.behaviorReviews),
+      page.evaluate(() =>
+        JSON.parse(localStorage.getItem('dayweave.v1')!).timelog.behaviorReviews.map(
+          ({ triggered, executed }: { triggered: number; executed: number }) => [
+            triggered,
+            executed,
+          ],
+        ),
+      ),
     )
-    .toBeUndefined();
-  await review.selectOption('notTriggered');
+    .toEqual([[2, 1]]);
+  await mkdir('.local/preview/behavior-counters', { recursive: true });
+  await card.screenshot({ path: '.local/preview/behavior-counters/card-390.png' });
   await page.reload();
   await openGoals();
-  await expect(review).toHaveValue('notTriggered');
+  await expect(trigger).toHaveText('触发条件2');
   await page.clock.setFixedTime(deadline);
-  await expect(review).toHaveValue('');
+  await expect(trigger).toHaveText('触发条件0');
+  await expect(trigger).toBeEnabled();
 
   await nav.getByRole('button', { name: '手机统计', exact: true }).click();
   await page.getByRole('tab', { name: '记录', exact: true }).click();
   await page.getByLabel('记录统计来源').getByRole('button', { name: '目标', exact: true }).click();
-  await page.getByRole('button', { name: '2026-11-10 未触发', exact: true }).click();
-  await expect(page.locator('.goal-review-history')).toHaveText('2026-11-10 未触发');
-  await expect(page.getByRole('combobox', { name: /今日行为回顾/ })).toHaveCount(0);
+  await page.getByRole('button', { name: '2026-11-10 触发 2 次 · 执行 1 次', exact: true }).click();
+  await expect(page.locator('.goal-review-history')).toHaveText('2026-11-10 触发 2 次 · 执行 1 次');
+  await expect(page.getByRole('group', { name: /今日行为回顾/ })).toHaveCount(0);
 });

@@ -124,20 +124,24 @@ export type BehaviorRule = GoalCommon & {
   trigger: string;
   action: string;
 };
-export const behaviorReviewLabels = {
-  notTriggered: '未触发',
-  missed: '已触发，未全部执行',
-  executed: '已触发，全部执行',
-} as const;
-export type BehaviorReviewStatus = keyof typeof behaviorReviewLabels;
+/** Legacy single answer, still derived from the counters so older readers keep a valid row. */
+export type BehaviorReviewStatus = 'notTriggered' | 'missed' | 'executed';
 export type BehaviorReview = {
   id: string;
   ruleId: string;
   date: string;
   status: BehaviorReviewStatus;
+  /** Times the situation occurred today; every executed response also counts as one. */
+  triggered: number;
+  executed: number;
   updatedAt: number;
 };
+export type BehaviorCounter = 'trigger' | 'action';
 export const MAX_BEHAVIOR_TEXT = 500;
+export const MAX_BEHAVIOR_COUNT = 10000;
+const derivedBehaviorStatus = (triggered: number, executed: number): BehaviorReviewStatus =>
+  triggered === 0 ? 'notTriggered' : executed < triggered ? 'missed' : 'executed';
+const legacyBehaviorCounts = { notTriggered: [0, 0], missed: [1, 0], executed: [1, 1] } as const;
 const behaviorReviewId = (ruleId: string, date: string) => `${ruleId}@${date}`;
 const reviewIndexes = new WeakMap<BehaviorReview[], Map<string, BehaviorReview>>();
 export function behaviorReview(state: State, ruleId: string, date: string) {
@@ -485,27 +489,33 @@ export const shiftDay = (key: string, offset: number) => zoneShiftDay(key, offse
 export function dayRange(key: string): Span {
   return { start: dayStart(key), end: dayStart(shiftDay(key, 1)) };
 }
-export function reviewBehavior(
+/** The trigger button counts an occurrence; the action button counts an occurrence handled well. */
+export function countBehavior(
   state: State,
   ruleId: string,
   date: string,
-  status: BehaviorReviewStatus | null,
+  counter: BehaviorCounter,
   now = Date.now(),
 ): State {
   const goal = state.goals.find((row) => row.id === ruleId);
   if (goal?.kind !== 'behaviorRule' || goal.archived)
     throw new Error('行为规则已变化，请重新打开。');
   if (date !== dayKey(now) || now < dayStart(date) || now >= dayRange(date).end)
-    throw new Error('只能在当天结算前确认行为回顾。');
+    throw new Error('只能在当天结算前记录行为回顾。');
   const prior = behaviorReview(state, ruleId, date);
+  const triggered = (prior?.triggered ?? 0) + 1,
+    executed = (prior?.executed ?? 0) + (counter === 'action' ? 1 : 0);
+  if (triggered > MAX_BEHAVIOR_COUNT) throw new Error('今日计数已达上限。');
+  const row: BehaviorReview = {
+    id: behaviorReviewId(ruleId, date),
+    ruleId,
+    date,
+    status: derivedBehaviorStatus(triggered, executed),
+    triggered,
+    executed,
+    updatedAt: now,
+  };
   const reviews = state.behaviorReviews ?? [];
-  if (status === null) {
-    return prior
-      ? { ...state, behaviorReviews: reviews.filter((row) => row.id !== prior.id) }
-      : state;
-  }
-  if (prior?.status === status) return state;
-  const row = { id: behaviorReviewId(ruleId, date), ruleId, date, status, updatedAt: now };
   return {
     ...state,
     behaviorReviews: prior
@@ -600,8 +610,11 @@ export function goalStatus(
 ) {
   const settled = now >= goalRange(goal, key).end;
   if (goal.kind === 'behaviorRule') {
+    const review = behaviorReview(state, goal.id, key);
     return {
-      reviewStatus: behaviorReview(state, goal.id, key)?.status ?? null,
+      reviewStatus: review?.status ?? null,
+      triggered: review?.triggered ?? 0,
+      executed: review?.executed ?? 0,
       progress: 0,
       target: 0,
       settled,
@@ -1113,10 +1126,33 @@ export function validateState(value: unknown): State {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || shiftDay(date, 0) !== date)
         throw new Error('行为回顾日期无效。');
       if (o.id !== behaviorReviewId(ruleId, date)) throw new Error('行为回顾 ID 无效。');
-      const status = o.status;
-      if (status !== 'notTriggered' && status !== 'missed' && status !== 'executed')
-        throw new Error('执行状态无效。');
-      return { id: o.id, ruleId, date, status, updatedAt: num(o.updatedAt, '更新时间') };
+      let triggered: number, executed: number;
+      if (o.triggered === undefined && o.executed === undefined) {
+        const status = o.status;
+        if (status !== 'notTriggered' && status !== 'missed' && status !== 'executed')
+          throw new Error('执行状态无效。');
+        [triggered, executed] = legacyBehaviorCounts[status];
+      } else {
+        triggered = num(o.triggered, '触发次数');
+        executed = num(o.executed, '执行次数');
+        if (
+          !Number.isInteger(triggered) ||
+          !Number.isInteger(executed) ||
+          executed < 0 ||
+          executed > triggered ||
+          triggered > MAX_BEHAVIOR_COUNT
+        )
+          throw new Error('行为回顾次数无效。');
+      }
+      return {
+        id: o.id,
+        ruleId,
+        date,
+        status: derivedBehaviorStatus(triggered, executed),
+        triggered,
+        executed,
+        updatedAt: num(o.updatedAt, '更新时间'),
+      };
     }),
   ).filter((row) => goalIds.has(row.ruleId));
   const timer = root.timer === null ? null : parseTimer(root.timer);

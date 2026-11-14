@@ -12,7 +12,7 @@ import {
   formatTime,
   goalPeriodKey,
   reorderRows,
-  reviewBehavior,
+  countBehavior,
   sortGoals,
   liveSpans,
   natureLabels,
@@ -382,8 +382,8 @@ export default function Workspace({
                 tasks={data.tasks}
                 date={dayKey(now)}
                 now={now}
-                review={(ruleId, date, status) =>
-                  commit((current) => reviewBehavior(current, ruleId, date, status), '')
+                review={(ruleId, date, counter) =>
+                  commit((current) => countBehavior(current, ruleId, date, counter), '')
                 }
                 check={(goal, done) => {
                   void commit(

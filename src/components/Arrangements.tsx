@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { ChevronLeft, ChevronRight, MoreHorizontal, Plus } from 'lucide-react';
 import { Calendar } from './Calendar';
 import { EventComposer } from './EventComposer';
@@ -13,7 +13,7 @@ import { taskCompleted, reorderTasks, toggleTask, type Task } from '../model';
 import { eventsOnDate, eventDayCount, eventBounds } from '../event-domain';
 import { intervalLanes } from '../interval-lanes';
 import { type CalendarEvent, eventTypes } from '../event-model';
-import type { CoursePeriod } from '../schedule';
+import { teachingWeek, type CoursePeriod } from '../schedule';
 import {
   dayStart,
   zonedDate,
@@ -288,6 +288,15 @@ export function Arrangements({
   const monday = shiftDay(date, 1 - weekday(date));
   const count = phone || mode === 'task' ? 7 : eventDayCount(data.calendarEvents, data.schedule);
   const days = Array.from({ length: count }, (_, i) => shiftDay(monday, i));
+  // A default profile has a placeholder semester; only imported, subscribed or course data define it.
+  const semesterKnown = useMemo(
+    () =>
+      !!fudan.source ||
+      data.schedule.courses.length > 0 ||
+      data.calendarEvents.some((event) => event.type === 'course' && !event.deletedAt),
+    [fudan.source, data.schedule.courses, data.calendarEvents],
+  );
+  const week = semesterKnown ? teachingWeek(data.schedule, monday) : null;
   const ensure = (through: string) => {
     void window.clearlist?.sync?.ensureTasks?.(through).catch((cause) => setError(String(cause)));
   };
@@ -390,6 +399,7 @@ export function Arrangements({
           <div className="calendar-toolbar">
             <h2>
               {monday.slice(0, 7)} · {monday.slice(-2)}—{days.at(-1)!.slice(5)}
+              {week !== null && <span className="arrangement-teaching-week">第{week}周</span>}
             </h2>
             <div>
               {switchMode}

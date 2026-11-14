@@ -16,7 +16,7 @@ OpenAPI 文档由 `src/api-contract.ts` 生成到 `docs/api/openapi.json`，运�
 
 0.3 新增 /context、/schedule/_、/timelog/_ 与 /tasks/{id}/track。ROG 独立服务使用相同状态队列和 profile 进程锁；见 docs/api/README.md。
 
-行为规则在 `/timelog/goals` 用 `kind: "behaviorRule"`、`period: "day"`、`trigger` 和 `action` 表示。查询按 `date` 返回 `review`（未选择为 null），`/context` 的当前及上一期返回 `reviewStatus`。回顾只接受 Dayweave 客户端的个人选择，REST 不提供代填入口。整份 `POST /import` 保留已有回顾。
+行为规则在 `/timelog/goals` 用 `kind: "behaviorRule"`、`period: "day"`、`trigger` 和 `action` 表示。查询按 `date` 返回 `review`（含 `triggered`、`executed` 与派生 `status`，未计数为 null），`/context` 的当前及上一期返回 `reviewStatus`。回顾只接受 Dayweave 客户端的个人选择，REST 不提供代填入口。整份 `POST /import` 保留已有回顾。
 
 任务 API 使用 dates/difficulty；子任务新增、PATCH、DELETE 有基于稳定 ID 的专用路由，完成动作共用领域规则。重复配置通过 PUT/DELETE /tasks/{id}/repeat，窗口通过 POST /repeat-rules/generate（through）请求中心。所有操作保留 If-Match；GET /tasks?date=YYYY-MM-DD&view=today 是精确业务日查询。完整模型与升级边界见 task-system.md。
 

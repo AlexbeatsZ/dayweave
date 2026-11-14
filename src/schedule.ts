@@ -147,6 +147,11 @@ export function semesterWeek(schedule: Schedule, date: string) {
     ) + 1
   );
 }
+/** Teaching week of a date, or null outside the configured semester. */
+export function teachingWeek(schedule: Schedule, date: string) {
+  const week = semesterWeek(schedule, date);
+  return week >= 1 && week <= schedule.totalWeeks ? week : null;
+}
 /** Automatic width considers actual weekend teaching across the whole semester. */
 export function timetableDayCount(schedule: Schedule): 5 | 7 {
   if (schedule.displayDays !== 'auto') return schedule.displayDays;

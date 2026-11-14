@@ -1,7 +1,6 @@
 import { useMemo, useState, type CSSProperties } from 'react';
 import { Target } from 'lucide-react';
 import {
-  behaviorReviewLabels,
   goalPeriodKey,
   goalRange,
   goalStatus,
@@ -105,9 +104,9 @@ export function GoalHeatmaps({
       if (goal.kind === 'behaviorRule')
         return {
           key,
-          shade: status.reviewStatus ? 0.35 : null,
+          shade: status.triggered ? 0.2 + (0.8 * (status.executed ?? 0)) / status.triggered : null,
           current: !status.settled,
-          label: `${key} ${status.reviewStatus ? behaviorReviewLabels[status.reviewStatus] : '未选择'}`,
+          label: `${key} 触发 ${status.triggered ?? 0} 次 · 执行 ${status.executed ?? 0} 次`,
         };
       return {
         key,

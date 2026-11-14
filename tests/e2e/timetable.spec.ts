@@ -142,8 +142,14 @@ test('event week shows five mobile days with horizontally accessible weekends', 
     await expect(page.locator('.timetable-period')).toHaveCount(13);
     await page.screenshot({ path: `.local/preview/arrangements/events-week-${width}.png` });
   }
+  const week = page.locator('.arrangement-teaching-week');
+  await expect(week).toHaveText('第1周');
   await page.getByRole('button', { name: '下一周', exact: true }).click();
   await expect(page.locator('.arrangement-event').filter({ hasText: '周末实验' })).toBeVisible();
+  await expect(week).toHaveText('第2周');
+  await page.getByRole('button', { name: '上一周', exact: true }).click();
+  await page.getByRole('button', { name: '上一周', exact: true }).click();
+  await expect(week).toHaveCount(0);
 });
 
 test('original period settings move the shared ruler without changing Event data', async ({

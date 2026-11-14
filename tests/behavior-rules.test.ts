@@ -7,7 +7,7 @@ import {
   behaviorReview,
   dayRange,
   goalStatus,
-  reviewBehavior,
+  countBehavior,
   shiftDay,
   validateState,
   type BehaviorRule,
@@ -26,26 +26,34 @@ const rule: BehaviorRule = {
   updatedAt: 1,
 };
 
-test('a daily review distinguishes unanswered from all three self-reported answers and closes at settlement', () => {
+test('the trigger counter counts alone, the action counter counts both, and both close at settlement', () => {
   const originalStart = getDayStart();
   setDayStart('04:00');
   try {
     const { start, end } = dayRange(date);
     const timelog = { ...emptyState().timelog, goals: [rule] };
-    assert.equal(goalStatus(timelog, rule, date, end).reviewStatus, null);
-    assert.throws(() => reviewBehavior(timelog, rule.id, date, 'executed', start - 1), /结算前/);
-    for (const status of ['notTriggered', 'missed', 'executed'] as const) {
-      const answered = reviewBehavior(timelog, rule.id, date, status, end - 1);
-      const settled = goalStatus(answered, rule, date, end);
-      assert.equal(settled.reviewStatus, status);
-      assert.equal(settled.settled, true);
-      assert.equal(settled.met, null);
-      assert.equal(goalStatus(answered, rule, shiftDay(date, 1), end).reviewStatus, null);
-      assert.throws(() => reviewBehavior(answered, rule.id, date, null, end), /结算前/);
-      const cleared = reviewBehavior(answered, rule.id, date, null, end - 1);
-      assert.equal(goalStatus(cleared, rule, date, end).reviewStatus, null);
-    }
-    assert.throws(() => reviewBehavior(timelog, rule.id, date, 'missed', end), /结算前/);
+    const fresh = goalStatus(timelog, rule, date, end);
+    assert.equal(fresh.reviewStatus, null);
+    assert.equal(fresh.triggered, 0);
+    assert.throws(() => countBehavior(timelog, rule.id, date, 'action', start - 1), /结算前/);
+    let state = countBehavior(timelog, rule.id, date, 'trigger', start);
+    assert.deepEqual(
+      [
+        behaviorReview(state, rule.id, date)?.triggered,
+        behaviorReview(state, rule.id, date)?.executed,
+      ],
+      [1, 0],
+    );
+    assert.equal(behaviorReview(state, rule.id, date)?.status, 'missed');
+    state = countBehavior(state, rule.id, date, 'action', start + 1);
+    state = countBehavior(state, rule.id, date, 'action', end - 1);
+    const settled = goalStatus(state, rule, date, end);
+    assert.equal(settled.triggered, 3);
+    assert.equal(settled.executed, 2);
+    assert.equal(settled.settled, true);
+    assert.equal(settled.met, null);
+    assert.equal(goalStatus(state, rule, shiftDay(date, 1), end).triggered, 0);
+    assert.throws(() => countBehavior(state, rule.id, date, 'trigger', end), /结算前/);
     assert.throws(
       () => validateState({ ...timelog, goals: [{ ...rule, period: 'week' }] }),
       /每日回顾/,
@@ -55,7 +63,24 @@ test('a daily review distinguishes unanswered from all three self-reported answe
   }
 });
 
-test('reviews from different days merge independently and clearing a review syncs', () => {
+test('legacy single answers read as counts and invalid counts are rejected', () => {
+  const row = (extra: object) => ({
+    ...emptyState().timelog,
+    goals: [rule],
+    behaviorReviews: [{ id: `${rule.id}@${date}`, ruleId: rule.id, date, updatedAt: 1, ...extra }],
+  });
+  for (const [status, counts] of [
+    ['notTriggered', [0, 0]],
+    ['missed', [1, 0]],
+    ['executed', [1, 1]],
+  ] as const) {
+    const review = behaviorReview(validateState(row({ status })), rule.id, date)!;
+    assert.deepEqual([review.triggered, review.executed, review.status], [...counts, status]);
+  }
+  assert.throws(() => validateState(row({ status: 'missed', triggered: 1, executed: 2 })), /次数/);
+});
+
+test('counts from different days merge independently and sync', () => {
   const base = stateSchema.parse({
     ...emptyState(),
     timelog: { ...emptyState().timelog, goals: [rule] },
@@ -63,28 +88,29 @@ test('reviews from different days merge independently and clearing a review sync
   const next = shiftDay(date, 1);
   const yesterday = {
     ...base,
-    timelog: reviewBehavior(base.timelog, rule.id, date, 'notTriggered', dayRange(date).start),
+    timelog: countBehavior(base.timelog, rule.id, date, 'trigger', dayRange(date).start),
   };
   const today = {
     ...base,
-    timelog: reviewBehavior(base.timelog, rule.id, next, 'executed', dayRange(next).start),
+    timelog: countBehavior(base.timelog, rule.id, next, 'action', dayRange(next).start),
   };
   const merged = mergeDocuments(toDocument(base), toDocument(yesterday), toDocument(today));
   assert.deepEqual(merged.conflicts, []);
   assert.ok(Object.keys(merged.doc).every(isDocumentKey));
   const synced = fromDocument(merged.doc, today);
-  assert.equal(behaviorReview(synced.timelog, rule.id, date)?.status, 'notTriggered');
-  assert.equal(behaviorReview(synced.timelog, rule.id, next)?.status, 'executed');
-  const cleared = {
+  assert.equal(behaviorReview(synced.timelog, rule.id, date)?.executed, 0);
+  assert.equal(behaviorReview(synced.timelog, rule.id, next)?.executed, 1);
+  const more = {
     ...today,
-    timelog: reviewBehavior(today.timelog, rule.id, next, null, dayRange(next).start + 1),
+    timelog: countBehavior(today.timelog, rule.id, next, 'trigger', dayRange(next).start + 1),
   };
-  const delta = applyDelta(synced, diffState(today, cleared));
-  const syncClear = mergeDocuments(toDocument(today), toDocument(cleared), merged.doc);
-  assert.deepEqual(syncClear.conflicts, []);
-  for (const state of [delta, fromDocument(syncClear.doc, synced)]) {
-    assert.equal(behaviorReview(state.timelog, rule.id, next), null);
-    assert.equal(behaviorReview(state.timelog, rule.id, date)?.status, 'notTriggered');
+  const delta = applyDelta(synced, diffState(today, more));
+  const syncMore = mergeDocuments(toDocument(today), toDocument(more), merged.doc);
+  assert.deepEqual(syncMore.conflicts, []);
+  for (const state of [delta, fromDocument(syncMore.doc, synced)]) {
+    const review = behaviorReview(state.timelog, rule.id, next);
+    assert.deepEqual([review?.triggered, review?.executed], [2, 1]);
+    assert.equal(behaviorReview(state.timelog, rule.id, date)?.triggered, 1);
   }
 });
 
@@ -93,14 +119,14 @@ test('user backup restore preserves review history but AI imports cannot substit
   const start = dayRange(date).start;
   const original = {
     ...base,
-    timelog: reviewBehavior({ ...base.timelog, goals: [rule] }, rule.id, date, 'missed', start),
+    timelog: countBehavior({ ...base.timelog, goals: [rule] }, rule.id, date, 'trigger', start),
   };
   const incoming = {
     ...original,
-    timelog: reviewBehavior(original.timelog, rule.id, date, 'executed', start + 1),
+    timelog: countBehavior(original.timelog, rule.id, date, 'action', start + 1),
   };
   const userRestore = mergeImport(original, incoming);
   const apiImport = mergeImport(original, incoming, { preserveBehaviorReviews: true });
-  assert.equal(behaviorReview(userRestore.timelog, rule.id, date)?.status, 'executed');
-  assert.equal(behaviorReview(apiImport.timelog, rule.id, date)?.status, 'missed');
+  assert.equal(behaviorReview(userRestore.timelog, rule.id, date)?.triggered, 2);
+  assert.equal(behaviorReview(apiImport.timelog, rule.id, date)?.triggered, 1);
 });
