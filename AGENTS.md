@@ -4,10 +4,10 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Current State
 
-- 2026-11-13 用户已明确授权部署 11 月 13 日新代码，并删除旧 Work Review 服务器、接口及 Mac/OMEN/ROG 残留，代码确认上传 GitHub 后可清理旧仓库。当前准备客户端0.5.9/code32、Server0.2.6，在1a47121基础上修复Mac前台应用缓存。旧/新采样隔离复现与235 Node/类型/Web/Electron通过，生产切换与设备验收进行中。此授权覆盖本次打包、发布、部署，替代下方历史未授权状态。
+- 2026-11-14（UTC+8，Mac本地11月13日）客户端0.5.9/code32与Server0.2.6基于b0362c1已部署Mac、OMEN、ROG桌面/原中心及Redmi K70。平板离线，用户明确跳过；用户要求停止后续验收。Mac辅助功能条目由用户重加后内置采集器recording，真实记录出现Chrome/ChatGPT/Sefirah切换。旧WorkReviewHub/Agent任务、MacLaunchAgent、40001监听和防火墙规则已移除，旧仓库确认GitHub完整后移入各机临时.agents/.trash；历史events逐ID导入Dayweave，0缺失。ROG既有DayweaveHub/网关保留并增加ICS路由，原配对与任务/记录身份保留。OMEN有原2条及本次迁移产生24条课程颜色/生成时间冲突候选，保留待用户处理。DecisionNode0.1.48仅从Dayweave读取桌面/手机；1251投递/823动作保留且paused=false。Gadgetbridge与AW独立数据已迁出旧仓库。
 
 
-- Arrangement refactor source adds independent `calendarEvents`, shared RRULE/instance allocation, task/event month/week modes and revocable Event-only ICS subscriptions for Google/Outlook/Apple. Optional inbound ICS subscriptions are also implemented following the user's clarification to retain that work. New business sync protocol is 3, JSON remains version 2. Existing production clients/center still require a coordinated upgrade after UI review. Read `docs/design/arrangements.md` before changing these paths.
+- Arrangement refactor source adds independent `calendarEvents`, shared RRULE/instance allocation, task/event month/week modes and revocable Event-only ICS subscriptions for Google/Outlook/Apple. Optional inbound ICS subscriptions are also implemented following the user's clarification to retain that work. New business sync protocol is 3, JSON remains version 2. Production center and reachable clients now use protocol 3. The offline tablet remains pending. Read `docs/design/arrangements.md` before changing these paths.
 
 - 2026-11-11 ROG boot recovery restored Dayweave Server 0.2.3 and the shared HTTPS gateway. Both original tasks retain enabled boot triggers. DayweaveHub now runs `.local/server/start-with-boot-recovery.ps1` before launching the original server and config. It preserves and clears a pre-boot owner lock when the recorded PID belongs to a post-boot process. The gateway uses the existing WebObsidian wrapper with the Mojian route and Dayweave module after KeePass retirement. Mac sync completed with no pending changes or conflicts, and authenticated public Mojian and WebObsidian manifests returned 200. A full machine reboot after the repair remains unverified. See docs/log/2026-11.md.
 
@@ -105,9 +105,9 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 - Script goals (docs/goal-scripts.md) have no real script goal yet; Android WebView QuickJS/CSP and first hub script results remain separate acceptance. AI Decision subtask-splitting prompt is outside this UI correction.
 - Observe AI Decision's next natural04:30 manual-goal settlement and08:00 plan-group creation (UTC+8). APIs, read-only production snapshots and installation are verified; actual model-created groups/checks and the user's installed new UI are not yet accepted.
 - Preserve original conflict candidates and identities during real device acceptance; installation and protocol exchange do not establish gesture/background behavior.
-- Mac native capture still needs the user's Accessibility/browser-capture/Automation approval; do not grant permissions or refresh system icon caches automatically. Historical Work Review observations do not prove the new collector is accepted.
+- Mac Accessibility has been refreshed manually by the user and native capture is recording. Browser URL/Automation permissions retain their existing settings.
 - Real installed-app Fudan capture, long-term ROG Server performance/whole-machine reboot without login, and physical multi-network/mDNS behavior remain separate acceptance. Existing campus sessions and gateway dependencies stay preserved.
-- Arrangement source uses task JSON version2 and business sync protocol3. Previously deployed clients/center use protocol2 and require coordinated upgrade before accepting the new Event collections. AI external identity migration and original automation recovery are historical accepted work.
+- Arrangement source and deployed reachable clients/center use JSON version2 and business sync protocol3. The offline tablet needs 0.5.9 before its next business exchange.
 
 # Build / Run / Test
 
