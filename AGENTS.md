@@ -91,9 +91,11 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Active Work
 
-- 2026-11-14 日历账号登录源码已加入，Google/Microsoft 使用系统浏览器 OAuth 与续期，Apple 使用应用专用密码和 CalDAV。首次应用注册、私人凭据所有者、账号选择与发布规则见 docs/design/arrangements.md。用户确认尚无应用注册，先完成首次配置流程。中心/客户端/网关需配套升级，等待界面审阅后构建交付，真实账号授权待注册后验证。
+- 2026-11-14 用户已审阅日历账号与行为计数界面，明确授权构建并发布。正在准备客户端 0.5.10/code33 与 Server 0.2.7，沿用协议 3 与原 Android 签名。真实 OAuth 应用注册和账号授权待首次配置后验证，生产部署另行记录。
 
-- 2026-11-14 行为规则双计数已补齐长按 450 ms 减一，触发条件只减少未执行次数，目标行为同时减少两边，归零清除当天回顾。鼠标与触屏共用手势，松手消费点击，移动取消。周视图按有效学期显示教学周。源码、测试与预览等待界面审阅后构建发布，部署先升级中心再升级客户端。详见 planning-goals.md 与 timelog-interface.md。
+- 2026-11-14 日历账号登录源码已加入，Google/Microsoft 使用系统浏览器 OAuth 与续期，Apple 使用应用专用密码和 CalDAV。首次应用注册、私人凭据所有者、账号选择与发布规则见 docs/design/arrangements.md。用户确认尚无应用注册，先完成首次配置流程。中心/客户端/网关需配套升级，本轮构建发布已获授权，真实账号授权待注册后验证。
+
+- 2026-11-14 行为规则双计数已补齐长按 450 ms 减一，触发条件只减少未执行次数，目标行为同时减少两边，归零清除当天回顾。鼠标与触屏共用手势，松手消费点击，移动取消。周视图按有效学期显示教学周。界面已审阅并授权构建发布，部署先升级中心再升级客户端。详见 planning-goals.md 与 timelog-interface.md。
 
 - 2026-11-13 three-platform review fixes are committed and pushed on this branch (cc20077..cf708be): shared JsonRepository/Runtime/commitState, sync.json no longer rewritten per poll (reserved sequence blocks; compatible with protocol-3 hubs, no protocol change), usage ownership/paging/deleted-index fixes (desktop usage.db migrates once on open, ~0.4 s for 311k rows), Android screen-off constant 16, incremental UsageStats window, singleton DB, saveState backup rotation and a Java/TS contract fixture. Verified: 235 Node, 108/108 browser, 28 Android JVM, 7 server tests against a temporary bundle; after authorization `npm run build` and desktop/API/tray smoke also pass. Not run: packaging or devices (delivery gate). Not done: API route table, Rust monitor.rs split/dead modules.
 
