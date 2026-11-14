@@ -52,7 +52,7 @@ Task 表单保留单次编辑，同时提供明确确认的系列属性修改。
 
 ## 账号登录与首次配置
 
-本节为 2026-11-14 新增源码，等待界面审阅后构建交付。入口为“日程操作 → 连接日历账号”。Google、Microsoft 使用系统浏览器 OAuth 授权码流程，支持 PKCE、十分钟有效的一次性 state、离线授权和 refresh token 续期。Apple 使用已开启双重认证的 Apple 账户和应用专用密码，经 tsdav 发现私人 CalDAV 日历。
+本节于 2026-11-14 新增，用户已审阅并授权构建发布。入口为“日程操作 → 连接日历账号”。Google、Microsoft 使用系统浏览器 OAuth 授权码流程，支持 PKCE、十分钟有效的一次性 state、离线授权和 refresh token 续期。Apple 使用已开启双重认证的 Apple 账户和应用专用密码，经 tsdav 发现私人 CalDAV 日历。
 
 首次使用 Google 或 Microsoft 需要在连接界面配置自己的登录应用。设置会自动选择已配对中心的 HTTPS 地址，显示完整回调地址，并提供打开 Google Cloud、Google Calendar API、Microsoft Entra 的按钮。回调地址为 `<中心HTTPS基址>/calendar-oauth/callback`。
 
