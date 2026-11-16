@@ -9,6 +9,7 @@ export const eventTypes = {
   meeting: '会议',
   other: '其他',
 } as const;
+export type EventType = keyof typeof eventTypes;
 export const clockSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
 export const eventPeriodsSchema = z
   .array(z.tuple([clockSchema, clockSchema]))
@@ -156,3 +157,56 @@ export const calendarSubscriptionSchema = z
   })
   .strict();
 export type CalendarSubscription = z.infer<typeof calendarSubscriptionSchema>;
+
+/** Every published Event is announced at these lead times, in minutes. */
+export const feedReminderMinutes = [30, 15] as const;
+export const legacyFeedName = 'Dayweave · 时织';
+/** One revocable, read-only ICS subscription; an empty type list publishes every Event. */
+export const calendarFeedSchema = z
+  .object({
+    id: z.string().regex(/^[\w-]{1,100}$/),
+    name: z.string().trim().min(1).max(100),
+    enabled: z.boolean(),
+    token: z.string().regex(/^[a-f0-9]{64}$/),
+    types: z
+      .array(z.enum(['course', 'exam', 'presentation', 'meeting', 'other']))
+      .max(5)
+      .default([]),
+    baseUrl: z
+      .string()
+      .url()
+      .max(8000)
+      .refine((value) => {
+        const url = new URL(value);
+        return (
+          ['http:', 'https:'].includes(url.protocol) &&
+          !url.username &&
+          !url.password &&
+          !url.search &&
+          !url.hash
+        );
+      }, '请输入有效的中心 HTTP / HTTPS 地址')
+      .optional(),
+  })
+  .strict();
+export type CalendarFeed = z.infer<typeof calendarFeedSchema>;
+
+/** The single pre-0.6 feed keeps its token, so existing external subscriptions stay valid. */
+export function migrateCalendarFeed(input: unknown): unknown {
+  const settings = (input as { settings?: Record<string, unknown> } | null)?.settings;
+  if (!settings || typeof settings !== 'object' || !('calendarFeed' in settings)) return input;
+  const { calendarFeed, ...rest } = settings;
+  const legacy = calendarFeed as Record<string, unknown> | undefined;
+  return {
+    ...(input as object),
+    settings:
+      legacy && !rest.calendarFeeds
+        ? {
+            ...rest,
+            calendarFeeds: [{ id: 'default', name: legacyFeedName, types: [], ...legacy }],
+          }
+        : rest,
+  };
+}
+export const feedLink = (feed: Pick<CalendarFeed, 'token'>, base: string) =>
+  `${base.replace(/\/$/, '')}/calendar/${feed.token}.ics`;

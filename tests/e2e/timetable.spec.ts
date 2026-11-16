@@ -472,16 +472,47 @@ test('task and event month/week modes stay independent and calendar publishing c
   await page.screenshot({ path: '.local/preview/arrangements/events-month-390.png' });
   await expect(page.locator('.week-task')).toHaveCount(0);
   const actions = await courseMenu(page);
-  await actions
-    .getByRole('button', { name: '导出到 Google / Microsoft / Apple 日历', exact: true })
-    .click();
-  await page.getByLabel('开启日程订阅').check();
-  await page.getByLabel('日历发布地址').fill('https://calendar.example/dayweave');
-  const link = page.getByLabel('日程订阅链接');
+  for (const retired of ['连接日历账号', '日历导入与订阅'])
+    await expect(actions.getByRole('button', { name: retired })).toHaveCount(0);
+  await expect(actions.getByRole('button', { name: /导出到/ })).toHaveCount(0);
+  await page.getByRole('button', { name: '关闭日程操作', exact: true }).click();
+  await page.getByRole('button', { name: '打开导航', exact: true }).click();
+  await page.getByRole('button', { name: '设置与同步', exact: true }).click();
+  const settings = page.getByRole('dialog', { name: '设置', exact: true });
+  await settings.getByRole('button', { name: '新建订阅', exact: true }).click();
+  const feeds = settings.locator('.calendar-feed');
+  await expect(feeds).toHaveCount(1);
+  await feeds.nth(0).getByLabel('中心地址').fill('https://calendar.example/dayweave');
+  await feeds.nth(0).getByLabel('订阅名称').click();
+  const link = feeds.nth(0).getByLabel('订阅链接');
   const first = await link.inputValue();
   expect(first).toMatch(/^https:\/\/calendar.example\/dayweave\/calendar\/[a-f0-9]{64}\.ics$/);
-  await page.getByRole('button', { name: '重置订阅链接', exact: true }).click();
+  page.once('dialog', (dialog) => void dialog.accept());
+  await feeds.nth(0).getByRole('button', { name: '重置链接' }).click();
   await expect(link).not.toHaveValue(first);
+  await settings.getByRole('button', { name: '新建订阅', exact: true }).click();
+  await expect(feeds).toHaveCount(2);
+  await feeds.nth(1).getByLabel('中心地址').fill('https://45.77.68.130/dayweave');
+  await feeds.nth(1).getByLabel('订阅名称').fill('Outlook 考试');
+  await feeds.nth(1).getByRole('button', { name: '考试', exact: true }).click();
+  await expect(feeds.nth(1).getByRole('button', { name: '全部', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
+  await expect(feeds.nth(1).getByLabel('订阅链接')).toHaveValue(/^https:\/\/45\.77\.68\.130\//);
+  await settings.locator('.calendar-feeds').screenshot({
+    path: '.local/preview/calendar-feeds/settings-feeds.png',
+  });
+  const saved = await page.evaluate(
+    () => JSON.parse(localStorage.getItem('dayweave.v1')!).settings,
+  );
+
+  expect(
+    saved?.calendarFeeds?.map((feed: { name: string; types: string[] }) => [feed.name, feed.types]),
+  ).toEqual([
+    ['Dayweave · 时织', []],
+    ['Outlook 考试', ['exam']],
+  ]);
 });
 
 test('mouse week sorting moves task priority through the shared drag implementation', async ({

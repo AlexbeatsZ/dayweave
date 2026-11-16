@@ -47,7 +47,6 @@ import type { SyncBridge } from '../src/sync/types.js';
 import type { DesktopUsage } from './usage.js';
 import { usageEventSchema, usageQuerySchema, usageSettingsSchema } from '../src/usage/domain.js';
 import { appVersion } from './version.js';
-import { calendarAccountCommand } from '../src/calendar-accounts.js';
 
 type ApiInfo = { enabled: boolean; url: string; token: string };
 export type ApiOptions = {
@@ -164,6 +163,7 @@ export async function startApi(
           calendarEvents: true,
           rrule: true,
           eventCalendarFeed: true,
+          calendarFeeds: true,
           usageApi: Boolean(options.usage ?? options.management?.usage),
           syncProtocol: 3,
         },
@@ -267,14 +267,6 @@ export async function startApi(
           if (!/^[\w-]{1,100}$/.test(id)) fail(400, 'Invalid device ID');
           return send(await sync!.revoke(id), snapshot);
         }
-      }
-      if (route === '/calendar-accounts' && ['GET', 'POST'].includes(method)) {
-        const sync = getSync?.();
-        if (!sync?.calendarAccounts) fail(503, 'Calendar accounts unavailable');
-        const command = calendarAccountCommand.parse(
-          method === 'GET' ? { action: 'status' } : await body(request),
-        );
-        return send(await sync!.calendarAccounts!(command), await service.snapshot());
       }
       if (
         await handleExtendedRoute({

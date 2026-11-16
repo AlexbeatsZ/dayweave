@@ -8,7 +8,6 @@ declare global {
       sync?: import('./sync/types').SyncBridge;
       pickText?(): Promise<string | null>;
       importFudan?(): Promise<string | null>;
-      openCalendarLink?(url: string): Promise<void>;
       exportText?(name: string, data: string, mime?: string): Promise<boolean>;
       platform?: 'win32' | 'darwin' | 'linux' | 'android';
       setTheme?(theme: 'light' | 'dark' | 'system'): Promise<void>;

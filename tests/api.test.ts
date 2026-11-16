@@ -169,7 +169,6 @@ test('headless usage API uses native storage and keeps deleted activities unavai
       '/sync/peers/{id}',
       '/sync/pair',
       '/sync/resolve',
-      '/calendar-accounts',
       '/timelog/scripts/test',
       '/timelog/goals/{id}/count',
     ])

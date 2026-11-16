@@ -1,6 +1,8 @@
 # 时织 / Dayweave Server
 
-独立版本 `0.2.9`，共享客户端 `0.5.11` 的业务、计时、同步及 SQLite 所有者。需要 **Node 24（24.14.1 或更高的 24.x）或 Node 26**，CI 在 Windows/Ubuntu 的 Node 24.14.1 与 26 上验证。包已含 JavaScript 依赖，不需要 npm install、编译、Electron、React、Rust 或本机采集程序。Node 运行时由运行机器提供。
+独立版本 `0.2.10`，共享客户端 `0.5.12` 的业务、计时、同步及 SQLite 所有者。需要 **Node 24（24.14.1 或更高的 24.x）或 Node 26**，CI 在 Windows/Ubuntu 的 Node 24.14.1 与 26 上验证。包已含 JavaScript 依赖，不需要 npm install、编译、Electron、React、Rust 或本机采集程序。Node 运行时由运行机器提供。
+
+0.2.10 移除日历账号连接（OAuth/CalDAV）与外部日历导入，`calendar-accounts.json` 不再读取（原文件保留在 profile）。ICS 改为 `settings.calendarFeeds` 多条订阅，按类型筛选，每条日程带开始前 30/15 分钟提醒；旧单条 `calendarFeed` 自动迁移并保留密钥。中心须先于客户端 0.5.12 升级，OpenAPI 2.5.0。业务 JSON 版本 2、同步协议 3 不变。
 
 0.2.9 增加本机认证自动记录 API，OpenAPI 2.4.0 提供 usage/query、status、settings、applications、import 和 sync，复用原 DesktopUsage 与 UsageStore。AI 可通过 HTTP/CLI 查询和管理自动记录。时间记录通过现有 timelog/records 原生接口写入，活动选择使用 timelog/activities 的当前可用目录，删除或归档的活动退出可选范围。
 
@@ -122,7 +124,7 @@ node 'C:\staging\Dayweave-Server\stage-update.mjs' `
 恢复目录必须尚不存在，其父目录必须存在。各目标互相独立，配置保存在 current 外。脚本只准备程序并输出 `activated:false`，不启动新进程、恢复数据或管理任务。完整备份包含敏感数据和配对密钥，保留原用户访问权限。
 
 4. 沿用 Meta 用户、显式 profile，把原 DayweaveHub 任务动作改成 Node + server.mjs + `--config`。可使用“未登录也运行”的任务方式；需由运维在该真实身份下验证目录权限和网络可达性，不能改成 SYSTEM 并依赖其 APPDATA。工作目录无需参与路径解析。启用任务失败重试（例如一分钟、三次），不要反复并行创建 writer；开机/未登录的真实验收单独记录。
-5. 检查 `/health` 为 mode=server、版本0.2.8、appVersion0.5.11、capabilities.timeOverlapProtection=true，API 49731、中心49732，原身份/客户端授权/序号/冲突与旧记录还在；跨至少两个15秒导入周期串行采样health/export，再单次检查详细状态及真实同步、AI Decision。共享网关、订阅、Tailscale以及其他程序的任务不随本包改动。
+5. 检查 `/health` 为 mode=server、版本0.2.10、appVersion0.5.12、capabilities.timeOverlapProtection=true，API 49731、中心49732，原身份/客户端授权/序号/冲突与旧记录还在；跨至少两个15秒导入周期串行采样health/export，再单次检查详细状态及真实同步、AI Decision。共享网关、订阅、Tailscale以及其他程序的任务不随本包改动。
 6. 需要回退时先有序关闭新 writer，保留新数据，先恢复原程序/任务入口并使用当前兼容 profile。只有证据表明数据损坏且明确授权时才从本次完整 profile 恢复；不要单独覆盖 usage.db、丢弃 WAL 或用旧备份回滚已确认的新业务数据。
 
 `owner.lock` 与桌面共用，Windows 另用由规范化 profile 路径派生的内核命名管道串行化恢复，防止同时启动时竞争移除旧锁。崩溃退出后通过死亡 PID 恢复；无法确定锁所有者时失败并要求检查，不删除活动锁。SQLite 沿用 WAL 恢复，坏 data.json 只从通过校验的 data.backup.json 恢复并保留损坏原件，没有有效数据则拒绝启动。

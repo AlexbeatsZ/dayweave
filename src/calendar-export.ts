@@ -1,15 +1,28 @@
 import ICAL from 'ical.js';
-import type { CalendarEvent } from './event-model.js';
+import {
+  feedReminderMinutes,
+  legacyFeedName,
+  type CalendarEvent,
+  type CalendarFeed,
+} from './event-model.js';
 import { eventBounds } from './event-domain.js';
 import { shiftDay } from './timezone.js';
 
 /** Persisted instances have stable UIDs, covering recurrence exceptions on every platform. */
-export function exportEventCalendar(events: CalendarEvent[]) {
+export function exportEventCalendar(
+  events: CalendarEvent[],
+  feed: Pick<CalendarFeed, 'name' | 'types'> = { name: legacyFeedName, types: [] },
+) {
   const calendar = new ICAL.Component(['vcalendar', [], []]);
   calendar.updatePropertyWithValue('version', '2.0');
   calendar.updatePropertyWithValue('prodid', '-//Dayweave//Events//ZH');
-  calendar.updatePropertyWithValue('x-wr-calname', 'Dayweave');
+  calendar.updatePropertyWithValue('calscale', 'GREGORIAN');
+  calendar.updatePropertyWithValue('x-wr-calname', feed.name);
+  // Hints honoured by Outlook and Apple; Google keeps its own refresh schedule.
+  calendar.updatePropertyWithValue('refresh-interval', ICAL.Duration.fromString('PT1H'));
+  calendar.updatePropertyWithValue('x-published-ttl', 'PT1H');
   for (const event of events) {
+    if (feed.types.length && !feed.types.includes(event.type)) continue;
     const component = new ICAL.Component('vevent');
     component.updatePropertyWithValue('uid', `${event.id}@dayweave`);
     component.updatePropertyWithValue('summary', event.title);
@@ -41,6 +54,14 @@ export function exportEventCalendar(events: CalendarEvent[]) {
       component.updatePropertyWithValue('dtend', ICAL.Time.fromJSDate(new Date(bounds.end), true));
     }
     if (event.deletedAt) component.updatePropertyWithValue('status', 'CANCELLED');
+    else
+      for (const minutes of feedReminderMinutes) {
+        const alarm = new ICAL.Component('valarm');
+        alarm.updatePropertyWithValue('action', 'DISPLAY');
+        alarm.updatePropertyWithValue('description', event.title);
+        alarm.updatePropertyWithValue('trigger', ICAL.Duration.fromSeconds(-minutes * 60));
+        component.addSubcomponent(alarm);
+      }
     component.updatePropertyWithValue('x-dayweave-timezone', event.timeZone);
     if (event.recurrenceId)
       component.updatePropertyWithValue('x-dayweave-recurrence-id', event.recurrenceId);

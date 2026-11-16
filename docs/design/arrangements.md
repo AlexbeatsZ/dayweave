@@ -50,46 +50,20 @@ Task 表单保留单次编辑，同时提供明确确认的系列属性修改。
 
 读取尚无 Event 集合的原文件时，桌面和 Android 保存 `data.before-arrangements.json` 原字节。Web 保存对应 localStorage 检查点。同步配置保存 `sync.before-arrangements.json`。迁移报告由 `/arrangements/migration` 和日程操作菜单提供。备份合并包含 Event、规则、台账和订阅配置，冲突的发生映射拒绝导入。
 
-## 账号登录与首次配置
+## 单向 ICS 日历订阅
 
-本节于 2026-11-14 新增，用户已审阅并授权构建发布。入口为“日程操作 → 连接日历账号”。Google、Microsoft 使用系统浏览器 OAuth 授权码流程，支持 PKCE、十分钟有效的一次性 state、离线授权和 refresh token 续期。Apple 使用已开启双重认证的 Apple 账户和应用专用密码，经 tsdav 发现私人 CalDAV 日历。
+2026-11-16 用户要求精简：日历只需 ICS 自动导入到其他日历，配置写在设置中，不要额外控件。账号登录（Google/Microsoft OAuth、iCloud CalDAV）、外部日历导入/订阅、ICS 文件下载及“日程操作”中的三个日历入口全部移除，连同 oauth4webapi/tsdav/windows-iana、中心 `calendar-accounts.json` 命令通道、`/calendar-accounts`、`/calendar-oauth/callback`、`/calendar-subscriptions` 接口。生产账号从未完成授权，外部订阅数为 0。
 
-首次使用 Google 或 Microsoft 需要在连接界面配置自己的登录应用。设置会自动选择已配对中心的 HTTPS 地址，显示完整回调地址，并提供打开 Google Cloud、Google Calendar API、Microsoft Entra 的按钮。回调地址为 `<中心HTTPS基址>/calendar-oauth/callback`。
+入口为“设置 → 通用 → 日历订阅”。`settings.calendarFeeds` 最多 20 条，每条有 `id`、名称（写入 X-WR-CALNAME）、启用、64 位十六进制密钥、日程类型筛选 `types`（空为全部，可选课程/考试/演讲/会议/其他）和独立的中心基址 `baseUrl`。不同外部日历可用不同入口，例如 Google/Apple 用原网关 `https://cdn.u3146344.nyat.app:63573/dayweave`，Outlook 用 Vultr 443 的 `https://45.77.68.130/dayweave`；两者都按通用的 64 位密钥路径转发，新增订阅无需改网关。重置链接更换密钥，删除或停用即 404。
 
-- Google Cloud 启用 Google Calendar API，配置 OAuth 同意屏幕，创建 Web 应用类型的 OAuth 客户端，将完整回调地址加入已获授权的重定向 URI。将客户端 ID 和密钥填入时织。测试模式将本人邮箱加入测试用户，日历等权限的 refresh token 通常在七天后过期，需要重新登录。
-- Microsoft Entra 注册支持组织账号与个人 Microsoft 账号的应用，添加 Web 平台及完整回调地址，创建客户端密钥，将应用客户端 ID 和密钥值填入时织。登录时请求 `offline_access User.Read Calendars.ReadWrite`。
-- iCloud 连接界面可打开 Apple 账户页面，在“登录和安全 → 应用专用密码”生成密码后填入。凭据用于服务器持续访问私人日历。Apple 的第三方账户授权资格与公开接入条件另行确认，当前交付路径使用应用专用密码。
+旧版单条 `settings.calendarFeed` 在 `stateSchema` 预处理中迁移为 `id=default`、名称 `Dayweave · 时织` 的第一条，密钥与基址原样保留，已在 Google/Apple 添加的订阅继续有效。同步 preferences 携带 `calendarFeeds`，缺少该键表示全部删除；旧端发来的 `calendarFeed` 同样迁移。旧中心的严格 schema 不认识 `calendarFeeds`，必须先升级中心再升级客户端。无订阅时不写该键，旧端不受影响。AI 通过 `PATCH /settings` 整体替换 `calendarFeeds`，health 以 `capabilities.calendarFeeds` 标明支持。
 
-OAuth 应用配置、access/refresh token、Apple 应用专用密码与外部发布映射，由中心唯一所有者保存到原 profile 的 `calendar-accounts.json`，沿用 `writeAtomic` 和 0600 权限。该文件随原 profile 的完整运维恢复副本保留。常规业务 JSON、用户导出备份、业务同步和渲染进程状态只持有导入的 Event 或已去除凭据的账号状态。
+中心提供精确 `GET/HEAD /calendar/<密钥>.ics`，按密钥常量时间匹配启用中的订阅，并按“修订+名称+类型”缓存内容。ICS 每个已持久化实例的 UID 固定为 `<完整内部ID>@dayweave`，单次改期沿用 UID，删除保留 CANCELLED。外部时间为首段开始至末段结束，描述保存全部时间段与备注。全天使用 DATE 和不含结束日的 DTEND，定时使用 UTC instant 并附原始时区。存在启用订阅时 Event 规则展开未来 366 天。
 
-客户端使用已配对的加密通道 `POST /calendar-accounts`，沿用 peer 序号验证、回复身份核对与有序地址故障转移。重试保留同一请求 UUID，中心缓存操作结果以免重复开始授权。账号请求的网络阶段位于原业务队列外。公网网关只增加该精确 POST 路径，以及带查询串的精确 GET `/calendar-oauth/callback`。回调核对最初设备仍有权限，再接受授权。
-
-连接后按账号选择导入的日历与发布目标。只读日历可导入，发布下拉只显示可写日历。中心每五分钟刷新一次，提供“立即同步”。Google 与 Microsoft 拉取展开后的发生实例并保留其原生身份，单次改期继续沿用内部 ID。全天、Windows/IANA 时区、原生毫秒和取消状态适配到原有 `previewCalendar → applyCalendarImport → StateService.mutate` 路径。分页或网络失败保留已导入数据。Apple 沿用 iCalendar 的系列和例外解释。
-
-账号发布将时织创建及课程迁移的日程写入所选目标，日历来源的导入项继续由来源管理。发布中的 Event 规则按既有台账扩展未来 366 天，Task 继续沿用原窗口。Google 使用由内部 ID 确定的事件 ID，Microsoft 使用私有扩展属性查询已提交事件，CalDAV 使用固定对象 URL。网络已提交而本地未确认时可以重试，外部副本变更由时织的后续修改更新。导入会过滤自己的发布标记。切换发布目标或断开账号会保留既有本地和外部日程，断开完成前取消并等待在途刷新。
-
-OAuth 复用 oauth4webapi，CalDAV 复用 tsdav，Windows 时区映射复用 windows-iana。新入口沿用 JSON 2 和同步协议 3，使用账号连接需要中心、客户端和公网网关配套升级。真实账户注册、同意授权、外部长期刷新与提醒分别验收。
-
-参考 Google 官方 [Web Server OAuth](https://developers.google.com/identity/protocols/oauth2/web-server)、Microsoft 官方 [Authorization Code Flow](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow)、Apple 官方 [应用专用密码](https://support.apple.com/102654)、[oauth4webapi](https://github.com/panva/oauth4webapi) 与 [tsdav](https://github.com/natelindev/tsdav)。
-
-## 单向导出到日历
-
-主要入口为“日程操作 → 导出到 Google / Microsoft / Apple 日历”。用户可下载 ICS 文件，或开启持续更新的专用 Dayweave 日历订阅。Google、Outlook 和 Apple 通过自己的网址订阅入口接入。账号授权和供应商 API 由上方的连接入口管理。
-
-中心提供精确 `GET/HEAD /calendar/<64位随机密钥>.ics`，共享 HTTPS 网关只转发相应的 `/dayweave/calendar/<密钥>.ics` 路径。密钥仅能读取 Event 日历，可关闭或重置，保存在现有加密业务状态的 `settings.calendarFeed` 中。用户需要填写其中心的可达 HTTPS 基址。网关与中心均要升级后才能使用公网订阅。
-
-ICS 每个已持久化实例的 UID 固定为 `<完整内部ID>@dayweave`，这构成稳定的外部映射。单次改期或属性修改继续使用同 UID，删除保留 CANCELLED 状态。外部每项时间范围为首段开始至末段结束，描述保存全部时间段与备注。全天使用 DATE 和不含结束日的 DTEND，定时使用 UTC instant 并附原始时区。导出展开后的实例，保留其单次例外，外部订阅无需再次分配系列实例。
-
-对外只读取 Event 集合，Task 不进入日历。订阅刷新由各日历服务决定。专用日历便于分开显示和提醒。开启发布和复制链接需要用户正常操作，其账户的真实订阅、提醒及刷新情况单独验收。
-
-## 可选的反向日历导入
-
-用户随后确认保留已经实现的导入功能。Google/Microsoft/Apple 的 iCalendar HTTPS/webcal 订阅地址由中心每 15 分钟读取，导入范围为过去和未来各 366 天。ICS 文件也先预览再确认。保留源 UID、原始 RECURRENCE-ID、全天、时区和单次例外，复用同一实例分配台账。已独立编辑或删除的导入实例保留，来源正常撤回会软删除未独立修改的实例。停用订阅保留已导入日程。
-
-此入口使用可访问的日历订阅地址。账号登录入口通过供应商 API 或 CalDAV 读取私人日历。订阅地址可能包含访问密钥，会随加密业务同步和备份保存，错误消息会隐去原 URL。网络读取发生在中心保存队列外，结果在原事务中核对最新配置后写入。失败保留数据，关闭时取消并等待在途读取。
+每条未取消日程带两个 VALARM（DISPLAY，开始前 30 分钟与 15 分钟），日历级附 `REFRESH-INTERVAL`/`X-PUBLISHED-TTL` 为 1 小时。外部日历是否采用 ICS 内的提醒由其自身决定：Google 订阅日历忽略 VALARM，需在该日历的通知设置中添加；Apple 订阅需取消“移除提醒”；Outlook 网页订阅通常也不采用。只读 `calendarSubscriptions` 集合与 `source.kind='calendar'` 为同步兼容而保留读取，不再有写入者。
 
 ## 同步和验证边界
 
 业务 JSON 仍为 version 2 的可兼容扩展，加密业务交换协议升到 3，防止旧端丢失新增集合。Event 复用 Task 的三方字段合并及删除优先语义，delta 同样按实体处理。新旧业务协议混写会拒绝，配对密钥和自动记录通道继续使用原机制。
 
-验收覆盖领域、浏览器 UI、隔离 HTTP 与加密多端交换。真实账户订阅、安装后的系统通知、手机与平板手势、后台及实际生产迁移分别记录。交付遵守仓库既有的界面审阅门禁。
+验收覆盖领域、浏览器 UI、隔离 HTTP 与加密多端交换。外部日历的实际刷新与提醒、安装后的系统通知、手机与平板手势、后台及实际生产迁移分别记录。交付遵守仓库既有的界面审阅门禁。

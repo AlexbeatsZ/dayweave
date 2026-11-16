@@ -12,7 +12,6 @@ export interface NativeFiles {
   saveState(options: { content: string; widget: boolean }): Promise<void>;
   pickBackup(): Promise<{ content: string | null }>;
   importFudan(): Promise<{ content: string | null }>;
-  openCalendarLink(options: { url: string }): Promise<void>;
   refreshFudan(options: { semesterId: string }): Promise<{ content: string }>;
   cancelFudanRefresh(): Promise<void>;
   exportBackup(options: {

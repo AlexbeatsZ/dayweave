@@ -7,6 +7,8 @@ import {
   eventTemplateSchema,
   recurrenceDefinitionSchema,
   calendarSubscriptionSchema,
+  calendarFeedSchema,
+  migrateCalendarFeed,
 } from './event-model.js';
 import { migrateArrangements } from './event-migration.js';
 import {
@@ -259,28 +261,8 @@ export const stateFields = z
         focusMinutes: z.number().int().min(1).max(180),
         breakMinutes: z.number().int().min(1).max(60),
         showCompleted: z.boolean(),
-        calendarFeed: z
-          .object({
-            enabled: z.boolean(),
-            token: z.string().regex(/^[a-f0-9]{64}$/),
-            baseUrl: z
-              .string()
-              .url()
-              .max(8000)
-              .refine((value) => {
-                const url = new URL(value);
-                return (
-                  ['http:', 'https:'].includes(url.protocol) &&
-                  !url.username &&
-                  !url.password &&
-                  !url.search &&
-                  !url.hash
-                );
-              }, '请输入有效的中心 HTTP / HTTPS 地址')
-              .optional(),
-          })
-          .strict()
-          .optional(),
+        /** Absent until the first feed, so peers predating multiple feeds keep syncing. */
+        calendarFeeds: z.array(calendarFeedSchema).max(20).optional(),
       })
       .strict(),
   })
@@ -294,6 +276,8 @@ export const stateFields = z
       state.lists.map((x) => x.id),
       'lists',
     );
+    const feeds = state.settings.calendarFeeds ?? [];
+    unique([...feeds.map((x) => x.id), ...feeds.map((x) => `token:${x.token}`)], 'settings');
     unique(
       state.tasks.map((x) => x.id),
       'tasks',
@@ -336,29 +320,31 @@ export const stateFields = z
   });
 
 /** Invalid/deleted cross-day slots lose only the reference, never the date. */
-export const stateSchema = z.preprocess(migrateTaskState, stateFields).transform((state) => {
-  const groups = new Map(
-    state.planGroups.filter((row) => !row.deletedAt).map((row) => [row.id, row]),
-  );
-  return migrateArrangements({
-    ...state,
-    timelog: retireUnusedActivityPresets(
-      state.timelog,
-      state.lists.flatMap((list) => (list.activityId ? [list.activityId] : [])),
-    ),
-    tasks: state.tasks.map((task) =>
-      normalizeTask({
-        ...task,
-        dates: Object.fromEntries(
-          Object.entries(task.dates).map(([day, group]) => [
-            day,
-            group && groups.get(group)?.date === day ? group : null,
-          ]),
-        ),
-      }),
-    ),
+export const stateSchema = z
+  .preprocess((input) => migrateCalendarFeed(migrateTaskState(input)), stateFields)
+  .transform((state) => {
+    const groups = new Map(
+      state.planGroups.filter((row) => !row.deletedAt).map((row) => [row.id, row]),
+    );
+    return migrateArrangements({
+      ...state,
+      timelog: retireUnusedActivityPresets(
+        state.timelog,
+        state.lists.flatMap((list) => (list.activityId ? [list.activityId] : [])),
+      ),
+      tasks: state.tasks.map((task) =>
+        normalizeTask({
+          ...task,
+          dates: Object.fromEntries(
+            Object.entries(task.dates).map(([day, group]) => [
+              day,
+              group && groups.get(group)?.date === day ? group : null,
+            ]),
+          ),
+        }),
+      ),
+    });
   });
-});
 export type RepeatRule = z.infer<typeof repeatRuleSchema>;
 export type AppState = z.infer<typeof stateSchema>;
 export type Task = z.infer<typeof taskSchema>;

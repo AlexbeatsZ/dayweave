@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Dayweave AI API",
-    "version": "2.4.0",
+    "version": "2.5.0",
     "description": "时织 Windows/macOS 本机接口。应用运行时可用；实际地址与令牌见设置或用户数据目录 api.json。默认不对局域网开放。所有写入先持久化再通知界面；DELETE 任务为软删除。"
   },
   "servers": [
@@ -1411,15 +1411,30 @@
               "focusMinutes": { "type": "integer", "minimum": 1, "maximum": 180 },
               "breakMinutes": { "type": "integer", "minimum": 1, "maximum": 60 },
               "showCompleted": { "type": "boolean" },
-              "calendarFeed": {
-                "type": "object",
-                "properties": {
-                  "enabled": { "type": "boolean" },
-                  "token": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
-                  "baseUrl": { "type": "string", "maxLength": 8000, "format": "uri" }
-                },
-                "required": ["enabled", "token"],
-                "additionalProperties": false
+              "calendarFeeds": {
+                "maxItems": 20,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": { "type": "string", "pattern": "^[\\w-]{1,100}$" },
+                    "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+                    "enabled": { "type": "boolean" },
+                    "token": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+                    "types": {
+                      "default": [],
+                      "maxItems": 5,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": ["course", "exam", "presentation", "meeting", "other"]
+                      }
+                    },
+                    "baseUrl": { "type": "string", "maxLength": 8000, "format": "uri" }
+                  },
+                  "required": ["id", "name", "enabled", "token", "types"],
+                  "additionalProperties": false
+                }
               }
             },
             "required": ["theme", "timeZone", "focusMinutes", "breakMinutes", "showCompleted"],
@@ -2926,166 +2941,6 @@
           },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         }
-      }
-    },
-    "/calendar-accounts": {
-      "get": {
-        "summary": "读取原日历账号与应用配置状态",
-        "responses": {
-          "200": {
-            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "required": ["data", "revision"],
-                  "properties": { "data": {}, "revision": { "type": "string" } }
-                }
-              }
-            },
-            "headers": {
-              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
-            }
-          },
-          "400": { "description": "参数或 JSON 无效" },
-          "401": { "description": "缺少或错误的 Bearer 令牌" },
-          "403": { "description": "拒绝跨站或非本机请求" },
-          "404": { "description": "未找到对象" },
-          "409": {
-            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
-          }
-        }
-      },
-      "post": {
-        "summary": "配置应用、发起授权、连接、选择、刷新或断开日历账号",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "oneOf": [
-                  {
-                    "type": "object",
-                    "properties": { "action": { "type": "string", "enum": ["status"] } },
-                    "required": ["action"],
-                    "additionalProperties": false
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "action": { "type": "string", "enum": ["configure"] },
-                      "provider": { "type": "string", "enum": ["google", "microsoft"] },
-                      "clientId": { "type": "string", "minLength": 1, "maxLength": 1000 },
-                      "clientSecret": { "type": "string", "maxLength": 4000 },
-                      "baseUrl": {}
-                    },
-                    "required": ["action", "provider", "clientId", "baseUrl"],
-                    "additionalProperties": false
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "action": { "type": "string", "enum": ["authorize"] },
-                      "provider": { "type": "string", "enum": ["google", "microsoft"] }
-                    },
-                    "required": ["action", "provider"],
-                    "additionalProperties": false
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "action": { "type": "string", "enum": ["apple"] },
-                      "username": {
-                        "type": "string",
-                        "maxLength": 320,
-                        "format": "email",
-                        "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
-                      },
-                      "password": { "type": "string", "pattern": "^[a-z]{4}(?:-[a-z]{4}){3}$" }
-                    },
-                    "required": ["action", "username", "password"],
-                    "additionalProperties": false
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "action": { "type": "string", "enum": ["select"] },
-                      "accountId": {
-                        "type": "string",
-                        "format": "uuid",
-                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-                      },
-                      "importIds": {
-                        "maxItems": 100,
-                        "type": "array",
-                        "items": { "type": "string", "minLength": 1, "maxLength": 4000 }
-                      },
-                      "publishId": {
-                        "nullable": true,
-                        "type": "string",
-                        "minLength": 1,
-                        "maxLength": 4000
-                      }
-                    },
-                    "required": ["action", "accountId", "importIds", "publishId"],
-                    "additionalProperties": false
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "action": { "type": "string", "enum": ["refresh"] },
-                      "accountId": {
-                        "type": "string",
-                        "format": "uuid",
-                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-                      }
-                    },
-                    "required": ["action", "accountId"],
-                    "additionalProperties": false
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "action": { "type": "string", "enum": ["disconnect"] },
-                      "accountId": {
-                        "type": "string",
-                        "format": "uuid",
-                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-                      }
-                    },
-                    "required": ["action", "accountId"],
-                    "additionalProperties": false
-                  }
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "required": ["data", "revision"],
-                  "properties": { "data": {}, "revision": { "type": "string" } }
-                }
-              }
-            },
-            "headers": {
-              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
-            }
-          },
-          "400": { "description": "参数或 JSON 无效" },
-          "401": { "description": "缺少或错误的 Bearer 令牌" },
-          "403": { "description": "拒绝跨站或非本机请求" },
-          "404": { "description": "未找到对象" },
-          "409": {
-            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
-          }
-        },
-        "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
       }
     },
     "/sync/discover": {
@@ -5098,115 +4953,6 @@
         }
       }
     },
-    "/calendar-subscriptions": {
-      "get": {
-        "summary": "读取日历订阅",
-        "responses": {
-          "200": {
-            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "required": ["data", "revision"],
-                  "properties": { "data": {}, "revision": { "type": "string" } }
-                }
-              }
-            },
-            "headers": {
-              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
-            }
-          },
-          "400": { "description": "参数或 JSON 无效" },
-          "401": { "description": "缺少或错误的 Bearer 令牌" },
-          "403": { "description": "拒绝跨站或非本机请求" },
-          "404": { "description": "未找到对象" },
-          "409": {
-            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
-          }
-        }
-      },
-      "post": {
-        "summary": "添加由中心自动导入 Event 的日历订阅",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "name": { "type": "string", "minLength": 1, "maxLength": 200 },
-                  "provider": { "type": "string", "enum": ["google", "microsoft", "apple", "ics"] },
-                  "url": { "type": "string", "maxLength": 8000 },
-                  "timeZone": { "type": "string", "maxLength": 100 },
-                  "enabled": { "type": "boolean" }
-                },
-                "required": ["name", "provider", "url", "timeZone", "enabled"],
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "required": ["data", "revision"],
-                  "properties": { "data": {}, "revision": { "type": "string" } }
-                }
-              }
-            },
-            "headers": {
-              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
-            }
-          },
-          "400": { "description": "参数或 JSON 无效" },
-          "401": { "description": "缺少或错误的 Bearer 令牌" },
-          "403": { "description": "拒绝跨站或非本机请求" },
-          "404": { "description": "未找到对象" },
-          "409": {
-            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
-          }
-        },
-        "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
-      }
-    },
-    "/calendar-subscriptions/{id}": {
-      "delete": {
-        "summary": "停用订阅并保留已导入日程",
-        "parameters": [
-          { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } },
-          { "$ref": "#/components/parameters/IfMatch" }
-        ],
-        "responses": {
-          "200": {
-            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "required": ["data", "revision"],
-                  "properties": { "data": {}, "revision": { "type": "string" } }
-                }
-              }
-            },
-            "headers": {
-              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
-            }
-          },
-          "400": { "description": "参数或 JSON 无效" },
-          "401": { "description": "缺少或错误的 Bearer 令牌" },
-          "403": { "description": "拒绝跨站或非本机请求" },
-          "404": { "description": "未找到对象" },
-          "409": {
-            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
-          }
-        }
-      }
-    },
     "/repeat-rules/generate": {
       "post": {
         "summary": "请求中心扩展生成窗口",
@@ -5615,7 +5361,7 @@
         }
       },
       "patch": {
-        "summary": "更新外观与日程偏好",
+        "summary": "更新外观、日程偏好与 ICS 日历订阅（calendarFeeds 整体替换）",
         "requestBody": {
           "required": true,
           "content": {
@@ -5627,15 +5373,30 @@
                   "timeZone": { "default": "Asia/Shanghai", "type": "string", "maxLength": 100 },
                   "dayStartsAt": { "type": "string", "pattern": "^0[0-6]:[0-5]\\d$" },
                   "showCompleted": { "type": "boolean" },
-                  "calendarFeed": {
-                    "type": "object",
-                    "properties": {
-                      "enabled": { "type": "boolean" },
-                      "token": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
-                      "baseUrl": { "type": "string", "maxLength": 8000, "format": "uri" }
-                    },
-                    "required": ["enabled", "token"],
-                    "additionalProperties": false
+                  "calendarFeeds": {
+                    "maxItems": 20,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string", "pattern": "^[\\w-]{1,100}$" },
+                        "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+                        "enabled": { "type": "boolean" },
+                        "token": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+                        "types": {
+                          "default": [],
+                          "maxItems": 5,
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": ["course", "exam", "presentation", "meeting", "other"]
+                          }
+                        },
+                        "baseUrl": { "type": "string", "maxLength": 8000, "format": "uri" }
+                      },
+                      "required": ["id", "name", "enabled", "token", "types"],
+                      "additionalProperties": false
+                    }
                   }
                 },
                 "additionalProperties": false
@@ -6934,15 +6695,30 @@
                       "focusMinutes": { "type": "integer", "minimum": 1, "maximum": 180 },
                       "breakMinutes": { "type": "integer", "minimum": 1, "maximum": 60 },
                       "showCompleted": { "type": "boolean" },
-                      "calendarFeed": {
-                        "type": "object",
-                        "properties": {
-                          "enabled": { "type": "boolean" },
-                          "token": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
-                          "baseUrl": { "type": "string", "maxLength": 8000, "format": "uri" }
-                        },
-                        "required": ["enabled", "token"],
-                        "additionalProperties": false
+                      "calendarFeeds": {
+                        "maxItems": 20,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "id": { "type": "string", "pattern": "^[\\w-]{1,100}$" },
+                            "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+                            "enabled": { "type": "boolean" },
+                            "token": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+                            "types": {
+                              "default": [],
+                              "maxItems": 5,
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "enum": ["course", "exam", "presentation", "meeting", "other"]
+                              }
+                            },
+                            "baseUrl": { "type": "string", "maxLength": 8000, "format": "uri" }
+                          },
+                          "required": ["id", "name", "enabled", "token", "types"],
+                          "additionalProperties": false
+                        }
                       }
                     },
                     "required": [

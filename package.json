@@ -1,7 +1,7 @@
 {
   "name": "dayweave",
   "productName": "Dayweave",
-  "version": "0.5.11",
+  "version": "0.5.12",
   "private": true,
   "description": "时织 — 待办、时间记录与跨时区课程表",
   "license": "MIT",
@@ -129,11 +129,8 @@
     "bonjour-service": "^1.4.4",
     "cron-parser": "^5.10.3",
     "ical.js": "^2.2.1",
-    "oauth4webapi": "^3.8.8",
     "quickjs-emscripten-core": "0.32.0",
-    "tsdav": "^2.5.0",
     "uuid": "^14.0.3",
-    "windows-iana": "^5.1.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {

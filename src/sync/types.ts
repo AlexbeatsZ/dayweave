@@ -71,9 +71,6 @@ export interface SyncState {
   mutate(transform: (state: AppState) => AppState, receivedTime?: TimeState): Promise<unknown>;
 }
 export type SyncBridge = {
-  calendarAccounts?(
-    command: import('../calendar-accounts.js').CalendarAccountCommand,
-  ): Promise<import('../calendar-accounts.js').CalendarAccountReply>;
   status(): Promise<SyncStatus>;
   discover(): Promise<Peer[]>;
   pair(invitation: string, endpoint?: string): Promise<SyncStatus>;

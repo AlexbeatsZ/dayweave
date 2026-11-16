@@ -2,9 +2,6 @@ import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { ChevronLeft, ChevronRight, MoreHorizontal, Plus } from 'lucide-react';
 import { Calendar } from './Calendar';
 import { EventComposer } from './EventComposer';
-import { CalendarSources } from './CalendarSources';
-import { CalendarExport } from './CalendarExport';
-import { CalendarConnections } from './CalendarConnections';
 import { Modal } from './Modal';
 import { TaskCheck } from './TaskCheck';
 import { SemesterEditor, PeriodEditor } from './Timetable';
@@ -28,7 +25,6 @@ import {
 import { exportText, isMobileApp, requestWidget } from '../files';
 import { csvTemplate } from '../course-import';
 import { useFudanSource, refreshFudan, stopFudanRefresh } from '../useFudanRefresh';
-import { exportEventCalendar } from '../calendar-export';
 import { arrangementMigrationReport } from '../event-migration';
 import { useSortDrag } from '../phone/useSortDrag';
 import { FloatingAdd, PhoneTabs } from '../phone/Navigation';
@@ -277,12 +273,9 @@ export function Arrangements({
   const view = mode === 'task' ? taskView : eventView;
   const [editor, setEditor] = useState<{ event?: CalendarEvent; date: string }>();
   const [menu, setMenu] = useState(false),
-    [sources, setSources] = useState(false),
     [semester, setSemester] = useState(false),
     [periods, setPeriods] = useState(false);
   const [dayPopup, setDayPopup] = useState<string>();
-  const [publishing, setPublishing] = useState(false);
-  const [connections, setConnections] = useState(false);
   const [error, setError] = useState('');
   const imports = useCourseImport(() => setMenu(false));
   const fudan = useFudanSource();
@@ -532,33 +525,6 @@ export function Arrangements({
         <Modal title="日程操作" closeLabel="关闭日程操作" close={() => setMenu(false)}>
           <div className="event-form">
             <button
-              className="button primary"
-              onClick={() => {
-                setMenu(false);
-                setConnections(true);
-              }}
-            >
-              连接日历账号
-            </button>
-            <button
-              className="button"
-              onClick={() => {
-                setMenu(false);
-                setPublishing(true);
-              }}
-            >
-              导出到 Google / Microsoft / Apple 日历
-            </button>
-            <button
-              className="button"
-              onClick={() => {
-                setMenu(false);
-                setSources(true);
-              }}
-            >
-              日历导入与订阅
-            </button>
-            <button
               className="button"
               disabled={imports.busy}
               onClick={() => {
@@ -639,18 +605,6 @@ export function Arrangements({
                   className="button"
                   onClick={() =>
                     void exportText(
-                      'Dayweave-events.ics',
-                      exportEventCalendar(data.calendarEvents),
-                      'text/calendar',
-                    ).catch((cause) => setError(String(cause)))
-                  }
-                >
-                  导出日程 ICS
-                </button>
-                <button
-                  className="button"
-                  onClick={() =>
-                    void exportText(
                       'Dayweave-timetable.json',
                       JSON.stringify(data.schedule, null, 2),
                       'application/json',
@@ -677,9 +631,6 @@ export function Arrangements({
           </div>
         </Modal>
       )}
-      {sources && <CalendarSources close={() => setSources(false)} />}
-      {publishing && <CalendarExport close={() => setPublishing(false)} />}
-      {connections && <CalendarConnections close={() => setConnections(false)} />}
       {semester && <SemesterEditor close={() => setSemester(false)} />}
       {periods && <PeriodEditor close={() => setPeriods(false)} />}
       <CourseImportDialog workflow={imports} />

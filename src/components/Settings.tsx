@@ -16,6 +16,7 @@ import { store, useStore } from '../store';
 import { Modal } from './Modal';
 import { SyncSettings } from './SyncSettings';
 import { ApiSettings } from './ApiSettings';
+import { CalendarFeedSettings } from './CalendarFeedSettings';
 import { UsageSettingsPanel } from '../usage/Settings';
 import { version } from '../../package.json';
 import { pendingPairingKey } from '../sync/invitation';
@@ -145,6 +146,7 @@ export function Settings({
               </label>
               <p className="field-hint">在此之前的计时、完成和计划都算前一天；课表仍按日历日期。</p>
             </section>
+            <CalendarFeedSettings />
             {error && (
               <p className="form-error" role="alert">
                 {error}

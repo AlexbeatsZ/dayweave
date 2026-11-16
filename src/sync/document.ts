@@ -127,7 +127,7 @@ export function toDocument(state: AppState): SyncDocument {
     taskTagColors: state.tagColors.tasks,
     recordTagColors: state.tagColors.records,
     timeZone: state.settings.timeZone,
-    ...(state.settings.calendarFeed ? { calendarFeed: state.settings.calendarFeed } : {}),
+    ...(state.settings.calendarFeeds ? { calendarFeeds: state.settings.calendarFeeds } : {}),
     ...(state.settings.dayStartsAt ? { dayStartsAt: state.settings.dayStartsAt } : {}),
     timerPresets: state.timelog.settings.timerPresets ?? [5, 30, 45, 60],
     timerPresetsUpdatedAt: state.timelog.settings.updatedAt,
@@ -228,6 +228,7 @@ export function fromDocument(doc: SyncDocument, local: AppState): AppState {
   } = doc.preferences ?? {};
   next.settings = { ...next.settings, ...preferences };
   if (!('dayStartsAt' in preferences)) delete next.settings.dayStartsAt;
+  if (!('calendarFeeds' in preferences)) delete next.settings.calendarFeeds;
   next.timer = (doc.focus ?? null) as AppState['timer'];
   // Running record remains authoritative when a stale offline focus timer arrives.
   if (next.timelog.timer) next.timer = null;

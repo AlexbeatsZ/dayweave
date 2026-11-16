@@ -16,10 +16,7 @@ import { dateSchema, stateSchema } from '../src/model.js';
 import type { Peer, SyncBridge, SyncRequest, SyncStatus } from '../src/sync/types.js';
 import type { StateService } from './state-service.js';
 import type { UsageReplica, UsageExchange } from '../src/usage/sync.js';
-import { CalendarSubscriptions } from './calendar-subscriptions.js';
 import { CalendarFeed } from './calendar-feed.js';
-import { CalendarAccounts } from './calendar-accounts.js';
-import type { CalendarAccountCommand } from '../src/calendar-accounts.js';
 import { preserveOnce, readOptional, writeAtomic } from './files.js';
 
 export function syncFiles(directory: string) {
@@ -66,19 +63,11 @@ export class DesktopSync implements SyncBridge {
   private repeatTimer?: ReturnType<typeof setInterval>;
   private saveDue?: ReturnType<typeof setTimeout>;
   private readonly concurrentRequests = new Set<Promise<void>>();
-  private readonly calendars: CalendarSubscriptions;
-  private readonly accounts: CalendarAccounts;
   constructor(
     readonly service: StateService,
     readonly directory: string,
     readonly discovery = true,
   ) {
-    this.calendars = new CalendarSubscriptions(service);
-    this.accounts = new CalendarAccounts(
-      service,
-      directory,
-      (actor) => this.activeHub && (actor === 'local' || !!this.client.config.hub?.clients[actor]),
-    );
     this.client = new SyncClient(
       syncFiles(directory),
       {
@@ -97,11 +86,9 @@ export class DesktopSync implements SyncBridge {
   private readonly reportError = (error: unknown) => {
     this.client.error = String(error);
   };
-  /** Hub-owned maintenance after changes and each minute: calendars and recurring tasks. */
+  /** Hub-owned maintenance after changes and each minute: recurring tasks and events. */
   private maintain() {
     if (!this.activeHub) return;
-    void this.calendars.refresh().catch(this.reportError);
-    void this.accounts.refresh().catch(this.reportError);
     if (this.generating) return;
     this.generating = true;
     void this.service
@@ -188,11 +175,6 @@ export class DesktopSync implements SyncBridge {
     await Promise.all([this.client.now(), this.refreshUsage?.()]);
     return this.status();
   }
-  calendarAccounts(command: CalendarAccountCommand) {
-    return this.activeHub
-      ? this.accounts.command(command, 'local')
-      : this.client.calendarAccounts(command);
-  }
   async ensureTasks(through: string) {
     dateSchema.parse(through);
     if (this.client.config.hub)
@@ -241,10 +223,6 @@ export class DesktopSync implements SyncBridge {
     const server = createServer((request, response) => {
       response.setHeader('Cache-Control', 'no-store');
       response.setHeader('X-Content-Type-Options', 'nosniff');
-      if (request.url?.split('?')[0] === '/calendar-oauth/callback') {
-        void this.accounts.callback(request, response).catch(() => response.destroy());
-        return;
-      }
       if (request.url?.startsWith('/calendar/')) {
         request.resume();
         void calendar
@@ -260,7 +238,7 @@ export class DesktopSync implements SyncBridge {
       }
       if (
         request.method !== 'POST' ||
-        !['/pair', '/sync', '/usage', '/calendar-accounts'].includes(request.url ?? '') ||
+        !['/pair', '/sync', '/usage'].includes(request.url ?? '') ||
         request.headers.origin
       ) {
         response.writeHead(403).end();
@@ -304,52 +282,6 @@ export class DesktopSync implements SyncBridge {
             } else {
               const peer = hub.clients[envelope.clientId];
               if (!peer) throw new Error('设备未配对');
-              if (route === '/calendar-accounts') {
-                const value = await openEnvelope<{
-                  seq: number;
-                  requestId: string;
-                  command: CalendarAccountCommand;
-                }>(envelope, peer.key, route);
-                await this.client.exclusive(async () => {
-                  if (
-                    !Number.isSafeInteger(value.seq) ||
-                    value.seq <= peer.seq ||
-                    !/^[a-f0-9-]{36}$/.test(value.requestId)
-                  )
-                    throw new Error('拒绝重放消息');
-                  peer.seq = value.seq;
-                  await this.client.save();
-                });
-                failureStatus = 500;
-                let reply;
-                try {
-                  reply = {
-                    result: await this.accounts.command(
-                      value.command,
-                      envelope.clientId,
-                      value.requestId,
-                    ),
-                  };
-                } catch (error) {
-                  reply = {
-                    error:
-                      error instanceof Error &&
-                      /^(请|此|日历|已选|待完成|选择|无法保存)/.test(error.message)
-                        ? error.message
-                        : '日历连接失败，请检查应用配置、凭据与网络。',
-                  };
-                }
-                result = await seal(
-                  { ...reply, seq: value.seq, hubId: c.deviceId },
-                  peer.key,
-                  route + ':reply',
-                  envelope.clientId,
-                );
-                response
-                  .writeHead(200, { 'Content-Type': 'application/json' })
-                  .end(JSON.stringify(result));
-                return;
-              }
               if (route === '/usage') {
                 if (!this.usage) throw new Error('自动记录存储尚未就绪');
                 const request = await openEnvelope<UsageExchange>(envelope, peer.key, route);
@@ -420,9 +352,8 @@ export class DesktopSync implements SyncBridge {
             response.writeHead(failureStatus).end();
           }
         };
-        // Observation exchanges and calendar network calls run outside the business sync queue.
-        if (route !== '/usage' && route !== '/calendar-accounts')
-          void this.client.exclusive(handle);
+        // Observation exchanges run outside the business sync queue.
+        if (route !== '/usage') void this.client.exclusive(handle);
         else {
           const running = handle().finally(() => this.concurrentRequests.delete(running));
           this.concurrentRequests.add(running);
@@ -468,8 +399,6 @@ export class DesktopSync implements SyncBridge {
     if (server) await new Promise<void>((resolve) => server.close(() => resolve()));
   }
   async close() {
-    await this.accounts.close();
-    await this.calendars.close();
     this.scheduler.stop();
     clearInterval(this.repeatTimer);
     this.unsubscribe?.();

@@ -199,6 +199,77 @@ dialog.settings-modal::backdrop {
   top: 8px;
 }
 
+.settings-modal .calendar-feed {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  margin-bottom: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.settings-modal .calendar-feed.disabled {
+  opacity: 0.6;
+}
+
+.settings-modal :is(.calendar-feed-head, .calendar-feed-link, .calendar-feed-actions) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-modal .calendar-feed-head > svg {
+  flex: none;
+  color: var(--accent);
+}
+
+.settings-modal .calendar-feed-switch {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.settings-modal .calendar-feed-switch input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.settings-modal .calendar-feed-types {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.settings-modal .calendar-feed-types button {
+  min-height: 32px;
+  padding: 4px 12px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--input);
+  color: var(--text);
+  font-size: 13px;
+}
+
+.settings-modal .calendar-feed-types button[aria-pressed='true'] {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--input));
+}
+
+.settings-modal .calendar-feed-link .button {
+  flex: none;
+}
+
+.settings-modal .calendar-feeds .button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 @media (max-width: 700px) {
   dialog.settings-modal {
     width: calc(100% - 24px);

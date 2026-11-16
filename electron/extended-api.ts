@@ -30,7 +30,7 @@ import {
 } from '../src/timelog/domain.js';
 import { toDocument } from '../src/sync/document.js';
 import type { StateService, StateSnapshot } from './state-service.js';
-import { calendarEventSchema, calendarSubscriptionSchema } from '../src/event-model.js';
+import { calendarEventSchema } from '../src/event-model.js';
 import {
   eventInputSchema,
   eventChangesSchema,
@@ -255,38 +255,6 @@ export async function handleExtendedRoute(c: Context): Promise<boolean> {
   }
   if (route === '/arrangements/migration' && method === 'GET') {
     send(arrangementMigrationReport(snapshot.state), snapshot);
-    return true;
-  }
-  if (route === '/calendar-subscriptions' && method === 'GET') {
-    send(snapshot.state.calendarSubscriptions, snapshot);
-    return true;
-  }
-  if (route === '/calendar-subscriptions' && method === 'POST') {
-    const input = calendarSubscriptionSchema
-      .omit({ id: true, updatedAt: true, checkedAt: true, error: true })
-      .parse(await c.readBody(c.request));
-    const source = calendarSubscriptionSchema.parse({
-      ...input,
-      id: uid(),
-      updatedAt: new Date().toISOString(),
-    });
-    snapshot = await mutate((state) => ({
-      ...state,
-      calendarSubscriptions: [...state.calendarSubscriptions, source],
-    }));
-    send(source, snapshot);
-    return true;
-  }
-  const sourceRoute = route.match(/^\/calendar-subscriptions\/([^/]+)$/);
-  if (sourceRoute && method === 'DELETE') {
-    const id = decodeURIComponent(sourceRoute[1]);
-    snapshot = await mutate((state) => ({
-      ...state,
-      calendarSubscriptions: state.calendarSubscriptions.map((row) =>
-        row.id === id ? { ...row, enabled: false, updatedAt: new Date().toISOString() } : row,
-      ),
-    }));
-    send(snapshot.state.calendarSubscriptions.find((row) => row.id === id) ?? null, snapshot);
     return true;
   }
   if (route === '/context' && method === 'GET') {

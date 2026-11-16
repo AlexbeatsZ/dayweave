@@ -20,7 +20,6 @@ import {
   generateRecurrences,
   eventBounds,
 } from '../src/event-domain.js';
-import { applyCalendarImport, previewCalendar } from '../src/calendar-import.js';
 import { exportEventCalendar } from '../src/calendar-export.js';
 import { arrangementMigrationReport } from '../src/event-migration.js';
 import { toDocument, fromDocument, mergeDocuments } from '../src/sync/document.js';
@@ -28,7 +27,6 @@ import { diffState, applyDelta } from '../src/state-delta.js';
 import { FileStore } from '../electron/storage.js';
 import { StateService } from '../electron/state-service.js';
 import { CalendarFeed } from '../electron/calendar-feed.js';
-import { CalendarSubscriptions } from '../electron/calendar-subscriptions.js';
 import { wallTime, zoneDateKey } from '../src/timezone.js';
 import { DesktopSync } from '../electron/sync.js';
 import { SyncClient, fetchEnvelope } from '../src/sync/client.js';
@@ -324,37 +322,6 @@ test('migration preserves ambiguous overlapping legacy rows and does not restore
 });
 
 const feed = `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:meeting-1\r\nDTSTART;TZID=Asia/Shanghai:20261102T080000\r\nDTEND;TZID=Asia/Shanghai:20261102T090000\r\nRRULE:FREQ=WEEKLY;COUNT=3\r\nSUMMARY:例会\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:meeting-1\r\nRECURRENCE-ID;TZID=Asia/Shanghai:20261109T080000\r\nDTSTART;TZID=Asia/Shanghai:20261110T100000\r\nDTEND;TZID=Asia/Shanghai:20261110T110000\r\nSUMMARY:改期例会\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:holiday-1\r\nDTSTART;VALUE=DATE:20261104\r\nDTEND;VALUE=DATE:20261106\r\nSUMMARY:全天活动\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n`;
-test('calendar imports stay Event-only and preserve all-day, exceptions, stable IDs and manual overrides', () => {
-  const source = { id: 'source', timeZone: 'Asia/Shanghai' };
-  const preview = previewCalendar(feed, source, '2026-11-01', '2026-12-01');
-  let state = emptyState();
-  state.tasks = [newTask('原待办')];
-  state = applyCalendarImport(state, preview, at);
-  assert.equal(state.calendarEvents.length, 4);
-  assert.equal(state.calendarEvents.find((row) => row.title === '改期例会')!.date, '2026-11-10');
-  assert.equal(state.calendarEvents.find((row) => row.allDay)!.durationDays, 2);
-  const ids = state.calendarEvents.map((row) => row.id);
-  const originalTasks = structuredClone(state.tasks);
-  state = applyCalendarImport(state, preview, at);
-  assert.deepEqual(
-    state.calendarEvents.map((row) => row.id),
-    ids,
-  );
-  state.calendarEvents[0].title = '本机独立修改';
-  state = applyCalendarImport(
-    state,
-    previewCalendar(
-      feed.replace('SUMMARY:例会', 'SUMMARY:远端更新'),
-      source,
-      '2026-11-01',
-      '2026-12-01',
-    ),
-    at,
-  );
-  assert.equal(state.calendarEvents[0].title, '本机独立修改');
-  assert.deepEqual(state.tasks, originalTasks);
-});
-
 test('calendar exports use one stable UID, full period envelope and cancellation status', () => {
   const event = newEvent({
     title: '演讲',
@@ -375,60 +342,6 @@ test('calendar exports use one stable UID, full period envelope and cancellation
     exportEventCalendar([{ ...event, deletedAt: new Date(at).toISOString() }]),
     /STATUS:CANCELLED/,
   );
-});
-
-test('calendar IANA timezone is honored without VTIMEZONE and bare cancelled exceptions remain cancelled', () => {
-  const external = feed
-    .replaceAll('Asia/Shanghai', 'America/New_York')
-    .replace(
-      'END:VCALENDAR',
-      'BEGIN:VEVENT\r\nUID:meeting-1\r\nRECURRENCE-ID;TZID=America/New_York:20261116T080000\r\nSTATUS:CANCELLED\r\nEND:VEVENT\r\nEND:VCALENDAR',
-    );
-  const preview = previewCalendar(
-    external,
-    { id: 'ny', timeZone: 'Asia/Shanghai' },
-    '2026-11-01',
-    '2026-12-01',
-  );
-  const item = preview.items.find((row) => row.event?.title === '例会')!.event!;
-  assert.equal(item.timeZone, 'America/New_York');
-  assert.equal(eventBounds(item).start, Date.parse('2026-11-02T13:00:00Z'));
-  assert.ok(
-    preview.items.some((row) => row.original === '2026-11-16T08:00:00' && row.event === null),
-  );
-});
-
-test('invalid source occurrences preserve prior data and source cancellations can be restored without restoring user deletions', () => {
-  const source = { id: 'lifecycle', timeZone: 'Asia/Shanghai' };
-  const preview = previewCalendar(feed, source, '2026-11-01', '2026-12-01');
-  let state = applyCalendarImport(emptyState(), preview, at);
-  const originalIds = state.calendarEvents.map((row) => row.id);
-  const invalid = feed.replace(
-    'DTEND;TZID=Asia/Shanghai:20261102T090000',
-    'DTEND;TZID=Asia/Shanghai:20261102T080000',
-  );
-  state = applyCalendarImport(
-    state,
-    previewCalendar(invalid, source, '2026-11-01', '2026-12-01'),
-    at + 1,
-  );
-  assert.equal(state.calendarEvents.filter((row) => !row.deletedAt).length, 4);
-  const cancelled = feed.replace('SUMMARY:例会', 'STATUS:CANCELLED\r\nSUMMARY:例会');
-  state = applyCalendarImport(
-    state,
-    previewCalendar(cancelled, source, '2026-11-01', '2026-12-01'),
-    at + 2,
-  );
-  assert.equal(state.calendarEvents.filter((row) => !row.deletedAt).length, 1);
-  state = applyCalendarImport(state, preview, at + 3);
-  assert.equal(state.calendarEvents.filter((row) => !row.deletedAt).length, 4);
-  assert.deepEqual(
-    state.calendarEvents.map((row) => row.id),
-    originalIds,
-  );
-  state = deleteEvent(state, originalIds[0]);
-  state = applyCalendarImport(state, preview, at + 4);
-  assert.ok(state.calendarEvents[0].deletedAt);
 });
 
 test('Cron conversion is explicit and keeps unsupported Cron semantics available', () => {
@@ -460,8 +373,17 @@ test('calendar feed is revocable, Event-only and preserves original pre-migratio
     await service.mutate((state) => ({
       ...state,
       tasks: [newTask('私有待办')],
-      calendarEvents: [newEvent({ title: '公开日程', date: '2026-11-05' })],
-      settings: { ...state.settings, calendarFeed: { enabled: true, token: 'a'.repeat(64) } },
+      calendarEvents: [
+        newEvent({ title: '公开日程', date: '2026-11-05' }),
+        { ...newEvent({ title: '期中考试', date: '2026-11-06' }), type: 'exam' },
+      ],
+      settings: {
+        ...state.settings,
+        calendarFeeds: [
+          { id: 'all', name: '全部', enabled: true, token: 'a'.repeat(64), types: [] },
+          { id: 'exams', name: '考试', enabled: true, token: 'b'.repeat(64), types: ['exam'] },
+        ],
+      },
     }));
     const publisher = new CalendarFeed(service);
     server = createServer((request, response) => {
@@ -476,12 +398,25 @@ test('calendar feed is revocable, Event-only and preserves original pre-migratio
     assert.equal(response.status, 200);
     const content = await response.text();
     assert.match(content, /公开日程/);
+    assert.match(content, /期中考试/);
     assert.doesNotMatch(content, /私有待办/);
+    assert.match(content, /X-WR-CALNAME:全部/);
+    assert.equal(content.match(/TRIGGER:-PT30M/g)?.length, 2);
+    assert.equal(content.match(/TRIGGER:-PT15M/g)?.length, 2);
+    const exams = await (await fetch(url.replace('a'.repeat(64), 'b'.repeat(64)))).text();
+    assert.match(exams, /期中考试/);
+    assert.doesNotMatch(exams, /公开日程/);
     await service.mutate((state) => ({
       ...state,
-      settings: { ...state.settings, calendarFeed: { enabled: false, token: 'a'.repeat(64) } },
+      settings: {
+        ...state.settings,
+        calendarFeeds: state.settings.calendarFeeds!.map((feed) =>
+          feed.id === 'all' ? { ...feed, enabled: false } : feed,
+        ),
+      },
     }));
     assert.equal((await fetch(url)).status, 404);
+    assert.equal((await fetch(url.replace('a'.repeat(64), 'c'.repeat(64)))).status, 404);
   } finally {
     if (server) await new Promise<void>((resolve) => server!.close(() => resolve()));
     service.dispose();
@@ -571,61 +506,37 @@ test('encrypted hub exchange generates once and converges two offline Event edit
   }
 });
 
-test('hub calendar polling follows HTTPS redirects, deduplicates refreshes and retains Events after errors', async () => {
-  const directory = await tempDirectory('dayweave-arrangements-poll-');
-  const service = new StateService(new FileStore(directory));
-  let calls = 0;
-  const manager = new CalendarSubscriptions(service, async () => {
-    calls++;
-    return calls === 1
-      ? new Response(null, { status: 302, headers: { Location: 'https://feed.example/final.ics' } })
-      : new Response(feed);
+test('the single legacy feed migrates with its token, including from older sync peers', () => {
+  const legacy = { enabled: true, token: 'd'.repeat(64), baseUrl: 'https://hub.example/dayweave' };
+  const state = stateSchema.parse({
+    ...emptyState(),
+    settings: { ...emptyState().settings, calendarFeed: legacy },
   });
-  let failed: CalendarSubscriptions | undefined;
-  try {
-    await service.mutate((state) => ({
+  assert.deepEqual(state.settings.calendarFeeds, [
+    { id: 'default', name: 'Dayweave · 时织', types: [], ...legacy },
+  ]);
+  assert.equal('calendarFeed' in state.settings, false);
+  const doc = toDocument(state);
+  const { calendarFeeds: _feeds, ...older } = doc.preferences as Record<string, unknown>;
+  const fromOlderPeer = fromDocument(
+    { ...doc, preferences: { ...older, calendarFeed: legacy } },
+    state,
+  );
+  assert.equal(fromOlderPeer.settings.calendarFeeds?.[0].token, legacy.token);
+  const removed = fromDocument({ ...doc, preferences: older }, state);
+  assert.equal(removed.settings.calendarFeeds, undefined);
+  assert.throws(() =>
+    stateSchema.parse({
       ...state,
-      calendarSubscriptions: [
-        {
-          id: 'feed',
-          name: '自动导入',
-          provider: 'apple',
-          url: 'webcal://feed.example/private',
-          timeZone: 'Asia/Shanghai',
-          enabled: true,
-          updatedAt: new Date().toISOString(),
-          checkedAt: 0,
-          error: '',
-        },
-      ],
-    }));
-    await manager.refresh();
-    await manager.refresh();
-    assert.equal(calls, 2);
-    const before = (await service.snapshot()).state.calendarEvents;
-    assert.equal(before.length, 4);
-    await service.mutate((state) => ({
-      ...state,
-      calendarSubscriptions: state.calendarSubscriptions.map((source) => ({
-        ...source,
-        checkedAt: 0,
-      })),
-    }));
-    failed = new CalendarSubscriptions(
-      service,
-      async () => new Response('failure', { status: 500 }),
-    );
-    await failed.refresh();
-    const after = (await service.snapshot()).state;
-    assert.deepEqual(after.calendarEvents, before);
-    assert.match(after.calendarSubscriptions[0].error, /HTTP 500/);
-    assert.doesNotMatch(after.calendarSubscriptions[0].error, /private/);
-  } finally {
-    await manager.close();
-    await failed?.close();
-    service.dispose();
-    await rm(directory, { recursive: true, force: true });
-  }
+      settings: {
+        ...state.settings,
+        calendarFeeds: [
+          ...state.settings.calendarFeeds!,
+          { ...state.settings.calendarFeeds![0], id: 'copy' },
+        ],
+      },
+    }),
+  );
 });
 
 async function tempDirectory(prefix: string) {

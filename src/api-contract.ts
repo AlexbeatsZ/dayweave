@@ -2,9 +2,8 @@ import { z } from 'zod';
 import { extraPaths } from './extra-contract.js';
 import { taskSchema, listSchema, planGroupSchema, stateFields, subtaskSchema } from './model.js';
 import { eventInputSchema, eventChangesSchema, recurrenceInputSchema } from './event-contract.js';
-import { calendarEventSchema, calendarSubscriptionSchema } from './event-model.js';
+import { calendarEventSchema } from './event-model.js';
 import { usageEventSchema, usageQuerySchema, usageSettingsSchema } from './usage/domain.js';
-import { calendarAccountCommand } from './calendar-accounts.js';
 
 /** An API failure with its HTTP status; every route reports errors through it. */
 export class ApiError extends Error {
@@ -132,7 +131,7 @@ export const openapi = {
   openapi: '3.0.3',
   info: {
     title: 'Dayweave AI API',
-    version: '2.4.0',
+    version: '2.5.0',
     description:
       '时织 Windows/macOS 本机接口。应用运行时可用；实际地址与令牌见设置或用户数据目录 api.json。默认不对局域网开放。所有写入先持久化再通知界面；DELETE 任务为软删除。',
   },
@@ -164,10 +163,6 @@ export const openapi = {
   },
   paths: {
     ...extraPaths,
-    '/calendar-accounts': {
-      get: operation('读取原日历账号与应用配置状态'),
-      post: operation('配置应用、发起授权、连接、选择、刷新或断开日历账号', calendarAccountCommand),
-    },
     '/sync/discover': { get: operation('发现局域网中心') },
     '/sync/pair': {
       post: operation(
@@ -311,21 +306,6 @@ export const openapi = {
     },
     '/recurrences': { get: operation('读取共用重复规则与稳定实例账本') },
     '/arrangements/migration': { get: operation('读取课程迁移计数及无法确定语义的待核对任务') },
-    '/calendar-subscriptions': {
-      get: operation('读取日历订阅'),
-      post: operation(
-        '添加由中心自动导入 Event 的日历订阅',
-        calendarSubscriptionSchema.omit({
-          id: true,
-          updatedAt: true,
-          checkedAt: true,
-          error: true,
-        }),
-      ),
-    },
-    '/calendar-subscriptions/{id}': {
-      delete: operation('停用订阅并保留已导入日程', undefined, true),
-    },
     '/repeat-rules/generate': {
       post: operation('请求中心扩展生成窗口', z.object({ through: z.string() }).strict()),
     },
@@ -347,7 +327,10 @@ export const openapi = {
     },
     '/settings': {
       get: operation('读取偏好'),
-      patch: operation('更新外观与日程偏好', settingsPatchSchema),
+      patch: operation(
+        '更新外观、日程偏好与 ICS 日历订阅（calendarFeeds 整体替换）',
+        settingsPatchSchema,
+      ),
     },
     '/stats': { get: operation('读取近七天统计与累计值') },
     '/export': { get: operation('导出完整 v2 JSON 数据（不含 API 令牌）') },

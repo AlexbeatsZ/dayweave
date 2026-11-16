@@ -2,7 +2,7 @@
 
 ## 账号日历授权回调
 
-2026-11-14 源码增加精确 `POST /dayweave/calendar-accounts`，转发到中心同名路径，校验沿用已有配对密钥和 peer 序号。精确 `GET /dayweave/calendar-oauth/callback` 保留 OAuth 查询串并转发到中心，中心检查一次性 state、PKCE 和发起设备权限。其他 calendar-oauth 路径与 callback 方法拒绝。客户端、中心与网关等待本轮界面审阅后构建交付。详细首次配置、凭据所有者和数据边界见 arrangements.md。
+2026-11-14 曾增加的 `/dayweave/calendar-accounts` 与 `/dayweave/calendar-oauth/callback` 已于 2026-11-16 随账号连接功能从源码移除；已部署网关在下次更新 Dayweave 模块前仍保留这两条路由，中心已不再响应。日历只保留 `/dayweave/calendar/<密钥>.ics` 只读转发。
 
 ## 安排重构的日程订阅接口
 

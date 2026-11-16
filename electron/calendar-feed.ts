@@ -3,10 +3,9 @@ import { timingSafeEqual } from 'node:crypto';
 import type { StateService } from './state-service.js';
 import { exportEventCalendar } from '../src/calendar-export.js';
 
-/** A revocable, read-only calendar capability. It grants access only to Event data. */
+/** Revocable, read-only calendar capabilities. Each token grants access only to its Event feed. */
 export class CalendarFeed {
-  private revision?: string;
-  private content = '';
+  private readonly cache = new Map<string, { key: string; content: string }>();
   constructor(private service: StateService) {}
   async serve(request: IncomingMessage, response: ServerResponse) {
     const match = request.url?.match(/^\/calendar\/([a-f0-9]{64})\.ics$/);
@@ -16,14 +15,20 @@ export class CalendarFeed {
       return true;
     }
     const snapshot = await this.service.snapshot();
-    const feed = snapshot.state.settings.calendarFeed;
-    if (!feed?.enabled || !timingSafeEqual(Buffer.from(feed.token), Buffer.from(match[1]))) {
+    const requested = Buffer.from(match[1]);
+    const feed = (snapshot.state.settings.calendarFeeds ?? []).find((row) =>
+      timingSafeEqual(Buffer.from(row.token), requested),
+    );
+    if (!feed?.enabled) {
       response.writeHead(404).end();
       return true;
     }
-    if (this.revision !== snapshot.revision) {
-      this.content = exportEventCalendar(snapshot.state.calendarEvents);
-      this.revision = snapshot.revision;
+    const key = `${snapshot.revision}\n${feed.name}\n${feed.types.join(',')}`;
+    let cached = this.cache.get(feed.token);
+    if (cached?.key !== key) {
+      cached = { key, content: exportEventCalendar(snapshot.state.calendarEvents, feed) };
+      if (this.cache.size >= 40) this.cache.clear(); // rotated tokens never return
+      this.cache.set(feed.token, cached);
     }
     response.writeHead(200, {
       'Content-Type': 'text/calendar; charset=utf-8',
@@ -31,7 +36,7 @@ export class CalendarFeed {
       'Cache-Control': 'private, no-store',
       'X-Content-Type-Options': 'nosniff',
     });
-    response.end(request.method === 'HEAD' ? undefined : this.content);
+    response.end(request.method === 'HEAD' ? undefined : cached.content);
     return true;
   }
 }
