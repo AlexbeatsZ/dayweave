@@ -47,6 +47,9 @@ import {
 } from '../src/event-domain.js';
 import { arrangementMigrationReport } from '../src/event-migration.js';
 import { taskPrefix } from '../src/task-domain.js';
+import { testScript, inspectScript } from '../src/timelog/script-test.js';
+import type { DesktopUsage } from './usage.js';
+import type { UsageEvent } from '../src/usage/domain.js';
 
 type Context = {
   route: string;
@@ -59,6 +62,7 @@ type Context = {
   mutate: (fn: (s: AppState) => AppState) => Promise<StateSnapshot>;
   send: (data: unknown, snapshot: StateSnapshot) => void;
   readBody: (r: IncomingMessage, limit?: number) => Promise<unknown>;
+  usage?: DesktopUsage;
 };
 function activityId(state: AppState, requested?: string) {
   const activity = state.timelog.activities.find(
@@ -129,6 +133,43 @@ export function decisionContext(state: AppState, now = Date.now()) {
 export async function handleExtendedRoute(c: Context): Promise<boolean> {
   let { route, method, snapshot } = c;
   const { send, mutate } = c;
+  if (route === '/timelog/scripts/test' && method === 'POST') {
+    const input = z
+      .object({
+        code: z.string().max(200000),
+        date: z.string().date(),
+        period: z.enum(['day', 'week']).default('day'),
+        params: z
+          .record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.array(z.string())]))
+          .default({}),
+      })
+      .strict()
+      .parse(await c.readBody(c.request));
+    send(
+      await testScript(input.code, snapshot.state, input, input.date, async (range) => {
+        if (!c.usage) fail(503, 'Automatic records unavailable');
+        const events: UsageEvent[] = [];
+        let before: number | undefined;
+        for (let page = 0; page < 200; page++) {
+          const result = await c.usage!.query({ ...range, before, limit: 5000 });
+          events.push(...result.events);
+          if (result.complete || result.next === undefined) return events;
+          before = result.next;
+        }
+        throw new Error('此范围自动记录过多，请缩小查询范围');
+      }),
+      snapshot,
+    );
+    return true;
+  }
+  if (route === '/timelog/scripts/inspect' && method === 'POST') {
+    const input = z
+      .object({ code: z.string().max(200000) })
+      .strict()
+      .parse(await c.readBody(c.request));
+    send(await inspectScript(input.code), snapshot);
+    return true;
+  }
   if (route === '/events' && method === 'GET') {
     const date = c.url.searchParams.get('date');
     send(

@@ -1,6 +1,8 @@
 # 时织 / Dayweave Server
 
-独立版本 `0.2.8`，共享客户端 `0.5.11` 的业务、计时、同步及 SQLite 所有者。需要 **Node 24（24.14.1 或更高的 24.x）或 Node 26**，CI 在 Windows/Ubuntu 的 Node 24.14.1 与 26 上验证。包已含 JavaScript 依赖，不需要 npm install、编译、Electron、React、Rust 或本机采集程序。Node 运行时由运行机器提供。
+独立版本 `0.2.9`，共享客户端 `0.5.11` 的业务、计时、同步及 SQLite 所有者。需要 **Node 24（24.14.1 或更高的 24.x）或 Node 26**，CI 在 Windows/Ubuntu 的 Node 24.14.1 与 26 上验证。包已含 JavaScript 依赖，不需要 npm install、编译、Electron、React、Rust 或本机采集程序。Node 运行时由运行机器提供。
+
+0.2.9 增加本机认证自动记录 API，OpenAPI 2.4.0 提供 usage/query、status、settings、applications、import 和 sync，复用原 DesktopUsage 与 UsageStore。AI 可通过 HTTP/CLI 查询和管理自动记录。时间记录通过现有 timelog/records 原生接口写入，活动选择使用 timelog/activities 的当前可用目录，删除或归档的活动退出可选范围。
 
 0.2.8 增加 Google/Microsoft 系统浏览器授权、持续授权续期与 iCloud 私人日历连接，支持首次应用注册引导和账号日历选择。账号凭据单独保存在中心 profile 的 `calendar-accounts.json`，客户端通过原加密配对通道操作。使用新入口需配套客户端 0.5.11，并更新公网网关的精确 `/calendar-accounts` 与 `/calendar-oauth/callback` 路由。业务 JSON 版本保持 2，同步协议沿用 3。实际 OAuth 应用注册与真实账号授权待首次配置后验证。
 

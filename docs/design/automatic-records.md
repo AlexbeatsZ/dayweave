@@ -1,5 +1,9 @@
 # 自动记录：采集、时间线与多设备同步
 
+## 原生 AI 接口
+
+Server 0.2.9 与 OpenAPI 2.4.0 开放认证的 usage/query、status、settings、applications、import、sync，桌面及无头 Runtime 复用同一 DesktopUsage/UsageStore。外部 AI 通过接口获取原始观察及设备状态，再派生所需摘要。query 沿用 start/end、deviceId、search、before、limit 与 events/next/complete 分页，时间单位为毫秒。设置和导入调用原所有者的方法。完整契约见 api.md。
+
 ## 产品与数据边界
 
 手动记录表达「我做了什么」，继续拥有活动、关联任务与目标；自动记录表达设备观察，不创建手动记录、不自动完成任务。两个来源在原有「记录 → 时间线」和「统计 → 记录」内切换，不增加第二套导航。

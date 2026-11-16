@@ -1,3 +1,7 @@
+## 2026-11-16 无头行为回顾与脚本管理
+
+POST /timelog/goals/{id}/count 使用原 countBehavior，counter 为 trigger/action，step 为 1/-1，date 为业务日，expectedUpdatedAt 为当前 review.updatedAt 或初始 null。客户端原当天结算前计数与撤销规则保持。GET 目标读取 review。脚本库和试运行统一经 API，保存和删除复用 script-library，试运行共用 script-test。完整契约见 api.md。
+
 # 日界线、计划分组与目标
 
 2026-11-03 用户确定的需求。2026-11-05 的任务日期/时段关联和重复机制已由 task-system.md 更新：任务存 dates 映射，以下 due/planGroupId 的旧说明仅说明原迁移来源，不应继续作为新写入格式。修改日期归属、日计划分组、目标种类或给 AI 的对应接口前先读本文。

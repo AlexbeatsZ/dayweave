@@ -49,6 +49,52 @@ export const extraPaths: Record<string, unknown> = {
   '/sync/invite': { post: op('在已开启的中心生成单次五分钟配对邀请；邀请含密钥') },
   '/sync/hub': { post: op('开启本机局域网同步中心') },
   '/sync/now': { post: op('立即同步本机修改') },
+  '/timelog/scripts': {
+    get: op('读取脚本库'),
+    post: op('新建或导入脚本，name/code 和可选 id/order', free),
+  },
+  '/timelog/scripts/{id}': {
+    get: { ...op('读取原脚本'), parameters: id },
+    patch: { ...op('修改脚本，expectedUpdatedAt 必填', free), parameters: id },
+    delete: { ...op('删除未被目标引用的脚本，expectedUpdatedAt 必填', free), parameters: id },
+  },
+  '/timelog/scripts/inspect': {
+    post: op('用原 QuickJS 引擎检查代码和参数元数据', {
+      type: 'object',
+      required: ['code'],
+      properties: { code: { type: 'string', maxLength: 200000 } },
+    }),
+  },
+  '/timelog/scripts/test': {
+    post: op('用原 QuickJS 引擎、当前业务数据和自动记录试运行，仅读取', {
+      type: 'object',
+      required: ['code', 'date'],
+      properties: {
+        code: { type: 'string', maxLength: 200000 },
+        date: { type: 'string', format: 'date' },
+        period: { type: 'string', enum: ['day', 'week'], default: 'day' },
+        params: free,
+      },
+    }),
+  },
+  '/timelog/goals/{id}/count': {
+    post: {
+      ...op('行为触发/执行计数及撤销，复用客户端当天回顾动作', {
+        type: 'object',
+        required: ['expectedUpdatedAt', 'counter'],
+        additionalProperties: false,
+        properties: {
+          expectedUpdatedAt: { type: ['number', 'null'] },
+          counter: { type: 'string', enum: ['trigger', 'action'] },
+          step: { type: 'integer', enum: [1, -1], default: 1 },
+        },
+      }),
+      parameters: [
+        ...id,
+        { in: 'query', name: 'date', schema: { type: 'string', format: 'date' } },
+      ],
+    },
+  },
   '/time-records': {
     get: op('统一时间记录；endAt=null 表示未结束，plannedEndAt 为倒计时截止；最近 1000 条'),
     post: op('只给 startAt 即正向计时；未来 endAt 开始倒计时；过去 endAt 创建结束记录', {

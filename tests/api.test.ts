@@ -7,8 +7,178 @@ import { FileStore } from '../electron/storage';
 import { StateService } from '../electron/state-service';
 import { request as httpRequest } from 'node:http';
 import { startApi } from '../electron/api';
+import { Runtime } from '../electron/headless-runtime';
 import { applyDelta, diffState, StateConflict } from '../src/state-delta';
 import { emptyState, newTask, now } from '../src/model';
+
+test('headless usage API uses native storage and keeps deleted activities unavailable', async () => {
+  const base = path.join(os.tmpdir(), '.agents');
+  await mkdir(base, { recursive: true });
+  const directory = await mkdtemp(path.join(base, 'dayweave-native-api-'));
+  const runtime = await Runtime.open({
+    directory,
+    apiPort: 0,
+    discovery: false,
+    server: { version: 'test', appVersion: 'test', sourceCommit: 'test' },
+  });
+  try {
+    await runtime.start(true);
+    const info = runtime.api!.info;
+    const request = (method: string, route: string, body?: unknown) =>
+      fetch(info.url + route, {
+        method,
+        headers: { Authorization: `Bearer ${info.token}`, 'Content-Type': 'application/json' },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      });
+    const event = {
+      id: 'observed',
+      deviceId: 'phone',
+      deviceName: 'Phone',
+      platform: 'android',
+      source: 'dayweave',
+      kind: 'app',
+      app: 'Reader',
+      start: 1000,
+      end: 2000,
+      revision: 1,
+    };
+    const imported = await request('POST', '/usage/import', [event]);
+    assert.equal(imported.status, 200);
+    assert.equal((await imported.json()).data.imported, 1);
+    const queried = await request('POST', '/usage/query', { start: 0, end: 3000, limit: 1 });
+    assert.deepEqual(
+      (await queried.json()).data.events.map((row: { id: string }) => row.id),
+      ['observed'],
+    );
+    assert.equal(
+      (await (await request('GET', '/usage/status')).json()).data.devices[0].id,
+      'phone',
+    );
+    assert.equal((await (await request('GET', '/usage/applications')).json()).data[0].id, 'Reader');
+    assert.equal((await request('POST', '/usage/query', { start: 3000, end: 0 })).status, 400);
+    assert.equal((await request('PATCH', '/usage/settings', { browser: true })).status, 200);
+    assert.equal((await (await request('GET', '/usage/settings')).json()).data.browser, true);
+    await request('POST', '/usage/import', [{ ...event, deleted: true, revision: 2 }]);
+    assert.equal(
+      (await (await request('POST', '/usage/query', { start: 0, end: 3000 })).json()).data.events
+        .length,
+      0,
+    );
+    await runtime.service.mutate((state) => ({
+      ...state,
+      timelog: {
+        ...state.timelog,
+        activities: [
+          {
+            id: 'meal',
+            name: 'Meal',
+            nature: 'neutral',
+            color: '#4264b2',
+            archived: false,
+            deletedAt: 1,
+            updatedAt: 2,
+          },
+        ],
+      },
+    }));
+    assert.equal((await (await request('GET', '/timelog/activities')).json()).data.items.length, 0);
+    assert.equal(
+      (
+        await request('POST', '/timelog/records', {
+          id: 'rejected',
+          activityId: 'meal',
+          spans: [{ start: 1000, end: 2000 }],
+        })
+      ).status,
+      400,
+    );
+    assert.equal((await runtime.service.snapshot()).state.timelog.records.length, 0);
+    const code =
+      "export const name='Headless'; export default async ctx => ({met:true,progress:1,note:String((await ctx.usage()).length)})";
+    assert.equal((await request('POST', '/timelog/scripts/inspect', { code })).status, 200);
+    const createdScript = await request('POST', '/timelog/scripts', { name: 'Headless', code });
+    assert.equal(createdScript.status, 201);
+    const script = (await createdScript.json()).data;
+    const day = (await (await request('GET', '/context')).json()).data.today;
+    const run = await request('POST', '/timelog/scripts/test', { code, date: day });
+    assert.equal(run.status, 200);
+    assert.equal((await run.json()).data.outcome.met, true);
+    assert.equal(
+      (
+        await request('PATCH', '/timelog/scripts/' + script.id, {
+          name: 'Updated',
+          expectedUpdatedAt: -1,
+        })
+      ).status,
+      409,
+    );
+    assert.equal(
+      (
+        await request('PATCH', '/timelog/scripts/' + script.id, {
+          name: 'Updated',
+          expectedUpdatedAt: script.updatedAt,
+        })
+      ).status,
+      200,
+    );
+    const savedScript = (await (await request('GET', '/timelog/scripts/' + script.id)).json()).data;
+    const rule = (
+      await (
+        await request('POST', '/timelog/goals', {
+          name: 'Behavior',
+          kind: 'behaviorRule',
+          period: 'day',
+          trigger: 'Trigger',
+          action: 'Action',
+        })
+      ).json()
+    ).data;
+    const countRoute = '/timelog/goals/' + rule.id + '/count?date=' + day;
+    const counted = await request('POST', countRoute, {
+      counter: 'action',
+      expectedUpdatedAt: null,
+    });
+    assert.equal(counted.status, 200);
+    const review = (await counted.json()).data;
+    assert.equal(review.triggered, 1);
+    assert.equal(review.executed, 1);
+    assert.equal(
+      (await request('POST', countRoute, { counter: 'action', expectedUpdatedAt: null })).status,
+      409,
+    );
+    const undo = await request('POST', countRoute, {
+      counter: 'action',
+      step: -1,
+      expectedUpdatedAt: review.updatedAt,
+    });
+    assert.equal(undo.status, 200);
+    assert.equal((await undo.json()).data, null);
+    assert.equal(
+      (
+        await request('DELETE', '/timelog/scripts/' + script.id, {
+          expectedUpdatedAt: savedScript.updatedAt,
+        })
+      ).status,
+      200,
+    );
+    assert.equal((await (await request('GET', '/timelog/scripts')).json()).data.total, 0);
+    const spec = await (await request('GET', '/openapi.json')).json();
+    for (const route of [
+      '/server/status',
+      '/server/shutdown',
+      '/sync/peers/{id}',
+      '/sync/pair',
+      '/sync/resolve',
+      '/calendar-accounts',
+      '/timelog/scripts/test',
+      '/timelog/goals/{id}/count',
+    ])
+      assert.ok(spec.paths[route]);
+  } finally {
+    await runtime.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
 
 test('Event CRUD, RRULE and stale writes share the original authenticated state service', async () =>
   fixture(async ({ request }) => {

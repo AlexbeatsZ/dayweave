@@ -45,12 +45,15 @@ import { TimeOverlap } from '../src/timelog/occupancy.js';
 import { StateService, type StateSnapshot } from './state-service.js';
 import type { SyncBridge } from '../src/sync/types.js';
 import type { DesktopUsage } from './usage.js';
+import { usageEventSchema, usageQuerySchema, usageSettingsSchema } from '../src/usage/domain.js';
 import { appVersion } from './version.js';
+import { calendarAccountCommand } from '../src/calendar-accounts.js';
 
 type ApiInfo = { enabled: boolean; url: string; token: string };
 export type ApiOptions = {
   health?: Record<string, unknown>;
   strictPort?: boolean;
+  usage?: DesktopUsage;
   management?: {
     usage: DesktopUsage;
     closing(): boolean;
@@ -161,6 +164,7 @@ export async function startApi(
           calendarEvents: true,
           rrule: true,
           eventCalendarFeed: true,
+          usageApi: Boolean(options.usage ?? options.management?.usage),
           syncProtocol: 3,
         },
       };
@@ -180,11 +184,39 @@ export async function startApi(
             },
             snapshot,
           );
-        if (route === '/usage/status' && method === 'GET')
-          return send(await options.management.usage.health(), snapshot);
         if (route === '/server/shutdown' && method === 'POST') {
           response.once('finish', () => setImmediate(() => options.management!.shutdown()));
           return send({ accepted: true }, snapshot);
+        }
+      }
+      if (route.startsWith('/usage/')) {
+        const usage = options.usage ?? options.management?.usage;
+        if (!usage) fail(503, 'Automatic records are unavailable');
+        if (route === '/usage/status' && method === 'GET')
+          return send(await usage.health(), snapshot);
+        if (route === '/usage/query' && method === 'POST')
+          return send(await usage.query(usageQuerySchema.parse(await body(request))), snapshot);
+        if (route === '/usage/settings' && method === 'GET')
+          return send(usage.store.settings(), snapshot);
+        if (route === '/usage/settings' && method === 'PATCH') {
+          const patch = usageSettingsSchema
+            .partial()
+            .strict()
+            .parse(await body(request));
+          return send(await usage.configure({ ...usage.store.settings(), ...patch }), snapshot);
+        }
+        if (route === '/usage/applications' && method === 'GET')
+          return send(await usage.applications(), snapshot);
+        if (route === '/usage/import' && method === 'POST') {
+          const events = usageEventSchema
+            .array()
+            .max(100000)
+            .parse(await body(request, 50 * 1024 * 1024));
+          return send({ imported: await usage.import(events) }, snapshot);
+        }
+        if (route === '/usage/sync' && method === 'POST') {
+          await usage.sync();
+          return send({ synced: true }, snapshot);
         }
       }
       if (route.startsWith('/sync/')) {
@@ -192,6 +224,38 @@ export async function startApi(
         if (!sync) fail(503, 'Sync unavailable');
         if (route === '/sync/status' && method === 'GET')
           return send(await sync!.status(), snapshot);
+        if (route === '/sync/discover' && method === 'GET')
+          return send(await sync!.discover(), snapshot);
+        if (route === '/sync/pair' && method === 'POST') {
+          const input = z
+            .object({ invitation: z.string().min(1), endpoint: z.string().optional() })
+            .strict()
+            .parse(await body(request));
+          return send(await sync!.pair(input.invitation, input.endpoint), await service.snapshot());
+        }
+        if (route === '/sync/disconnect' && method === 'POST')
+          return send(await sync!.disconnect(), snapshot);
+        if (route === '/sync/endpoint' && method === 'PATCH' && sync!.setEndpoint) {
+          const input = z
+            .object({ endpoint: z.string().min(1) })
+            .strict()
+            .parse(await body(request));
+          return send(await sync!.setEndpoint(input.endpoint), await service.snapshot());
+        }
+        if (route === '/sync/resolve' && method === 'POST') {
+          const input = z
+            .object({ index: z.number().int().nonnegative(), keepLocal: z.boolean() })
+            .strict()
+            .parse(await body(request));
+          return send(await sync!.resolve(input.index, input.keepLocal), await service.snapshot());
+        }
+        if (route === '/sync/ensure-tasks' && method === 'POST' && sync!.ensureTasks) {
+          const input = z
+            .object({ through: dateSchema })
+            .strict()
+            .parse(await body(request));
+          return send(await sync!.ensureTasks(input.through), await service.snapshot());
+        }
         if (route === '/sync/invite' && method === 'POST' && sync!.invite)
           return send({ invitation: await sync!.invite() }, snapshot);
         if (route === '/sync/hub' && method === 'POST' && sync!.enableHub)
@@ -203,6 +267,14 @@ export async function startApi(
           if (!/^[\w-]{1,100}$/.test(id)) fail(400, 'Invalid device ID');
           return send(await sync!.revoke(id), snapshot);
         }
+      }
+      if (route === '/calendar-accounts' && ['GET', 'POST'].includes(method)) {
+        const sync = getSync?.();
+        if (!sync?.calendarAccounts) fail(503, 'Calendar accounts unavailable');
+        const command = calendarAccountCommand.parse(
+          method === 'GET' ? { action: 'status' } : await body(request),
+        );
+        return send(await sync!.calendarAccounts!(command), await service.snapshot());
       }
       if (
         await handleExtendedRoute({
@@ -216,6 +288,7 @@ export async function startApi(
           mutate,
           send,
           readBody: body,
+          usage: options.usage ?? options.management?.usage,
         })
       )
         return;

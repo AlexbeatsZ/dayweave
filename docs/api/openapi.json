@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Dayweave AI API",
-    "version": "2.3.0",
+    "version": "2.4.0",
     "description": "时织 Windows/macOS 本机接口。应用运行时可用；实际地址与令牌见设置或用户数据目录 api.json。默认不对局域网开放。所有写入先持久化再通知界面；DELETE 任务为软删除。"
   },
   "servers": [
@@ -314,7 +314,7 @@
           "timelog": {},
           "schedule": {
             "default": {
-              "semesterStart": "2026-11-09",
+              "semesterStart": "2026-11-16",
               "totalWeeks": 20,
               "timeZone": "Asia/Shanghai",
               "displayDays": "auto",
@@ -1449,7 +1449,126 @@
   "paths": {
     "/sync/status": {
       "get": {
-        "summary": "同步状态与已配对设备，不返回密钥",
+        "summary": "读取同步角色、连接和待处理状态",
+        "responses": {
+          "200": {
+            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "revision"],
+                  "properties": { "data": {}, "revision": { "type": "string" } }
+                }
+              }
+            },
+            "headers": {
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
+            }
+          },
+          "400": { "description": "参数或 JSON 无效" },
+          "401": { "description": "缺少或错误的 Bearer 令牌" },
+          "403": { "description": "拒绝跨站或非本机请求" },
+          "404": { "description": "未找到对象" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
+        }
+      }
+    },
+    "/sync/invite": {
+      "post": {
+        "summary": "创建同步配对邀请",
+        "responses": {
+          "200": {
+            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "revision"],
+                  "properties": { "data": {}, "revision": { "type": "string" } }
+                }
+              }
+            },
+            "headers": {
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
+            }
+          },
+          "400": { "description": "参数或 JSON 无效" },
+          "401": { "description": "缺少或错误的 Bearer 令牌" },
+          "403": { "description": "拒绝跨站或非本机请求" },
+          "404": { "description": "未找到对象" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
+        },
+        "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
+      }
+    },
+    "/sync/hub": {
+      "post": {
+        "summary": "启用原同步中心",
+        "responses": {
+          "200": {
+            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "revision"],
+                  "properties": { "data": {}, "revision": { "type": "string" } }
+                }
+              }
+            },
+            "headers": {
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
+            }
+          },
+          "400": { "description": "参数或 JSON 无效" },
+          "401": { "description": "缺少或错误的 Bearer 令牌" },
+          "403": { "description": "拒绝跨站或非本机请求" },
+          "404": { "description": "未找到对象" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
+        },
+        "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
+      }
+    },
+    "/sync/now": {
+      "post": {
+        "summary": "立即执行原同步流程",
+        "responses": {
+          "200": {
+            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "revision"],
+                  "properties": { "data": {}, "revision": { "type": "string" } }
+                }
+              }
+            },
+            "headers": {
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
+            }
+          },
+          "400": { "description": "参数或 JSON 无效" },
+          "401": { "description": "缺少或错误的 Bearer 令牌" },
+          "403": { "description": "拒绝跨站或非本机请求" },
+          "404": { "description": "未找到对象" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
+        },
+        "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
+      }
+    },
+    "/timelog/scripts": {
+      "get": {
+        "summary": "读取脚本库",
         "responses": {
           "200": {
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
@@ -1461,11 +1580,9 @@
           },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         }
-      }
-    },
-    "/sync/invite": {
+      },
       "post": {
-        "summary": "在已开启的中心生成单次五分钟配对邀请；邀请含密钥",
+        "summary": "新建或导入脚本，name/code 和可选 id/order",
         "responses": {
           "200": {
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
@@ -1477,12 +1594,18 @@
           },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "type": "object", "additionalProperties": true } }
+          }
+        },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
       }
     },
-    "/sync/hub": {
-      "post": {
-        "summary": "开启本机局域网同步中心",
+    "/timelog/scripts/{id}": {
+      "get": {
+        "summary": "读取原脚本",
         "responses": {
           "200": {
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
@@ -1494,12 +1617,12 @@
           },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
-        "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
-      }
-    },
-    "/sync/now": {
-      "post": {
-        "summary": "立即同步本机修改",
+        "parameters": [
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } }
+        ]
+      },
+      "patch": {
+        "summary": "修改脚本，expectedUpdatedAt 必填",
         "responses": {
           "200": {
             "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
@@ -1511,7 +1634,141 @@
           },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "type": "object", "additionalProperties": true } }
+          }
+        },
+        "parameters": [
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } },
+          { "$ref": "#/components/parameters/IfMatch" }
+        ]
+      },
+      "delete": {
+        "summary": "删除未被目标引用的脚本，expectedUpdatedAt 必填",
+        "responses": {
+          "200": {
+            "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
+          },
+          "400": { "description": "输入无效" },
+          "404": { "description": "对象或关联任务不存在" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "type": "object", "additionalProperties": true } }
+          }
+        },
+        "parameters": [
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } },
+          { "$ref": "#/components/parameters/IfMatch" }
+        ]
+      }
+    },
+    "/timelog/scripts/inspect": {
+      "post": {
+        "summary": "用原 QuickJS 引擎检查代码和参数元数据",
+        "responses": {
+          "200": {
+            "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
+          },
+          "400": { "description": "输入无效" },
+          "404": { "description": "对象或关联任务不存在" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["code"],
+                "properties": { "code": { "type": "string", "maxLength": 200000 } }
+              }
+            }
+          }
+        },
         "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
+      }
+    },
+    "/timelog/scripts/test": {
+      "post": {
+        "summary": "用原 QuickJS 引擎、当前业务数据和自动记录试运行，仅读取",
+        "responses": {
+          "200": {
+            "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
+          },
+          "400": { "description": "输入无效" },
+          "404": { "description": "对象或关联任务不存在" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["code", "date"],
+                "properties": {
+                  "code": { "type": "string", "maxLength": 200000 },
+                  "date": { "type": "string", "format": "date" },
+                  "period": { "type": "string", "enum": ["day", "week"], "default": "day" },
+                  "params": { "type": "object", "additionalProperties": true }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
+      }
+    },
+    "/timelog/goals/{id}/count": {
+      "post": {
+        "summary": "行为触发/执行计数及撤销，复用客户端当天回顾动作",
+        "responses": {
+          "200": {
+            "description": "成功，返回 data 和 revision。时间为 UTC epoch 毫秒，课程墙上时间按课程时区。"
+          },
+          "400": { "description": "输入无效" },
+          "404": { "description": "对象或关联任务不存在" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          },
+          "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["expectedUpdatedAt", "counter"],
+                "additionalProperties": false,
+                "properties": {
+                  "expectedUpdatedAt": { "type": ["number", "null"] },
+                  "counter": { "type": "string", "enum": ["trigger", "action"] },
+                  "step": { "type": "integer", "enum": [1, -1], "default": 1 }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } },
+          { "in": "query", "name": "date", "schema": { "type": "string", "format": "date" } },
+          { "$ref": "#/components/parameters/IfMatch" }
+        ]
       }
     },
     "/time-records": {
@@ -2669,6 +2926,813 @@
           },
           "428": { "description": "实体编辑缺少 expectedUpdatedAt" }
         }
+      }
+    },
+    "/calendar-accounts": {
+      "get": {
+        "summary": "读取原日历账号与应用配置状态",
+        "responses": {
+          "200": {
+            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "revision"],
+                  "properties": { "data": {}, "revision": { "type": "string" } }
+                }
+              }
+            },
+            "headers": {
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
+            }
+          },
+          "400": { "description": "参数或 JSON 无效" },
+          "401": { "description": "缺少或错误的 Bearer 令牌" },
+          "403": { "description": "拒绝跨站或非本机请求" },
+          "404": { "description": "未找到对象" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
+        }
+      },
+      "post": {
+        "summary": "配置应用、发起授权、连接、选择、刷新或断开日历账号",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": { "action": { "type": "string", "enum": ["status"] } },
+                    "required": ["action"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "action": { "type": "string", "enum": ["configure"] },
+                      "provider": { "type": "string", "enum": ["google", "microsoft"] },
+                      "clientId": { "type": "string", "minLength": 1, "maxLength": 1000 },
+                      "clientSecret": { "type": "string", "maxLength": 4000 },
+                      "baseUrl": {}
+                    },
+                    "required": ["action", "provider", "clientId", "baseUrl"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "action": { "type": "string", "enum": ["authorize"] },
+                      "provider": { "type": "string", "enum": ["google", "microsoft"] }
+                    },
+                    "required": ["action", "provider"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "action": { "type": "string", "enum": ["apple"] },
+                      "username": {
+                        "type": "string",
+                        "maxLength": 320,
+                        "format": "email",
+                        "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                      },
+                      "password": { "type": "string", "pattern": "^[a-z]{4}(?:-[a-z]{4}){3}$" }
+                    },
+                    "required": ["action", "username", "password"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "action": { "type": "string", "enum": ["select"] },
+                      "accountId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "importIds": {
+                        "maxItems": 100,
+                        "type": "array",
+                        "items": { "type": "string", "minLength": 1, "maxLength": 4000 }
+                      },
+                      "publishId": {
+                        "nullable": true,
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 4000
+                      }
+                    },
+                    "required": ["action", "accountId", "importIds", "publishId"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "action": { "type": "string", "enum": ["refresh"] },
+                      "accountId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      }
+                    },
+                    "required": ["action", "accountId"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "action": { "type": "string", "enum": ["disconnect"] },
+                      "accountId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      }
+                    },
+                    "required": ["action", "accountId"],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "revision"],
+                  "properties": { "data": {}, "revision": { "type": "string" } }
+                }
+              }
+            },
+            "headers": {
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
+            }
+          },
+          "400": { "description": "参数或 JSON 无效" },
+          "401": { "description": "缺少或错误的 Bearer 令牌" },
+          "403": { "description": "拒绝跨站或非本机请求" },
+          "404": { "description": "未找到对象" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
+        },
+        "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
+      }
+    },
+    "/sync/discover": {
+      "get": {
+        "summary": "发现局域网中心",
+        "responses": {
+          "200": {
+            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "revision"],
+                  "properties": { "data": {}, "revision": { "type": "string" } }
+                }
+              }
+            },
+            "headers": {
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
+            }
+          },
+          "400": { "description": "参数或 JSON 无效" },
+          "401": { "description": "缺少或错误的 Bearer 令牌" },
+          "403": { "description": "拒绝跨站或非本机请求" },
+          "404": { "description": "未找到对象" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
+        }
+      }
+    },
+    "/sync/pair": {
+      "post": {
+        "summary": "通过原配对流程连接中心",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "invitation": { "type": "string", "minLength": 1 },
+                  "endpoint": { "type": "string" }
+                },
+                "required": ["invitation"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "revision"],
+                  "properties": { "data": {}, "revision": { "type": "string" } }
+                }
+              }
+            },
+            "headers": {
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
+            }
+          },
+          "400": { "description": "参数或 JSON 无效" },
+          "401": { "description": "缺少或错误的 Bearer 令牌" },
+          "403": { "description": "拒绝跨站或非本机请求" },
+          "404": { "description": "未找到对象" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
+        },
+        "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
+      }
+    },
+    "/sync/disconnect": {
+      "post": {
+        "summary": "通过原流程断开同步",
+        "responses": {
+          "200": {
+            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "revision"],
+                  "properties": { "data": {}, "revision": { "type": "string" } }
+                }
+              }
+            },
+            "headers": {
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
+            }
+          },
+          "400": { "description": "参数或 JSON 无效" },
+          "401": { "description": "缺少或错误的 Bearer 令牌" },
+          "403": { "description": "拒绝跨站或非本机请求" },
+          "404": { "description": "未找到对象" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
+        },
+        "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
+      }
+    },
+    "/sync/endpoint": {
+      "patch": {
+        "summary": "设置中心入口",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": { "endpoint": { "type": "string", "minLength": 1 } },
+                "required": ["endpoint"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "revision"],
+                  "properties": { "data": {}, "revision": { "type": "string" } }
+                }
+              }
+            },
+            "headers": {
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
+            }
+          },
+          "400": { "description": "参数或 JSON 无效" },
+          "401": { "description": "缺少或错误的 Bearer 令牌" },
+          "403": { "description": "拒绝跨站或非本机请求" },
+          "404": { "description": "未找到对象" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
+        },
+        "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
+      }
+    },
+    "/sync/resolve": {
+      "post": {
+        "summary": "解决一个同步冲突",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "index": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+                  "keepLocal": { "type": "boolean" }
+                },
+                "required": ["index", "keepLocal"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "revision"],
+                  "properties": { "data": {}, "revision": { "type": "string" } }
+                }
+              }
+            },
+            "headers": {
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
+            }
+          },
+          "400": { "description": "参数或 JSON 无效" },
+          "401": { "description": "缺少或错误的 Bearer 令牌" },
+          "403": { "description": "拒绝跨站或非本机请求" },
+          "404": { "description": "未找到对象" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
+        },
+        "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
+      }
+    },
+    "/sync/ensure-tasks": {
+      "post": {
+        "summary": "请求中心扩展重复实例",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "through": {
+                    "type": "string",
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                  }
+                },
+                "required": ["through"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "revision"],
+                  "properties": { "data": {}, "revision": { "type": "string" } }
+                }
+              }
+            },
+            "headers": {
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
+            }
+          },
+          "400": { "description": "参数或 JSON 无效" },
+          "401": { "description": "缺少或错误的 Bearer 令牌" },
+          "403": { "description": "拒绝跨站或非本机请求" },
+          "404": { "description": "未找到对象" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
+        },
+        "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
+      }
+    },
+    "/server/status": {
+      "get": {
+        "summary": "读取无头服务器进程、profile、同步与采集状态",
+        "responses": {
+          "200": {
+            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "revision"],
+                  "properties": { "data": {}, "revision": { "type": "string" } }
+                }
+              }
+            },
+            "headers": {
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
+            }
+          },
+          "400": { "description": "参数或 JSON 无效" },
+          "401": { "description": "缺少或错误的 Bearer 令牌" },
+          "403": { "description": "拒绝跨站或非本机请求" },
+          "404": { "description": "未找到对象" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
+        }
+      }
+    },
+    "/server/shutdown": {
+      "post": {
+        "summary": "停止无头服务器，响应发出后关闭原 Runtime",
+        "responses": {
+          "200": {
+            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "revision"],
+                  "properties": { "data": {}, "revision": { "type": "string" } }
+                }
+              }
+            },
+            "headers": {
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
+            }
+          },
+          "400": { "description": "参数或 JSON 无效" },
+          "401": { "description": "缺少或错误的 Bearer 令牌" },
+          "403": { "description": "拒绝跨站或非本机请求" },
+          "404": { "description": "未找到对象" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
+        },
+        "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
+      }
+    },
+    "/sync/peers/{id}": {
+      "delete": {
+        "summary": "撤销已配对设备",
+        "responses": {
+          "200": {
+            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "revision"],
+                  "properties": { "data": {}, "revision": { "type": "string" } }
+                }
+              }
+            },
+            "headers": {
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
+            }
+          },
+          "400": { "description": "参数或 JSON 无效" },
+          "401": { "description": "缺少或错误的 Bearer 令牌" },
+          "403": { "description": "拒绝跨站或非本机请求" },
+          "404": { "description": "未找到对象" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
+        },
+        "parameters": [
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } },
+          { "$ref": "#/components/parameters/IfMatch" }
+        ]
+      }
+    },
+    "/usage/status": {
+      "get": {
+        "summary": "读取自动记录设置、设备、采集与同步状态",
+        "responses": {
+          "200": {
+            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "revision"],
+                  "properties": { "data": {}, "revision": { "type": "string" } }
+                }
+              }
+            },
+            "headers": {
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
+            }
+          },
+          "400": { "description": "参数或 JSON 无效" },
+          "401": { "description": "缺少或错误的 Bearer 令牌" },
+          "403": { "description": "拒绝跨站或非本机请求" },
+          "404": { "description": "未找到对象" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
+        }
+      }
+    },
+    "/usage/query": {
+      "post": {
+        "summary": "分页查询原始自动记录，时间使用 epoch 毫秒，next 作为后续 before",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "start": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+                  "end": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+                  "deviceId": { "type": "string", "maxLength": 200 },
+                  "search": { "type": "string", "maxLength": 512 },
+                  "before": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true,
+                    "maximum": 9007199254740991
+                  },
+                  "limit": { "type": "integer", "minimum": 1, "maximum": 5000 }
+                },
+                "required": ["start", "end"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "revision"],
+                  "properties": { "data": {}, "revision": { "type": "string" } }
+                }
+              }
+            },
+            "headers": {
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
+            }
+          },
+          "400": { "description": "参数或 JSON 无效" },
+          "401": { "description": "缺少或错误的 Bearer 令牌" },
+          "403": { "description": "拒绝跨站或非本机请求" },
+          "404": { "description": "未找到对象" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
+        },
+        "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
+      }
+    },
+    "/usage/settings": {
+      "get": {
+        "summary": "读取自动记录设置",
+        "responses": {
+          "200": {
+            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "revision"],
+                  "properties": { "data": {}, "revision": { "type": "string" } }
+                }
+              }
+            },
+            "headers": {
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
+            }
+          },
+          "400": { "description": "参数或 JSON 无效" },
+          "401": { "description": "缺少或错误的 Bearer 令牌" },
+          "403": { "description": "拒绝跨站或非本机请求" },
+          "404": { "description": "未找到对象" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
+        }
+      },
+      "patch": {
+        "summary": "增量修改自动记录设置",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "enabled": { "type": "boolean" },
+                  "sampleSeconds": { "type": "integer", "minimum": 2, "maximum": 300 },
+                  "idleMinutes": { "type": "integer", "minimum": 1, "maximum": 120 },
+                  "browser": { "type": "boolean" },
+                  "excludedApps": {
+                    "maxItems": 200,
+                    "type": "array",
+                    "items": { "type": "string", "minLength": 1, "maxLength": 512 }
+                  },
+                  "excludedDomains": {
+                    "maxItems": 200,
+                    "type": "array",
+                    "items": { "type": "string", "minLength": 1, "maxLength": 512 }
+                  },
+                  "excludedKeywords": {
+                    "maxItems": 200,
+                    "type": "array",
+                    "items": { "type": "string", "minLength": 1, "maxLength": 512 }
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "revision"],
+                  "properties": { "data": {}, "revision": { "type": "string" } }
+                }
+              }
+            },
+            "headers": {
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
+            }
+          },
+          "400": { "description": "参数或 JSON 无效" },
+          "401": { "description": "缺少或错误的 Bearer 令牌" },
+          "403": { "description": "拒绝跨站或非本机请求" },
+          "404": { "description": "未找到对象" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
+        },
+        "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
+      }
+    },
+    "/usage/applications": {
+      "get": {
+        "summary": "读取已观察到的应用目录",
+        "responses": {
+          "200": {
+            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "revision"],
+                  "properties": { "data": {}, "revision": { "type": "string" } }
+                }
+              }
+            },
+            "headers": {
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
+            }
+          },
+          "400": { "description": "参数或 JSON 无效" },
+          "401": { "description": "缺少或错误的 Bearer 令牌" },
+          "403": { "description": "拒绝跨站或非本机请求" },
+          "404": { "description": "未找到对象" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
+        }
+      }
+    },
+    "/usage/import": {
+      "post": {
+        "summary": "通过原自动记录存储导入记录",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "maxItems": 100000,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": { "type": "string", "minLength": 1, "maxLength": 600 },
+                    "deviceId": { "type": "string", "minLength": 1, "maxLength": 200 },
+                    "deviceName": { "type": "string", "minLength": 1, "maxLength": 200 },
+                    "platform": { "type": "string", "maxLength": 40 },
+                    "source": {
+                      "type": "string",
+                      "enum": ["activitywatch", "work-review", "dayweave"]
+                    },
+                    "kind": { "type": "string", "enum": ["app", "web", "unlock", "media"] },
+                    "start": { "type": "integer", "minimum": 0, "maximum": 32503680000000 },
+                    "end": { "type": "integer", "minimum": 0, "maximum": 32503680000000 },
+                    "app": { "type": "string", "maxLength": 512 },
+                    "title": { "default": "", "type": "string", "maxLength": 16384 },
+                    "url": { "default": "", "type": "string", "maxLength": 16384 },
+                    "category": { "default": "", "type": "string", "maxLength": 128 },
+                    "revision": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+                    "deleted": { "default": false, "type": "boolean" }
+                  },
+                  "required": [
+                    "id",
+                    "deviceId",
+                    "deviceName",
+                    "platform",
+                    "source",
+                    "kind",
+                    "start",
+                    "end",
+                    "app",
+                    "title",
+                    "url",
+                    "category",
+                    "revision",
+                    "deleted"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "revision"],
+                  "properties": { "data": {}, "revision": { "type": "string" } }
+                }
+              }
+            },
+            "headers": {
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
+            }
+          },
+          "400": { "description": "参数或 JSON 无效" },
+          "401": { "description": "缺少或错误的 Bearer 令牌" },
+          "403": { "description": "拒绝跨站或非本机请求" },
+          "404": { "description": "未找到对象" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
+        },
+        "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
+      }
+    },
+    "/usage/sync": {
+      "post": {
+        "summary": "立即同步自动记录",
+        "responses": {
+          "200": {
+            "description": "成功。JSON 包含 data 与 revision；ETag 可用于后续 If-Match。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "revision"],
+                  "properties": { "data": {}, "revision": { "type": "string" } }
+                }
+              }
+            },
+            "headers": {
+              "ETag": { "schema": { "type": "string" }, "description": "当前会话中的状态版本" }
+            }
+          },
+          "400": { "description": "参数或 JSON 无效" },
+          "401": { "description": "缺少或错误的 Bearer 令牌" },
+          "403": { "description": "拒绝跨站或非本机请求" },
+          "404": { "description": "未找到对象" },
+          "409": {
+            "description": "版本或操作冲突。error.reason=TIME_OVERLAP 表示新增时间占用重叠，请调整区间。"
+          }
+        },
+        "parameters": [{ "$ref": "#/components/parameters/IfMatch" }]
       }
     },
     "/health": {
@@ -4678,7 +5742,7 @@
                   "timelog": {},
                   "schedule": {
                     "default": {
-                      "semesterStart": "2026-11-09",
+                      "semesterStart": "2026-11-16",
                       "totalWeeks": 20,
                       "timeZone": "Asia/Shanghai",
                       "displayDays": "auto",

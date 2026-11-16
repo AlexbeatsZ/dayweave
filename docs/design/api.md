@@ -1,5 +1,25 @@
 # AI REST API 与并发
 
+## 2026-11-16 全功能原生接口与活动写入
+
+Server 0.2.9、OpenAPI 2.4.0 增加 `/usage/query` POST、`/usage/status` GET、`/usage/settings` GET/PATCH、`/usage/applications` GET、`/usage/import` POST 与 `/usage/sync` POST。桌面和独立服务器通过原 Runtime 注入同一 DesktopUsage，继续由原 UsageStore 持有 SQLite。健康接口以 `capabilities.usageApi` 标明可用性。通用 api.mjs 支持这些端点。
+
+新增同步入口覆盖 discover、pair、disconnect、setEndpoint、resolve、ensureTasks，分别为 GET /sync/discover、POST /sync/pair、POST /sync/disconnect、PATCH /sync/endpoint、POST /sync/resolve、POST /sync/ensure-tasks，原 SyncBridge 执行配对、身份、配置和冲突持久化。POST /calendar-accounts 接受原 calendarAccountCommand，GET 返回账号状态，原 configure/authorize/apple/select/refresh/disconnect 能力均可无头调用。OAuth 登录和 OS 权限由原提供者完成。
+
+行为规则 POST /timelog/goals/{id}/count?date=YYYY-MM-DD 传 counter=trigger/action、step=1/-1、expectedUpdatedAt（初始 null），复用原 countBehavior 和当前业务日规则。状态从目标 GET 的 review 读取，过期计数返回 409。复用客户端计数和撤销语义，整包导入仍保留已存在回顾。
+
+脚本库支持 GET/POST /timelog/scripts、GET/PATCH/DELETE /timelog/scripts/{id}。修改和删除要求 expectedUpdatedAt，使用共享 saveGoalScript/removeGoalScript，与界面保存、同名、引用和并发校验一致。POST /timelog/scripts/inspect 读取代码元数据，POST /timelog/scripts/test 以 code/date/period/params 调用原 QuickJS 与 scriptHost，只读取真实业务及原自动观察。服务端目标判定仍由原中心拥有。
+
+服务器 /server/status、/server/shutdown 与 /sync/peers/{id} 已进入共享 OpenAPI。通用 CLI 通过任意路径和 JSON 文件调用全部上述入口。AI Decision 0.1.51 的 request_dayweave 将当前全部 API 暴露给 Gemini MCP 和原生主脑，无业务端点名单。
+
+query 请求直接使用原 UsageQuery 的 start/end、deviceId、search、before、limit，时间为 UTC epoch 毫秒。响应含 events、complete 和可选 next，下一页将 next 作为 before；同一起始时刻的观察保持在同一页。settings PATCH 合并原设置后调用 configure，import 接受 UsageEvent 数组并由原存储校验、按身份及 revision 去重，sync 复用原自动记录交换。
+
+AI Decision 0.1.51 从 API 获取电脑和手机观察，保留原设备/平台过滤、域名脱敏、区间并集与工具分页。原生 API 缺失或失败时返回 unavailable。时间记录创建、纠错、撤销调用已有 `/timelog/records` POST/PATCH/DELETE，使用原 ETag、expectedUpdatedAt 和动作账本。确认以实际服务器返回的时间戳读回，允许记录 updatedAt 由领域层生成。
+
+活动类别以用户当前保留的目录为准。`GET /timelog/activities` 共用 `activeActivity`，同时检查 archived 和 deletedAt。历史数据仍可引用已删除活动，AI 新写入以当前可用目录选择目标。此前 AI 适配器只检查 archived，将已软删除“吃饭”活动继续暴露给模型，整包导入又接受其历史引用，造成范围外补录。适配已改为原生目录查询及记录接口，删除状态参与执行校验。
+
+下节表格记录 2026-11-15 的核对结果，本次原生接口和 AI 读写路径进展以上文为准。
+
 ## 全功能无头接口要求与当前覆盖
 
 2026-11-15 用户再次明确，Dayweave 全部功能均须开放可供 AI 调用的接口，范围包含服务器端，全部对应操作应支持无头执行。新增和修改功能需要同时落实领域实现、接口契约、OpenAPI、CLI 调用和无头验收。项目 AGENTS.md、设计文档和项目日志均随改动提交并推送到 GitHub。

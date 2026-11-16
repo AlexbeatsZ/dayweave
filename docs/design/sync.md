@@ -1,3 +1,7 @@
+## 2026-11-16 原生管理接口
+
+本机认证 REST 覆盖 SyncBridge 的 status/discover/pair/now/disconnect/ensureTasks/setEndpoint/enableHub/invite/revoke/resolve 以及 calendarAccounts，统一进入 OpenAPI。各端点调用原对象方法和配置写入，完整路径与参数见 api.md。
+
 # ROG 同步中心与计时记录
 
 ## 自动记录通道

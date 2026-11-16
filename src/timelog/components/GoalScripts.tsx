@@ -7,7 +7,6 @@ import { businessDateKey } from '../../timezone';
 import {
   MAX_SCRIPT_LENGTH,
   newId,
-  timestamp,
   type Goal,
   type GoalScript,
   type ScriptParam,
@@ -15,6 +14,7 @@ import {
 } from '../domain';
 import type { ScriptRun } from '../script-engine';
 import { inspectScript, testScript } from '../script-runner';
+import { saveGoalScript, removeGoalScript } from '../script-library';
 import { scriptTemplates } from '../script-templates';
 import { normalizeParam, type ScriptMeta } from '../script-util';
 import { Dialog } from './Dialog';
@@ -243,22 +243,16 @@ function ScriptEditor({
     const saved = await commit((current) => {
       const scripts = current.scripts ?? [];
       const existing = scripts.find((row) => row.id === id);
-      if (script && existing?.updatedAt !== script.updatedAt)
-        throw new Error('脚本已在其他设备更新，请重新打开。');
-      if (!name.trim()) throw new Error('请填写脚本名称。');
-      if (scripts.some((row) => row.id !== id && row.name === name.trim()))
-        throw new Error('已有同名脚本。');
-      const next: GoalScript = {
-        id,
-        name: name.trim(),
-        code,
-        ...(existing?.order === undefined ? {} : { order: existing.order }),
-        updatedAt: timestamp(existing?.updatedAt),
-      };
-      return {
-        ...current,
-        scripts: existing ? scripts.map((row) => (row.id === id ? next : row)) : [...scripts, next],
-      };
+      return saveGoalScript(
+        current,
+        {
+          id,
+          name: name.trim(),
+          code,
+          ...(existing?.order === undefined ? {} : { order: existing.order }),
+        },
+        script?.updatedAt,
+      );
     }, '脚本已保存');
     if (saved) {
       onSaved(id);
@@ -273,10 +267,7 @@ function ScriptEditor({
     }
     if (!window.confirm(`删除脚本「${script.name}」？`)) return;
     const removed = await commit(
-      (current) => ({
-        ...current,
-        scripts: (current.scripts ?? []).filter((row) => row.id !== script.id),
-      }),
+      (current) => removeGoalScript(current, script.id, script.updatedAt),
       '脚本已删除',
     );
     if (removed) close();

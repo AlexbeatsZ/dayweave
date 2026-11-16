@@ -140,6 +140,7 @@ export class Runtime {
       usage = this.usage;
     await run('api', async () => {
       this.api = await startApi(this.service, this.options.apiPort, () => this.sync, {
+        usage,
         ...(server && usage
           ? {
               health: {

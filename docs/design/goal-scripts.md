@@ -1,3 +1,7 @@
+## 2026-11-16 无头脚本库与试运行
+
+GET/POST /timelog/scripts、GET/PATCH/DELETE /timelog/scripts/{id} 复用客户端 script-library 保存和删除。POST /timelog/scripts/inspect、/timelog/scripts/test 复用 QuickJS 的元数据与试运行核心，数据来自同一 StateService 与 DesktopUsage，结果仅供调试，原中心 ScriptJudge 继续拥有目标判定。完整参数见 api.md。
+
 # 目标脚本
 
 用户 2026-11-04 要求：目标增加“自动化脚本”判定方式，脚本存放在可导入、会同步的脚本库中，可以利用时织采集的各种数据做复杂判断（例如“决定休息前不能有娱乐”“学习时使用无关软件的时长和次数不超过阈值”）。语言与规范由实现决定。随后要求结果由同步中心统一计算并分发：其他设备只改脚本和参数，避免不同设备算出不同结果。对外规范见 `docs/goal-scripts.md`。

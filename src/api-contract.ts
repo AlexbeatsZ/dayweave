@@ -3,6 +3,8 @@ import { extraPaths } from './extra-contract.js';
 import { taskSchema, listSchema, planGroupSchema, stateFields, subtaskSchema } from './model.js';
 import { eventInputSchema, eventChangesSchema, recurrenceInputSchema } from './event-contract.js';
 import { calendarEventSchema, calendarSubscriptionSchema } from './event-model.js';
+import { usageEventSchema, usageQuerySchema, usageSettingsSchema } from './usage/domain.js';
+import { calendarAccountCommand } from './calendar-accounts.js';
 
 /** An API failure with its HTTP status; every route reports errors through it. */
 export class ApiError extends Error {
@@ -130,7 +132,7 @@ export const openapi = {
   openapi: '3.0.3',
   info: {
     title: 'Dayweave AI API',
-    version: '2.3.0',
+    version: '2.4.0',
     description:
       '时织 Windows/macOS 本机接口。应用运行时可用；实际地址与令牌见设置或用户数据目录 api.json。默认不对局域网开放。所有写入先持久化再通知界面；DELETE 任务为软删除。',
   },
@@ -162,6 +164,58 @@ export const openapi = {
   },
   paths: {
     ...extraPaths,
+    '/calendar-accounts': {
+      get: operation('读取原日历账号与应用配置状态'),
+      post: operation('配置应用、发起授权、连接、选择、刷新或断开日历账号', calendarAccountCommand),
+    },
+    '/sync/discover': { get: operation('发现局域网中心') },
+    '/sync/pair': {
+      post: operation(
+        '通过原配对流程连接中心',
+        z.object({ invitation: z.string().min(1), endpoint: z.string().optional() }).strict(),
+      ),
+    },
+    '/sync/disconnect': { post: operation('通过原流程断开同步') },
+    '/sync/endpoint': {
+      patch: operation('设置中心入口', z.object({ endpoint: z.string().min(1) }).strict()),
+    },
+    '/sync/resolve': {
+      post: operation(
+        '解决一个同步冲突',
+        z.object({ index: z.number().int().nonnegative(), keepLocal: z.boolean() }).strict(),
+      ),
+    },
+    '/sync/ensure-tasks': {
+      post: operation('请求中心扩展重复实例', z.object({ through: z.string().date() }).strict()),
+    },
+    '/server/status': { get: operation('读取无头服务器进程、profile、同步与采集状态') },
+    '/server/shutdown': { post: operation('停止无头服务器，响应发出后关闭原 Runtime') },
+    '/sync/status': { get: operation('读取同步角色、连接和待处理状态') },
+    '/sync/invite': { post: operation('创建同步配对邀请') },
+    '/sync/hub': { post: operation('启用原同步中心') },
+    '/sync/now': { post: operation('立即执行原同步流程') },
+    '/sync/peers/{id}': {
+      delete: {
+        ...operation('撤销已配对设备'),
+        parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'string' } }],
+      },
+    },
+    '/usage/status': { get: operation('读取自动记录设置、设备、采集与同步状态') },
+    '/usage/query': {
+      post: operation(
+        '分页查询原始自动记录，时间使用 epoch 毫秒，next 作为后续 before',
+        usageQuerySchema,
+      ),
+    },
+    '/usage/settings': {
+      get: operation('读取自动记录设置'),
+      patch: operation('增量修改自动记录设置', usageSettingsSchema.partial().strict()),
+    },
+    '/usage/applications': { get: operation('读取已观察到的应用目录') },
+    '/usage/import': {
+      post: operation('通过原自动记录存储导入记录', usageEventSchema.array().max(100000)),
+    },
+    '/usage/sync': { post: operation('立即同步自动记录') },
     '/health': {
       get: operation(
         '检查应用状态与版本；capabilities.taskRecordLinks 支持任务/计时关联，timeOverlapProtection 表示写入时禁止新增时间占用重叠',

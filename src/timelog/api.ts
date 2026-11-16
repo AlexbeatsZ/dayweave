@@ -1,10 +1,12 @@
 import { buildTimeline, fillAdjacentGap, lastRecordEnd } from './timeline.js';
 import { TimeOverlap } from './occupancy.js';
 import { ApiError, fail } from '../api-contract.js';
+import { saveGoalScript, removeGoalScript } from './script-library.js';
 import {
   activeActivity,
   adjustTimerStart,
   behaviorReview,
+  countBehavior,
   deleteActivity,
   dayKey,
   dayRange,
@@ -115,7 +117,12 @@ export async function handleApi(
     if (
       segments.length > 4 ||
       segments.length < 2 ||
-      (action && !(segments[1] === 'records' && action === 'fill' && request.method === 'POST'))
+      (action &&
+        !(
+          request.method === 'POST' &&
+          ((segments[1] === 'records' && action === 'fill') ||
+            (segments[1] === 'goals' && action === 'count'))
+        ))
     )
       fail(404, 'Route not found');
     if (segments[0] !== 'v1') return fail(404, 'Unknown API version');
@@ -145,6 +152,14 @@ export async function handleApi(
           },
         };
       if (resource === 'settings' && !itemId) return { status: 200, body: state.settings };
+      if (resource === 'scripts') {
+        const item = itemId && state.scripts?.find((row) => row.id === itemId);
+        if (itemId && !item) fail(404, 'Script not found');
+        return {
+          status: 200,
+          body: item || { items: state.scripts ?? [], total: state.scripts?.length ?? 0 },
+        };
+      }
       if (resource === 'stats' && !itemId) {
         const period = range(url);
         return {
@@ -241,6 +256,37 @@ export async function handleApi(
     let result: unknown;
     await mutateState((state, tasks) => {
       const now = Date.now();
+      if (resource === 'scripts') {
+        const previous = itemId ? state.scripts?.find((row) => row.id === itemId) : undefined;
+        if (itemId && !previous) fail(404, 'Script not found');
+        if (previous) expected(body, previous);
+        if (method === 'DELETE' && previous) {
+          const next = removeGoalScript(state, itemId!, previous.updatedAt);
+          result = { deleted: itemId };
+          return next;
+        }
+        if ((!itemId && method !== 'POST') || (itemId && method !== 'PATCH'))
+          fail(405, 'Method not allowed');
+        const id = itemId ?? text(body.id, newId());
+        if (!itemId && state.scripts?.some((row) => row.id === id))
+          fail(409, 'Script already exists');
+        const next = saveGoalScript(
+          state,
+          {
+            id,
+            name: text(body.name, previous?.name),
+            code: text(body.code, previous?.code),
+            ...(body.order !== undefined
+              ? { order: number(body.order) }
+              : previous?.order !== undefined
+                ? { order: previous.order }
+                : {}),
+          },
+          previous?.updatedAt,
+        );
+        result = next.scripts.find((row) => row.id === id);
+        return next;
+      }
       if (resource === 'settings' && !itemId && method === 'PATCH') {
         expected(body, state.settings);
         if (!Array.isArray(body.timerPresets) || body.timerPresets.length > 30)
@@ -434,6 +480,26 @@ export async function handleApi(
         const list = state.goals;
         const previous = itemId ? list.find((row) => row.id === itemId) : undefined;
         if (itemId && !previous) fail(404, 'Entity not found');
+        if (action === 'count' && method === 'POST') {
+          const { date } = range(url);
+          const prior = behaviorReview(state, itemId!, date);
+          if (body.expectedUpdatedAt !== (prior?.updatedAt ?? null))
+            fail(409, 'Behavior count changed. Read the current review before editing.');
+          const counter = body.counter;
+          const step = body.step ?? 1;
+          if (!['trigger', 'action'].includes(String(counter)) || (step !== 1 && step !== -1))
+            fail(400, 'counter must be trigger/action and step must be 1/-1');
+          const next = countBehavior(
+            state,
+            itemId!,
+            date,
+            counter as 'trigger' | 'action',
+            now,
+            step,
+          );
+          result = behaviorReview(next, itemId!, date);
+          return next;
+        }
         if (previous) expected(body, previous);
         if ((!itemId && method !== 'POST') || (itemId && !['PATCH', 'DELETE'].includes(method)))
           fail(405, 'Method not allowed');

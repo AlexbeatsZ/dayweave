@@ -6,6 +6,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Current State
 
+- 2026-11-16 Server 0.2.9、OpenAPI 2.4.0 源码补齐自动记录、行为计数/撤销、脚本库/检查/试运行、日历账号、设备配对/入口/冲突管理及服务器管理接口。复用原 DesktopUsage/UsageStore、countBehavior、QuickJS、SyncBridge 和 CalendarAccounts，桌面与无头 Runtime 共用。251 项 Node、7 项独立服务器和真实 AI Python → 无头 Server 的查询/记录增改撤销联调通过。AI Decision 0.1.51 将时间写入迁至原生记录接口，并以当前可用活动目录限制目标，修复已删除“吃饭”活动继续被使用的问题。生产部署结果见后续日志。
+
 - 2026-11-15 核对 OMEN、Mac、ROG 项目文档。Mac 最新部署日志已在 GitHub，OMEN 已快进合入；ROG 项目文档无本地改动，其提交是当前历史祖先。ROG 认证实测 Server 0.2.8/appVersion 0.5.11、mode=server、OpenAPI 2.3.0，未运行 Dayweave GUI。全功能无头接口尚有缺口，当前覆盖和 AI Decision 依赖见 docs/design/api.md。
 
 - 2026-11-14 客户端 0.5.11/code34 与 Server 0.2.8 已覆盖部署 Mac、OMEN、ROG 桌面/原中心、Redmi K70，原共享 HTTPS 网关的日历账号与 OAuth 回调路由已更新。Mac/OMEN 恢复托盘运行，ROG 桌面保持关闭；平板继续按用户此前决定跳过。Google/Microsoft 首次应用注册引导与浏览器授权、iCloud 应用专用密码连接，以及行为双计数/长按撤销已交付。入口为安排 → 日程 → 日程操作 → 连接日历账号。真实应用注册、账号授权和长期刷新仍待首次设置。用户明确要求停止继续测试并尽快部署，因此取消后续 Check CI，直接完成 Windows 构建与覆盖安装，仅核对安装版本和中心启动。数据/配对沿用原 profile，Android 沿用原签名；恢复数据在各机临时 `.agents/dayweave-upgrade-0.5.11`，ROG 中心完整恢复 profile 在 `.agents/dayweave-deploy-0.5.11/recovery/profile`。正式客户端/服务端 Release 为 v0.5.11 / server-v0.2.8。
@@ -97,7 +99,7 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Active Work
 
-- 补齐全功能无头接口。当前行为规则计数仍由客户端写入，自动记录查询/配置、部分同步管理、脚本库管理/试运行，以及日历账号命令的本机 REST/CLI 入口尚未统一；服务器管理端点也未完整进入 OpenAPI。AI Decision 自动记录查询仍直接只读 Dayweave usage.db。具体已有能力、缺口和验收要求见 docs/design/api.md 的全功能无头接口章节。
+- 本轮接口源码已补齐原业务动作，Server 0.2.9 正式构建、ROG 原 profile 定向升级和 Gemini MCP 联调待执行。日历外部账号真实授权与 OS 原生权限授予继续取决于其提供者及用户登录，状态和授权请求由接口提供。
 
 - 日历真实账号的应用注册、首次授权与长期刷新待首次配置后验证。功能与生产部署已完成，Google/Microsoft 在连接页配置应用 ID/密钥，iCloud 使用应用专用密码。
 
