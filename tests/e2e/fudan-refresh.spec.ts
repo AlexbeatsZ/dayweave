@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { scheduleSettings } from './settings-helper';
 import { emptyState, stateSchema, type AppState } from '../../src/model';
 import { parseFudanCourses } from '../../src/fudan-import';
 import { fudanSource, type FudanSource } from '../../src/fudan-refresh';
@@ -360,9 +361,7 @@ async function respond(page: Page, index: number, content = capture(), error?: s
   await flushUi(page);
 }
 async function more(page: Page) {
-  await page.getByRole('button', { name: '日程操作', exact: true }).click();
-  const menu = page.getByRole('dialog', { name: '日程操作', exact: true });
-  await menu.getByText('更多', { exact: true }).click();
+  const menu = await scheduleSettings(page);
   return menu;
 }
 
@@ -375,13 +374,9 @@ for (const outcome of ['cancel', 'invalid'] as const) {
       window.__fudanTest.cancelMode = 'late';
       window.__fudanTest.importContent = outcome === 'cancel' ? null : 'invalid';
     }, outcome);
-    await page.getByRole('button', { name: '日程操作', exact: true }).click();
-    await page
-      .getByRole('dialog', { name: '日程操作', exact: true })
-      .getByRole('button', { name: /网站导入/ })
-      .click();
+    await (await scheduleSettings(page)).getByRole('button', { name: /网站导入/ }).click();
     await expect.poll(() => page.evaluate(() => window.__fudanTest.imports)).toBe(1);
-    await expect(page.getByRole('button', { name: '日程操作', exact: true })).toBeEnabled();
+    await expect(page.getByRole('button', { name: /网站导入/ })).toBeEnabled();
     await expect(page.getByRole('dialog', { name: '预览导入课程', exact: true })).toHaveCount(0);
     expect(await saved(page)).toEqual(initial);
     expect(await primaryWrites(page)).toBe(0);
@@ -476,7 +471,7 @@ test('disabling subscription cancels native refresh and discards a late successf
   await respond(page, 0, changed);
   expect(await saved(page)).toEqual(initial);
   expect(await primaryWrites(page)).toBe(0);
-  await page.getByRole('button', { name: '关闭日程操作', exact: true }).click();
+  await page.getByRole('button', { name: '关闭设置', exact: true }).click();
   await page.clock.setFixedTime(new Date(now + 16 * 60000));
   await page.evaluate(() => window.__fudanTest.appState(true));
   await flushUi(page);
@@ -529,11 +524,7 @@ test('explicit same-semester website re-import replaces rescheduled and withdraw
   const before = await saved(page);
   const expectedSchool = parseFudanCourses(changed, initial.schedule, now).schedule.courses;
   for (let repeat = 0; repeat < 2; repeat++) {
-    await page.getByRole('button', { name: '日程操作', exact: true }).click();
-    await page
-      .getByRole('dialog', { name: '日程操作', exact: true })
-      .getByRole('button', { name: /网站导入/ })
-      .click();
+    await (await scheduleSettings(page)).getByRole('button', { name: /网站导入/ }).click();
     const preview = page.getByRole('dialog', { name: '预览导入课程', exact: true });
     await expect(preview).toContainText('合成新教室');
     await expect(preview).toContainText('合成·新增实验');
@@ -631,7 +622,7 @@ test('failed native write keeps A union B ownership across an optimistic no-op u
   expect((await journal(page))?.courseIds.slice().sort()).toEqual(b);
   expect(await saved(page)).toEqual(pendingB);
   expect(await primaryAttempts(page)).toBe(2);
-  await page.getByRole('button', { name: '关闭日程操作', exact: true }).click();
+  await page.getByRole('button', { name: '关闭设置', exact: true }).click();
   await expect(page.locator('.error-banner')).toHaveCount(0);
   await expect(course(page, '合成·物理化学')).toContainText('合成新教室');
 });
@@ -652,11 +643,7 @@ test('explicit B confirmation ignores old refresh C while native persistence is 
     window.__fudanTest.writeMode = 'defer';
     window.__fudanTest.importContent = content;
   }, changed);
-  await page.getByRole('button', { name: '日程操作', exact: true }).click();
-  await page
-    .getByRole('dialog', { name: '日程操作', exact: true })
-    .getByRole('button', { name: /网站导入/ })
-    .click();
+  await (await scheduleSettings(page)).getByRole('button', { name: /网站导入/ }).click();
   const preview = page.getByRole('dialog', { name: '预览导入课程', exact: true });
   await expect(preview).toContainText('合成新教室');
   await expect

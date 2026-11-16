@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { scheduleSettings } from './settings-helper';
 import { emptyState, newTask } from '../../src/model';
 import { setTimeZone, zoneDateKey, shiftDay, weekday, wallTime } from '../../src/timezone';
 import { mkdir } from 'node:fs/promises';
@@ -67,8 +68,7 @@ async function seed(page: Page, withEvent = false, futureWeekend = false) {
 }
 
 async function courseMenu(page: Page) {
-  await page.getByRole('button', { name: '日程操作', exact: true }).click();
-  return page.getByRole('dialog', { name: '日程操作', exact: true });
+  return scheduleSettings(page);
 }
 
 test('canceling a course preview leaves saved courses unchanged and permits another import', async ({
@@ -90,7 +90,7 @@ test('canceling a course preview leaves saved courses unchanged and permits anot
     else await preview.getByRole('button', { name: '取消', exact: true }).click();
     await expect(preview).toHaveCount(0);
     expect(await page.evaluate(() => localStorage.getItem('dayweave.v1'))).toBe(before);
-    await expect(page.getByRole('button', { name: '日程操作', exact: true })).toBeEnabled();
+    await expect(page.getByRole('button', { name: /网站导入/ })).toBeEnabled();
   }
 });
 
@@ -103,6 +103,7 @@ test('a late file selection after leaving the timetable cannot reopen a preview 
   const pendingChooser = page.waitForEvent('filechooser');
   await menu.getByRole('button', { name: /文件导入/ }).click();
   const chooser = await pendingChooser;
+  await page.getByRole('button', { name: '关闭设置', exact: true }).click();
   await page.getByRole('button', { name: '手机待办', exact: true }).click();
   await chooser.setFiles({
     name: 'courses.csv',
@@ -112,7 +113,6 @@ test('a late file selection after leaving the timetable cannot reopen a preview 
   await page.getByRole('button', { name: '手机安排', exact: true }).click();
   await expect(page.getByRole('region', { name: '日程安排' })).toBeVisible();
   await expect(page.getByRole('dialog', { name: '预览导入课程', exact: true })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: '日程操作', exact: true })).toBeEnabled();
   expect(await page.evaluate(() => localStorage.getItem('dayweave.v1'))).toBe(before);
 });
 
@@ -471,14 +471,11 @@ test('task and event month/week modes stay independent and calendar publishing c
   await expect(page.locator('.calendar-grid')).toBeVisible();
   await page.screenshot({ path: '.local/preview/arrangements/events-month-390.png' });
   await expect(page.locator('.week-task')).toHaveCount(0);
-  const actions = await courseMenu(page);
+  await expect(page.getByRole('button', { name: '日程操作' })).toHaveCount(0);
+  const settings = await courseMenu(page);
   for (const retired of ['连接日历账号', '日历导入与订阅'])
-    await expect(actions.getByRole('button', { name: retired })).toHaveCount(0);
-  await expect(actions.getByRole('button', { name: /导出到/ })).toHaveCount(0);
-  await page.getByRole('button', { name: '关闭日程操作', exact: true }).click();
-  await page.getByRole('button', { name: '打开导航', exact: true }).click();
-  await page.getByRole('button', { name: '设置与同步', exact: true }).click();
-  const settings = page.getByRole('dialog', { name: '设置', exact: true });
+    await expect(settings.getByRole('button', { name: retired })).toHaveCount(0);
+  await expect(settings.getByRole('button', { name: /导出到/ })).toHaveCount(0);
   await settings.getByRole('button', { name: '新建订阅', exact: true }).click();
   const feeds = settings.locator('.calendar-feed');
   await expect(feeds).toHaveCount(1);

@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
-import { ChevronLeft, ChevronRight, MoreHorizontal, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { Calendar } from './Calendar';
 import { EventComposer } from './EventComposer';
 import { Modal } from './Modal';
 import { TaskCheck } from './TaskCheck';
-import { SemesterEditor, PeriodEditor } from './Timetable';
 import { CourseImportDialog, useCourseImport } from './CourseImport';
+import { PeriodEditor } from './Timetable';
 import { store, useStore } from '../store';
 import { taskCompleted, reorderTasks, toggleTask, type Task } from '../model';
 import { eventsOnDate, eventDayCount, eventBounds } from '../event-domain';
@@ -22,10 +22,8 @@ import {
   weekday,
   minuteOf,
 } from '../timezone';
-import { exportText, isMobileApp, requestWidget } from '../files';
-import { csvTemplate } from '../course-import';
-import { useFudanSource, refreshFudan, stopFudanRefresh } from '../useFudanRefresh';
-import { arrangementMigrationReport } from '../event-migration';
+import { isMobileApp } from '../files';
+import { useFudanSource } from '../useFudanRefresh';
 import { useSortDrag } from '../phone/useSortDrag';
 import { FloatingAdd, PhoneTabs } from '../phone/Navigation';
 import { usePhone } from '../phone/usePhone';
@@ -272,12 +270,10 @@ export function Arrangements({
   const [eventView, setEventView] = useState<'month' | 'week'>('week');
   const view = mode === 'task' ? taskView : eventView;
   const [editor, setEditor] = useState<{ event?: CalendarEvent; date: string }>();
-  const [menu, setMenu] = useState(false),
-    [semester, setSemester] = useState(false),
-    [periods, setPeriods] = useState(false);
+  const [periods, setPeriods] = useState(false);
   const [dayPopup, setDayPopup] = useState<string>();
   const [error, setError] = useState('');
-  const imports = useCourseImport(() => setMenu(false));
+  const imports = useCourseImport(() => undefined);
   const fudan = useFudanSource();
   const zone = mode === 'event' ? data.schedule.timeZone : data.settings.timeZone;
   const monday = shiftDay(date, 1 - weekday(date));
@@ -320,7 +316,6 @@ export function Arrangements({
           Number(b.pinned) - Number(a.pinned) ||
           a.order - b.order,
       );
-  const report = arrangementMigrationReport(data);
   const switchMode = (
     <button
       className="button small arrangement-mode-switch"
@@ -343,11 +338,6 @@ export function Arrangements({
           label="安排视图"
           onChange={(value) => (mode === 'task' ? setTaskView(value) : setEventView(value))}
         />
-        {mode === 'event' && (
-          <button className="icon-button" aria-label="日程操作" onClick={() => setMenu(true)}>
-            <MoreHorizontal size={22} />
-          </button>
-        )}
       </div>
       {(error || imports.error) && (
         <p className="form-error" role="alert">
@@ -521,117 +511,6 @@ export function Arrangements({
           </div>
         </Modal>
       )}
-      {menu && (
-        <Modal title="日程操作" closeLabel="关闭日程操作" close={() => setMenu(false)}>
-          <div className="event-form">
-            <button
-              className="button"
-              disabled={imports.busy}
-              onClick={() => {
-                setMenu(false);
-                void imports.receive(true);
-              }}
-            >
-              网站导入课程（复旦教务）
-            </button>
-            <button
-              className="button"
-              disabled={imports.busy}
-              onClick={() => {
-                setMenu(false);
-                void imports.receive();
-              }}
-            >
-              文件导入课程（CSV / JSON）
-            </button>
-            <details>
-              <summary>更多</summary>
-              <div className="event-form">
-                {fudan.source && (
-                  <section>
-                    <p>复旦课表自动更新 · {fudan.source.semesterId}</p>
-                    {fudan.error && <p role="alert">{fudan.error}</p>}
-                    <button
-                      className="button"
-                      disabled={fudan.busy}
-                      onClick={() => void refreshFudan(true)}
-                    >
-                      立即更新课表
-                    </button>
-                    <button className="button" onClick={stopFudanRefresh}>
-                      关闭自动更新，保留课程
-                    </button>
-                  </section>
-                )}
-                {isMobileApp && (
-                  <button
-                    className="button"
-                    onClick={() => void requestWidget().catch((cause) => setError(String(cause)))}
-                  >
-                    添加桌面小组件
-                  </button>
-                )}
-                <button
-                  className="button"
-                  onClick={() =>
-                    void exportText(
-                      'Dayweave-courses.csv',
-                      '\uFEFF' + csvTemplate,
-                      'text/csv',
-                    ).catch((cause) => setError(String(cause)))
-                  }
-                >
-                  下载 CSV 模板
-                </button>
-                <button
-                  className="button"
-                  onClick={() => {
-                    setMenu(false);
-                    setSemester(true);
-                  }}
-                >
-                  学期与时区
-                </button>
-                <button
-                  className="button"
-                  onClick={() => {
-                    setMenu(false);
-                    setPeriods(true);
-                  }}
-                >
-                  节次设置
-                </button>
-                <button
-                  className="button"
-                  onClick={() =>
-                    void exportText(
-                      'Dayweave-timetable.json',
-                      JSON.stringify(data.schedule, null, 2),
-                      'application/json',
-                    ).catch((cause) => setError(String(cause)))
-                  }
-                >
-                  导出原课表数据
-                </button>
-                <p>已迁移 {report.migratedEvents} 条课程日程，原课表数据保留。</p>
-                {report.needsReview.map((task) => (
-                  <p key={task.id}>
-                    {task.title} · {task.reason}
-                  </p>
-                ))}
-                {report.legacyRepeats
-                  .filter((rule) => rule.warning)
-                  .map((rule) => (
-                    <p key={rule.prefix}>
-                      {rule.cron} · {rule.warning}
-                    </p>
-                  ))}
-              </div>
-            </details>
-          </div>
-        </Modal>
-      )}
-      {semester && <SemesterEditor close={() => setSemester(false)} />}
       {periods && <PeriodEditor close={() => setPeriods(false)} />}
       <CourseImportDialog workflow={imports} />
     </section>

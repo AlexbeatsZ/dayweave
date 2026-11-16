@@ -50,11 +50,15 @@ Task 表单保留单次编辑，同时提供明确确认的系列属性修改。
 
 读取尚无 Event 集合的原文件时，桌面和 Android 保存 `data.before-arrangements.json` 原字节。Web 保存对应 localStorage 检查点。同步配置保存 `sync.before-arrangements.json`。迁移报告由 `/arrangements/migration` 和日程操作菜单提供。备份合并包含 Event、规则、台账和订阅配置，冲突的发生映射拒绝导入。
 
+## 设置中的日程分类
+
+2026-11-16 用户要求“日程操作”菜单（•••）不再放在安排页，并统一界面。设置新增“日程”分类（ScheduleSettings），包含课程导入（复旦网站、CSV/JSON/ICS 文件、CSV 模板与复旦自动更新）、学期与节次（含 Android 小组件）、日历订阅和课表数据导出/迁移报告，全部使用设置页的 section 与 `.data-actions` 按钮行样式。安排页只保留周视图节次标尺的就地节次编辑与复旦更新失败提示。导出时取消保存对话框不再显示为错误。
+
 ## 单向 ICS 日历订阅
 
 2026-11-16 用户要求精简：日历只需 ICS 自动导入到其他日历，配置写在设置中，不要额外控件。账号登录（Google/Microsoft OAuth、iCloud CalDAV）、外部日历导入/订阅、ICS 文件下载及“日程操作”中的三个日历入口全部移除，连同 oauth4webapi/tsdav/windows-iana、中心 `calendar-accounts.json` 命令通道、`/calendar-accounts`、`/calendar-oauth/callback`、`/calendar-subscriptions` 接口。生产账号从未完成授权，外部订阅数为 0。
 
-入口为“设置 → 通用 → 日历订阅”。`settings.calendarFeeds` 最多 20 条，每条有 `id`、名称（写入 X-WR-CALNAME）、启用、64 位十六进制密钥、日程类型筛选 `types`（空为全部，可选课程/考试/演讲/会议/其他）和独立的中心基址 `baseUrl`。不同外部日历可用不同入口，例如 Google/Apple 用原网关 `https://cdn.u3146344.nyat.app:63573/dayweave`，Outlook 用 Vultr 443 的 `https://45.77.68.130/dayweave`；两者都按通用的 64 位密钥路径转发，新增订阅无需改网关。重置链接更换密钥，删除或停用即 404。
+入口为“设置 → 日程 → 日历订阅”。`settings.calendarFeeds` 最多 20 条，每条有 `id`、名称（写入 X-WR-CALNAME）、启用、64 位十六进制密钥、日程类型筛选 `types`（空为全部，可选课程/考试/演讲/会议/其他）和独立的中心基址 `baseUrl`。不同外部日历可用不同入口，例如 Google/Apple 用原网关 `https://cdn.u3146344.nyat.app:63573/dayweave`，Outlook 用 Vultr 443 的 `https://45.77.68.130/dayweave`；两者都按通用的 64 位密钥路径转发，新增订阅无需改网关。重置链接更换密钥，删除或停用即 404。
 
 旧版单条 `settings.calendarFeed` 在 `stateSchema` 预处理中迁移为 `id=default`、名称 `Dayweave · 时织` 的第一条，密钥与基址原样保留，已在 Google/Apple 添加的订阅继续有效。同步 preferences 携带 `calendarFeeds`，缺少该键表示全部删除；旧端发来的 `calendarFeed` 同样迁移。旧中心的严格 schema 不认识 `calendarFeeds`，必须先升级中心再升级客户端。无订阅时不写该键，旧端不受影响。AI 通过 `PATCH /settings` 整体替换 `calendarFeeds`，health 以 `capabilities.calendarFeeds` 标明支持。
 

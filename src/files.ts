@@ -23,17 +23,16 @@ export async function exportText(
   name: string,
   data: string,
   mime = 'application/json',
-): Promise<void> {
-  if (window.clearlist?.exportText) {
-    if (!(await window.clearlist.exportText(name, data, mime))) throw new Error('已取消导出');
-    return;
-  }
+): Promise<boolean> {
+  // Cancelling the save dialog is a normal choice, not an error to report.
+  if (window.clearlist?.exportText) return window.clearlist.exportText(name, data, mime);
   const url = URL.createObjectURL(new Blob([data], { type: mime }));
   const a = document.createElement('a');
   a.href = url;
   a.download = name;
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 60000);
+  return true;
 }
 export async function requestWidget() {
   return native.pinWidget();

@@ -10,13 +10,14 @@ import {
   Activity,
   Wifi,
   Info,
+  CalendarDays,
 } from 'lucide-react';
 import { type AppState } from '../model';
 import { store, useStore } from '../store';
 import { Modal } from './Modal';
 import { SyncSettings } from './SyncSettings';
 import { ApiSettings } from './ApiSettings';
-import { CalendarFeedSettings } from './CalendarFeedSettings';
+import { ScheduleSettings } from './ScheduleSettings';
 import { UsageSettingsPanel } from '../usage/Settings';
 import { version } from '../../package.json';
 import { pendingPairingKey } from '../sync/invitation';
@@ -24,6 +25,7 @@ import './Settings.css';
 
 const categories = [
   { id: 'general', label: '通用', Icon: SlidersHorizontal },
+  { id: 'schedule', label: '日程', Icon: CalendarDays },
   { id: 'capture', label: '自动记录', Icon: Activity },
   { id: 'sync', label: '设备同步', Icon: Wifi },
   { id: 'about', label: '接口与关于', Icon: Info },
@@ -92,7 +94,7 @@ export function Settings({
               </div>
             </section>
             <section className="settings-section">
-              <h3>日程</h3>
+              <h3>时间</h3>
               <label className="timezone-setting">
                 日程时区
                 <input
@@ -146,12 +148,14 @@ export function Settings({
               </label>
               <p className="field-hint">在此之前的计时、完成和计划都算前一天；课表仍按日历日期。</p>
             </section>
-            <CalendarFeedSettings />
             {error && (
               <p className="form-error" role="alert">
                 {error}
               </p>
             )}
+          </div>
+          <div id="settings-schedule" hidden={category !== 'schedule'}>
+            <ScheduleSettings />
           </div>
           <div id="settings-capture" hidden={category !== 'capture'}>
             <UsageSettingsPanel />
