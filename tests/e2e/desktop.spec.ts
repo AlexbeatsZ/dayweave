@@ -190,6 +190,12 @@ test('permanent desktop navigation and shared pages fit widescreen, 16:10 and co
     await expect(page.getByRole('complementary', { name: '待办分类', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: '新增所属清单', exact: true })).toBeVisible();
     await withinViewport(page);
+    const week = (await page.locator('.phone-week').boundingBox())!;
+    const nextClass = (await page.locator('.next-class.compact').boundingBox())!;
+    const tasks = (await page.locator('.phone-tasks').boundingBox())!;
+    expect(Math.abs(nextClass.x - week.x)).toBeLessThanOrEqual(1);
+    expect(Math.abs(nextClass.x - tasks.x)).toBeLessThanOrEqual(1);
+    expect(Math.abs(nextClass.width - tasks.width)).toBeLessThanOrEqual(1);
     if (viewport.width === 1440 || viewport.width === 900)
       await page.screenshot({
         path: path.join(screenshots, `tasks-${viewport.width}x${viewport.height}.png`),
