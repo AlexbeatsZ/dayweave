@@ -40,7 +40,7 @@ function openImport(parent: BrowserWindow): Promise<string | null> {
       height: 820,
       minWidth: 700,
       minHeight: 500,
-      title: '复旦课表导入 · 时织',
+      title: '复旦课表导入 · Dayweave',
       backgroundColor: '#181818',
       show: false,
       autoHideMenuBar: true,
@@ -161,7 +161,7 @@ function openImport(parent: BrowserWindow): Promise<string | null> {
     });
     popup.once('ready-to-show', () => popup.show());
     const toolbar =
-      '<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; style-src \'unsafe-inline\'; script-src \'unsafe-inline\'"><style>body{margin:0;background:#181818;color:#f4f4f5;font:14px system-ui}header{height:72px;display:flex;align-items:center;gap:16px;padding:0 16px;box-sizing:border-box}button{padding:10px 18px;border:0;border-radius:9px;background:#303030;color:#f4f4f5;font:inherit}#read{background:#76b9ed;color:#112431}button:disabled{opacity:.5}span{flex:1}</style><header><button onclick="window.open(\'https://dayweave.invalid/fudan/cancel\')">取消</button><span id="status">请自行登录，选择学期，再读取课表。登录信息不会传回时织。</span><button id="read" onclick="window.open(\'https://dayweave.invalid/fudan/read\')">读取课表</button></header></html>';
+      '<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; style-src \'unsafe-inline\'; script-src \'unsafe-inline\'"><style>body{margin:0;background:#181818;color:#f4f4f5;font:14px system-ui}header{height:72px;display:flex;align-items:center;gap:16px;padding:0 16px;box-sizing:border-box}button{padding:10px 18px;border:0;border-radius:9px;background:#303030;color:#f4f4f5;font:inherit}#read{background:#76b9ed;color:#112431}button:disabled{opacity:.5}span{flex:1}</style><header><button onclick="window.open(\'https://dayweave.invalid/fudan/cancel\')">取消</button><span id="status">请自行登录，选择学期，再读取课表。登录信息不会传回 Dayweave。</span><button id="read" onclick="window.open(\'https://dayweave.invalid/fudan/read\')">读取课表</button></header></html>';
     void popup
       .loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(toolbar)}`)
       .catch(() => finish(null));

@@ -123,7 +123,7 @@ public class CourseWidgetProvider extends AppWidgetProvider {
                 events=CourseSchedule.expand(schedule.getString("semesterStart"),zone,courses,events,strings(schedule.optJSONArray("holidays")),now);
                 }
             }
-        }catch(Exception e){error="请打开时织检查课程数据";}
+        }catch(Exception e){error="请打开 Dayweave 检查课程数据";}
         CourseSchedule.Event current=CourseSchedule.current(events,now),next=CourseSchedule.next(events,now),item=current!=null?current:next;
         if(item!=null)boundary=current!=null?item.end:item.start;
         for(CourseSchedule.Event e:events){if(e.start>now&&(boundary==0||e.start<boundary))boundary=e.start;if(e.end>now&&(boundary==0||e.end<boundary))boundary=e.end;}
@@ -141,7 +141,7 @@ public class CourseWidgetProvider extends AppWidgetProvider {
                 else views.setInt(R.id.widget_title,"setMaxLines",2);
             }
             views.setTextViewText(R.id.widget_status,current!=null?"正在上课":next!=null?"下一节课":"课程表");
-            views.setTextViewText(R.id.widget_title,error!=null?error:item!=null?item.name:data==null?"打开时织，导入课程":"接下来没有课程");
+            views.setTextViewText(R.id.widget_title,error!=null?error:item!=null?item.name:data==null?"打开 Dayweave，导入课程":"接下来没有课程");
             views.setTextViewText(R.id.widget_time,item!=null?format(item.start,zone,"MM-dd HH:mm")+"–"+format(item.end,zone,"HH:mm"):"");
             views.setViewVisibility(R.id.widget_time,item==null?View.GONE:View.VISIBLE);
             if(kind==0)views.setViewVisibility(R.id.widget_separator,item==null?View.GONE:View.VISIBLE);

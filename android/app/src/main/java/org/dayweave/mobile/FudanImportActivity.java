@@ -40,7 +40,7 @@ public class FudanImportActivity extends AppCompatActivity {
         status = new TextView(this);
         status.setTextColor(Color.rgb(244, 244, 245)); status.setTextSize(12);
         status.setPadding(dp(8), 0, dp(8), 0);
-        status.setText("请自行登录并选择学期；登录信息不会传回时织。");
+        status.setText("请自行登录并选择学期；登录信息不会传回 Dayweave。");
         toolbar.addView(status, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
         read = new Button(this);
         read.setText("读取课表"); read.setTextColor(Color.rgb(118, 185, 237));

@@ -54,7 +54,7 @@ else {
   };
   async function readBackup() {
     const result = await dialog.showOpenDialog(window!, {
-      title: '选择时织 JSON 备份',
+      title: '选择 Dayweave JSON 备份',
       properties: ['openFile'],
       filters: [{ name: 'JSON 备份', extensions: ['json'] }],
     });
@@ -71,7 +71,7 @@ else {
       height: 920,
       minWidth: 900,
       minHeight: 640,
-      title: '时织 · Dayweave',
+      title: 'Dayweave',
       icon: appIconPath,
       show: false,
       backgroundColor: nativeTheme.shouldUseDarkColors ? '#181818' : '#f2f2f2',
@@ -147,7 +147,7 @@ else {
       });
     } catch (error) {
       // Without the profile lock no window may open; say why instead of idling invisibly.
-      dialog.showErrorBox('时织无法启动', (error as Error).message);
+      dialog.showErrorBox('Dayweave 无法启动', (error as Error).message);
       app.exit(1);
       return;
     }
@@ -292,7 +292,7 @@ else {
       trusted(event);
       const data = stateSchema.parse(value);
       const result = await dialog.showSaveDialog(window!, {
-        title: '导出时织备份',
+        title: '导出 Dayweave 备份',
         defaultPath: `Dayweave-${Date.now()}.json`,
         filters: [{ name: 'JSON 备份', extensions: ['json'] }],
       });
@@ -353,10 +353,10 @@ else {
     {
       const icon = nativeImage.createFromPath(appIconPath).resize({ width: 20, height: 20 });
       tray = new Tray(icon);
-      tray.setToolTip('时织 · Dayweave');
+      tray.setToolTip('Dayweave');
       tray.setContextMenu(
         Menu.buildFromTemplate([
-          { label: '打开时织', click: showWindow },
+          { label: '打开 Dayweave', click: showWindow },
           {
             label: '设置与配对',
             click: () => {
@@ -371,7 +371,7 @@ else {
             },
           },
           { type: 'separator' },
-          { label: '退出时织', click: () => app.quit() },
+          { label: '退出 Dayweave', click: () => app.quit() },
         ]),
       );
       tray.on('click', showWindow);

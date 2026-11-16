@@ -219,7 +219,7 @@ final class FudanBrowser {
             String quoted = JSONObject.quote(active), argument = semester == null ? "null" : JSONObject.quote(semester);
             web.evaluateJavascript("(()=>{const holder={done:false};window[" + quoted + "]=holder;Promise.resolve((" + source + ")(" + argument + ")).then(value=>{if(window[" + quoted + "]===holder)Object.assign(holder,{done:true},value);}).catch(()=>{if(window[" + quoted + "]===holder)Object.assign(holder,{done:true,error:'课表读取程序执行失败。 [FUDAN_SCRIPT]'});});})()", null);
             handler.postDelayed(() -> poll(active), 200);
-        } catch (Exception error) { finish(active, null, "无法加载课表读取程序，请更新时织后重试。 [FUDAN_SCRIPT]"); }
+        } catch (Exception error) { finish(active, null, "无法加载课表读取程序，请更新 Dayweave 后重试。 [FUDAN_SCRIPT]"); }
     }
     private void poll(String active) {
         if (!pending.current(active)) return;
