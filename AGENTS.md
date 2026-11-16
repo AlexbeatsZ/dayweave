@@ -8,7 +8,7 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 - 2026-11-16 客户端 0.5.12/code35、Server 0.2.10、OpenAPI 2.5.0：按用户要求日历只保留单向 ICS 订阅，入口移到“设置 → 通用 → 日历订阅”。可建多条订阅（名称、类型筛选、各自中心基址），每条日程带开始前 30/15 分钟 VALARM。日历账号 OAuth/CalDAV、外部日历导入、ICS 下载及日程操作中的三个入口与相关接口/依赖已删除。旧单条 `calendarFeed` 迁移为 `calendarFeeds[0]`（id=default）并保留密钥，Google/Apple 原订阅继续有效。旧中心不认识 `calendarFeeds`，必须先升中心。部署状态见本条下方日志。设计见 arrangements.md。
 
-- 2026-11-16 按用户要求配置 Event-only 单向日历订阅。Google 当前账号与 Apple 日历 iCloud 均已新增 `Dayweave · 时织` 并显示真实课程；Apple 自动刷新每 5 分钟。原公网 ICS 返回 200/167 个 VEVENT。Microsoft Outlook 当前账号经 HTTPS/webcal 提交均未新增成功，出现“无法导入日历。请稍后再试”，原因未确认。未启用反向导入或账号 API 发布；Google/Apple 长期修改与删除刷新尚未实测。继续微软接入时保留现有 feed 密钥，避免使已完成订阅失效。
+- 2026-11-16 Google、Apple、Microsoft 三方已建立 `Dayweave · 时织` 单向 ICS 订阅。微软在用户 Vultr IP `45.77.68.130` 的标准 HTTPS 443 入口添加成功；Outlook 已移入“我的日历”并设为红色。VPS HAProxy 与原 REALITY 共用 TCP 443，代理真实公网连接和 167 条日程原文一致性通过；短期 IP 证书由独立 systemd timer 自动续期。原 Sakura63573 与 Google/Apple 已有链接保留，密钥不变。微软手动导入副本已清空，原“日历”在2025-11至2028-11搜索范围内无结果；订阅显示正常。长期修改/删除刷新尚未实测。运维源码 `ops/calendar-https443`，服务器私有恢复入口 `/opt/dayweave-ics443/recovery`，切换不能重跑；见 https-gateway.md。
 
 - 2026-11-16 Server 0.2.9、OpenAPI 2.4.0 源码补齐自动记录、行为计数/撤销、脚本库/检查/试运行、日历账号、设备配对/入口/冲突管理及服务器管理接口。复用原 DesktopUsage/UsageStore、countBehavior、QuickJS、SyncBridge 和 CalendarAccounts，桌面与无头 Runtime 共用。251 项 Node、7 项独立服务器和真实 AI Python → 无头 Server 的查询/记录增改撤销联调通过。AI Decision 0.1.51 将时间写入迁至原生记录接口，并以当前可用活动目录限制目标，修复已删除“吃饭”活动继续被使用的问题。ROG 原中心已部署 0.2.9/c87b01b，OpenAPI 2.4.0 共 84 路径，GUI 关闭，1266 个任务/1441 个记录原 ID、中心身份与 6 台配对保留。9 条错误引用已删除吃饭的 AI 记录经原生 PATCH 按内容归入生活，spans/备注/标签/任务关联保留，剩余 0 条。
 

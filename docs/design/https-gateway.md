@@ -1,5 +1,15 @@
 # ROG 公网同步入口
 
+## Vultr 标准 HTTPS 443 日历入口
+
+2026-11-16 新增 `https://45.77.68.130/dayweave` 作为日历订阅中心基址。该入口仅处理上述精确只读 ICS 路径，不是客户端业务同步地址。原 Sakura 63573 网关与已有 Google/Apple 链接保持可用；Outlook 从 Web 订阅已添加成功。更换入口同时改变了公网节点与端口，不能据此断言原故障只由端口造成。
+
+Vultr Debian 13 上 HAProxy 拥有公网 TCP 443，以 TLS ClientHello SNI 将 `www.cloudflare.com` 原样交给原 Xray REALITY 的回环 7443，其他 TLS 进入回环 8443 的日历后端。日历后端验证 IP SAN 证书，允许 GET/HEAD、拒绝查询串及其他路径和方法，再通过已校验的 HTTPS 回源原 Sakura63573。原代理客户端凭据与服务器密钥不变，访客端口/UDP443不变。用户批准安装 HAProxy/python3-venv 并开放 TCP80；80仅供 ACME HTTP-01。
+
+短期 Let's Encrypt IP 证书约160小时有效，不能按90天管理。`dayweave-ics443-renew.timer` 每天两次检查；hook 验证配置后 reload HAProxy，失败恢复前一张 PEM。运维源码、服务和恢复规则在 `ops/calendar-https443/README.md`。服务器工作目录 `/opt/dayweave-ics443`，原配置位于 `recovery/xray-config.json`，包含密钥，禁止上传整个目录。独立切换单元带90秒运行上限与120秒回滚计时器，真实原代理与日历校验通过后写入完成标记。生产切换已完成，不要再次运行首次安装/切换脚本。
+
+当前入口仍依赖 Sakura 隧道和原 ROG 中心在线。Microsoft、Google 的服务端拉取节奏由各自决定，首次显示不代表长期修改/删除刷新已经验收。
+
 ## 账号日历授权回调
 
 2026-11-14 曾增加的 `/dayweave/calendar-accounts` 与 `/dayweave/calendar-oauth/callback` 已于 2026-11-16 随账号连接功能从源码移除；已部署网关在下次更新 Dayweave 模块前仍保留这两条路由，中心已不再响应。日历只保留 `/dayweave/calendar/<密钥>.ics` 只读转发。

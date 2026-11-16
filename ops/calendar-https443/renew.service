@@ -1,0 +1,9 @@
+[Unit]
+Description=Renew Dayweave public IP HTTPS certificate
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+UMask=0077
+ExecStart=/opt/dayweave-ics443/.venv/bin/certbot renew --non-interactive --config-dir /opt/dayweave-ics443/acme --work-dir /opt/dayweave-ics443/acme-work --logs-dir /opt/dayweave-ics443/acme-logs --deploy-hook /opt/dayweave-ics443/renew-hook.sh
