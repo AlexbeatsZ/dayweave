@@ -6,6 +6,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Current State
 
+- 2026-11-16 按用户要求配置 Event-only 单向日历订阅。Google 当前账号与 Apple 日历 iCloud 均已新增 `Dayweave · 时织` 并显示真实课程；Apple 自动刷新每 5 分钟。原公网 ICS 返回 200/167 个 VEVENT。Microsoft Outlook 当前账号经 HTTPS/webcal 提交均未新增成功，出现“无法导入日历。请稍后再试”，原因未确认。未启用反向导入或账号 API 发布；Google/Apple 长期修改与删除刷新尚未实测。继续微软接入时保留现有 feed 密钥，避免使已完成订阅失效。
+
 - 2026-11-16 Server 0.2.9、OpenAPI 2.4.0 源码补齐自动记录、行为计数/撤销、脚本库/检查/试运行、日历账号、设备配对/入口/冲突管理及服务器管理接口。复用原 DesktopUsage/UsageStore、countBehavior、QuickJS、SyncBridge 和 CalendarAccounts，桌面与无头 Runtime 共用。251 项 Node、7 项独立服务器和真实 AI Python → 无头 Server 的查询/记录增改撤销联调通过。AI Decision 0.1.51 将时间写入迁至原生记录接口，并以当前可用活动目录限制目标，修复已删除“吃饭”活动继续被使用的问题。ROG 原中心已部署 0.2.9/c87b01b，OpenAPI 2.4.0 共 84 路径，GUI 关闭，1266 个任务/1441 个记录原 ID、中心身份与 6 台配对保留。9 条错误引用已删除吃饭的 AI 记录经原生 PATCH 按内容归入生活，spans/备注/标签/任务关联保留，剩余 0 条。
 
 - 2026-11-15 核对 OMEN、Mac、ROG 项目文档。Mac 最新部署日志已在 GitHub，OMEN 已快进合入；ROG 项目文档无本地改动，其提交是当前历史祖先。ROG 认证实测 Server 0.2.8/appVersion 0.5.11、mode=server、OpenAPI 2.3.0，未运行 Dayweave GUI。全功能无头接口尚有缺口，当前覆盖和 AI Decision 依赖见 docs/design/api.md。
