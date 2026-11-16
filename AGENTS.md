@@ -6,7 +6,7 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Current State
 
-- 2026-11-16 客户端 0.5.12/code35、Server 0.2.10、OpenAPI 2.5.0：按用户要求日历只保留单向 ICS 订阅，入口移到“设置 → 日程 → 日历订阅”；0.5.13/code36 将原“日程操作”菜单整体移入设置新分类“日程”并统一样式。可建多条订阅（名称、类型筛选、各自中心基址），每条日程带开始前 30/15 分钟 VALARM。日历账号 OAuth/CalDAV、外部日历导入、ICS 下载及日程操作中的三个入口与相关接口/依赖已删除。旧单条 `calendarFeed` 迁移为 `calendarFeeds[0]`（id=default）并保留密钥，Google/Apple 原订阅继续有效。旧中心不认识 `calendarFeeds`，必须先升中心。部署：ROG 中心 0.2.10 已上线（原 DayweaveHub 任务、身份与 1266 任务保留，恢复副本 ROG Temp/.agents/dayweave-deploy-0.5.12/recovery），原链接经本机/原网关/Vultr 443 均返回 167 条带提醒日程；Mac、OMEN 托盘与 ROG 桌面（关闭）为最新客户端。手机无线 ADB 不可达、平板离线，0.5.11 客户端在升级前会因 `calendarFeeds` 同步失败。设计见 arrangements.md。
+- 2026-11-16 客户端 0.5.12/code35、Server 0.2.10、OpenAPI 2.5.0：按用户要求日历只保留单向 ICS 订阅，入口移到“设置 → 日程 → 日历订阅”；0.5.13/code36 将原“日程操作”菜单整体移入设置新分类“日程”并统一样式。可建多条订阅（名称、类型筛选、各自中心基址），每条日程带开始前 30/15 分钟 VALARM。日历账号 OAuth/CalDAV、外部日历导入、ICS 下载及日程操作中的三个入口与相关接口/依赖已删除。旧单条 `calendarFeed` 迁移为 `calendarFeeds[0]`（id=default）并保留密钥，Google/Apple 原订阅继续有效。旧中心不认识 `calendarFeeds`，必须先升中心。部署：ROG 中心 0.2.10 已上线（原 DayweaveHub 任务、身份与 1266 任务保留，恢复副本 ROG Temp/.agents/dayweave-deploy-0.5.12/recovery），原链接经本机/原网关/Vultr 443 均返回 167 条带提醒日程；0.5.13 已装 Mac/OMEN 托盘（均已连接、0 冲突）、ROG 桌面（保持关闭）与 Redmi K70（code36，首次安装时间不变，未打开界面）。平板仍离线跳过，它在升级前会因 `calendarFeeds` 同步失败。Release v0.5.12/v0.5.13/server-v0.2.10。设计见 arrangements.md。
 
 - 2026-11-16 Google、Apple、Microsoft 三方已建立 `Dayweave · 时织` 单向 ICS 订阅。微软在用户 Vultr IP `45.77.68.130` 的标准 HTTPS 443 入口添加成功；Outlook 已移入“我的日历”并设为红色。VPS HAProxy 与原 REALITY 共用 TCP 443，代理真实公网连接和 167 条日程原文一致性通过；短期 IP 证书由独立 systemd timer 自动续期。原 Sakura63573 与 Google/Apple 已有链接保留，密钥不变。微软手动导入副本已清空，原“日历”在2025-11至2028-11搜索范围内无结果；订阅显示正常。长期修改/删除刷新尚未实测。运维源码 `ops/calendar-https443`，服务器私有恢复入口 `/opt/dayweave-ics443/recovery`，切换不能重跑；见 https-gateway.md。
 
@@ -146,6 +146,9 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 - Delete dead navigation/CSS/functions in the touched area; keep ownership and necessary design decisions in docs/design/architecture.md. Verify through real user flows, especially scroll dates/points and native back, rather than tests mirroring implementation details.
 
 # Durable Lessons
+
+- Android release signing material exists only on OMEN `.local/android-signing` (certificate SHA-256 35faf8f3…). `npm run dist:android` on a machine without it silently generates a new key; build APKs on OMEN and compare `apksigner verify --print-certs` with the previous release before installing.
+- A tray-only desktop instance has no window, so Restart Manager shutdown returns 351. Remote upgrades end the process after confirming sync is idle/offline, back up data/sync/api JSON, install silently, then start `--tray` through a one-shot Interactive scheduled task so it runs in Session1. Windows PowerShell 5 `ConvertFrom-Json` on the multi-MB sync.json takes minutes; read it with Node.
 
 - Android Gradle 8.14 on this Mac: javac needs JDK 21+ (Homebrew 17 fails with `invalid source release: 21`), but Groovy build scripts cannot compile on the Studio JBR (Java 25, `Unsupported class file major version 69`). After any build.gradle change, compile scripts once with `JAVA_HOME=/opt/homebrew/opt/openjdk@17 ./gradlew help --offline`, stop the daemon, then run `JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" ./gradlew testDebugUnitTest --offline` from `android/`. Do not install or switch the global JDK.
 - `tests/fixtures/platform-contract.json` is read by both `tests/platform-contract.test.ts` and Android `PlatformContractTest`: sync addresses, the usage envelope AAD, widget course expansion and school-browser URLs/errors. Change both implementations together and regenerate the fixture only for an intentional protocol change.
