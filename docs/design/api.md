@@ -1,5 +1,41 @@
 # AI REST API 与并发
 
+## 全功能无头接口要求与当前覆盖
+
+2026-11-15 用户再次明确，Dayweave 全部功能均须开放可供 AI 调用的接口，范围包含服务器端，全部对应操作应支持无头执行。新增和修改功能需要同时落实领域实现、接口契约、OpenAPI、CLI 调用和无头验收。项目 AGENTS.md、设计文档和项目日志均随改动提交并推送到 GitHub。
+
+本次在 OMEN、Mac、ROG 核对同一项目的 Git 状态和日志。Mac 的最新部署记录已提交到 GitHub，OMEN 从该分支快进合入。ROG 项目目录无未提交文档，其提交已包含在当前历史中。ROG 的源码日志停留在较早版本，实际运行包通过认证 GET /health 核实为 Server 0.2.8、appVersion 0.5.11、mode=server。运行服务 GET /openapi.json 返回 2.3.0，包含 63 个路径。检查时 Dayweave GUI 进程数为零。
+
+桌面、AI-tools 和独立服务器共用 electron/headless-runtime.ts 的 Runtime、StateService、DesktopSync、DesktopUsage 和 startApi。服务器已具备独立无界面运行能力，接口覆盖仍有待补齐部分。
+
+| 功能                                                | 当前接口与无头能力                                                                                                                   | 待补齐部分                                                                                             |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
+| 任务、清单、子任务、完成/恢复、重复规则、日计划分组 | 本机 REST、OpenAPI 和通用 CLI 已覆盖主要操作，写入进入原 StateService 队列                                                           | 后续字段和动作继续逐项核对界面与接口覆盖                                                               |
+| 时间活动、历史记录、计时、目标与统计                | REST 已支持记录增改删、补空档、计时 start/configure/next/pause/resume/stop/cancel、目标管理及手动目标勾选                            | AI Decision 当前业务命令只接入其中一部分，完整计时控制仍需接入                                         |
+| 行为规则触发/执行计数与撤销                         | 客户端已有领域动作，REST 可查询回顾和管理规则                                                                                        | REST 明确拒绝 review/reviewStatus/behaviorReviews 写入，整包导入保留原回顾，计数与撤销缺少无头写入入口 |
+| 电脑、手机自动记录                                  | 服务端已有 UsageStore/DesktopUsage、加密 /usage 同步和 /usage/status 管理健康查询，桌面经 usage:* IPC 查询、配置、导入和读取应用目录 | 本机 REST/CLI 缺少对应业务查询和管理入口；AI Decision 仍通过 SQLite 只读适配查询 usage.db              |
+| 目标脚本库与试运行                                  | 中心已执行 QuickJS 脚本，目标 REST 可引用已存在的 scriptId 并读取结果，完整 JSON 导入导出可携带脚本库                                | 专用脚本库管理和试运行 REST/CLI 尚未覆盖界面动作                                                       |
+| 日程、课程、RRULE、ICS 导入与订阅                   | 已有 /events、/schedule、/recurrences、/calendar-subscriptions 等本机接口                                                            | 继续核对来源刷新及账号操作的完整接口覆盖                                                               |
+| 外部日历账号                                        | 中心已实现加密 /calendar-accounts 命令与 OAuth 回调，桌面经 sync:calendarAccounts IPC 使用                                           | 本机 AI REST、OpenAPI 和通用 CLI 尚未统一这套账号命令                                                  |
+| 设备同步与冲突处理                                  | 本机 REST 已有 status/invite/hub/now 和设备 revoke，配对等另有加密协议；桌面 IPC 还支持 discover/pair/disconnect/setEndpoint/resolve | 本机 REST/CLI 尚未覆盖全部设备管理和冲突处理动作                                                       |
+| 服务器运维                                          | 已有认证 /server/status、/usage/status、/server/shutdown 和 Server admin CLI                                                         | 这些服务器扩展端点及设备 revoke 尚未完整进入运行服务共用的 OpenAPI                                     |
+
+### 当前 AI Decision 的调用依赖
+
+常驻决策流程由模型提交业务命令，经 WSL controller 校验、持久化动作及依赖后，派发给 ROG Windows Node。Node 的 ai_decision.dayweave.Dayweave 读取本机用户 profile 的 api.json，使用 Bearer 令牌访问 http://127.0.0.1:49731/api/v1。ROG 实测 Node 的 dayweave.enabled 和 write_enabled 均为 true，api_file 与 usage_db 均未覆盖默认值。
+
+任务和时间读取主要使用 GET /export 与 GET /context。写入按操作使用 /tasks、完成/恢复/重复专用动作、/plan-groups、/timelog/goals、记录 PATCH、timer/configure 或带 If-Match 的合并导入。Node 另以自己的 dayweave.sqlite3 保存动作意图、幂等身份和回执，结果未知时只读核对。
+
+电脑与手机自动记录查询走 ai_decision.dayweave_usage，直接以 SQLite mode=ro、PRAGMA query_only=ON 读取原 Dayweave profile 的 usage.db。这使当前 AI 读取额外依赖 Dayweave SQLite 表结构及本机文件权限。通用外部 AI 可通过项目 scripts/api.mjs 或打包的 api.mjs 调用已开放 REST，远程访问可经 SSH 转发进入同一回环服务。
+
+Dayweave 已有完整计时控制接口，AI Decision 当前 UpTimerChange 只允许 fill_gap、correct_record、restore 和 link_task，其中 timer 目标仅用于关联任务。模型可调用的业务工具范围需要继续扩展，才能使用 Dayweave 全部接口能力。
+
+### 缺口补齐与验收
+
+接口复用现有领域操作及持久化队列，保留版本冲突、时间占用和引用校验。涉及外部账号授权或系统权限时，提供授权状态、请求及结果接入接口，并明确实际需要用户参与的步骤。每项功能在隔离 profile 下验证 CLI/HTTP 调用、持久化读回、并发失败及重启后状态，服务器路径使用独立 Node 进程验证。按功能核对客户端动作、服务器实现、接口、OpenAPI 与 AI 消费端的覆盖，缺口持续保留在 AGENTS.md Active Work。
+
+## 现有 REST 基础契约
+
 Windows / macOS 桌面进程提供 `http://127.0.0.1:<port>/api/v1`，默认端口 49731。端口被占用时选择空闲端口，并将实际地址写入用户数据目录 `api.json`。`DAYWEAVE_API_PORT` 可为当前进程指定端口；`DAYWEAVE_API_DISABLE=1` 可关闭接口。移动端暂不运行 HTTP 服务。
 
 每个数据目录生成独立随机令牌，保存为仅当前用户可读的 `api.json`，不进入 Git 或导出备份。请求使用 `Authorization: Bearer <token>`。所有端点均需认证；拒绝带 Origin 的跨站请求，校验 Host，固定监听 loopback，不提供 CORS 或远程代码执行。令牌可在设置中查看和复制供本机 AI 使用。
@@ -16,7 +52,7 @@ OpenAPI 文档由 `src/api-contract.ts` 生成到 `docs/api/openapi.json`，运�
 
 0.3 新增 /context、/schedule/_、/timelog/_ 与 /tasks/{id}/track。ROG 独立服务使用相同状态队列和 profile 进程锁；见 docs/api/README.md。
 
-行为规则在 `/timelog/goals` 用 `kind: "behaviorRule"`、`period: "day"`、`trigger` 和 `action` 表示。查询按 `date` 返回 `review`（含 `triggered`、`executed` 与派生 `status`，未计数为 null），`/context` 的当前及上一期返回 `reviewStatus`。回顾只接受 Dayweave 客户端的个人选择，REST 不提供代填入口。整份 `POST /import` 保留已有回顾。
+行为规则在 `/timelog/goals` 用 `kind: "behaviorRule"`、`period: "day"`、`trigger` 和 `action` 表示。查询按 `date` 返回 `review`（含 `triggered`、`executed` 与派生 `status`，未计数为 null），`/context` 的当前及上一期返回 `reviewStatus`。当前实现只接受 Dayweave 客户端写入回顾，REST 尚缺计数及撤销入口，整份 `POST /import` 保留已有回顾。此项已列入全功能无头接口待补齐范围。
 
 任务 API 使用 dates/difficulty；子任务新增、PATCH、DELETE 有基于稳定 ID 的专用路由，完成动作共用领域规则。重复配置通过 PUT/DELETE /tasks/{id}/repeat，窗口通过 POST /repeat-rules/generate（through）请求中心。所有操作保留 If-Match；GET /tasks?date=YYYY-MM-DD&view=today 是精确业务日查询。完整模型与升级边界见 task-system.md。
 

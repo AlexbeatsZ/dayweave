@@ -2,7 +2,11 @@
 
 Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, timezone-aware courses, Xiaomi/Android widgets and AI API for Windows, Android and macOS.
 
+全部功能均须开放可供 AI 调用的接口，覆盖客户端业务与服务器端管理，并支持在无头模式下执行全部对应操作。新增或修改功能时，同步维护共享领域实现、接口、OpenAPI、CLI 和无头验收。已知缺口列入 Active Work 并持续补齐。项目 `AGENTS.md`、`docs/design/` 和 `docs/log/` 纳入 Git，随对应改动提交并推送到 GitHub。
+
 # Current State
+
+- 2026-11-15 核对 OMEN、Mac、ROG 项目文档。Mac 最新部署日志已在 GitHub，OMEN 已快进合入；ROG 项目文档无本地改动，其提交是当前历史祖先。ROG 认证实测 Server 0.2.8/appVersion 0.5.11、mode=server、OpenAPI 2.3.0，未运行 Dayweave GUI。全功能无头接口尚有缺口，当前覆盖和 AI Decision 依赖见 docs/design/api.md。
 
 - 2026-11-14 客户端 0.5.11/code34 与 Server 0.2.8 已覆盖部署 Mac、OMEN、ROG 桌面/原中心、Redmi K70，原共享 HTTPS 网关的日历账号与 OAuth 回调路由已更新。Mac/OMEN 恢复托盘运行，ROG 桌面保持关闭；平板继续按用户此前决定跳过。Google/Microsoft 首次应用注册引导与浏览器授权、iCloud 应用专用密码连接，以及行为双计数/长按撤销已交付。入口为安排 → 日程 → 日程操作 → 连接日历账号。真实应用注册、账号授权和长期刷新仍待首次设置。用户明确要求停止继续测试并尽快部署，因此取消后续 Check CI，直接完成 Windows 构建与覆盖安装，仅核对安装版本和中心启动。数据/配对沿用原 profile，Android 沿用原签名；恢复数据在各机临时 `.agents/dayweave-upgrade-0.5.11`，ROG 中心完整恢复 profile 在 `.agents/dayweave-deploy-0.5.11/recovery/profile`。正式客户端/服务端 Release 为 v0.5.11 / server-v0.2.8。
 
@@ -93,6 +97,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Active Work
 
+- 补齐全功能无头接口。当前行为规则计数仍由客户端写入，自动记录查询/配置、部分同步管理、脚本库管理/试运行，以及日历账号命令的本机 REST/CLI 入口尚未统一；服务器管理端点也未完整进入 OpenAPI。AI Decision 自动记录查询仍直接只读 Dayweave usage.db。具体已有能力、缺口和验收要求见 docs/design/api.md 的全功能无头接口章节。
+
 - 日历真实账号的应用注册、首次授权与长期刷新待首次配置后验证。功能与生产部署已完成，Google/Microsoft 在连接页配置应用 ID/密钥，iCloud 使用应用专用密码。
 
 - 2026-11-13 three-platform review fixes are committed and pushed on this branch (cc20077..cf708be): shared JsonRepository/Runtime/commitState, sync.json no longer rewritten per poll (reserved sequence blocks; compatible with protocol-3 hubs, no protocol change), usage ownership/paging/deleted-index fixes (desktop usage.db migrates once on open, ~0.4 s for 311k rows), Android screen-off constant 16, incremental UsageStats window, singleton DB, saveState backup rotation and a Java/TS contract fixture. Verified: 235 Node, 108/108 browser, 28 Android JVM, 7 server tests against a temporary bundle; after authorization `npm run build` and desktop/API/tray smoke also pass. Not run: packaging or devices (delivery gate). Not done: API route table, Rust monitor.rs split/dead modules.
@@ -103,7 +109,6 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 - AI Decision link_task (target=record|timer) and create→complete adapter run against production OpenAPI2.1.0, gated on GET /health data.capabilities.taskRecordLinks===true; AI owns its ledger/fingerprint/unknown-result reconciliation (docs/design/api.md). No live association was test-written; the first natural AI association/backfill remains unaccepted.
 
-- 2026-11-05 client0.5.3/code26 five-device delivery and14asset Release publication complete. CI42142284863 attempts1/2 each Windows102/103browser pass; failures were different initial-page readiness waits before calendar/backup-recovery actions. Android/arm64/Intel fully passed. Windows startup-test instability remains unresolved; no assertion/code change or further blind retry. Installed Windows desktops remain closed; original profiles/identities/conflicts/widgets and Server/AI preserved.
 - 2026-11-05 physical acceptance remains: phone/Pad0.5.4 installation, identities/widgets and original-peer protocol2 exchanges are verified; real calendar gestures/new layout/background/cold boot need normal device use. OMEN/ROG desktop apps0.5.4 are installed closed; do not start old binaries or clear existing conflict candidates. Current center/clients use schema2; rollback requires matching complete checkpoints.
 - Script goals (docs/goal-scripts.md) have no real script goal yet; Android WebView QuickJS/CSP and first hub script results remain separate acceptance. AI Decision subtask-splitting prompt is outside this UI correction.
 - Observe AI Decision's next natural04:30 manual-goal settlement and08:00 plan-group creation (UTC+8). APIs, read-only production snapshots and installation are verified; actual model-created groups/checks and the user's installed new UI are not yet accepted.
@@ -169,6 +174,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Docs Index
 
+- `docs/design/api.md` — 全功能无头接口要求、当前覆盖与缺口、AI Decision 依赖、REST 并发和任务计时关联。
+
 - `docs/design/arrangements.md` — Task/Event modes, periods, RRULE, stable instances, migration and Event-only calendar export/import.
 
 - docs/design/task-system.md: Task field inventory, dates/difficulty/history, hub Cron, fine-grained LWW, v1 identity/reference migration, protocol2 and coordinated rollback.
@@ -190,6 +197,5 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 - docs/design/architecture.md: module ownership, shared UI behavior and consolidation rules.
 - docs/design/timelog-interface.md: records, timers, goals and analysis UI.
 - docs/design/sync.md: ROG hub, discovery, encryption, conflict/sequence rules and mobile foreground boundary.
-- docs/design/automatic-records.md: native observation collection, source imports, aligned timelines, statistics and usage sync.
 - docs/design/https-gateway.md: fixed ROG HTTPS routes, shared Web ingress, service ownership and recovery.
 - docs/design/fudan-import.md: official login windows, minimal capture, pure conversion, preview and acceptance limits.
