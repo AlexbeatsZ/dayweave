@@ -199,6 +199,9 @@
   .desktop-shell[data-section='tasks'] .phone-content > * {
     max-width: 1080px;
   }
+  .desktop-shell .phone-content > .next-class.compact {
+    margin-inline: auto;
+  }
   .desktop-shell .phone-week {
     width: 100%;
     margin: 0 auto 18px;

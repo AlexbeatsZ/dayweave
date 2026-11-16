@@ -99,6 +99,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Active Work
 
+- 2026-11-16 待办日视图日程卡片错位已有源码修复与隔离预览 `.local/preview/task-alignment/after-1764.png`。手机卡片的左右零边距覆盖桌面居中，修正桌面 margin-inline 后四种桌面宽度的对齐与原导航/页面回归通过。截图中左侧导航消失在当前源码与本机安装包页面资源中尚未复现，实际实例原因待确认。等待 UI 审核后的构建/发布授权。
+
 - Server 0.2.9 原 profile 升级与 AI Decision 原生 API 联调已完成。日历外部账号真实授权与 OS 原生权限授予依其提供者及用户登录执行，状态和授权请求由接口提供。
 
 - 日历真实账号的应用注册、首次授权与长期刷新待首次配置后验证。功能与生产部署已完成，Google/Microsoft 在连接页配置应用 ID/密钥，iCloud 使用应用专用密码。
