@@ -8,6 +8,7 @@ export const usageExchangeSchema = z.object({
   events: z.array(usageEventSchema).max(500),
   cursor: z.number().int().nonnegative(),
   limit: z.number().int().min(1).max(500),
+  includeForegroundOnly: z.boolean().optional(),
 });
 export type UsageExchange = z.infer<typeof usageExchangeSchema>;
 export const usageReplySchema = z.object({
@@ -52,6 +53,7 @@ async function exchange(client: SyncClient, replica: UsageReplica) {
       events: await replica.pending(300),
       cursor: await replica.cursor(hubId),
       limit: 500,
+      includeForegroundOnly: true,
     };
     const reply = await client.request(
       '/usage',

@@ -120,6 +120,27 @@ test('hub increments delivery cursor for revisions and protects source ownership
     store.close();
   }
 });
+test('old usage peers advance past foreground-only rows without counting them as usage', async () => {
+  const store = new UsageStore(':memory:');
+  try {
+    store.import([
+      event({ id: 'idle', inputState: 'idle', foregroundOnly: true }),
+      event({ id: 'active', inputState: 'active' }),
+    ]);
+    const request = { requestId: crypto.randomUUID(), cursor: 0, limit: 1, events: [] };
+    const legacy = await store.exchange('old-client', request);
+    assert.ok(legacy.cursor > 0 && legacy.more);
+    assert.deepEqual(legacy.events, []);
+    const next = await store.exchange('old-client', { ...request, cursor: legacy.cursor });
+    assert.equal(next.events[0].id, 'active');
+    const aware = await store.exchange('new-client', { ...request, includeForegroundOnly: true });
+    assert.equal(aware.events[0].foregroundOnly, true);
+    assert.equal(aware.cursor, legacy.cursor);
+  } finally {
+    store.close();
+  }
+});
+
 test('duplicate historical imports tolerate device display aliases but cannot change observations', async () => {
   const store = new UsageStore(':memory:');
   try {

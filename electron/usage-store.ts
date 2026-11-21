@@ -290,7 +290,11 @@ export class UsageStore implements UsageReplica {
       return {
         requestId: request.requestId,
         accepted: request.events.map(({ id, revision }) => ({ id, revision })),
-        events: rows.map((row) => JSON.parse(String(row.payload))),
+        // Advance over every examined sequence, even if an older client cannot
+        // distinguish foreground-only observations from ordinary usage time.
+        events: rows
+          .map((row) => JSON.parse(String(row.payload)) as UsageEvent)
+          .filter((event) => request.includeForegroundOnly || !event.foregroundOnly),
         cursor: rows.length ? Number(rows.at(-1)!.seq) : request.cursor,
         more,
       };
