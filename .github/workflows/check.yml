@@ -17,6 +17,7 @@ jobs:
       - run: npm ci
       - uses: dtolnay/rust-toolchain@stable
       - run: npm run build:collector
+      - run: node -e "require('electron')"
       - run: npm run dist:mac
       - run: node scripts/smoke-api.mjs
         env:
