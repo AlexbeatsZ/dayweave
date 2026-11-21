@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Dayweave AI API",
-    "version": "2.5.0",
+    "version": "2.6.0",
     "description": "时织 Windows/macOS 本机接口。应用运行时可用；实际地址与令牌见设置或用户数据目录 api.json。默认不对局域网开放。所有写入先持久化再通知界面；DELETE 任务为软删除。"
   },
   "servers": [
@@ -3309,7 +3309,7 @@
     },
     "/usage/query": {
       "post": {
-        "summary": "分页查询原始自动记录，时间使用 epoch 毫秒，next 作为后续 before",
+        "summary": "分页查询原始自动记录。inputState 缺省表示输入状态未知，foregroundOnly 表示仅前台观察。时间为 epoch 毫秒，next 作为后续 before",
         "requestBody": {
           "required": true,
           "content": {
@@ -3343,7 +3343,85 @@
                 "schema": {
                   "type": "object",
                   "required": ["data", "revision"],
-                  "properties": { "data": {}, "revision": { "type": "string" } }
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "events": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": { "type": "string", "minLength": 1, "maxLength": 600 },
+                              "deviceId": { "type": "string", "minLength": 1, "maxLength": 200 },
+                              "deviceName": { "type": "string", "minLength": 1, "maxLength": 200 },
+                              "platform": { "type": "string", "maxLength": 40 },
+                              "source": {
+                                "type": "string",
+                                "enum": ["activitywatch", "work-review", "dayweave"]
+                              },
+                              "kind": {
+                                "type": "string",
+                                "enum": ["app", "web", "unlock", "media"]
+                              },
+                              "start": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 32503680000000
+                              },
+                              "end": { "type": "integer", "minimum": 0, "maximum": 32503680000000 },
+                              "app": { "type": "string", "maxLength": 512 },
+                              "title": { "default": "", "type": "string", "maxLength": 16384 },
+                              "url": { "default": "", "type": "string", "maxLength": 16384 },
+                              "category": { "default": "", "type": "string", "maxLength": 128 },
+                              "inputState": {
+                                "description": "最近 60 秒的输入状态；旧记录缺省表示未知",
+                                "type": "string",
+                                "enum": ["active", "idle", "unknown"]
+                              },
+                              "foregroundOnly": {
+                                "description": "仅前台观察，不计入常规使用时长",
+                                "type": "boolean",
+                                "enum": [true]
+                              },
+                              "revision": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9007199254740991
+                              },
+                              "deleted": { "default": false, "type": "boolean" }
+                            },
+                            "required": [
+                              "id",
+                              "deviceId",
+                              "deviceName",
+                              "platform",
+                              "source",
+                              "kind",
+                              "start",
+                              "end",
+                              "app",
+                              "title",
+                              "url",
+                              "category",
+                              "revision",
+                              "deleted"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "next": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "complete": { "type": "boolean" }
+                      },
+                      "required": ["events", "complete"],
+                      "additionalProperties": false
+                    },
+                    "revision": { "type": "string" }
+                  }
                 }
               }
             },
@@ -3508,6 +3586,16 @@
                     "title": { "default": "", "type": "string", "maxLength": 16384 },
                     "url": { "default": "", "type": "string", "maxLength": 16384 },
                     "category": { "default": "", "type": "string", "maxLength": 128 },
+                    "inputState": {
+                      "description": "最近 60 秒的输入状态；旧记录缺省表示未知",
+                      "type": "string",
+                      "enum": ["active", "idle", "unknown"]
+                    },
+                    "foregroundOnly": {
+                      "description": "仅前台观察，不计入常规使用时长",
+                      "type": "boolean",
+                      "enum": [true]
+                    },
                     "revision": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
                     "deleted": { "default": false, "type": "boolean" }
                   },

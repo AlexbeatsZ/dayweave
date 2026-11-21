@@ -79,6 +79,7 @@ pub struct WindowBounds {
 /// 活动窗口信息
 #[derive(Debug, Clone)]
 pub struct ActiveWindow {
+    pub window_id: usize,
     pub app_name: String,
     pub window_title: String,
     /// 浏览器 URL（如果当前应用是浏览器）
@@ -1059,6 +1060,7 @@ fn get_active_window_with_options(include_browser_url: bool) -> Result<ActiveWin
         };
 
         Ok(ActiveWindow {
+            window_id: hwnd as usize,
             app_name,
             window_title,
             browser_url,
@@ -1896,6 +1898,7 @@ fn get_active_window_with_options(include_browser_url: bool) -> Result<ActiveWin
         None
     };
     Ok(ActiveWindow {
+        window_id: native.window_id,
         app_name,
         window_title,
         browser_url,

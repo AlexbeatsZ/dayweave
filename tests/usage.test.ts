@@ -358,6 +358,60 @@ test('Work Review source is read-only, imports late historical rows and survives
   }
 });
 
+test('the native collector bridge imports mutable input spans and acknowledges the exact revision', async () => {
+  await mkdir(path.join(os.tmpdir(), '.agents'), { recursive: true });
+  const directory = await mkdtemp(path.join(os.tmpdir(), '.agents/dayweave-input-span-'));
+  const collector = path.join(directory, 'collector');
+  await mkdir(collector);
+  const source = new DatabaseSync(path.join(collector, 'agent.db'));
+  source.exec(
+    'CREATE TABLE events(id TEXT, device_id TEXT, duration INTEGER, payload TEXT, synced INTEGER); CREATE TABLE devices(id TEXT,name TEXT,platform TEXT)',
+  );
+  source.prepare('INSERT INTO devices VALUES(?,?,?)').run('device', 'Mac', 'macos');
+  const payload = (duration: number, inputState = 'active', foregroundOnly = false) =>
+    JSON.stringify({
+      id: inputState,
+      device_id: 'device',
+      timestamp: inputState === 'active' ? 100 : 130,
+      duration,
+      app_name: 'Codex',
+      input_state: inputState,
+      foreground_only: foregroundOnly,
+    });
+  source.prepare('INSERT INTO events VALUES(?,?,?,?,0)').run('active', 'device', 10, payload(10));
+  const sync = await new DesktopSync(
+    new StateService(new FileStore(directory)),
+    directory,
+    false,
+  ).initialize();
+  const store = new UsageStore(path.join(directory, 'usage.db'));
+  const usage = new DesktopUsage(store, sync.client, directory, 'missing');
+  try {
+    await usage.sync();
+    const range = { start: 0, end: 200000 };
+    assert.equal(store.query(range).events[0].inputState, 'active');
+    assert.equal(source.prepare('SELECT synced FROM events').get()!.synced, 1);
+    source
+      .prepare("UPDATE events SET duration=?,payload=?,synced=0 WHERE id='active'")
+      .run(30, payload(30));
+    source
+      .prepare('INSERT INTO events VALUES(?,?,?,?,0)')
+      .run('idle', 'device', 40, payload(40, 'idle', true));
+    await usage.sync();
+    const rows = store.query(range).events;
+    assert.equal(rows.length, 2);
+    assert.equal(rows.find((row) => row.inputState === 'active')?.end, 130000);
+    assert.equal(rows.find((row) => row.inputState === 'idle')?.foregroundOnly, true);
+    assert.equal(usageSummary(rows, range).active, 30000);
+    assert.equal(source.prepare('SELECT sum(synced) AS count FROM events').get()!.count, 2);
+  } finally {
+    await sync.close();
+    await usage.close();
+    source.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test('desktop browser URLs contribute to websites without inflating app or device totals', () => {
   const summary = usageSummary(
     [

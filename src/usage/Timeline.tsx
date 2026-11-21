@@ -264,6 +264,15 @@ export function AlignedUsageTimeline({
               {formatTime(selected.start)}–{formatTime(selected.end)} ·{' '}
               {formatDuration(selected.end - selected.start)}
             </p>
+            {selected.event!.kind === 'app' && (
+              <p>
+                {selected.event!.inputState === 'active'
+                  ? '输入活跃'
+                  : selected.event!.inputState === 'idle'
+                    ? '无输入'
+                    : '输入状态未知'}
+              </p>
+            )}
             {selected.detail && <p>{selected.detail}</p>}
             <button type="button" onClick={() => setSelected(undefined)}>
               关闭

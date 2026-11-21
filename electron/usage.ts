@@ -166,6 +166,7 @@ export class DesktopUsage implements UsageBridge {
       enabled: true,
       screenshot_interval: settings.sampleSeconds,
       idle_threshold_minutes: settings.idleMinutes,
+      observe_foreground_input: true,
       server_url: null,
       token: null,
       browser_enabled: settings.browser,
@@ -207,6 +208,7 @@ export class DesktopUsage implements UsageBridge {
   }
   private async importWorkReview(file: string) {
     if (!existsSync(file)) return;
+    const ownCollector = file === path.join(this.directory, 'collector', 'agent.db');
     const database = new DatabaseSync(file, { readOnly: true });
     try {
       const definition = database
@@ -253,6 +255,7 @@ export class DesktopUsage implements UsageBridge {
         const events = rows.flatMap((row) => {
           if (exists.get(`work-review:${row.device_id}:${row.id}`)) return [];
           const data = JSON.parse(String(row.payload));
+          if (ownCollector && data.input_state !== undefined) return [];
           const device = devices.get(data.device_id);
           return parseUsageImport({
             ...data,
@@ -265,32 +268,41 @@ export class DesktopUsage implements UsageBridge {
         position.cursor = rows.at(-1)!.cursor as bigint;
         await yieldToIO();
       }
-      if (file === path.join(this.directory, 'collector', 'agent.db') && !this.closing) {
+      if (ownCollector && !this.closing) {
         const local = new DatabaseSync(file);
         try {
           const pending = local.prepare(
-            'SELECT rowid AS cursor,id,device_id,synced FROM events WHERE synced=0 AND rowid>? ORDER BY rowid LIMIT 200',
+            'SELECT rowid AS cursor,id,device_id,payload,duration FROM events WHERE synced=0 AND rowid>? ORDER BY rowid LIMIT 200',
           );
           const firstPending = local.prepare(
-            'SELECT rowid AS cursor,id,device_id,synced FROM events WHERE synced=0 ORDER BY rowid LIMIT 200',
+            'SELECT rowid AS cursor,id,device_id,payload,duration FROM events WHERE synced=0 ORDER BY rowid LIMIT 200',
           );
           pending.setReadBigInts(true);
           firstPending.setReadBigInts(true);
           const acknowledge = local.prepare(
-            'UPDATE events SET synced=1 WHERE device_id=? AND id=? AND synced=0',
+            'UPDATE events SET synced=1 WHERE device_id=? AND id=? AND duration=? AND synced=0',
           );
           let next: bigint | undefined;
           while (!this.closing) {
             const rows = next === undefined ? firstPending.all() : pending.all(next);
             if (!rows.length) break;
+            const revisions = rows.flatMap((row) => {
+              const data = JSON.parse(String(row.payload));
+              if (data.input_state === undefined) return [];
+              const device = devices.get(data.device_id);
+              return parseUsageImport({
+                ...data,
+                device_name: device?.name ?? os.hostname(),
+                platform: device?.platform ?? process.platform,
+              });
+            });
+            this.store.import(revisions);
             local.exec('BEGIN IMMEDIATE');
             try {
-              for (const row of rows)
-                if (
-                  Number(row.synced) === 0 &&
-                  exists.get(`work-review:${row.device_id}:${row.id}`)
-                )
-                  acknowledge.run(row.device_id, row.id);
+              for (const row of rows) {
+                if (exists.get(`work-review:${row.device_id}:${row.id}`))
+                  acknowledge.run(row.device_id, row.id, row.duration);
+              }
               local.exec('COMMIT');
             } catch (error) {
               local.exec('ROLLBACK');

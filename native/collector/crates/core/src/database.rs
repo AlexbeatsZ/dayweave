@@ -35,6 +35,26 @@ impl Store {
         Ok(self.connection.execute("INSERT OR IGNORE INTO events(device_id,id,timestamp,duration,app_name,title,payload,screenshot_path) VALUES(?1,?2,?3,?4,?5,?6,?7,?8)",
             params![activity.device_id, activity.id, activity.timestamp, activity.duration, activity.app_name, activity.window_title, serde_json::to_string(activity)?, screenshot.map(|p| p.to_string_lossy().into_owned())])? > 0)
     }
+    /// Extend the same observed span while it is open. A revised duration must be imported again.
+    pub fn save_foreground(&self, activity: &Activity) -> Result<()> {
+        activity.validate(&activity.device_id)?;
+        self.connection.execute(
+            "INSERT INTO events(device_id,id,timestamp,duration,app_name,title,payload)
+             VALUES(?1,?2,?3,?4,?5,?6,?7)
+             ON CONFLICT(device_id,id) DO UPDATE SET duration=excluded.duration,
+             payload=excluded.payload,synced=0 WHERE excluded.duration>events.duration",
+            params![
+                activity.device_id,
+                activity.id,
+                activity.timestamp,
+                activity.duration,
+                activity.app_name,
+                activity.window_title,
+                serde_json::to_string(activity)?
+            ],
+        )?;
+        Ok(())
+    }
     pub fn pending_count(&self) -> Result<i64> {
         Ok(self
             .connection

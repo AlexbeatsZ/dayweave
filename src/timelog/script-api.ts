@@ -7,7 +7,7 @@
 import type { AppState, PlanGroup, Task, TaskList } from '../model.js';
 import { courseOccurrences, type Schedule } from '../schedule.js';
 import { getDayStart, getTimeZone, wallTime } from '../timezone.js';
-import type { UsageEvent } from '../usage/domain.js';
+import type { InputState, UsageEvent } from '../usage/domain.js';
 import {
   activeActivity,
   clipped,
@@ -69,6 +69,8 @@ export type UsageQuery = RangeQuery & {
   kinds?: ('app' | 'web' | 'unlock' | 'media')[];
   /** Device names or ids. */
   devices?: string[];
+  inputStates?: InputState[];
+  includeForegroundOnly?: boolean;
 };
 /** Largest range one data call may cover; usage is paged from the device database. */
 export const MAX_QUERY_DAYS = 62;
@@ -258,6 +260,8 @@ export function scriptUsage(events: UsageEvent[], range: Span, query: UsageQuery
     .filter(
       (event) =>
         !event.deleted &&
+        (query.includeForegroundOnly || !event.foregroundOnly) &&
+        (!query.inputStates?.length || query.inputStates.includes(event.inputState ?? 'unknown')) &&
         event.end > range.start &&
         event.start < range.end &&
         (!query.kinds?.length || query.kinds.includes(event.kind)) &&
@@ -276,6 +280,8 @@ export function scriptUsage(events: UsageEvent[], range: Span, query: UsageQuery
       device: event.deviceName,
       deviceId: event.deviceId,
       platform: event.platform,
+      inputState: event.inputState ?? 'unknown',
+      foregroundOnly: event.foregroundOnly === true,
       start: Math.max(event.start, range.start),
       end: Math.min(event.end, range.end),
     }))

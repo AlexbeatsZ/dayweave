@@ -1,5 +1,8 @@
 import { z } from 'zod';
 
+export const inputStateSchema = z.enum(['active', 'idle', 'unknown']);
+export type InputState = z.infer<typeof inputStateSchema>;
+
 export const usageEventSchema = z
   .object({
     id: z.string().min(1).max(600),
@@ -14,6 +17,8 @@ export const usageEventSchema = z
     title: z.string().max(16384).default(''),
     url: z.string().max(16384).default(''),
     category: z.string().max(128).default(''),
+    inputState: inputStateSchema.optional().describe('最近 60 秒的输入状态；旧记录缺省表示未知'),
+    foregroundOnly: z.literal(true).optional().describe('仅前台观察，不计入常规使用时长'),
     revision: z.number().int().nonnegative(),
     deleted: z.boolean().default(false),
   })
@@ -30,7 +35,12 @@ export type UsageQuery = {
   before?: number;
   limit?: number;
 };
-export type UsagePage = { events: UsageEvent[]; next?: number; complete: boolean };
+export const usagePageSchema = z.object({
+  events: usageEventSchema.array(),
+  next: z.number().int().optional(),
+  complete: z.boolean(),
+});
+export type UsagePage = z.infer<typeof usagePageSchema>;
 export type UsageDevice = { id: string; name: string; platform: string; lastEvent: number };
 export type UsageApplication = { id: string; name: string; icon?: string };
 export const usageSettingsSchema = z.object({
@@ -99,7 +109,7 @@ export function usageSummary(events: UsageEvent[], range: { start: number; end: 
     (event) => !event.deleted && event.end >= range.start && event.start < range.end,
   );
   const apps = live
-    .filter((event) => event.kind === 'app')
+    .filter((event) => event.kind === 'app' && !event.foregroundOnly)
     .map((event) => ({
       ...event,
       start: Math.max(range.start, event.start),
@@ -144,7 +154,10 @@ export function usageSummary(events: UsageEvent[], range: { start: number; end: 
         }
       },
       live
-        .filter((event) => event.kind === 'web' || (event.kind === 'app' && event.url))
+        .filter(
+          (event) =>
+            !event.foregroundOnly && (event.kind === 'web' || (event.kind === 'app' && event.url)),
+        )
         .map((event) => ({
           ...event,
           start: Math.max(range.start, event.start),

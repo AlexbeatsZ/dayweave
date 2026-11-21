@@ -2,7 +2,7 @@
 use crate::{error::AppError, error::Result, monitor::WindowBounds};
 use cocoa::base::{id, nil};
 use core_foundation::{
-    base::{CFGetTypeID, CFRelease, CFTypeRef, TCFType},
+    base::{CFGetTypeID, CFHash, CFRelease, CFTypeRef, TCFType},
     string::{CFString, CFStringGetTypeID, CFStringRef},
 };
 use core_graphics::geometry::{CGPoint, CGSize};
@@ -77,6 +77,7 @@ impl Drop for Pool {
 }
 
 pub struct FrontmostWindow {
+    pub window_id: usize,
     pub app_name: String,
     pub bundle_identifier: String,
     pub app_path: String,
@@ -180,9 +181,9 @@ pub fn frontmost_window() -> Result<FrontmostWindow> {
         AXUIElementSetMessagingTimeout(application.0, 0.8);
         // The application itself is known from the current process; a failed window read only loses
         // the title, so the activity is still recorded under the application name.
-        let window = (|| -> Result<(String, Option<WindowBounds>)> {
+        let window = (|| -> Result<(usize, String, Option<WindowBounds>)> {
             let Some(window) = attribute(application.0, "AXFocusedWindow")? else {
-                return Ok((String::new(), None));
+                return Ok((pid as usize, String::new(), None));
             };
             if CFGetTypeID(window.0) != AXUIElementGetTypeID() {
                 return Err(AppError::Unknown("辅助功能返回了无效的窗口类型".into()));
@@ -191,11 +192,17 @@ pub fn frontmost_window() -> Result<FrontmostWindow> {
             let title = attribute(window.0, "AXTitle")?
                 .and_then(|value| cf_string(value.0))
                 .unwrap_or_default();
-            Ok((title, window_bounds(window.0)))
+            Ok((
+                CFHash(window.0) as usize ^ ((pid as usize) << 32),
+                title,
+                window_bounds(window.0),
+            ))
         })();
         note_window_read(window.is_ok());
-        let (title, bounds) = window.unwrap_or_default();
+        let (window_id, title, bounds) =
+            window.unwrap_or_else(|_| (pid as usize, String::new(), None));
         Ok(FrontmostWindow {
+            window_id,
             app_name,
             bundle_identifier,
             app_path,

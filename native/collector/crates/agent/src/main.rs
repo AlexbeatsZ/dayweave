@@ -290,6 +290,9 @@ async fn run(directory: PathBuf, duration: Option<u64>, host_managed: bool) -> R
             if let Some(activity) = sample.activity {
                 store.enqueue(&activity, sample.screenshot_path.as_deref())?;
             }
+            for span in sample.foreground {
+                store.save_foreground(&span)?;
+            }
             {
                 let mut state = worker_status.lock().unwrap();
                 state.state = sample.state;
@@ -301,7 +304,8 @@ async fn run(directory: PathBuf, duration: Option<u64>, host_managed: bool) -> R
                 cleanup = Instant::now();
             }
             while !worker_stop.load(Ordering::Relaxed)
-                && started.elapsed() < Duration::from_secs(config.screenshot_interval)
+                && started.elapsed()
+                    < Duration::from_secs(work_review_agent::capture::sample_interval(&config))
             {
                 std::thread::sleep(Duration::from_millis(200));
             }

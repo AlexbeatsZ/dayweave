@@ -1137,6 +1137,7 @@ mod tests {
     #[test]
     fn 应按窗口中心点选择目标屏幕() {
         let active_window = ActiveWindow {
+            window_id: 0,
             app_name: "Work Review".to_string(),
             window_title: "测试窗口".to_string(),
             browser_url: None,
@@ -1159,6 +1160,7 @@ mod tests {
     #[test]
     fn 缺少窗口边界时不应生成选屏坐标() {
         let active_window = ActiveWindow {
+            window_id: 0,
             app_name: "Work Review".to_string(),
             window_title: "测试窗口".to_string(),
             browser_url: None,

@@ -32,7 +32,13 @@ export function parseUsageImport(value: unknown, received = Date.now()): UsageEv
         title: data.window_title || '',
         url: data.browser_url || '',
         category: data.category || '',
-        revision: received,
+        ...(data.input_state === undefined
+          ? { revision: received }
+          : {
+              inputState: data.input_state,
+              ...(data.foreground_only ? { foregroundOnly: true } : {}),
+              revision: Math.round((data.timestamp + data.duration) * 1000),
+            }),
       });
       return;
     }

@@ -73,6 +73,8 @@ pub fn import(
                 browser_url: row.get(7)?,
                 ocr_text: row.get(8)?,
                 screenshot: screenshot.is_some(),
+                input_state: None,
+                foreground_only: false,
                 note: [purpose.unwrap_or_default(), note.unwrap_or_default()]
                     .into_iter()
                     .filter(|s| !s.is_empty())

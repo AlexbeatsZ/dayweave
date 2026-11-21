@@ -1,3 +1,7 @@
+## 2026-11-21 原始自动记录输入状态
+
+OpenAPI 2.6.0 在 /usage/query 的响应声明可选 inputState（active/idle/unknown）和 foregroundOnly。旧数据字段缺省可读，CLI 复用该 JSON 接口。仅前台观察可查询，常规时长统计沿用原闲置阈值。
+
 # AI REST API 与并发
 
 ## 2026-11-16 全功能原生接口与活动写入

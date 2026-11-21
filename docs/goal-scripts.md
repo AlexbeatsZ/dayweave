@@ -65,6 +65,8 @@ export default async function judge(ctx) {
 | `ctx.activities()`                                                   | 当前可用活动：`{ id, name, nature, color, archived }`                                                                                                                                                                                                                                                                  |
 | `ctx.goals()`                                                        | 其他非脚本目标在本周期的状态：`{ id, name, group, kind, period, met, within, progress, target }`                                                                                                                                                                                                                       |
 
+桌面观察带 `inputState: 'active' | 'idle' | 'unknown'`。可传 `inputStates` 筛选任意多个状态。最近输入满 60 秒后标为空闲，旧记录与无输入遥测的来源标为未知。`includeForegroundOnly: true` 可读取达到原采集闲置阈值后仍在前台的记录。此类记录的 `foregroundOnly` 为 true。
+
 ### ctx.util
 
 同步的辅助函数。时间段是 `{ start, end }`，参数可以是一个或一组时间段。

@@ -35,8 +35,11 @@ export function mergeUsageEvents(events: readonly UsageEvent[]): MergedUsageEven
       event.kind !== 'unlock' &&
       previous.source === event.source &&
       previous.category === event.category &&
+      (previous.inputState ?? 'unknown') === (event.inputState ?? 'unknown') &&
+      previous.foregroundOnly === event.foregroundOnly &&
       identity(previous) === identity(event) &&
-      event.start - previous.end <= (event.kind === 'media' ? 1000 : MERGE_GAP)
+      event.start - previous.end <=
+        (event.inputState ? 0 : event.kind === 'media' ? 1000 : MERGE_GAP)
     ) {
       previous.end = Math.max(previous.end, event.end);
       if (event.title && !previous.titles.includes(event.title)) previous.titles.push(event.title);

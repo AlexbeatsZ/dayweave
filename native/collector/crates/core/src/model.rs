@@ -26,6 +26,14 @@ pub struct DeviceView {
     pub status: AgentStatus,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum InputState {
+    Active,
+    Idle,
+    Unknown,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Activity {
     pub id: String,
@@ -40,6 +48,10 @@ pub struct Activity {
     pub screenshot: bool,
     #[serde(default)]
     pub note: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub input_state: Option<InputState>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub foreground_only: bool,
 }
 
 impl Activity {

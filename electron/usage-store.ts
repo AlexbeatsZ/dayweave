@@ -64,9 +64,12 @@ export class UsageStore implements UsageReplica {
       .get(event.id);
     if (existing) {
       const old = JSON.parse(String(existing.payload)) as UsageEvent;
-      const same = (Object.keys(old) as (keyof UsageEvent)[]).every(
-        (key) => ['revision', 'deviceName', 'platform'].includes(key) || old[key] === event[key],
-      );
+      const same =
+        old.inputState === event.inputState &&
+        old.foregroundOnly === event.foregroundOnly &&
+        (Object.keys(old) as (keyof UsageEvent)[]).every(
+          (key) => ['revision', 'deviceName', 'platform'].includes(key) || old[key] === event[key],
+        );
       if (same) return false;
       // Another device owns this observation. Keep its copy and continue the batch: failing
       // here would roll back every other row and block the same pending batch forever.

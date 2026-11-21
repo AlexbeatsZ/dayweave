@@ -3,7 +3,12 @@ import { extraPaths } from './extra-contract.js';
 import { taskSchema, listSchema, planGroupSchema, stateFields, subtaskSchema } from './model.js';
 import { eventInputSchema, eventChangesSchema, recurrenceInputSchema } from './event-contract.js';
 import { calendarEventSchema } from './event-model.js';
-import { usageEventSchema, usageQuerySchema, usageSettingsSchema } from './usage/domain.js';
+import {
+  usageEventSchema,
+  usagePageSchema,
+  usageQuerySchema,
+  usageSettingsSchema,
+} from './usage/domain.js';
 
 /** An API failure with its HTTP status; every route reports errors through it. */
 export class ApiError extends Error {
@@ -94,7 +99,12 @@ const response = {
   },
   headers: { ETag: { schema: { type: 'string' }, description: '当前会话中的状态版本' } },
 };
-function operation(summary: string, schema?: z.ZodType, pathId: boolean | string[] = false) {
+function operation(
+  summary: string,
+  schema?: z.ZodType,
+  pathId: boolean | string[] = false,
+  output?: z.ZodType,
+) {
   return {
     summary,
     ...(pathId
@@ -116,7 +126,19 @@ function operation(summary: string, schema?: z.ZodType, pathId: boolean | string
         }
       : {}),
     responses: {
-      '200': response,
+      '200': output
+        ? {
+            ...response,
+            content: {
+              'application/json': {
+                schema: {
+                  ...response.content['application/json'].schema,
+                  properties: { data: json(output), revision: { type: 'string' } },
+                },
+              },
+            },
+          }
+        : response,
       '400': { description: '参数或 JSON 无效' },
       '401': { description: '缺少或错误的 Bearer 令牌' },
       '403': { description: '拒绝跨站或非本机请求' },
@@ -131,7 +153,7 @@ export const openapi = {
   openapi: '3.0.3',
   info: {
     title: 'Dayweave AI API',
-    version: '2.5.0',
+    version: '2.6.0',
     description:
       '时织 Windows/macOS 本机接口。应用运行时可用；实际地址与令牌见设置或用户数据目录 api.json。默认不对局域网开放。所有写入先持久化再通知界面；DELETE 任务为软删除。',
   },
@@ -198,8 +220,10 @@ export const openapi = {
     '/usage/status': { get: operation('读取自动记录设置、设备、采集与同步状态') },
     '/usage/query': {
       post: operation(
-        '分页查询原始自动记录，时间使用 epoch 毫秒，next 作为后续 before',
+        '分页查询原始自动记录。inputState 缺省表示输入状态未知，foregroundOnly 表示仅前台观察。时间为 epoch 毫秒，next 作为后续 before',
         usageQuerySchema,
+        false,
+        usagePageSchema,
       ),
     },
     '/usage/settings': {
