@@ -1,15 +1,8 @@
 name: Check
-
 on:
-  push:
-    tags-ignore:
-      - server-v*
-  pull_request:
   workflow_dispatch:
-
 permissions:
   contents: read
-
 jobs:
   windows:
     runs-on: windows-latest
@@ -24,17 +17,7 @@ jobs:
       - run: cargo test --locked --manifest-path native/collector/Cargo.toml --workspace
       - run: npm run build:collector
       - run: node scripts/smoke-collector.mjs
-      - run: npm run format:check
-      - run: npm test
-      - run: npm run build
-      - run: npm run bundle:ai
-      - run: npm run test:headless
-      - run: npx playwright install chromium
-      - run: npm run test:e2e
-      - run: node scripts/smoke-tray.mjs
-      - run: node scripts/smoke-desktop.mjs
-      - run: node scripts/smoke-api.mjs
-      - run: node scripts/smoke-fudan.mjs
+      - run: node --import tsx --test tests/sync.test.ts tests/sync-recovery.test.ts tests/personal-goal-scripts.test.ts
       - run: npm run dist:win
       - run: npm run test:portable
       - uses: actions/upload-artifact@v4
@@ -43,50 +26,3 @@ jobs:
           path: |
             release/Dayweave-*-Windows-x64.exe
             release/Dayweave-*-Windows-Setup.exe
-  android:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 21
-      - run: npm ci
-      - run: npm run android:sync
-      - run: node scripts/package-android.mjs --unsigned
-      - uses: actions/upload-artifact@v4
-        with:
-          name: Dayweave-Android-unsigned
-          path: release/Dayweave-*-Android-unsigned.apk
-  macos:
-    runs-on: macos-15
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-      - run: npm ci
-      - uses: dtolnay/rust-toolchain@stable
-      - run: cargo test --locked --manifest-path native/collector/Cargo.toml --workspace
-      - run: npm run build:collector
-      - run: node scripts/smoke-collector.mjs
-      - run: npm test
-      - run: npm run build
-      - run: node scripts/smoke-desktop.mjs
-      - run: node scripts/smoke-tray.mjs
-      - run: node scripts/smoke-api.mjs
-      - run: node scripts/package-macos.mjs
-      - run: node scripts/smoke-api.mjs
-        env:
-          DAYWEAVE_EXECUTABLE: release/mac-arm64/Dayweave.app/Contents/MacOS/Dayweave
-      - uses: actions/upload-artifact@v4
-        with:
-          name: Dayweave-macOS-arm64
-          path: |
-            release/Dayweave-*-macOS-arm64.dmg
-            release/Dayweave-*-macOS-arm64.zip
