@@ -232,6 +232,7 @@ export async function handleApi(
                     scriptName:
                       state.scripts?.find((row) => row.id === goal.scriptId)?.name ?? null,
                     scriptNote: result?.note ?? null,
+                    ...(result?.segments ? { scriptSegments: result.segments } : {}),
                     scriptError: result?.error ?? null,
                   };
                 })()

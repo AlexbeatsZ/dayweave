@@ -27,6 +27,7 @@ import {
   activeActivity,
   goalPeriodKey,
   goalStatus,
+  scriptResult,
 } from '../src/timelog/domain.js';
 import { toDocument } from '../src/sync/document.js';
 import type { StateService, StateSnapshot } from './state-service.js';
@@ -78,7 +79,12 @@ function goalContext(state: AppState, today: string, now: number) {
     .map((goal) => {
       const period = (key: string) => {
         const status = goalStatus(state.timelog, goal, key, now, state.tasks);
-        return { period: goalPeriodKey(goal, key), ...status };
+        const script = goal.kind === 'script' ? scriptResult(state.timelog, goal, key) : undefined;
+        return {
+          period: goalPeriodKey(goal, key),
+          ...status,
+          ...(script?.segments ? { scriptSegments: script.segments } : {}),
+        };
       };
       return {
         ...goal,

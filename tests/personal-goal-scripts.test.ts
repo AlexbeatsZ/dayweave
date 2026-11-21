@@ -69,8 +69,16 @@ test('vibe coding counts only recent input after :15, trims partial exceptions a
   const violation = observe(at('09:13'), at('09:20', 1), 'active');
   const title = 'vibe coding 例外';
   try {
-    assert.equal(judge.run([idle, allowed]).met, true);
-    assert.equal(judge.run([idle, violation]).met, false);
+    const satisfied = judge.run([idle, allowed]);
+    assert.equal(satisfied.met, true);
+    assert.equal(satisfied.progress, 16 / 24);
+    assert.equal(satisfied.segments?.length, 24);
+    assert.deepEqual(satisfied.segments?.[5], { label: '09:00', status: 'met' });
+    assert.deepEqual(satisfied.segments?.[16], { label: '20:00', status: 'current' });
+    assert.deepEqual(satisfied.segments?.[23], { label: '03:00', status: 'pending' });
+    const missed = judge.run([idle, violation]);
+    assert.equal(missed.met, false);
+    assert.equal(missed.segments?.[5]?.status, 'missed');
     assert.equal(judge.run([observe(at('09:13'), at('09:58'), undefined)]).met, null);
     const request = {
       kind: 'emergency',
@@ -108,7 +116,12 @@ test('three plans score user confirmations by separate exclusive deadlines', asy
     assert.equal(judge.run([]).progress, 0);
     const morning = plan('早上', at('08:59'));
     const evening = plan('晚上', at('18:59'));
-    assert.equal(judge.run([], [morning, evening, plan('午间', at('13:00'))]).progress, 2 / 3);
+    const partial = judge.run([], [morning, evening, plan('午间', at('13:00'))]);
+    assert.equal(partial.progress, 2 / 3);
+    assert.deepEqual(
+      partial.segments?.map((segment) => segment.status),
+      ['met', 'missed', 'met'],
+    );
     assert.equal(judge.run([], [morning, morning]).progress, 1 / 3);
     assert.equal(judge.run([], [morning, evening, plan('午间', at('12:59'))]).met, true);
   } finally {

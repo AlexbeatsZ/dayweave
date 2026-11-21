@@ -171,6 +171,7 @@ export class ScriptJudge {
           met: outcome.met,
           progress: outcome.progress,
           note: outcome.note,
+          ...(outcome.segments ? { segments: outcome.segments } : {}),
           ...(outcome.error ? { error: outcome.error.slice(0, 2000) } : {}),
           basis,
           updatedAt: now,
@@ -211,6 +212,7 @@ const same = (a: GoalResult, b: GoalResult) =>
   a.met === b.met &&
   a.progress === b.progress &&
   a.note === b.note &&
+  JSON.stringify(a.segments) === JSON.stringify(b.segments) &&
   a.error === b.error &&
   a.basis === b.basis;
 /**

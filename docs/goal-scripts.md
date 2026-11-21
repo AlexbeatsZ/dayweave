@@ -29,6 +29,7 @@ export default async function judge(ctx) {
   - `met`：`true` / `false` / `null`。
   - `progress`：0 到 1，用于热力图深浅和进度条；省略时达成为 1，否则为 0。
   - `note`：最多 200 字，显示在目标卡片和热力图提示中。
+  - `segments`（可选）：按显示顺序提供 1–24 个 `{ label, status }`，卡片显示等宽分段进度条。状态取 `pending`（未开始）、`current`（进行中）、`met`（达标）、`missed`（未达标）或 `unknown`（证据不足）。
 - 与其他目标一样，只有周期结束后的结果才算“达成 / 未达成”；进行中的周期只显示当前结果。`met: null` 或脚本出错时，这个周期记为无法判定，不算失败。
 
 ## ctx

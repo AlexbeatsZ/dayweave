@@ -36,3 +36,9 @@ GET/POST /timelog/scripts、GET/PATCH/DELETE /timelog/scripts/{id} 复用客户�
 - 状态增量把 `scripts`、`goalResults` 按行合并，避免中心写结果与本机编辑在整字段层面冲突。
 - 新集合与新目标类型要求中心与所有客户端同时升级：旧中心的 `isDocumentKey` 不认识 `scripts/`、`goalResults/`，旧客户端会拒绝 `kind: 'script'`。部署时先升级中心。
 - 判定在中心的事件循环中同步执行；单次最多 5 秒，超时后该 basis 不再重试，所以一个坏脚本最多阻塞约 5 秒。
+
+## 进度分段
+
+脚本可选返回 segments，中心随原目标结果保存，每次仅同步实际变化。GET /timelog/goals 及 /context 的当前、上一期通过 scriptSegments 提供同一结果。同步请求通过 scriptSegments 声明客户端支持，中心为旧端投影标量进度。中心独占 goalResults 写入，拒绝配对端回传的计算结果。
+
+本项目个人目标以已配置的北京时间和 04:00 业务日为准。Vibe coding 按 04:00 到次日 03:59 渲染 24 格，规划分别显示早、中、晚 3 格。

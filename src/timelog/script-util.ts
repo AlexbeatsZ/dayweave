@@ -3,7 +3,7 @@
  * module exports and returns. Runs inside the worker; also imported by tests.
  */
 import { businessDateKey, wallTime, zoneClock } from '../timezone.js';
-import type { ScriptOutcome, ScriptParam } from './domain.js';
+import { readGoalSegments, type ScriptOutcome, type ScriptParam } from './domain.js';
 
 type Span = { start: number; end: number };
 type Spans = Span | readonly Span[];
@@ -159,5 +159,10 @@ export function scriptOutcome(value: unknown): ScriptOutcome {
       : result.met
         ? 1
         : 0;
-  return { met: result.met, progress, note: String(result.note ?? '').slice(0, 200) };
+  return {
+    met: result.met,
+    progress,
+    note: String(result.note ?? '').slice(0, 200),
+    ...(result.segments === undefined ? {} : { segments: readGoalSegments(result.segments) }),
+  };
 }

@@ -31,14 +31,14 @@ export default async function judge(ctx) {
   if (ctx.params.effectiveDate && key < ctx.params.effectiveDate) return null;
   const tasks = await ctx.tasks({ dueFrom: key, dueTo: key, completed: true });
   let count = 0;
-  const labels = phases.map(([label, wall]) => {
+  const segments = phases.map(([label, wall]) => {
     const deadline = ctx.util.at(key, wall);
     const observed = tasks.some((task) => {
       const confirmed = confirmation(task, label);
       return confirmed !== null && confirmed >= start && confirmed <= now && confirmed < deadline;
     });
     if (observed) count++;
-    return `${label}${observed ? '已完成' : now >= deadline ? '已过截止' : '待完成'}`;
+    return { label, status: observed ? 'met' : now >= deadline ? 'missed' : 'pending' };
   });
-  return { met: count === 3, progress: count / 3, note: `${count}/3 · ${labels.join(' · ')}` };
+  return { met: count === 3, progress: count / 3, note: `${count}/3 次规划`, segments };
 }

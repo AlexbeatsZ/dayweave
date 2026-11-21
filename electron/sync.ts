@@ -12,12 +12,24 @@ import {
   toDocument,
 } from '../src/sync/document.js';
 import { generateRepeatedTasks } from '../src/task-repeat.js';
-import { dateSchema, stateSchema } from '../src/model.js';
+import { dateSchema, stateSchema, type AppState } from '../src/model.js';
 import type { Peer, SyncBridge, SyncRequest, SyncStatus } from '../src/sync/types.js';
 import type { StateService } from './state-service.js';
 import type { UsageReplica, UsageExchange } from '../src/usage/sync.js';
 import { CalendarFeed } from './calendar-feed.js';
 import { preserveOnce, readOptional, writeAtomic } from './files.js';
+
+function projectGoalResults(state: AppState, segments: boolean): AppState {
+  const rows = state.timelog.goalResults;
+  if (segments || !rows?.some((row) => row.segments)) return state;
+  return {
+    ...state,
+    timelog: {
+      ...state.timelog,
+      goalResults: rows.map(({ segments: _segments, ...row }) => row),
+    },
+  };
+}
 
 export function syncFiles(directory: string) {
   const file = path.join(directory, 'sync.json');
@@ -317,7 +329,15 @@ export class DesktopSync implements SyncBridge {
                       throw new Error('基础文档无效');
                     for (const key of Object.keys(base))
                       if (!isDocumentKey(key)) throw new Error('基础文档字段无效');
-                    const merged = mergeDocuments(base, incoming, toDocument(current));
+                    // Only the center writes computed results. A peer may have an older projection.
+                    const remote = toDocument(current);
+                    for (const key of new Set([...Object.keys(base), ...Object.keys(incoming)])) {
+                      if (key.startsWith('goalResults/')) {
+                        delete base[key];
+                        delete incoming[key];
+                      }
+                    }
+                    const merged = mergeDocuments(base, incoming, remote);
                     conflicts = merged.conflicts;
                     return generateRepeatedTasks(
                       reconcileTimeOverlaps(merged.doc, current, current, conflicts),
@@ -330,6 +350,7 @@ export class DesktopSync implements SyncBridge {
                     )
                   : await this.service.snapshot();
               const changed = !!value.state || snapshot.revision !== value.revision;
+              const replyState = projectGoalResults(snapshot.state, value.scriptSegments === true);
               result = await seal(
                 {
                   protocol: 3,
@@ -337,7 +358,7 @@ export class DesktopSync implements SyncBridge {
                   hubId: c.deviceId,
                   revision: snapshot.revision,
                   ...(changed
-                    ? { state: snapshot.state, base: toDocument(snapshot.state), conflicts }
+                    ? { state: replyState, base: toDocument(replyState), conflicts }
                     : {}),
                 },
                 peer.key,

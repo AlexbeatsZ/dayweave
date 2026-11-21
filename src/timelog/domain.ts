@@ -163,11 +163,26 @@ export type GoalScript = {
   order?: number;
   updatedAt: number;
 };
+const segmentStatuses = ['pending', 'current', 'met', 'missed', 'unknown'] as const;
+export type GoalSegment = { label: string; status: (typeof segmentStatuses)[number] };
+
+export function readGoalSegments(value: unknown): GoalSegment[] {
+  if (!Array.isArray(value) || value.length < 1 || value.length > 24)
+    throw new Error('进度分段须包含 1 至 24 段。');
+  return value.map((entry) => {
+    const segment = obj(entry, '分段');
+    const label = str(segment.label, '分段名称', 64).trim();
+    const status = segmentStatuses.find((item) => item === segment.status);
+    if (!label || !status) throw new Error('进度分段无效。');
+    return { label, status };
+  });
+}
 /** What one script run returned for one period; `progress` (0–1) shades the heatmap. */
 export type ScriptOutcome = {
   met: boolean | null;
   progress: number;
   note: string;
+  segments?: GoalSegment[];
   error?: string;
 };
 /**
@@ -1121,6 +1136,7 @@ export function validateState(value: unknown): State {
         met: o.met,
         progress: num(o.progress, '进度', 0, 1),
         note: str(o.note, '说明', 200),
+        ...(o.segments === undefined ? {} : { segments: readGoalSegments(o.segments) }),
         ...(o.error === undefined ? {} : { error: str(o.error, '错误', 2000) }),
         basis: str(o.basis, '计算依据', 20000),
         updatedAt: num(o.updatedAt, '更新时间'),

@@ -44,6 +44,7 @@ export type SyncStatus = {
 };
 export type SyncRequest = {
   protocol?: 3;
+  scriptSegments?: true;
   through?: string;
   seq: number;
   name?: string;

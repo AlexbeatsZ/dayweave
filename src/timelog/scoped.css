@@ -541,6 +541,29 @@
     grid-column: 1 / -1;
   }
 }
+.timelog-module .goal-segments {
+  display: flex;
+  gap: 3px;
+}
+.timelog-module .goal-segments > span {
+  flex: 1;
+  min-width: 0;
+  height: 8px;
+  border-radius: 3px;
+  background: var(--soft);
+}
+.timelog-module .goal-segments > [data-status='met'] {
+  background: var(--activity-color);
+}
+.timelog-module .goal-segments > [data-status='missed'] {
+  background: var(--red);
+}
+.timelog-module .goal-segments > [data-status='current'] {
+  box-shadow: inset 0 0 0 1px var(--activity-color);
+}
+.timelog-module .goal-segments > [data-status='unknown'] {
+  background: repeating-linear-gradient(135deg, var(--line) 0 2px, var(--soft) 2px 4px);
+}
 .timelog-module .progress-track {
   position: relative;
   flex: none;

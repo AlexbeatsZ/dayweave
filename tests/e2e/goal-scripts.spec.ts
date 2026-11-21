@@ -54,6 +54,10 @@ async function seed(page: Page) {
       met: true,
       progress: 0.8,
       note: '中心计算的结果',
+      segments: Array.from({ length: 24 }, (_, hour) => ({
+        label: `${String(hour).padStart(2, '0')}:00`,
+        status: hour === 9 ? 'missed' : hour >= 14 ? 'pending' : 'met',
+      })),
       basis: scriptBasis(state.timelog, state.timelog.goals[0] as ScriptGoal),
       updatedAt: 1,
     },
@@ -132,6 +136,12 @@ test('goal cards show hub results; the editor test-runs scripts in the QuickJS s
   const card = page.locator('.goal-card', { hasText: '专心学习' });
   await expect(card).toContainText('中心计算的结果');
   await expect(card).toContainText('学习时少用无关软件');
+  const segments = card.locator('.goal-segments');
+  await expect(segments.locator('span')).toHaveCount(24);
+  await expect(segments.locator('[data-status="missed"]')).toHaveAttribute(
+    'title',
+    '09:00 · 未达标',
+  );
 
   await card.getByRole('button', { name: '编辑目标 专心学习' }).click();
   await expect(page.getByRole('radio', { name: /学习时少用无关软件/ })).toHaveAttribute(

@@ -285,6 +285,7 @@ export class SyncClient {
         const through = this.through;
         const request = {
           protocol: 3,
+          scriptSegments: true,
           ...(through ? { through } : {}),
           name: c.name,
           revision: c.revision,

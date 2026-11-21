@@ -270,6 +270,14 @@ export function Goals({
   );
 }
 
+const segmentLabels = {
+  pending: '未开始',
+  current: '进行中',
+  met: '达标',
+  missed: '未达标',
+  unknown: '证据不足',
+};
+
 function GoalCard({
   goal,
   outcome,
@@ -351,13 +359,31 @@ function GoalCard({
               <span>{statusText(goal, current, outcome)}</span>
               <strong>{amountText(goal, current, date, state)}</strong>
             </div>
-            <div className="progress-track">
-              <span style={{ width: `${percent}%` }} />
-              {thresholds.length > 1 &&
-                thresholds.map((value) => (
-                  <i key={value} style={{ left: `${(value / scale) * 100}%` }} />
+            {outcome?.segments ? (
+              <div
+                className="goal-segments"
+                role="img"
+                aria-label={outcome.segments
+                  .map(({ label, status }) => `${label} ${segmentLabels[status]}`)
+                  .join('、')}
+              >
+                {outcome.segments.map(({ label, status }, index) => (
+                  <span
+                    key={index}
+                    data-status={status}
+                    title={`${label} · ${segmentLabels[status]}`}
+                  />
                 ))}
-            </div>
+              </div>
+            ) : (
+              <div className="progress-track">
+                <span style={{ width: `${percent}%` }} />
+                {thresholds.length > 1 &&
+                  thresholds.map((value) => (
+                    <i key={value} style={{ left: `${(value / scale) * 100}%` }} />
+                  ))}
+              </div>
+            )}
           </>
         )}
       </button>

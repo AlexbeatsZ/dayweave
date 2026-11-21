@@ -81,32 +81,55 @@ export default async function judge(ctx) {
     observed.filter((row) => row.inputState === 'unknown'),
     exceptions,
   );
-  let hours = 0;
+  const segments = [];
+  const hasInputEvidence = observations.some(
+    (row) => row.platform !== 'android' && row.inputState !== 'unknown',
+  );
+  let passed = 0;
   let over = 0;
   let uncertain = false;
   let largest = 0;
   const localMinutes = Number(ctx.util.clock(start).slice(3, 5));
-  for (let from = start - localMinutes * 60000; from < limit; from += hour) {
+  const first = start - localMinutes * 60000;
+  for (let index = 0; index < 24; index++) {
+    const from = first + index * hour;
+    const label = ctx.util.clock(from);
+    if (from >= limit && from > now) {
+      segments.push({ label, status: 'pending' });
+      continue;
+    }
     const restricted = {
       start: Math.max(start, from + 15 * 60000),
       end: Math.min(limit, from + hour),
     };
-    if (restricted.end <= restricted.start) continue;
-    hours++;
     const used = Math.round(ctx.util.minutes(ctx.util.clip(active, restricted)) * 60000);
     largest = Math.max(largest, used);
-    if (used > allowance) over++;
-    else if (ctx.util.minutes(ctx.util.clip([...active, ...unknown], restricted)) > 5)
+    let status;
+    if (used > allowance) {
+      over++;
+      status = 'missed';
+    } else if (now < from + hour) {
+      status = 'current';
+    } else if (
+      !hasInputEvidence ||
+      ctx.util.minutes(ctx.util.clip([...active, ...unknown], restricted)) > 5
+    ) {
       uncertain = true;
+      status = 'unknown';
+    } else {
+      passed++;
+      status = 'met';
+    }
+    segments.push({ label, status });
   }
+
   const worst = Math.round(largest / 1000);
-  const note = `单小时最多 ${Math.floor(worst / 60)} 分 ${worst % 60} 秒`;
-  if (over)
-    return { met: false, progress: (hours - over) / hours, note: `${note} · ${over} 小时超限` };
-  if (
-    uncertain ||
-    !observations.some((row) => row.platform !== 'android' && row.inputState !== 'unknown')
-  )
-    return { met: null, progress: 0, note: '输入状态证据不足' };
-  return { met: true, progress: 1, note };
+  const count = `${passed}/24 小时达标`;
+  const extra = over ? ` · ${over} 小时超限` : uncertain ? ' · 部分时段证据不足' : '';
+  return {
+    met: over ? false : uncertain || !hasInputEvidence ? null : true,
+    progress: passed / segments.length,
+    note: `${count} · 单小时最多 ${Math.floor(worst / 60)} 分 ${worst % 60} 秒${extra}`,
+    segments,
+  };
 }
