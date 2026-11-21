@@ -2,27 +2,19 @@ name: Check
 on:
   workflow_dispatch:
 permissions:
-  contents: read
+  actions: read
+  contents: write
 jobs:
-  windows:
-    runs-on: windows-latest
+  windows-release-assets:
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-      - run: npm ci
-      - uses: dtolnay/rust-toolchain@stable
-      - run: cargo test --locked --manifest-path native/collector/Cargo.toml --workspace
-      - run: npm run build:collector
-      - run: node scripts/smoke-collector.mjs
-      - run: node --import tsx --test tests/sync.test.ts tests/sync-recovery.test.ts tests/personal-goal-scripts.test.ts
-      - run: npm run dist:win
-      - run: npm run test:portable
-      - uses: actions/upload-artifact@v4
+      - uses: actions/download-artifact@v4
         with:
           name: Dayweave-Windows-x64
-          path: |
-            release/Dayweave-*-Windows-x64.exe
-            release/Dayweave-*-Windows-Setup.exe
+          run-id: 44888667313
+          github-token: ${{ github.token }}
+          path: dist
+      - run: gh release upload v0.5.16 dist/Dayweave-0.5.16-Windows-Setup.exe
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
