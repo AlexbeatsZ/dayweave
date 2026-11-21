@@ -57,7 +57,18 @@ function exceptionWindow(task, dayStart) {
 export default async function judge(ctx) {
   const { key, start, end, now } = ctx.period;
   const limit = Math.min(end, now);
-  if ((ctx.params.effectiveDate && key < ctx.params.effectiveDate) || limit <= start) return null;
+  const localMinutes = Number(ctx.util.clock(start).slice(3, 5));
+  const first = start - localMinutes * 60000;
+  const segments = Array.from({ length: 24 }, (_, index) => ({
+    label: ctx.util.clock(first + index * hour),
+    status: 'pending',
+  }));
+  if (ctx.params.effectiveDate && key < ctx.params.effectiveDate) {
+    return ctx.period.settled
+      ? null
+      : { met: null, progress: 0, note: `${ctx.params.effectiveDate} 起计分`, segments };
+  }
+  if (limit < start) return null;
   const observations = await ctx.usage({
     kinds: ['app'],
     start,
@@ -81,7 +92,6 @@ export default async function judge(ctx) {
     observed.filter((row) => row.inputState === 'unknown'),
     exceptions,
   );
-  const segments = [];
   const hasInputEvidence = observations.some(
     (row) => row.platform !== 'android' && row.inputState !== 'unknown',
   );
@@ -89,15 +99,9 @@ export default async function judge(ctx) {
   let over = 0;
   let uncertain = false;
   let largest = 0;
-  const localMinutes = Number(ctx.util.clock(start).slice(3, 5));
-  const first = start - localMinutes * 60000;
-  for (let index = 0; index < 24; index++) {
+  for (const [index, segment] of segments.entries()) {
     const from = first + index * hour;
-    const label = ctx.util.clock(from);
-    if (from >= limit && from > now) {
-      segments.push({ label, status: 'pending' });
-      continue;
-    }
+    if (from > now) break;
     const restricted = {
       start: Math.max(start, from + 15 * 60000),
       end: Math.min(limit, from + hour),
@@ -120,7 +124,7 @@ export default async function judge(ctx) {
       passed++;
       status = 'met';
     }
-    segments.push({ label, status });
+    segment.status = status;
   }
 
   const worst = Math.round(largest / 1000);

@@ -28,7 +28,16 @@ function confirmation(task, stage) {
 
 export default async function judge(ctx) {
   const { key, now, start } = ctx.period;
-  if (ctx.params.effectiveDate && key < ctx.params.effectiveDate) return null;
+  if (ctx.params.effectiveDate && key < ctx.params.effectiveDate) {
+    return ctx.period.settled
+      ? null
+      : {
+          met: null,
+          progress: 0,
+          note: `${ctx.params.effectiveDate} 起计分`,
+          segments: phases.map(([label]) => ({ label, status: 'pending' })),
+        };
+  }
   const tasks = await ctx.tasks({ dueFrom: key, dueTo: key, completed: true });
   let count = 0;
   const segments = phases.map(([label, wall]) => {
