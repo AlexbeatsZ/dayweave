@@ -1,10 +1,11 @@
 import { App as NativeApp } from '@capacitor/app';
 import { JsonRepository } from './persistence';
-import { stateSchema } from './model';
+import { stateSchema, type AppState } from './model';
 import { SyncClient, syncHttpError } from './sync/client';
 import { SyncScheduler } from './sync/scheduler';
 import { store } from './store';
 import { invitationText, pendingPairingKey } from './sync/invitation';
+import { countdownCompleted, countdownReminder } from './timelog/countdown-reminder';
 let syncClient: SyncClient | undefined;
 let appActive = true;
 const syncScheduler = new SyncScheduler(async () => {
@@ -34,13 +35,29 @@ export async function initializeMobile() {
   document.documentElement.classList.add('native-mobile');
   // The widget process reads its own projection; rebuild it only when its inputs change.
   let widgetInputs: string | undefined;
+  let reminder: ReturnType<typeof countdownReminder> = null;
+  async function restoreReminder(state: AppState) {
+    reminder = countdownReminder(state.timelog);
+    try {
+      await files.restoreCountdownReminder({ reminder });
+    } catch (error) {
+      console.warn('Dayweave countdown reminder could not be restored', error);
+    }
+  }
   const repository = new JsonRepository({
     read: async (name) => (await files.read({ name })).content,
     write: (name, content) => files.write({ name, content }),
     replace: async (content, state) => {
       const inputs = JSON.stringify([state.schedule, state.calendarEvents]);
-      await files.saveState({ content, widget: inputs !== widgetInputs });
+      const nextReminder = countdownReminder(state.timelog);
+      await files.saveState({
+        content,
+        widget: inputs !== widgetInputs,
+        reminder: nextReminder,
+        completed: countdownCompleted(reminder, state.timelog) ? reminder : null,
+      });
       widgetInputs = inputs;
+      reminder = nextReminder;
     },
   });
   window.clearlist = {
@@ -58,7 +75,11 @@ export async function initializeMobile() {
     exportText: async (name, content, mime) =>
       (await files.exportBackup({ name, content, mime })).saved,
     importFudan: async () => (await files.importFudan()).content,
-    load: async () => ({ ...(await repository.load()), path: '此设备 · 应用私有存储' }),
+    load: async () => {
+      const loaded = await repository.load();
+      await restoreReminder(loaded.state);
+      return { ...loaded, path: '此设备 · 应用私有存储' };
+    },
     save: (state) => repository.save(state),
     exportData: async (state) =>
       (
@@ -73,9 +94,10 @@ export async function initializeMobile() {
     },
     restoreData: async () => {
       const { content } = await files.pickBackup();
-      return content === null
-        ? null
-        : { ...(await repository.restore(JSON.parse(content))), path: '此设备 · 应用私有存储' };
+      if (content === null) return null;
+      const restored = await repository.restore(JSON.parse(content));
+      await restoreReminder(restored.state);
+      return { ...restored, path: '此设备 · 应用私有存储' };
     },
     setTheme: (theme) =>
       files.appearance({
@@ -166,6 +188,7 @@ export async function initializeMobile() {
     if (isActive) {
       lastUsageSync = 0;
       window.dispatchEvent(new Event('dayweave:usage'));
+      window.dispatchEvent(new Event('dayweave:resume'));
     }
     if (syncStarted && isActive) syncScheduler.start();
     else syncScheduler.stop();

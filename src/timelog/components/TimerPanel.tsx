@@ -1,7 +1,7 @@
 import { taskCompleted } from '../../model';
 import './TimerPanel.css';
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
-import { ArrowRight, ChevronRight, Pause, Pencil, Play, Plus, X } from 'lucide-react';
+import { ArrowRight, Bell, ChevronRight, Pause, Pencil, Play, Plus, X } from 'lucide-react';
 import { dateKey, type Task } from '../../model';
 import { dateTimeInput, parseDateTimeInput, zoneClock } from '../../timezone';
 import {
@@ -29,6 +29,8 @@ import { ActivityIcon } from '../../phone/ActivityIcon';
 import { SORT_HOLD_MS, useSortDrag } from '../../phone/useSortDrag';
 import '../../phone/sort.css';
 import type { Commit } from './Editor';
+import { isMobileApp } from '../../files';
+import { nativeFiles } from '../../native-files';
 
 export function TimerPanel({
   state,
@@ -229,6 +231,7 @@ export function TimerPanel({
                 <Plus size={17} />
               </button>
             </div>
+            {isMobileApp && countdown && <CountdownPermission />}
             <div className="timer-times">
               <button className="timer-time-summary" aria-label="调整起止时间" onClick={openTimes}>
                 <span>
@@ -609,6 +612,58 @@ export function TimerPanel({
  */
 const EDIT_HOLD_MS = 450;
 const EDIT_HOLD_SORTABLE_MS = SORT_HOLD_MS + 300;
+function CountdownPermission() {
+  const [status, setStatus] = useState<'notifications' | 'exact' | 'ready'>();
+  const [error, setError] = useState(false);
+  const [requesting, setRequesting] = useState(false);
+  useEffect(() => {
+    let mounted = true;
+    const refresh = () => {
+      void nativeFiles
+        .countdownPermission()
+        .then(({ status }) => {
+          if (mounted) {
+            setStatus(status);
+            setError(false);
+          }
+        })
+        .catch(() => {
+          if (mounted) setError(true);
+        });
+    };
+    refresh();
+    window.addEventListener('dayweave:resume', refresh);
+    return () => {
+      mounted = false;
+      window.removeEventListener('dayweave:resume', refresh);
+    };
+  }, []);
+  if ((!status || status === 'ready') && !error) return null;
+  return (
+    <div className="countdown-permission">
+      <button
+        className="text-button"
+        disabled={requesting}
+        onClick={async () => {
+          setRequesting(true);
+          try {
+            setStatus((await nativeFiles.countdownPermission({ request: true })).status);
+            setError(false);
+          } catch {
+            setError(true);
+          } finally {
+            setRequesting(false);
+          }
+        }}
+      >
+        <Bell size={15} aria-hidden="true" />
+        {status === 'exact' ? '允许准时提醒' : '开启倒计时提醒'}
+      </button>
+      {error && <small role="status">暂时无法读取提醒权限，请重试。</small>}
+    </div>
+  );
+}
+
 function ActivityTile({
   activity,
   select,

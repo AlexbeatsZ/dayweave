@@ -105,6 +105,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Active Work
 
+- 2026-11-21 倒计时提醒已完成源码和交互预览（`.local/preview/countdown-reminder/android-45-min.png`）。桌面托盘与 Android 系统闹钟共用原计时截止。Android 倒计时页提供单机通知和精确闹钟授权入口。等待用户审核后打包与推送，并在 Mac、Windows 和 Redmi K70 上检查真实系统通知和后台交付。
+
 - 2026-11-16 待办日视图日程卡片错位已有源码修复与隔离预览 `.local/preview/task-alignment/after-1764.png`。手机卡片的左右零边距覆盖桌面居中，修正桌面 margin-inline 后四种桌面宽度的对齐与原导航/页面回归通过。截图中左侧导航消失在当前源码与本机安装包页面资源中尚未复现，实际实例原因待确认。等待 UI 审核后的构建/发布授权。
 
 - 2026-11-13 three-platform review fixes are committed and pushed on this branch (cc20077..cf708be): shared JsonRepository/Runtime/commitState, sync.json no longer rewritten per poll (reserved sequence blocks; compatible with protocol-3 hubs, no protocol change), usage ownership/paging/deleted-index fixes (desktop usage.db migrates once on open, ~0.4 s for 311k rows), Android screen-off constant 16, incremental UsageStats window, singleton DB, saveState backup rotation and a Java/TS contract fixture. Verified: 235 Node, 108/108 browser, 28 Android JVM, 7 server tests against a temporary bundle; after authorization `npm run build` and desktop/API/tray smoke also pass. Not run: packaging or devices (delivery gate). Not done: API route table, Rust monitor.rs split/dead modules.

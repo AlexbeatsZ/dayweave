@@ -1,17 +1,26 @@
 package org.dayweave.mobile;
 
+import android.Manifest;
 import android.app.Activity;
+import android.app.NotificationManager;
 import android.content.Intent;
 import android.graphics.Color;
+import android.net.Uri;
+import android.os.Build;
+import android.provider.Settings;
 import android.util.AtomicFile;
+import android.util.Log;
 import androidx.activity.result.ActivityResult;
 import androidx.core.view.WindowCompat;
 import com.getcapacitor.JSObject;
+import com.getcapacitor.PermissionState;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.ActivityCallback;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import com.getcapacitor.annotation.Permission;
+import com.getcapacitor.annotation.PermissionCallback;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -21,7 +30,9 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import org.json.JSONObject;
 
-@CapacitorPlugin(name = "DayweaveFiles")
+@CapacitorPlugin(name = "DayweaveFiles", permissions = {
+        @Permission(alias = "notifications", strings = {Manifest.permission.POST_NOTIFICATIONS})
+})
 public class DayweaveFilesPlugin extends Plugin {
     private static final int MAX_BYTES = 50 * 1024 * 1024;
     /** Hub replies carry state plus its base document, so they share the hub's request limit. */
@@ -206,6 +217,11 @@ public class DayweaveFilesPlugin extends Plugin {
     @Override
     protected void handleOnResume() {
         fudanSessions.resume();
+        try {
+            CountdownReminder.rearm(getContext());
+        } catch (RuntimeException error) {
+            Log.w("Dayweave", "Countdown alarm could not be rearmed", error);
+        }
         super.handleOnResume();
     }
 
@@ -284,6 +300,68 @@ public class DayweaveFilesPlugin extends Plugin {
         }
     }
 
+    private void refreshCountdown(PluginCall call, boolean restoring) {
+        try {
+            CountdownReminder.update(getContext(),
+                    CountdownReminder.Deadline.from(call.getObject("reminder")),
+                    CountdownReminder.Deadline.from(call.getObject("completed")), restoring);
+        } catch (RuntimeException error) {
+            Log.w("Dayweave", "Countdown alarm was not updated", error);
+        }
+    }
+
+    @PluginMethod
+    public void restoreCountdownReminder(PluginCall call) {
+        refreshCountdown(call, true);
+        call.resolve();
+    }
+
+    private String countdownPermissionStatus() {
+        if (!CountdownReminder.notificationsAllowed(getContext())) return "notifications";
+        return CountdownReminder.exactAllowed(getContext()) ? "ready" : "exact";
+    }
+
+    @PluginMethod
+    public void countdownPermission(PluginCall call) {
+        String status = countdownPermissionStatus();
+        if (!Boolean.TRUE.equals(call.getBoolean("request", false)) || "ready".equals(status)) {
+            call.resolve(new JSObject().put("status", status));
+            return;
+        }
+        if ("notifications".equals(status) && Build.VERSION.SDK_INT >= 33) {
+            PermissionState permission = getPermissionState("notifications");
+            if (permission == PermissionState.PROMPT || permission == PermissionState.PROMPT_WITH_RATIONALE) {
+                requestPermissionForAlias("notifications", call, "countdownPermissionResult");
+                return;
+            }
+        }
+        getActivity().runOnUiThread(() -> {
+            try {
+                Uri appUri = Uri.parse("package:" + getContext().getPackageName());
+                Intent settings = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, appUri);
+                if ("exact".equals(status) && Build.VERSION.SDK_INT >= 31) {
+                    settings = new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, appUri);
+                } else if (Build.VERSION.SDK_INT >= 26) {
+                    boolean channelBlocked = getContext().getSystemService(NotificationManager.class)
+                            .areNotificationsEnabled();
+                    settings = new Intent(channelBlocked ? Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS
+                            : Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                            .putExtra(Settings.EXTRA_APP_PACKAGE, getContext().getPackageName());
+                    if (channelBlocked) settings.putExtra(Settings.EXTRA_CHANNEL_ID, CountdownReminder.CHANNEL);
+                }
+                getActivity().startActivity(settings);
+                call.resolve(new JSObject().put("status", status));
+            } catch (RuntimeException error) {
+                call.reject("无法打开提醒权限设置", error);
+            }
+        });
+    }
+
+    @PermissionCallback
+    private void countdownPermissionResult(PluginCall call) {
+        call.resolve(new JSObject().put("status", countdownPermissionStatus()));
+    }
+
     @PluginMethod
     public void write(PluginCall call) {
         try {
@@ -304,7 +382,10 @@ public class DayweaveFilesPlugin extends Plugin {
             byte[] bytes = content(call);
             AtomicFile primary = new AtomicFile(file("data.json"));
             if (primary.getBaseFile().exists()) writeAtomic(file("data.backup.json"), primary.readFully());
-            writeAtomic(primary.getBaseFile(), bytes);
+            synchronized (CountdownReminder.class) {
+                writeAtomic(primary.getBaseFile(), bytes);
+                refreshCountdown(call, false);
+            }
             if (Boolean.TRUE.equals(call.getBoolean("widget", true))) refreshWidget(call.getString("content"));
             call.resolve();
         } catch (Exception error) {

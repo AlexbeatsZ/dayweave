@@ -254,6 +254,22 @@
   background: var(--accent-tint);
   color: var(--accent);
 }
+.timelog-module .countdown-permission {
+  margin-top: 8px;
+  text-align: center;
+}
+.timelog-module .countdown-permission button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  color: var(--accent);
+  font-size: 13px;
+}
+.timelog-module .countdown-permission small {
+  display: block;
+  color: var(--muted);
+}
 .timelog-module .timer-times {
   display: grid;
   gap: 10px;

@@ -1,4 +1,5 @@
 import { registerPlugin } from '@capacitor/core';
+import type { CountdownReminder } from './timelog/countdown-reminder';
 export interface NativeFiles {
   usage(options: {
     action: 'query' | 'status' | 'configure' | 'import' | 'sync' | 'applications';
@@ -9,7 +10,16 @@ export interface NativeFiles {
   read(options: { name: string }): Promise<{ content: string | null }>;
   write(options: { name: string; content: string }): Promise<void>;
   /** Saves data.json, keeping the previous primary as data.backup.json on the device side. */
-  saveState(options: { content: string; widget: boolean }): Promise<void>;
+  saveState(options: {
+    content: string;
+    widget: boolean;
+    reminder: CountdownReminder | null;
+    completed: CountdownReminder | null;
+  }): Promise<void>;
+  restoreCountdownReminder(options: { reminder: CountdownReminder | null }): Promise<void>;
+  countdownPermission(options?: {
+    request?: boolean;
+  }): Promise<{ status: 'notifications' | 'exact' | 'ready' }>;
   pickBackup(): Promise<{ content: string | null }>;
   importFudan(): Promise<{ content: string | null }>;
   refreshFudan(options: { semesterId: string }): Promise<{ content: string }>;

@@ -17,11 +17,13 @@ import {
   deleteActivity,
   duration,
   finishDueTimer,
+  finishTimer,
   nextActivity,
   startTimer,
   toggleTimer,
   validateState,
 } from '../src/timelog/domain.js';
+import { countdownCompleted, countdownReminder } from '../src/timelog/countdown-reminder.js';
 import { fromDocument, mergeDocuments, toDocument } from '../src/sync/document.js';
 
 const start = Date.UTC(2026, 9, 23, 2);
@@ -62,12 +64,24 @@ test('countdown pauses remaining duration, resumes deadline and saves exact plan
     taskId: 'task',
   });
   const id = state.timer!.id;
+  const initial = countdownReminder(state);
+  assert.deepEqual(initial, { id, at: start + 300000, activity: '学习' });
+  assert.equal(
+    countdownCompleted(initial, finishTimer(state, start + 70000), start + 300000),
+    false,
+  );
+  assert.equal(countdownCompleted(initial, { ...state, timer: null }, start + 300000), false);
   state = toggleTimer(state, start + 60000);
+  assert.equal(countdownReminder(state), null);
   assert.equal(countdownRemaining(state.timer!, start + 900000), 240000);
   assert.equal(finishDueTimer(state, start + 900000), state);
   state = toggleTimer(state, start + 900000);
   assert.equal(state.timer!.plannedEndAt, start + 1140000);
+  const resumed = countdownReminder(state);
+  assert.equal(resumed?.at, start + 1140000);
   state = finishDueTimer(state, start + 2000000);
+  assert.equal(countdownCompleted(initial, state, start + 2000000), false);
+  assert.equal(countdownCompleted(resumed, state, start + 2000000), true);
   assert.equal(state.timer, null);
   assert.equal(state.records[0].id, id);
   assert.equal(duration(state.records[0].spans), 300000);

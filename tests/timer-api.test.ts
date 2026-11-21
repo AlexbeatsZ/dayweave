@@ -9,6 +9,7 @@ import { StateService } from '../electron/state-service';
 import { FileStore } from '../electron/storage';
 import { startApi } from '../electron/api';
 import { startTimer, toggleTimer } from '../src/timelog/domain';
+import { countdownCompleted, countdownReminder } from '../src/timelog/countdown-reminder';
 import { diffState } from '../src/state-delta';
 import { fromDocument, toDocument } from '../src/sync/document';
 
@@ -869,6 +870,12 @@ test('StateService schedules exactly one deadline, shifts it across pause and re
   await fixture(async (service) => {
     const initial = await service.restore(stateWithActivities());
     const activityId = initial.state.timelog.activities[0].id;
+    let reminder = countdownReminder(initial.state.timelog);
+    const finished: number[] = [];
+    service.subscribe(({ state: { timelog } }) => {
+      if (countdownCompleted(reminder, timelog)) finished.push(reminder.at);
+      reminder = countdownReminder(timelog);
+    });
     await service.mutate((state) => ({
       ...state,
       timelog: startTimer(state.timelog, activityId, 'Scheduled', now, {
@@ -883,6 +890,7 @@ test('StateService schedules exactly one deadline, shifts it across pause and re
     t.mock.timers.tick(90000);
     await service.flush();
     assert.equal((await service.snapshot()).state.timelog.records.length, 0);
+    assert.deepEqual(finished, []);
     await service.mutate((state) => ({
       ...state,
       timelog: toggleTimer(state.timelog, Date.now()),
@@ -897,6 +905,7 @@ test('StateService schedules exactly one deadline, shifts it across pause and re
     t.mock.timers.tick(60000);
     await service.flush();
     assert.equal((await service.snapshot()).state.timelog.records.length, 1);
+    assert.deepEqual(finished, [now + 150000]);
     await service.mutate((value) => ({
       ...value,
       timelog: startTimer(value.timelog, activityId, 'Disposed timer', Date.now(), {

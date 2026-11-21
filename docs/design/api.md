@@ -67,6 +67,8 @@ Windows / macOS 桌面进程提供 `http://127.0.0.1:<port>/api/v1`，默认端�
 
 OpenAPI 文档由 `src/api-contract.ts` 生成到 `docs/api/openapi.json`，运行服务也通过 `/openapi.json` 返回同一份文档。命令行客户端默认从当前平台的用户数据目录读取地址和令牌，不输出令牌。
 
+通过 `npm run ai -- POST /timelog/timer/start --body-file <请求文件>` 可让 AI 开始同一个倒计时。请求包含 `activityId` 和 `endAt`（例如当前 UTC epoch 毫秒加 `2700000` 表示 45 分钟）。`/timelog/timer/configure` 修改截止，`pause`、`resume` 和 `cancel` 沿用原入口。无头服务到期保存记录并通过原同步传播，支持提醒的客户端按所见的最新计时状态发本机通知。系统通知权限由对应设备管理。
+
 `/health` 从运行包元数据读取真实版本。独立服务器的 version 为服务器版本、appVersion 为共享客户端领域版本，并携带 mode=server/sourceCommit。服务器扩展受认证的 `/server/status`、`/usage/status`、`/server/shutdown`，撤销设备用 `DELETE /sync/peers/{id}` 调用原 revoke；其余完整业务API不变。服务器端口冲突失败，桌面保持原空闲端口回退；管理与CLI的具体契约见 `server/README.md` 和 `server.md`。
 
 0.3 新增 /context、/schedule/_、/timelog/_ 与 /tasks/{id}/track。ROG 独立服务使用相同状态队列和 profile 进程锁；见 docs/api/README.md。

@@ -279,7 +279,11 @@ export const extraPaths: Record<string, unknown> = {
           type: 'boolean',
           description: '从上一条记录末尾开始；不能与 startAt 同用',
         },
-        endAt: { type: ['number', 'null'], description: '未来 UTC epoch 毫秒；null/缺省正向计时' },
+        endAt: {
+          type: ['number', 'null'],
+          description:
+            '未来 UTC epoch 毫秒；到期保存记录，支持提醒的客户端可发本机通知；null/缺省正向计时',
+        },
         taskId: { ...taskLink, type: 'string' },
         tags: { type: 'array', items: { type: 'string' } },
       },
@@ -298,7 +302,7 @@ export const extraPaths: Record<string, unknown> = {
           fromPreviousRecord: { type: 'boolean' },
           endAt: {
             type: ['number', 'null'],
-            description: '未来 UTC epoch 截止；null 清除截止并转正向计时',
+            description: '未来 UTC epoch 毫秒；客户端更新提醒时间；null 取消提醒并转正向计时',
           },
           taskId: taskLink,
           note: { type: 'string' },

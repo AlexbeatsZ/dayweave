@@ -5,6 +5,8 @@ import {
   ipcMain,
   Menu,
   nativeTheme,
+  Notification,
+  powerMonitor,
   Tray,
   nativeImage,
   shell,
@@ -13,10 +15,12 @@ import { readFile, writeFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { stateSchema } from '../src/model.js';
+import { countdownCompleted, countdownReminder } from '../src/timelog/countdown-reminder.js';
 import { importFudan } from './fudan-import.js';
 import { Runtime } from './headless-runtime.js';
 
 app.setName('Dayweave');
+if (process.platform === 'win32') app.setAppUserModelId('org.dayweave.desktop');
 app.setPath(
   'userData',
   process.env.DAYWEAVE_DATA_DIR
@@ -153,9 +157,13 @@ else {
     }
     const service = runtime.service;
     const usage = () => runtime?.usage;
+    let reminder: ReturnType<typeof countdownReminder> = null;
+    // Keep the latest native notification reachable so its click handler survives GC.
+    let countdownNotification: Notification | undefined;
     try {
       const snapshot = await service.snapshot();
       nativeTheme.themeSource = snapshot.state.settings.theme;
+      reminder = countdownReminder(snapshot.state.timelog);
     } catch {
       /* Keep the recovery screen available. */
     }
@@ -335,7 +343,7 @@ else {
           return;
         }
       }
-      if ((trayMode || usage()?.store.settings().enabled) && !quitting) {
+      if ((trayMode || reminder || usage()?.store.settings().enabled) && !quitting) {
         closing = false;
         window?.hide();
       } else {
@@ -346,6 +354,41 @@ else {
     service.subscribe((snapshot) => {
       nativeTheme.themeSource = snapshot.state.settings.theme;
       window?.webContents.send('store:changed', snapshot);
+      const timelog = snapshot.state.timelog;
+      const previous = reminder;
+      reminder = countdownReminder(timelog);
+      if (!quitting && countdownCompleted(previous, timelog)) {
+        const title = '倒计时结束';
+        const body = `${previous.activity}计时已结束`;
+        const fallback = (error: string) => {
+          console.warn('Dayweave countdown notification failed:', error);
+          if (process.platform === 'win32' && tray && !tray.isDestroyed()) {
+            try {
+              tray.displayBalloon({
+                title,
+                content: body,
+                icon: appIconPath,
+                respectQuietTime: true,
+              });
+            } catch (fallbackError) {
+              console.warn('Dayweave tray reminder failed:', fallbackError);
+            }
+          }
+        };
+        try {
+          if (Notification.isSupported()) {
+            countdownNotification = new Notification({ title, body });
+            countdownNotification.on('click', showWindow);
+            countdownNotification.on('failed', (_event, error) => fallback(error));
+            countdownNotification.show();
+          } else fallback('System notifications are unavailable');
+        } catch (error) {
+          fallback(String(error));
+        }
+      }
+    });
+    powerMonitor.on('resume', () => {
+      if (!quitting) void service.snapshot().catch(() => {});
     });
     // Each part records its own failure; the window opens even when data needs recovery.
     await runtime.start(false);
