@@ -182,9 +182,15 @@ export class SyncClient {
     );
     for (const conflict of reply.conflicts ?? [])
       if (!conflicts.some((item) => stable(item) === stable(conflict))) conflicts.push(conflict);
-    const previous = { base: config.base, revision: config.revision, conflicts: config.conflicts };
+    const previous = {
+      base: config.base,
+      revision: config.revision,
+      conflicts: config.conflicts,
+      goalSegmentBaseline: config.goalSegmentBaseline,
+    };
     config.base = reply.base;
     config.revision = reply.revision;
+    config.goalSegmentBaseline = true;
     config.conflicts = conflicts;
     config.incoming = undefined;
     try {
@@ -288,7 +294,8 @@ export class SyncClient {
           scriptSegments: true,
           ...(through ? { through } : {}),
           name: c.name,
-          revision: c.revision,
+          // Older baselines filtered out segmented goal results even at the current revision.
+          revision: c.goalSegmentBaseline ? c.revision : undefined,
           ...(dirty ? { state: snapshot, base: c.base ?? {} } : {}),
         };
         // Capture exactly the state sent, so edits during the request remain pending.

@@ -16,6 +16,7 @@ export type SyncConfig = {
   seq: number;
   base?: SyncDocument;
   revision?: string;
+  goalSegmentBaseline?: true;
   lastSync?: number;
   incoming?: { sent: SyncDocument; reply: SyncReply };
   conflicts: SyncConflict[];
