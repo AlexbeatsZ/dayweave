@@ -105,6 +105,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Active Work
 
+- 2026-11-21 小米手表 S4 快应用只有设计稿 `docs/design/watch.md`，还没写代码。下一步是第 0 步通道验证：用 S4-Vela-Probe 测手机→手表回包、前台再次投递和单条消息上限，并在个人 Gadgetbridge 分支改为按包名定向广播。修改中心 `/watch`、WatchBridge 或手表端之前先读该文档。
+
 - 2026-11-21 倒计时提醒已完成源码和交互预览（`.local/preview/countdown-reminder/android-45-min.png`）。桌面托盘与 Android 系统闹钟共用原计时截止。Android 倒计时页提供单机通知和精确闹钟授权入口。等待用户审核后打包与推送，并在 Mac、Windows 和 Redmi K70 上检查真实系统通知和后台交付。
 
 - 2026-11-16 待办日视图日程卡片错位已有源码修复与隔离预览 `.local/preview/task-alignment/after-1764.png`。手机卡片的左右零边距覆盖桌面居中，修正桌面 margin-inline 后四种桌面宽度的对齐与原导航/页面回归通过。截图中左侧导航消失在当前源码与本机安装包页面资源中尚未复现，实际实例原因待确认。等待 UI 审核后的构建/发布授权。
@@ -196,6 +198,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 - docs/design/server.md and server/README.md: independent Node server, profile/lifecycle/capture policy, local administration and offline migration/update.
 
 - docs/design/settings.md: settings categories, draft ownership, shared modal/style boundaries and prioritized reuse/decoupling review.
+
+- docs/design/watch.md: 小米手表 S4 快应用设计稿（未实现）：Gadgetbridge interconnect 通道、Android WatchBridge、中心 /watch 加密交换、消息协议与分阶段验收。
 
 - docs/design/automatic-records.md: native collectors, AW/Work Review adapters, aligned timeline, separate SQLite ownership, usage sync, privacy and acceptance limits.
 
