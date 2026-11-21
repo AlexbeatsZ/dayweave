@@ -128,6 +128,17 @@ async function seed(page: Page) {
   await page.getByRole('tab', { name: '目标', exact: true }).click();
 }
 
+test('script goal shows a separate status for every hour', async ({ page }) => {
+  await seed(page);
+  const card = page.locator('.goal-card', { hasText: '专心学习' });
+  const segments = card.locator('.goal-segments');
+  await expect(segments.locator('span')).toHaveCount(24);
+  await expect(segments.locator('[data-status="missed"]')).toHaveAttribute(
+    'title',
+    '09:00 · 未达标',
+  );
+});
+
 test('goal cards show hub results; the editor test-runs scripts in the QuickJS sandbox with local records and usage', async ({
   page,
 }) => {
@@ -136,13 +147,6 @@ test('goal cards show hub results; the editor test-runs scripts in the QuickJS s
   const card = page.locator('.goal-card', { hasText: '专心学习' });
   await expect(card).toContainText('中心计算的结果');
   await expect(card).toContainText('学习时少用无关软件');
-  const segments = card.locator('.goal-segments');
-  await expect(segments.locator('span')).toHaveCount(24);
-  await expect(segments.locator('[data-status="missed"]')).toHaveAttribute(
-    'title',
-    '09:00 · 未达标',
-  );
-
   await card.getByRole('button', { name: '编辑目标 专心学习' }).click();
   await expect(page.getByRole('radio', { name: /学习时少用无关软件/ })).toHaveAttribute(
     'aria-checked',

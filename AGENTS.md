@@ -6,6 +6,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Current State
 
+- 2026-11-21 客户端 0.5.16、Server 0.2.12、OpenAPI 2.7.0：桌面原生采集持续记录前台窗口，按最后输入 60 秒区分 active/idle/unknown。ROG 原中心已升级并保留 6 个配对，现有两个自控目标复用原 ID，脚本返回 24 个小时段和 3 个规划阶段。北京时间 2026-11-22 04:00 正式计分。Mac 0.5.16 托盘读回两组分段、连接、0 冲突，真实采集需重新允许辅助功能。AI Decision ROG WSL 0.1.54 控制器已就绪，Nexus 的两条置顶记忆已更新。Mac 与 OMEN 的独立窗口开关目录和验收状态见本月日志。
+
 - 2026-11-16 客户端 0.5.14/code37 品牌更新：安装后显示名统一为英文 Dayweave（原“时织”），换 Pixel 2026 白底图标；appId、profile 与 Android 签名不变，Server 仍为 0.2.10。已原位安装 Mac（托盘重启）、OMEN（备份 profile 后静默安装并在 Session1 恢复托盘）、ROG 桌面（保持关闭）、Redmi K70（code37，首次安装时间不变）。按用户要求未发 Release、未做界面/同步验收；平板离线跳过。
 
 - 2026-11-16 客户端 0.5.12/code35、Server 0.2.10、OpenAPI 2.5.0：按用户要求日历只保留单向 ICS 订阅，入口移到“设置 → 日程 → 日历订阅”；0.5.13/code36 将原“日程操作”菜单整体移入设置新分类“日程”并统一样式。可建多条订阅（名称、类型筛选、各自中心基址），每条日程带开始前 30/15 分钟 VALARM。日历账号 OAuth/CalDAV、外部日历导入、ICS 下载及日程操作中的三个入口与相关接口/依赖已删除。旧单条 `calendarFeed` 迁移为 `calendarFeeds[0]`（id=default）并保留密钥，Google/Apple 原订阅继续有效。旧中心不认识 `calendarFeeds`，必须先升中心。部署：ROG 中心 0.2.10 已上线（原 DayweaveHub 任务、身份与 1266 任务保留，恢复副本 ROG Temp/.agents/dayweave-deploy-0.5.12/recovery），原链接经本机/原网关/Vultr 443 均返回 167 条带提醒日程；0.5.13 已装 Mac/OMEN 托盘（均已连接、0 冲突）、ROG 桌面（保持关闭）与 Redmi K70（code36，首次安装时间不变，未打开界面）。平板仍离线跳过，它在升级前会因 `calendarFeeds` 同步失败。Release v0.5.12/v0.5.13/server-v0.2.10。设计见 arrangements.md。
@@ -104,6 +106,9 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 - Validation: 102 Node tests, all 56 browser workflows (10 Fudan refresh cases), 13 Android JVM checks, isolated Electron Fudan capture, desktop persistence/recovery and UI/API smoke pass. Web/Electron production builds pass with the existing chunk-size warning. No true-account or physical-device acceptance was performed.
 
 # Active Work
+
+- OMEN 0.5.16 安装包已在原机孤立环境构建且通过采集器与 portable 验证，临时目录 `Temp/.agents/dayweave-upgrade-0.5.16/` 已准备。旧版托盘会话拒绝 Restart Manager 的正常退出（351），等待在托盘中退出原实例后安装并恢复 `Dayweave Capture`。
+- 个人目标真实验收待自然使用：Mac 重新授予辅助功能，随后观察 60 秒输入切分及向中心投递；首次真实 Telegram 例外申请或本人规划确认需核对 AI 动作回执和进度。
 
 - 桌面输入状态源码与中心脚本见 docs/design/automatic-records.md 和 scripts/goals/。升级中心后再部署桌面以保留新增字段；业务目标更新、Telegram 证据接入和实体设备验收按部署记录核对。
 
