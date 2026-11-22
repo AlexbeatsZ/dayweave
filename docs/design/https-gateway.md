@@ -18,6 +18,10 @@ Vultr Debian 13 上 HAProxy 拥有公网 TCP 443，以 TLS ClientHello SNI 将 `
 
 精确 `GET/HEAD /dayweave/calendar/<64位十六进制密钥>.ics` 转发至中心 `49732/calendar/<密钥>.ics`。中心核对可撤销日历密钥后只输出 Event ICS。网关拒绝其他方法、查询串和不匹配的自动路径，原同步路由继续要求 POST。该 ICS 路由已随 0.5.9 与 Server 0.2.6 交付，Google/Outlook/Apple 使用用户复制的 HTTPS 订阅链接。实际公网账户订阅验收单独记录。数据与映射契约见 arrangements.md。
 
+## OMEN 文件 MCP
+
+`/omen-files/mcp` 和精确 OAuth 路由转发至 ROG 回环 18784。OMEN 使用既有 SSH 连接将该回环端口转发至本机文件服务。认证、目录授权和文件读取均由 OMEN 的独立服务负责。网关拒绝该命名空间未明确登记的路径，请求体限制为 1 MiB。AI Decision 拥有独立的回环 18783。2026-11-21 已在原 ROG 任务下验证这两条公网 MCP 路径的未授权响应均为 401，新路由的 OAuth 元数据为 200。
+
 ## 2026-11-08 AI Decision MCP
 
 复用当前 Web 隧道的 HTTPS 入口，固定将 `/ai-decision/mcp` 转发到回环 `18783/mcp`，并转发该命名空间的 authorize/token/register/revoke/consent 与 OAuth 发现元数据。参数查询串和 OAuth/MCP 请求头原样保留，未列出的 `/ai-decision` 路径返回404，请求体限制1MiB。只有经过独立 MCP OAuth 验证的调用才能访问原业务工具；没有路由到 decisiond 的8766端口。

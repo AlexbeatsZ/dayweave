@@ -6,6 +6,7 @@ export function createGateway(options?: {
   subscriptionPort?: number;
   syncPort?: number;
   mcpPort?: number;
+  omenFilesPort?: number;
 }): {
   server: Server;
   listen(): Promise<AddressInfo>;

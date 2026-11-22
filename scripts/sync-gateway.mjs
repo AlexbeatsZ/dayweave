@@ -3,27 +3,37 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const routes = new Set(['/dayweave/pair', '/dayweave/sync', '/dayweave/usage']);
-// Fixed MCP facade only. The private decisiond REST API is never routed here.
-const mcpRoutes = new Map([
-  ['/ai-decision/mcp', '/mcp'],
-  ['/ai-decision/authorize', '/authorize'],
-  ['/ai-decision/token', '/token'],
-  ['/ai-decision/register', '/register'],
-  ['/ai-decision/revoke', '/revoke'],
-  ['/ai-decision/consent', '/consent'],
-  [
-    '/ai-decision/.well-known/oauth-authorization-server',
-    '/.well-known/oauth-authorization-server',
-  ],
-  [
-    '/.well-known/oauth-authorization-server/ai-decision',
-    '/.well-known/oauth-authorization-server',
-  ],
-  [
-    '/.well-known/oauth-protected-resource/ai-decision/mcp',
-    '/.well-known/oauth-protected-resource/ai-decision/mcp',
-  ],
-]);
+function oauthRoutes(namespace) {
+  return new Map([
+    ...['mcp', 'authorize', 'token', 'register', 'revoke', 'consent'].map((endpoint) => [
+      `/${namespace}/${endpoint}`,
+      `/${endpoint}`,
+    ]),
+    [
+      `/${namespace}/.well-known/oauth-authorization-server`,
+      '/.well-known/oauth-authorization-server',
+    ],
+    [
+      `/.well-known/oauth-authorization-server/${namespace}`,
+      '/.well-known/oauth-authorization-server',
+    ],
+    [
+      `/.well-known/oauth-protected-resource/${namespace}/mcp`,
+      `/.well-known/oauth-protected-resource/${namespace}/mcp`,
+    ],
+  ]);
+}
+
+function inOAuthNamespace(rawPath, namespace) {
+  return (
+    rawPath.startsWith(`/${namespace}`) ||
+    rawPath.startsWith(`/.well-known/oauth-authorization-server/${namespace}`) ||
+    rawPath.startsWith(`/.well-known/oauth-protected-resource/${namespace}`)
+  );
+}
+
+const decisionRoutes = oauthRoutes('ai-decision');
+const omenFileRoutes = oauthRoutes('omen-files');
 const hopHeaders = new Set([
   'connection',
   'keep-alive',
@@ -53,19 +63,19 @@ export function createGateway({
   subscriptionPort = 18782,
   syncPort = 49732,
   mcpPort = 18783,
+  omenFilesPort = 18784,
 } = {}) {
-  for (const value of [port, subscriptionPort, syncPort, mcpPort])
+  for (const value of [port, subscriptionPort, syncPort, mcpPort, omenFilesPort])
     if (!Number.isInteger(value) || value < 0 || value > 65535)
       throw new Error('Invalid loopback port');
   const server = http.createServer((request, response) => {
     const automatic = request.url?.startsWith('/dayweave');
     const calendar = /^\/dayweave\/calendar\/[a-f0-9]{64}\.ics$/.test(request.url ?? '');
     const rawPath = (request.url ?? '').split('?')[0];
-    const mcpPath = mcpRoutes.get(rawPath);
+    const filePath = omenFileRoutes.get(rawPath);
+    const mcpPath = filePath ?? decisionRoutes.get(rawPath);
     const mcpNamespace =
-      rawPath.startsWith('/ai-decision') ||
-      rawPath.startsWith('/.well-known/oauth-authorization-server/ai-decision') ||
-      rawPath.startsWith('/.well-known/oauth-protected-resource/ai-decision');
+      inOAuthNamespace(rawPath, 'ai-decision') || inOAuthNamespace(rawPath, 'omen-files');
     const reject = (status) => {
       request.resume();
       response.writeHead(status, { 'Cache-Control': 'no-store', Connection: 'close' }).end();
@@ -79,7 +89,8 @@ export function createGateway({
     if (Number(request.headers['content-length'] ?? 0) > limit) return reject(413);
     const headers =
       automatic && !calendar ? { 'Content-Type': 'application/json' } : headersFor(request.headers);
-    const upstreamPort = automatic ? syncPort : mcpPath ? mcpPort : subscriptionPort;
+    const mcpUpstream = filePath ? omenFilesPort : mcpPort;
+    const upstreamPort = automatic ? syncPort : mcpPath ? mcpUpstream : subscriptionPort;
     const upstream = http.request(
       {
         hostname: '127.0.0.1',

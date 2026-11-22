@@ -178,3 +178,63 @@ test('HTTPS gateway no longer exposes retired calendar account routes', async ()
     await new Promise<void>((resolve) => gateway.server.close(() => resolve()));
   }
 });
+
+test('HTTPS gateway gives OMEN Local Files a separate exact MCP and OAuth backend', async () => {
+  const backend = http.createServer((request, response) => {
+    response.end(JSON.stringify({ url: request.url, auth: request.headers.authorization }));
+  });
+  await new Promise<void>((resolve) => backend.listen(0, '127.0.0.1', resolve));
+  const omenFilesPort = (backend.address() as { port: number }).port;
+  const gateway = createGateway({ port: 0, omenFilesPort });
+  const address = await gateway.listen();
+  const base = `http://127.0.0.1:${address.port}`;
+  try {
+    for (const [external, internal] of [
+      ['/omen-files/mcp', '/mcp'],
+      ['/omen-files/authorize?state=opaque', '/authorize?state=opaque'],
+      ['/omen-files/consent?request_id=opaque', '/consent?request_id=opaque'],
+      ['/omen-files/token', '/token'],
+      ['/omen-files/register', '/register'],
+      ['/omen-files/revoke', '/revoke'],
+      [
+        '/omen-files/.well-known/oauth-authorization-server',
+        '/.well-known/oauth-authorization-server',
+      ],
+      [
+        '/.well-known/oauth-authorization-server/omen-files',
+        '/.well-known/oauth-authorization-server',
+      ],
+      [
+        '/.well-known/oauth-protected-resource/omen-files/mcp',
+        '/.well-known/oauth-protected-resource/omen-files/mcp',
+      ],
+    ]) {
+      const reply = await fetch(base + external, {
+        headers: { authorization: 'Bearer test-token' },
+      });
+      assert.deepEqual(await reply.json(), { url: internal, auth: 'Bearer test-token' });
+    }
+    assert.equal((await fetch(base + '/omen-files/other')).status, 404);
+    assert.equal((await fetch(base + '/omen-files/mcp/extra')).status, 404);
+    assert.equal(
+      (await fetch(base + '/.well-known/oauth-protected-resource/omen-files')).status,
+      404,
+    );
+    assert.equal(
+      (
+        await fetch(base + '/omen-files/mcp', {
+          method: 'POST',
+          body: 'x'.repeat(1024 * 1024 + 1),
+        })
+      ).status,
+      413,
+    );
+  } finally {
+    gateway.server.closeAllConnections();
+    backend.closeAllConnections();
+    await Promise.all([
+      new Promise<void>((resolve) => gateway.server.close(() => resolve())),
+      new Promise<void>((resolve) => backend.close(() => resolve())),
+    ]);
+  }
+});
