@@ -107,6 +107,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Active Work
 
+- 2026-11-22 Mac 采集自 11/21 17:09（UTC+8）装上 0.5.16 起停在 `permission` 状态，原因是 ad-hoc 签名使每次升级后辅助功能授权失效。`package-macos.mjs` 已改用本机固定证书签名并在打包后校验（见 platforms.md）。尚未用新脚本打包或安装；下一次 Mac 安装后需要在「辅助功能」删除旧 Dayweave 条目、重新添加并授权一次，然后确认 `collector/status.json` 变为 recording。
+
 - 2026-11-21 小米手表 S4 快应用只有设计稿 `docs/design/watch.md`，还没写代码。下一步是第 0 步通道验证：用 S4-Vela-Probe 测手机→手表回包、前台再次投递和单条消息上限，并在个人 Gadgetbridge 分支改为按包名定向广播。修改中心 `/watch`、WatchBridge 或手表端之前先读该文档。
 
 - 2026-11-21 倒计时提醒已完成源码和交互预览（`.local/preview/countdown-reminder/android-45-min.png`）。桌面托盘与 Android 系统闹钟共用原计时截止。Android 倒计时页提供单机通知和精确闹钟授权入口。等待用户审核后打包与推送，并在 Mac、Windows 和 Redmi K70 上检查真实系统通知和后台交付。
@@ -154,6 +156,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 - Delete dead navigation/CSS/functions in the touched area; keep ownership and necessary design decisions in docs/design/architecture.md. Verify through real user flows, especially scroll dates/points and native back, rather than tests mirroring implementation details.
 
 # Durable Lessons
+
+- Mac packages must be built on the Mac with the login-keychain identity `Local Development Code Signing`; ad-hoc (cdhash) signing silently voids the Accessibility grant on every upgrade while the System Settings toggle still looks on. Judge by `codesign -d -r-` (must show `certificate leaf`), never by `codesign --verify`. CI Mac builds stay ad-hoc and are not for installation.
 
 - Android release signing material exists only on OMEN `.local/android-signing` (certificate SHA-256 35faf8f3…). `npm run dist:android` on a machine without it silently generates a new key; build APKs on OMEN and compare `apksigner verify --print-certs` with the previous release before installing.
 - A tray-only desktop instance has no window, so Restart Manager shutdown returns 351. Remote upgrades end the process after confirming sync is idle/offline, back up data/sync/api JSON, install silently, then start `--tray` through a one-shot Interactive scheduled task so it runs in Session1. Windows PowerShell 5 `ConvertFrom-Json` on the multi-MB sync.json takes minutes; read it with Node.

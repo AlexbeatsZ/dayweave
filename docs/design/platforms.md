@@ -16,7 +16,8 @@ React / TypeScript 负责任务、日期、重复、活动计时、课程、统�
 
 - 使用固定 bundle ID `org.dayweave.desktop`，数据保存到 `app.getPath('appData')/Dayweave`，遵循当前用户的系统目录。
 - 保留原生菜单及 Cmd+Q、Cmd+W、复制粘贴、最小化等行为；关闭最后一个窗口后应用保留在 Dock，点击 Dock 可重新打开窗口。
-- macOS 仅交付 Apple Silicon（arm64）的 DMG / ZIP，本地打包脚本和 CI 都不再构建 Intel 包。没有 Developer ID 时提供 ad-hoc 签名并明确未公证。构建验证与真实 Mac 运行、下载后的 Gatekeeper 体验分别报告。
+- macOS 仅交付 Apple Silicon（arm64）的 DMG / ZIP，本地打包脚本和 CI 都不再构建 Intel 包。没有 Developer ID，不公证。构建验证与真实 Mac 运行、下载后的 Gatekeeper 体验分别报告。
+- 签名决定辅助功能授权能否跨升级保留。TCC 记录的是代码的 designated requirement：ad-hoc 签名绑定 cdhash，每装一个新版本，原授权就不再匹配（设置里开关仍显示开启，采集器状态为 `permission`）。因此 `scripts/package-macos.mjs` 在本机用登录钥匙串中的自签证书 `Local Development Code Signing`（SHA-1 `6474F29D…BF00`，codex-plus/Sefirah 共用）签名，并给 electron-builder 传 `mac.identity` 与 `mac.timestamp=none`。之后 app 的 requirement 固定为 `identifier "org.dayweave.desktop" and certificate leaf`，采集器为 `identifier "work-review-agent" and certificate leaf`。打包后脚本会校验这两条，`codesign --verify` 通过不能证明签名身份。CI（`CI=true`）没有该证书，继续 ad-hoc；本机缺证书时直接失败，只有显式 `DAYWEAVE_MAC_ADHOC=1` 才允许 ad-hoc 构建。`DAYWEAVE_MAC_SIGN_IDENTITY` 可换身份，但换证书后需要重新授权一次。证书丢失或换机时按 `~/.agents/knowledge/macos-tcc-permissions.md` 重建同名身份（必须用 `/usr/bin/openssl` 导出 p12）。采集器由 Dayweave 直接 spawn，辅助功能授权记在 Dayweave.app 上。从 ad-hoc 版本切到固定签名的第一次安装，要在「辅助功能」里删掉旧条目后重新添加 `/Applications/Dayweave.app`；之后再升级无需重新授权。
 - 本机正式安装只保留 `/Applications/Dayweave.app`。打包、验证与部署完成后清理 `release/` 中展开的 `.app`，只保留当前所需的发行包；升级恢复文件中的程序包也不长期保留为可被系统登记的 `.app`。清理程序副本时保留独立的数据恢复目录及配对信息。
 - 运行时最低 macOS 13，与 Electron 44 的支持范围一致，不能只修改 Info.plist 来宣称支持更旧系统。
 
