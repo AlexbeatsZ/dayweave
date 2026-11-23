@@ -22,7 +22,7 @@
 - Tailscale `29674979`：节点 202，UDP 45278，仍指向 `127.0.0.1:40000`；由原 `SakuraFrpService` 管理。
 - 公网同步地址：`https://cdn.u3146344.nyat.app:63573/dayweave`。客户端只更换同一中心的 endpoint，保留 deviceId、hubId、密钥、序号、基线与冲突。
 
-`scripts/sync-gateway.mjs` 是固定路由的 loopback 网关，不拥有配对密钥、业务数据或订阅文件。运行副本在 ROG 的 `C:/Users/Meta/Project/Workspaces/dayweave/.local/https-gateway/`；独立 SYSTEM 启动任务 `DayweaveHttpsGateway` 使用现有 Node 运行它。
+`scripts/sync-gateway.mjs` 是固定路由的 loopback 网关，不拥有配对密钥、业务数据或订阅文件。运行副本在 ROG 的 `C:/Users/Meta/AppData/Local/DayweaveServices/https-gateway/`；独立 SYSTEM 启动任务 `DayweaveHttpsGateway` 使用现有 Node 运行它。
 
 | 公网请求                    | 本机目标                                 |
 | --------------------------- | ---------------------------------------- |
@@ -35,7 +35,7 @@
 
 ## 订阅兼容与启动
 
-原 `Meta-Subscription-Distributor` 仍拥有订阅发布及独立 Web frpc 子进程。只修改该任务的 Node 启动参数：通过 `--import file:///C:/Users/Meta/Project/Workspaces/dayweave/.local/https-gateway/subscription-port.mjs` 将本进程 `SUBSCRIPTION_PORT` 设为 `18782`，然后运行原 `server.mjs`。不修改系统环境变量、原服务器源码、订阅清单、私有文件或 frpc 凭据。Windows 的 `--import` 必须使用 file URL，不能直接传 `C:\...`。
+原 `Meta-Subscription-Distributor` 仍拥有订阅发布及独立 Web frpc 子进程。只修改该任务的 Node 启动参数：通过 `--import file:///C:/Users/Meta/AppData/Local/DayweaveServices/https-gateway/subscription-port.mjs` 将本进程 `SUBSCRIPTION_PORT` 设为 `18782`，然后运行原 `server.mjs`。不修改系统环境变量、原服务器源码、订阅清单、私有文件或 frpc 凭据。Windows 的 `--import` 必须使用 file URL，不能直接传 `C:\...`。
 
 Web frpc 原本验证并连接 18781，保持不变，前面由网关分流。发布器与网关独立启动，允许启动时顺序不同；后端短时不可用返回 502，客户端保留待同步数据并重试。原 Web 任务为切换端口短暂重启过；未重启 Tailscale 服务。
 

@@ -28,9 +28,9 @@ node api.mjs GET /timelog/timer
 需要独立 profile 时，服务与 CLI 指定同一目录：
 
 ```powershell
-$env:DAYWEAVE_DATA_DIR = 'C:\Users\Meta\Project\Workspaces\dayweave-data'
+$env:DAYWEAVE_DATA_DIR = 'C:\Users\Meta\AppData\Roaming\Dayweave'
 node headless.mjs
-node api.mjs --profile 'C:\Users\Meta\Project\Workspaces\dayweave-data' GET /context
+node api.mjs --profile 'C:\Users\Meta\AppData\Roaming\Dayweave' GET /context
 ```
 
 远程控制另一台电脑可经 SSH 转发，保留 loopback 与 Bearer 鉴权，例如：

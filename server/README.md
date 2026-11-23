@@ -25,10 +25,10 @@
 解压后把 `Dayweave-Server` 中的程序放到稳定的专用目录，例如：
 
 ```text
-C:\Users\Meta\Project\Workspaces\dayweave-server\current\
+C:\Users\Meta\AppData\Local\Programs\DayweaveServer\
 ```
 
-在程序目录外创建私有配置 `C:\Users\Meta\Project\Workspaces\dayweave-server\server.json`，从 `server.example.json` 复制并核对：
+在程序目录外创建私有配置 `C:\Users\Meta\AppData\Local\DayweaveServices\server\server.json`，从 `server.example.json` 复制并核对：
 
 ```json
 {
@@ -45,7 +45,7 @@ C:\Users\Meta\Project\Workspaces\dayweave-server\current\
 先正常退出原桌面程序，再在原 Meta 用户身份运行：
 
 ```powershell
-& 'C:\Users\Meta\scoop\apps\nodejs\current\node.exe' 'C:\Users\Meta\Project\Workspaces\dayweave-server\current\server.mjs' --config 'C:\Users\Meta\Project\Workspaces\dayweave-server\server.json'
+& 'C:\Users\Meta\scoop\apps\nodejs\current\node.exe' 'C:\Users\Meta\AppData\Local\Programs\DayweaveServer\server.mjs' --config 'C:\Users\Meta\AppData\Local\DayweaveServices\server\server.json'
 ```
 
 使用机器上实际的 Node 绝对路径；该示例不安装或更改 Node。也可运行包内 `start.ps1 -Config <绝对配置路径> -Node <node.exe绝对路径>`。没有窗口、托盘或标准输入依赖。正常启动只输出不含令牌的 ready JSON；stderr 记录失败原因。API 固定 loopback，默认 49731；server 模式端口冲突直接失败。中心保留 49732、`/pair`、`/sync`、`/usage`，原公网 `/dayweave` 网关无需变动。
@@ -57,12 +57,12 @@ C:\Users\Meta\Project\Workspaces\dayweave-server\current\
 从任意工作目录执行，命令会动态读取原 profile/api.json，不在参数或输出中展示令牌：
 
 ```powershell
-node .\admin.mjs --config 'C:\Users\Meta\Project\Workspaces\dayweave-server\server.json' status
-node .\admin.mjs --config 'C:\Users\Meta\Project\Workspaces\dayweave-server\server.json' usage
-node .\admin.mjs --config 'C:\Users\Meta\Project\Workspaces\dayweave-server\server.json' invite
-node .\admin.mjs --config 'C:\Users\Meta\Project\Workspaces\dayweave-server\server.json' sync
-node .\admin.mjs --config 'C:\Users\Meta\Project\Workspaces\dayweave-server\server.json' revoke '<准确的设备ID>'
-node .\admin.mjs --config 'C:\Users\Meta\Project\Workspaces\dayweave-server\server.json' stop
+node .\admin.mjs --config 'C:\Users\Meta\AppData\Local\DayweaveServices\server\server.json' status
+node .\admin.mjs --config 'C:\Users\Meta\AppData\Local\DayweaveServices\server\server.json' usage
+node .\admin.mjs --config 'C:\Users\Meta\AppData\Local\DayweaveServices\server\server.json' invite
+node .\admin.mjs --config 'C:\Users\Meta\AppData\Local\DayweaveServices\server\server.json' sync
+node .\admin.mjs --config 'C:\Users\Meta\AppData\Local\DayweaveServices\server\server.json' revoke '<准确的设备ID>'
+node .\admin.mjs --config 'C:\Users\Meta\AppData\Local\DayweaveServices\server\server.json' stop
 ```
 
 邀请包含短期配对密钥，仅在明确调用 invite 时输出，应私下传给需配对的设备。revoke 删除该设备的认证授权，保留它已同步的历史数据和冲突。
@@ -114,8 +114,8 @@ S4U/Session0 并不自动表示这些资源优先级相同。部署时记录任�
 ```powershell
 node 'C:\staging\Dayweave-Server\stage-update.mjs' `
   --package 'C:\staging\Dayweave-Server' `
-  --current 'C:\Users\Meta\Project\Workspaces\dayweave-server\current' `
-  --config 'C:\Users\Meta\Project\Workspaces\dayweave-server\server.json' `
+  --current 'C:\Users\Meta\AppData\Local\Programs\DayweaveServer' `
+  --config 'C:\Users\Meta\AppData\Local\DayweaveServices\server\server.json' `
   --recovery 'C:\Users\Meta\AppData\Local\Temp\.agents\dayweave-server-update-20261031-unique'
 ```
 
