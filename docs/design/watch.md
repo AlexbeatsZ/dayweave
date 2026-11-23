@@ -7,7 +7,7 @@
 - 手表上查看当前计时（手机、电脑或手表任一端开始的），并能开始、暂停、继续、结束、开倒计时。
 - 查看今日待办并完成；以后补新建待办、补记记录和今日统计。
 - 不在手表上复制业务规则：手表只显示中心或手机算好的精简视图，写操作全部走现有领域校验。
-- 目标设备是 Xiaomi Watch S4（Vela / HyperOS 2，466×466 圆屏，型号 M2425W1），手机为 Redmi K70，连接手表的是个人 Gadgetbridge 分支（`/Users/meta/Project/Workspaces/Gadgetbridge`），不是小米运动健康。
+- 目标设备是 Xiaomi Watch S4（Vela / HyperOS 2，466×466 圆屏，型号 M2425W1），手机为 Redmi K70，连接手表的是个人 Gadgetbridge 分支（`/Users/meta/Developer/Gadgetbridge`），不是小米运动健康。
 
 ## 已确认的约束
 
