@@ -609,7 +609,7 @@ export async function startApi(
   } catch (error) {
     if (
       options.strictPort ||
-      (error as NodeJS.ErrnoException).code !== 'EADDRINUSE' ||
+      !['EADDRINUSE', 'EACCES'].includes((error as NodeJS.ErrnoException).code ?? '') ||
       requestedPort === 0
     )
       throw error;

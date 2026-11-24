@@ -153,6 +153,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Durable Lessons
 
+- Windows Hyper-V可能将49731包含在动态TCP排除范围，桌面API遇EACCES应申请可用端口并刷新api.json，不修改系统网络；正式server strictPort仍固定端口。OMEN在2026-11-24真实出现49705–49804预留，旧API文件pid因此长期残留。
+
 - Android release signing material exists only on OMEN `.local/android-signing` (certificate SHA-256 35faf8f3…). `npm run dist:android` on a machine without it silently generates a new key; build APKs on OMEN and compare `apksigner verify --print-certs` with the previous release before installing.
 - A tray-only desktop instance has no window, so Restart Manager shutdown returns 351. Remote upgrades end the process after confirming sync is idle/offline, back up data/sync/api JSON, install silently, then start `--tray` through a one-shot Interactive scheduled task so it runs in Session1. Windows PowerShell 5 `ConvertFrom-Json` on the multi-MB sync.json takes minutes; read it with Node.
 

@@ -5,7 +5,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { FileStore } from '../electron/storage';
 import { StateService } from '../electron/state-service';
-import { request as httpRequest } from 'node:http';
+import { request as httpRequest, Server } from 'node:http';
 import { startApi } from '../electron/api';
 import { Runtime } from '../electron/headless-runtime';
 import { applyDelta, diffState, StateConflict } from '../src/state-delta';
@@ -616,3 +616,42 @@ test('failed persistence does not publish a state and a later mutation can recov
     assert.equal(broadcasts, 1);
     assert.equal((await service.snapshot()).state.tasks[0].title, 'Saved');
   }));
+
+test('desktop API uses an available port when Windows reserves its default; strict server keeps its port', async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'dayweave-reserved-port-'));
+  const service = new StateService(new FileStore(directory));
+  const original = Server.prototype.listen;
+  const reserved = 49731;
+  t.mock.method(
+    Server.prototype,
+    'listen',
+    function (this: Server, ...args: Parameters<typeof original>) {
+      if (Number(args[0]) === reserved) {
+        queueMicrotask(() =>
+          this.emit('error', Object.assign(new Error('reserved by Windows'), { code: 'EACCES' })),
+        );
+        return this;
+      }
+      return original.apply(this, args);
+    },
+  );
+  try {
+    const api = await startApi(service, reserved);
+    try {
+      assert.notEqual(new URL(api.info.url).port, String(reserved));
+      const response = await fetch(api.info.url + '/health', {
+        headers: { Authorization: 'Bearer ' + api.info.token },
+      });
+      assert.equal(response.status, 200);
+      const credentials = JSON.parse(await readFile(path.join(directory, 'api.json'), 'utf8'));
+      assert.equal(credentials.url, api.info.url);
+    } finally {
+      await api.close();
+    }
+    await assert.rejects(startApi(service, reserved, undefined, { strictPort: true }), {
+      code: 'EACCES',
+    });
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
