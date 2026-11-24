@@ -172,6 +172,7 @@ export const calendarFeedSchema = z
       .array(z.enum(['course', 'exam', 'presentation', 'meeting', 'other']))
       .max(5)
       .default([]),
+    content: z.enum(['events', 'reference', 'combined']).optional(),
     baseUrl: z
       .string()
       .url()

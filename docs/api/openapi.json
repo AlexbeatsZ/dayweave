@@ -1430,6 +1430,7 @@
                         "enum": ["course", "exam", "presentation", "meeting", "other"]
                       }
                     },
+                    "content": { "type": "string", "enum": ["events", "reference", "combined"] },
                     "baseUrl": { "type": "string", "maxLength": 8000, "format": "uri" }
                   },
                   "required": ["id", "name", "enabled", "token", "types"],
@@ -5480,6 +5481,7 @@
                             "enum": ["course", "exam", "presentation", "meeting", "other"]
                           }
                         },
+                        "content": { "type": "string", "enum": ["events", "reference", "combined"] },
                         "baseUrl": { "type": "string", "maxLength": 8000, "format": "uri" }
                       },
                       "required": ["id", "name", "enabled", "token", "types"],
@@ -6802,6 +6804,7 @@
                                 "enum": ["course", "exam", "presentation", "meeting", "other"]
                               }
                             },
+                            "content": { "type": "string", "enum": ["events", "reference", "combined"] },
                             "baseUrl": { "type": "string", "maxLength": 8000, "format": "uri" }
                           },
                           "required": ["id", "name", "enabled", "token", "types"],

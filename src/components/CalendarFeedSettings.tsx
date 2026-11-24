@@ -78,7 +78,7 @@ export function CalendarFeedSettings() {
       <p className="field-hint">
         在 Google「通过网址添加」、Outlook「从 Web 订阅」或
         Apple「新建日历订阅」粘贴链接。每条日程在开始前 {feedReminderMinutes.join(' 分钟和 ')}{' '}
-        分钟提醒。
+        分钟提醒；学习休息参考时段到点提醒。外部日历可能使用自己的通知设置。
       </p>
       {error && (
         <p className="form-error" role="alert">
@@ -137,6 +137,20 @@ function FeedRow({
           启用
         </label>
       </div>
+      <label>
+        订阅内容
+        <select
+          aria-label="订阅内容"
+          value={feed.content ?? 'events'}
+          onChange={(event) =>
+            void patch({ content: event.target.value as 'events' | 'reference' | 'combined' })
+          }
+        >
+          <option value="events">实际日程</option>
+          <option value="reference">学习休息参考（只补空白）</option>
+          <option value="combined">实际日程与参考背景</option>
+        </select>
+      </label>
       <div className="calendar-feed-types" role="group" aria-label="包含的日程类型">
         <button
           type="button"

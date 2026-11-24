@@ -6,6 +6,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Current State
 
+- 2026-11-24 新增日历参考背景进入0.5.18/code41、Server0.2.14：feed.content=events/reference/combined，导出时参考表只填所有实际日程的空白，任意截断、全天/跨天让位，不新增业务Event/任务/学习记录。参考VALARM=0，实际日程仍30/15分钟。Google原生账号提醒桥等待用户选择，不恢复旧OAuth。0.5.17/code40与中心0.2.13已部署Mac/OMEN/ROG/手机，平板连接超时。
+
 - 2026-11-24 客户端 0.5.17/code40、Server 0.2.13：默认采集改为30秒，桌面不再因输入标注缩为10秒，Android设置可调整采集间隔。休息/娱乐当前或冲突计时器暂停本机观察，恢复不回填空档，不改用户的采集开关。245 Node与45 Rust测试通过，Mac固定证书打包及原位升级完成；Windows/Android正在原签名构建，部署回执待记录。变更基于v0.5.16，不携带另一个分支未发布的倒计时改动。
 
 - 2026-11-16 客户端 0.5.14/code37 品牌更新：安装后显示名统一为英文 Dayweave（原“时织”），换 Pixel 2026 白底图标；appId、profile 与 Android 签名不变，Server 仍为 0.2.10。已原位安装 Mac（托盘重启）、OMEN（备份 profile 后静默安装并在 Session1 恢复托盘）、ROG 桌面（保持关闭）、Redmi K70（code37，首次安装时间不变）。按用户要求未发 Release、未做界面/同步验收；平板离线跳过。

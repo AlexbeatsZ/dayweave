@@ -6,12 +6,14 @@ import {
   type CalendarFeed,
 } from './event-model.js';
 import { eventBounds } from './event-domain.js';
-import { shiftDay } from './timezone.js';
+import { shiftDay, zoneDateKey } from './timezone.js';
+import { referenceBlocks, referenceZone } from './reference-calendar.js';
 
 /** Persisted instances have stable UIDs, covering recurrence exceptions on every platform. */
 export function exportEventCalendar(
   events: CalendarEvent[],
-  feed: Pick<CalendarFeed, 'name' | 'types'> = { name: legacyFeedName, types: [] },
+  feed: Pick<CalendarFeed, 'name' | 'types' | 'content'> = { name: legacyFeedName, types: [] },
+  referenceStart = zoneDateKey(Date.now(), referenceZone),
 ) {
   const calendar = new ICAL.Component(['vcalendar', [], []]);
   calendar.updatePropertyWithValue('version', '2.0');
@@ -22,6 +24,7 @@ export function exportEventCalendar(
   calendar.updatePropertyWithValue('refresh-interval', ICAL.Duration.fromString('PT1H'));
   calendar.updatePropertyWithValue('x-published-ttl', 'PT1H');
   for (const event of events) {
+    if (feed.content === 'reference') continue;
     if (feed.types.length && !feed.types.includes(event.type)) continue;
     const component = new ICAL.Component('vevent');
     component.updatePropertyWithValue('uid', `${event.id}@dayweave`);
@@ -66,6 +69,35 @@ export function exportEventCalendar(
     if (event.recurrenceId)
       component.updatePropertyWithValue('x-dayweave-recurrence-id', event.recurrenceId);
     calendar.addSubcomponent(component);
+  }
+  if (feed.content === 'reference' || feed.content === 'combined') {
+    for (const block of referenceBlocks(events, referenceStart)) {
+      const component = new ICAL.Component('vevent');
+      component.updatePropertyWithValue('uid', `${block.id}@dayweave`);
+      component.updatePropertyWithValue('summary', block.title);
+      component.updatePropertyWithValue(
+        'description',
+        '固定UTC+8参考轴，只补安排空白；按当前状态调整，不要求全天学习。',
+      );
+      component.updatePropertyWithValue(
+        'dtstart',
+        ICAL.Time.fromJSDate(new Date(block.start), true),
+      );
+      component.updatePropertyWithValue('dtend', ICAL.Time.fromJSDate(new Date(block.end), true));
+      component.updatePropertyWithValue(
+        'dtstamp',
+        ICAL.Time.fromJSDate(new Date('2026-11-24T00:00:00Z'), true),
+      );
+      component.updatePropertyWithValue('transp', 'TRANSPARENT');
+      component.updatePropertyWithValue('x-dayweave-reference', block.kind);
+      component.updatePropertyWithValue('x-dayweave-timezone', referenceZone);
+      const alarm = new ICAL.Component('valarm');
+      alarm.updatePropertyWithValue('action', 'DISPLAY');
+      alarm.updatePropertyWithValue('description', block.title);
+      alarm.updatePropertyWithValue('trigger', ICAL.Duration.fromSeconds(0));
+      component.addSubcomponent(alarm);
+      calendar.addSubcomponent(component);
+    }
   }
   return calendar.toString();
 }

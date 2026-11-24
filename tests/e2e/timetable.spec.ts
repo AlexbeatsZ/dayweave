@@ -489,6 +489,7 @@ test('task and event month/week modes stay independent and calendar publishing c
   await expect(link).not.toHaveValue(first);
   await settings.getByRole('button', { name: '新建订阅', exact: true }).click();
   await expect(feeds).toHaveCount(2);
+  await feeds.nth(0).getByLabel('订阅内容').selectOption('combined');
   await feeds.nth(1).getByLabel('中心地址').fill('https://45.77.68.130/dayweave');
   await feeds.nth(1).getByLabel('订阅名称').fill('Outlook 考试');
   await feeds.nth(1).getByRole('button', { name: '考试', exact: true }).click();
@@ -503,6 +504,7 @@ test('task and event month/week modes stay independent and calendar publishing c
   const saved = await page.evaluate(
     () => JSON.parse(localStorage.getItem('dayweave.v1')!).settings,
   );
+  expect(saved.calendarFeeds[0].content).toBe('combined');
 
   expect(
     saved?.calendarFeeds?.map((feed: { name: string; types: string[] }) => [feed.name, feed.types]),

@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { timingSafeEqual } from 'node:crypto';
+import { zoneDateKey } from '../src/timezone.js';
 import type { StateService } from './state-service.js';
 import { exportEventCalendar } from '../src/calendar-export.js';
 
@@ -23,10 +24,11 @@ export class CalendarFeed {
       response.writeHead(404).end();
       return true;
     }
-    const key = `${snapshot.revision}\n${feed.name}\n${feed.types.join(',')}`;
+    const day = zoneDateKey(Date.now(), '+08:00');
+    const key = `${snapshot.revision}\n${feed.name}\n${feed.types.join(',')}\n${feed.content ?? 'events'}\n${day}`;
     let cached = this.cache.get(feed.token);
     if (cached?.key !== key) {
-      cached = { key, content: exportEventCalendar(snapshot.state.calendarEvents, feed) };
+      cached = { key, content: exportEventCalendar(snapshot.state.calendarEvents, feed, day) };
       if (this.cache.size >= 40) this.cache.clear(); // rotated tokens never return
       this.cache.set(feed.token, cached);
     }
