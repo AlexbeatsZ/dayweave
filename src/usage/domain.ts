@@ -55,7 +55,7 @@ export const usageSettingsSchema = z.object({
 export type UsageSettings = z.infer<typeof usageSettingsSchema>;
 export const defaultUsageSettings = (): UsageSettings => ({
   enabled: false,
-  sampleSeconds: 10,
+  sampleSeconds: 30,
   idleMinutes: 5,
   browser: false,
   excludedApps: ['1Password', 'Bitwarden', 'Keychain'],

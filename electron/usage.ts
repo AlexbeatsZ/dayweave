@@ -16,6 +16,7 @@ import {
   type UsageQuery,
   type UsageBridge,
 } from '../src/usage/domain.js';
+import type { StateService, StateSnapshot } from './state-service.js';
 import type { SyncClient } from '../src/sync/client.js';
 
 const FULL_SCAN_MS = 60 * 60_000;
@@ -25,6 +26,9 @@ export class DesktopUsage implements UsageBridge {
   private child?: ChildProcess;
   private running?: Promise<void>;
   private closing = false;
+  private privateCapture = false;
+  private unsubscribeState?: () => void;
+  private collectorChanges: Promise<void> = Promise.resolve();
   private error = '';
   private sourceScans = new Map<string, { checkedAt: number; error: string }>();
   /** Per-source rowid position; a full pass repeats hourly or when the source shrinks. */
@@ -36,16 +40,45 @@ export class DesktopUsage implements UsageBridge {
     readonly directory: string,
     readonly binary: string,
     readonly localCapture = true,
+    readonly service?: StateService,
   ) {}
   async initialize(background = true) {
+    if (this.service && this.localCapture) {
+      this.privateCapture = this.privateState(await this.service.snapshot());
+      this.unsubscribeState = this.service.subscribe((snapshot) => {
+        const paused = this.privateState(snapshot);
+        if (paused === this.privateCapture) return;
+        this.privateCapture = paused;
+        this.collectorChanges = this.collectorChanges
+          .then(() => this.applyCollector())
+          .catch((error) => {
+            this.error = String(error);
+          });
+      });
+    }
     await this.applyCollector();
     if (background) this.startBackground();
     return this;
   }
+  private privateState(snapshot: StateSnapshot) {
+    const time = snapshot.state.timelog;
+    const timers = [time.timer, ...(time.conflictedTimers ?? [])];
+    return timers.some(
+      (timer) =>
+        timer &&
+        (timer.plannedEndAt == null ||
+          timer.runningSince == null ||
+          timer.plannedEndAt > Date.now()) &&
+        time.activities.some(
+          (activity) =>
+            activity.id === timer.activityId && ['休息', '娱乐'].includes(activity.name.trim()),
+        ),
+    );
+  }
   startBackground() {
     this.timer = setInterval(() => {
       void this.sync().catch(() => {});
-    }, 15000);
+    }, 30000);
     this.initialSync = setImmediate(() => {
       this.initialSync = undefined;
       void this.sync().catch(() => {});
@@ -65,11 +98,13 @@ export class DesktopUsage implements UsageBridge {
   async status() {
     let capture = !this.localCapture
       ? '服务器模式已禁用本机采集'
-      : this.child
-        ? '正在采集'
-        : this.store.settings().enabled
-          ? '采集不可用'
-          : '未启用';
+      : this.privateCapture
+        ? '休息或娱乐计时中，采集已暂停'
+        : this.child
+          ? '正在采集'
+          : this.store.settings().enabled
+            ? '采集不可用'
+            : '未启用';
     let error = this.error;
     if (this.child)
       try {
@@ -135,7 +170,7 @@ export class DesktopUsage implements UsageBridge {
     if (!this.localCapture) return;
     const settings = this.store.settings();
     const collector = path.join(this.directory, 'collector');
-    if (!settings.enabled) {
+    if (!settings.enabled || this.privateCapture) {
       await this.stopCollector();
       return;
     }
@@ -394,6 +429,8 @@ export class DesktopUsage implements UsageBridge {
     return this.running;
   }
   async close() {
+    this.unsubscribeState?.();
+    await this.collectorChanges;
     this.stopBackground();
     await this.stopCollector();
     await this.running?.catch(() => {});

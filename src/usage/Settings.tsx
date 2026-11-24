@@ -114,10 +114,10 @@ export function UsageSettingsPanel() {
               onChange={(event) => setDraft({ ...draft, enabled: event.target.checked })}
             />
           </label>
-          {window.clearlist?.platform !== 'android' && (
+          {
             <div className="usage-setting-grid">
               <label>
-                采样间隔（秒）
+                采集间隔（秒）
                 <input
                   type="number"
                   min={2}
@@ -141,7 +141,7 @@ export function UsageSettingsPanel() {
                 />
               </label>
             </div>
-          )}
+          }
           <label className="usage-setting-row">
             <strong>浏览器网址</strong>
             <input

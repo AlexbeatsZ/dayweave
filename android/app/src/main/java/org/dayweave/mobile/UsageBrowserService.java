@@ -17,20 +17,30 @@ public final class UsageBrowserService extends AccessibilityService {
     /** Database work leaves the main thread; observation order is kept by a single worker. */
     private final java.util.concurrent.ExecutorService storage=java.util.concurrent.Executors.newSingleThreadExecutor();
     private String browser=null,url=null;
-    private long start=0,lastObserved=0,settingsAt=0;
+    private long start=0,lastObserved=0,settingsAt=0,privacyGeneration=-1;
     private JSONObject settings;
     /** Settings change rarely; reread them at most every 15 seconds instead of on every tick. */
     private JSONObject settings(long now) throws Exception {
         if(settings==null||now-settingsAt>15000){settings=UsageDatabase.get(this).settings();settingsAt=now;}
         return settings;
     }
-    private final Runnable tick=new Runnable(){@Override public void run(){observe();handler.postDelayed(this,2000);}};
+    private final Runnable tick=new Runnable(){@Override public void run(){
+        observe(); long delay=30000;
+        try{delay=settings(System.currentTimeMillis()).getInt("sampleSeconds")*1000L;}catch(Exception ignored){}
+        handler.postDelayed(this,delay);
+    }};
     @Override protected void onServiceConnected(){handler.post(tick);UsageWorker.schedule(this);}
     @Override public void onAccessibilityEvent(AccessibilityEvent event){observe();}
     private void observe() {
         long now=System.currentTimeMillis();
-        if(now-lastObserved<500)return;
-        if(now-lastObserved>30000)finish(lastObserved);
+        try {
+            boolean privateNow=UsagePrivacy.active(this);
+            long generation=UsagePrivacy.generation();
+            if(generation!=privacyGeneration){url=null;browser=null;start=0;privacyGeneration=generation;}
+            if(privateNow){url=null;browser=null;start=0;lastObserved=now;return;}
+            if(now-lastObserved<settings(now).getInt("sampleSeconds")*1000L)return;
+        } catch(Exception ignored){return;}
+        try{if(now-lastObserved>settings(now).getInt("sampleSeconds")*2000L+1000)finish(lastObserved);}catch(Exception ignored){return;}
         lastObserved=now;
         AccessibilityNodeInfo root=getRootInActiveWindow();
         try {
@@ -81,6 +91,7 @@ public final class UsageBrowserService extends AccessibilityService {
         String app=browser,address=url;long from=start;JSONObject rules=settings;
         storage.execute(()->{
             try {
+                if(UsagePrivacy.active(this))return;
                 UsageDatabase database=UsageDatabase.get(this);
                 JSONObject event=UsageCapture.event(database,"web",app+":"+from,from,end,app,"",address);
                 if(UsageCapture.filter(event,rules==null?database.settings():rules))database.insert(new JSONArray().put(event));

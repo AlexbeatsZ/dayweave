@@ -189,7 +189,7 @@ impl Default for AgentConfig {
             token: None,
             enabled: true,
             browser_enabled: false,
-            screenshot_interval: 10,
+            screenshot_interval: 30,
             idle_threshold_minutes: 5,
             observe_foreground_input: false,
             sync_interval: 30,

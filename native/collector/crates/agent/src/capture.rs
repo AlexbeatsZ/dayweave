@@ -316,11 +316,7 @@ pub fn sample(
 }
 
 pub fn sample_interval(config: &AgentConfig) -> u64 {
-    if config.observe_foreground_input {
-        config.screenshot_interval.min(10)
-    } else {
-        config.screenshot_interval
-    }
+    config.screenshot_interval
 }
 
 #[cfg(not(any(windows, target_os = "macos")))]

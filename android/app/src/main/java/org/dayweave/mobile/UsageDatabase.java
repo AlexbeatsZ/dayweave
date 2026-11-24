@@ -34,10 +34,18 @@ final class UsageDatabase extends SQLiteOpenHelper {
         try { String id = meta("deviceId", ""); if (id.isEmpty()) { id = UUID.randomUUID().toString(); meta("deviceId", id, database); } database.setTransactionSuccessful(); deviceId = id; return id; } finally { database.endTransaction(); }
     }
     static JSONObject defaults() throws Exception {
-        return new JSONObject().put("enabled", false).put("sampleSeconds", 10).put("idleMinutes", 5).put("browser", false)
+        return new JSONObject().put("enabled", false).put("sampleSeconds", 30).put("idleMinutes", 5).put("browser", false)
             .put("excludedApps", new JSONArray("[\"1Password\",\"Bitwarden\",\"Keychain\"]")).put("excludedDomains", new JSONArray()).put("excludedKeywords", new JSONArray("[\"bank\",\"login\",\"password\",\"密码\",\"银行\",\"支付\"]"));
     }
-    JSONObject settings() throws Exception { return new JSONObject(meta("settings", defaults().toString())); }
+    JSONObject settings() throws Exception {
+        JSONObject value = new JSONObject(meta("settings", defaults().toString()));
+        if (meta("samplingVersion", "").isEmpty()) {
+            value.put("sampleSeconds", 30);
+            meta("settings", value.toString(), getWritableDatabase());
+            meta("samplingVersion", "30s-v1", getWritableDatabase());
+        }
+        return value;
+    }
     void configure(JSONObject settings) throws Exception {
         if (settings.getInt("sampleSeconds") < 2 || settings.getInt("sampleSeconds") > 300 || settings.getInt("idleMinutes") < 1 || settings.getInt("idleMinutes") > 120) throw new IllegalArgumentException("Invalid capture settings");
         for (String key : new String[]{"excludedApps","excludedDomains","excludedKeywords"}) if(settings.getJSONArray(key).length()>200) throw new IllegalArgumentException("Too many privacy rules");

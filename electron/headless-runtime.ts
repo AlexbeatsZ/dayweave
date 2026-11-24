@@ -108,6 +108,7 @@ export class Runtime {
             this.directory,
             this.options.binary ?? '',
             !this.options.server,
+            this.service,
           );
           sync.usage = usage.store;
           sync.refreshUsage = () => usage.sync();

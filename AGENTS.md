@@ -6,6 +6,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Current State
 
+- 2026-11-24 客户端 0.5.17/code40、Server 0.2.13：默认采集改为30秒，桌面不再因输入标注缩为10秒，Android设置可调整采集间隔。休息/娱乐当前或冲突计时器暂停本机观察，恢复不回填空档，不改用户的采集开关。245 Node与45 Rust测试通过，Mac固定证书打包及原位升级完成；Windows/Android正在原签名构建，部署回执待记录。变更基于v0.5.16，不携带另一个分支未发布的倒计时改动。
+
 - 2026-11-16 客户端 0.5.14/code37 品牌更新：安装后显示名统一为英文 Dayweave（原“时织”），换 Pixel 2026 白底图标；appId、profile 与 Android 签名不变，Server 仍为 0.2.10。已原位安装 Mac（托盘重启）、OMEN（备份 profile 后静默安装并在 Session1 恢复托盘）、ROG 桌面（保持关闭）、Redmi K70（code37，首次安装时间不变）。按用户要求未发 Release、未做界面/同步验收；平板离线跳过。
 
 - 2026-11-16 客户端 0.5.12/code35、Server 0.2.10、OpenAPI 2.5.0：按用户要求日历只保留单向 ICS 订阅，入口移到“设置 → 日程 → 日历订阅”；0.5.13/code36 将原“日程操作”菜单整体移入设置新分类“日程”并统一样式。可建多条订阅（名称、类型筛选、各自中心基址），每条日程带开始前 30/15 分钟 VALARM。日历账号 OAuth/CalDAV、外部日历导入、ICS 下载及日程操作中的三个入口与相关接口/依赖已删除。旧单条 `calendarFeed` 迁移为 `calendarFeeds[0]`（id=default）并保留密钥，Google/Apple 原订阅继续有效。旧中心不认识 `calendarFeeds`，必须先升中心。部署：ROG 中心 0.2.10 已上线（原 DayweaveHub 任务、身份与 1266 任务保留，恢复副本 ROG Temp/.agents/dayweave-deploy-0.5.12/recovery），原链接经本机/原网关/Vultr 443 均返回 167 条带提醒日程；0.5.13 已装 Mac/OMEN 托盘（均已连接、0 冲突）、ROG 桌面（保持关闭）与 Redmi K70（code36，首次安装时间不变，未打开界面）。平板仍离线跳过，它在升级前会因 `calendarFeeds` 同步失败。Release v0.5.12/v0.5.13/server-v0.2.10。设计见 arrangements.md。

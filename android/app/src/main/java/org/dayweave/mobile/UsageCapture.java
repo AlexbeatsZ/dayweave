@@ -36,10 +36,11 @@ final class UsageCapture {
         UsageDatabase database=UsageDatabase.get(context);
         {
             JSONObject settings=database.settings();if(!settings.getBoolean("enabled")||!allowed(context))return;
+            if(UsagePrivacy.active(context))return;
             long now=System.currentTimeMillis(),first=Long.parseLong(database.meta("captureSince","0"));
             if(first==0){first=now;database.meta("captureSince",String.valueOf(first),database.getWritableDatabase());}
             long previous=Long.parseLong(database.meta("lastScan",String.valueOf(first)));
-            if(now-previous<1000)return;
+            if(now-previous<settings.getInt("sampleSeconds")*1000L)return;
             long since=UsageSessions.scanStart(now,first,previous,Long.parseLong(database.meta("openSince",String.valueOf(UsageSessions.OPEN_UNKNOWN))));
             UsageStatsManager manager=(UsageStatsManager)context.getSystemService(Context.USAGE_STATS_SERVICE);
             UsageEvents usage=manager.queryEvents(since,now);if(usage==null)throw new IllegalStateException("使用情况数据暂不可用，请解锁后重试");

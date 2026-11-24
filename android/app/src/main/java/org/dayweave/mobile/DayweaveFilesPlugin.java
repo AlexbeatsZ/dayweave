@@ -46,7 +46,7 @@ public class DayweaveFilesPlugin extends Plugin {
                 else if("sync".equals(action)){UsageCapture.collect(getContext());UsageSync.run(getContext());call.resolve();return;}
                 else if(!"status".equals(action))throw new IllegalArgumentException("Invalid usage action");
                 boolean enabled=database.settings().getBoolean("enabled");
-                String capture=!enabled?"未开启":UsageCapture.allowed(getContext())?"正在记录":"未授权";
+                String capture=!enabled?"未开启":UsagePrivacy.active(getContext())?"休息或娱乐计时中，采集已暂停":UsageCapture.allowed(getContext())?"正在记录":"未授权";
                 JSObject status=new JSObject(database.status(capture,database.meta("error","")).toString());
                 status.put("permissionRequired",!UsageCapture.allowed(getContext()));call.resolve(status);
             } catch(Exception error){call.reject(error.getMessage(),error);}
@@ -290,7 +290,10 @@ public class DayweaveFilesPlugin extends Plugin {
             byte[] bytes = content(call);
             writeAtomic(file(call.getString("name")), bytes);
             // Recovery and restore rewrite data.json through this path.
-            if ("data.json".equals(call.getString("name"))) refreshWidget(call.getString("content"));
+            if ("data.json".equals(call.getString("name"))) {
+                UsagePrivacy.changed(getContext(), call.getString("content"));
+                refreshWidget(call.getString("content"));
+            }
             call.resolve();
         } catch (Exception error) {
             call.reject("Unable to save data", error);
@@ -305,6 +308,7 @@ public class DayweaveFilesPlugin extends Plugin {
             AtomicFile primary = new AtomicFile(file("data.json"));
             if (primary.getBaseFile().exists()) writeAtomic(file("data.backup.json"), primary.readFully());
             writeAtomic(primary.getBaseFile(), bytes);
+            UsagePrivacy.changed(getContext(), call.getString("content"));
             if (Boolean.TRUE.equals(call.getBoolean("widget", true))) refreshWidget(call.getString("content"));
             call.resolve();
         } catch (Exception error) {

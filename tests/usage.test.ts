@@ -507,3 +507,53 @@ test('an existing database gains the indexed deleted column without losing tombs
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test('rest and entertainment timer changes pause native capture without changing the local preference', async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'dayweave-private-capture-'));
+  const service = new StateService(new FileStore(directory));
+  const sync = new DesktopSync(service, directory, false);
+  await sync.initialize();
+  const store = new UsageStore(path.join(directory, 'usage.db'));
+  store.configure({ ...store.settings(), enabled: true });
+  const usage = new DesktopUsage(store, sync.client, directory, 'missing', true, service);
+  try {
+    await usage.initialize(false);
+    for (const name of ['休息', '娱乐']) {
+      await service.mutate((state) => {
+        const now = Date.now();
+        state.timelog.activities.push({
+          id: 'private',
+          name,
+          color: '#aaaaaa',
+          nature: 'neutral',
+          archived: false,
+          updatedAt: now,
+        });
+        state.timelog.timer = {
+          nature: 'neutral',
+          id: 'private-timer',
+          activityId: 'private',
+          startedAt: now,
+          runningSince: now,
+          spans: [],
+          tags: [],
+          note: '',
+        };
+        return state;
+      });
+      assert.match((await usage.status()).capture, /采集已暂停/);
+      assert.equal(store.settings().enabled, true);
+      await service.mutate((state) => {
+        state.timelog.timer = null;
+        state.timelog.activities = state.timelog.activities.filter((a) => a.id !== 'private');
+        return state;
+      });
+      assert.doesNotMatch((await usage.status()).capture, /休息或娱乐/);
+    }
+  } finally {
+    await usage.close();
+    await sync.close();
+    service.dispose();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
