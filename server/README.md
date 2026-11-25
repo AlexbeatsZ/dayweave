@@ -2,6 +2,8 @@
 
 独立版本 `0.2.10`，共享客户端 `0.5.12` 的业务、计时、同步及 SQLite 所有者。需要 **Node 24（24.14.1 或更高的 24.x）或 Node 26**，CI 在 Windows/Ubuntu 的 Node 24.14.1 与 26 上验证。包已含 JavaScript 依赖，不需要 npm install、编译、Electron、React、Rust 或本机采集程序。Node 运行时由运行机器提供。
 
+0.2.16 新增小米手表快应用的 `/watch` 加密交换(与 `/usage` 同一入口和配对密钥，命令台账存于 profile 的 `watch.json`)。须先于客户端 0.5.19(Android WatchBridge)升级；业务 JSON 版本 2、同步协议 3、OpenAPI 不变，旧客户端照常同步。
+
 0.2.10 移除日历账号连接（OAuth/CalDAV）与外部日历导入，`calendar-accounts.json` 不再读取（原文件保留在 profile）。ICS 改为 `settings.calendarFeeds` 多条订阅，按类型筛选，每条日程带开始前 30/15 分钟提醒；旧单条 `calendarFeed` 自动迁移并保留密钥。中心须先于客户端 0.5.12 升级，OpenAPI 2.5.0。业务 JSON 版本 2、同步协议 3 不变。
 
 0.2.9 增加本机认证自动记录 API，OpenAPI 2.4.0 提供 usage/query、status、settings、applications、import 和 sync，复用原 DesktopUsage 与 UsageStore。AI 可通过 HTTP/CLI 查询和管理自动记录。时间记录通过现有 timelog/records 原生接口写入，活动选择使用 timelog/activities 的当前可用目录，删除或归档的活动退出可选范围。
