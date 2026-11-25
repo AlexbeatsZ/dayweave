@@ -37,12 +37,16 @@ S4 快应用 ⇄ Gadgetbridge ⇄ Dayweave Android WatchBridge ⇄ ROG 中心 /w
 - 超时（8 秒）的命令用同一 `id` 重发一次，由中心台账去重；`view` 不重发。
 - 手机主动推送会强制拉起快应用，所以不推送。倒计时到点由手机现有的 `CountdownReminder` 系统通知提醒，Gadgetbridge 照常转发到手表（需实机确认 Dayweave 未在通知黑名单）。
 
-页面（圆屏，主要点击区域不小于 44 px 等效尺寸，文字避开边缘弧形区域）：
+页面（用户 2026-11-25 指定：和手机一样，上下翻页共三页，顺序固定）。入口 `pages/main` 用纵向 `swiper`（不循环，右侧页码点），打开时在第 1 页。用上下翻页而不是左右，避免与系统右滑返回冲突。圆屏内容控制在约 340 px 宽的内接区域，主要点击区域不小于 44 px。
 
-1. 计时（首页，`pages/timer`）：外圈为活动颜色（暂停时灰色），活动名、大字已计时长或倒计时剩余、暂停/继续、结束（再点一次确认）。无计时时显示最近用过的 6 个活动（每行 3 个）和前 4 个 `timerPresets`，先选倒计时分钟（可不选）再点活动开始。
-2. 待办（`pages/tasks`）：今日未完成待办，点一次变绿提示「再点一次完成」，再点完成并振动。
+1. 今日待办：显示前 4 项未完成待办，点一次变绿提示「再点一次完成」，再点完成并振动。超过 4 项时显示「全部 N 项」，进入可滚动的 `pages/tasks`。首页不放可滚动列表，避免和上下翻页抢手势。
+2. 计时：同一个 Dayweave 计时同时支持正计时和倒计时。
+   - 未开始：顶部「正计时 | 倒计时」切换。倒计时下显示前 3 个 `timerPresets` 和「自定」，「自定」打开 `picker` 滚轮选 1–180 分钟。最后点 6 个常用活动之一开始（每行 3 个）。
+   - 进行中：外圈为活动颜色（暂停时灰色），活动名、大字时长（倒计时显示剩余，正计时显示已计时长）、暂停/继续、结束（再点一次确认）。倒计时下另有「+5′」「正计时」（取消倒计时），正计时下有「倒计时」（打开滚轮，从现在起算）。两种都有「换活动」：保存当前这段为记录，以新活动继续。
+3. 课程：正在上课的课（还剩多久、时间、地点）、下一节（还有多久、哪天、时间、地点）和再下一节的一行摘要。只取类型为课程的日程，一周内没有课时提示。
 
-预览在 `.local/preview/watch/`（`render.mjs` 用 HTML 按同样样式模拟 466×466 圆屏，`sheet.png` 为总览），不是表上真实渲染。3. 记录：今日各活动时长和最近几条记录。4. 补记：滚轮选活动与时长（第 2 步）。
+旋钮：Vela 文档没有表冠或按键事件，系统可能让它滚动列表，需在表上实测。
+预览在 `.local/preview/watch/`（`render.mjs` 用 HTML 按同样样式模拟 466×466 圆屏，`sheet.png` 为总览），不是表上真实渲染。记录页和补记留到第 2 步。
 
 手表上没有可靠的文字输入，新建待办先用手机上配置的常用短语；语音输入留给后续，见「以后」。
 
@@ -81,7 +85,7 @@ S4 快应用 ⇄ Gadgetbridge ⇄ Dayweave Android WatchBridge ⇄ ROG 中心 /w
 {"v":1,"id":"c-8f2d","op":"task.complete","taskId":"…","expectedUpdatedAt":1794990000000,"at":1795000400000}
 ```
 
-`op` 取值：`view`、`timer.start`、`timer.pause`、`timer.resume`、`timer.stop`、`task.complete`；第 2 步增加 `task.create`、`record.add`、`stats.today`。`id` 同时是请求关联号和写操作的 `commandId`。
+`op` 取值：`view`、`timer.start`（可带 `countdownMin`）、`timer.pause`、`timer.resume`、`timer.stop`、`timer.countdown`（`minutes`，null 改回正计时，只能在计时运行中设定）、`timer.extend`（`minutes`，只对倒计时）、`timer.next`（`activityId`，换活动）、`task.complete`；第 2 步再加 `task.create`、`record.add`、`stats.today`。回复中的 `classes` 最多 4 项，为一周内正在进行或将要开始的课程，`d`（今天/明天/周X）和 `hm` 由中心按课表时区格式化，`s`/`e` 为毫秒时间戳。`id` 同时是请求关联号和写操作的 `commandId`。
 
 手机 → 手表：
 
@@ -100,9 +104,20 @@ S4 快应用 ⇄ Gadgetbridge ⇄ Dayweave Android WatchBridge ⇄ ROG 中心 /w
     "spansMs": 0,
     "endAt": 1795001500000
   },
-  "tasks": [{ "id": "…", "t": "交实验报告", "u": 1794990000000 }],
+  "tasks": [{ "id": "…", "t": "交实验报告", "u": "2026-11-25T01:00:00.000Z" }],
   "acts": [{ "id": "…", "n": "学习", "c": "#357a9e" }],
-  "presets": [5, 30, 45, 60]
+  "presets": [5, 30, 45, 60],
+  "classes": [
+    {
+      "n": "物理化学",
+      "l": "H3109",
+      "c": "#4f8fd6",
+      "s": 1795000000000,
+      "e": 1795006000000,
+      "d": "今天",
+      "hm": "09:55–11:35"
+    }
+  ]
 }
 ```
 
@@ -120,8 +135,8 @@ S4 快应用 ⇄ Gadgetbridge ⇄ Dayweave Android WatchBridge ⇄ ROG 中心 /w
 
 ## 第 1 步实现状态（2026-11-25）
 
-- 分支 `feat/watch-bridge`：中心 `/watch`、共享协议、Android WatchBridge 与快照、手表快应用 `watch/vela`（`org.dayweave.mobile` 0.1.0）。
-- 已验证：Node 246 项（含 `tests/watch.test.ts` 5 项：今日待办按业务日、最近活动优先、命令时间与幂等、冲突/过期、台账重放与并发、40 条长待办回复小于 4000 字节）、类型检查、格式检查；Android `compileDebugJavaWithJavac` 与 JVM 单测；快应用 `npm run build` 成功。
+- 分支 `feat/watch-bridge`：中心 `/watch`、共享协议、Android WatchBridge 与快照、手表快应用 `watch/vela`（`org.dayweave.mobile` 0.2.0，上下三页）。
+- 已验证：Node 248 项（含 `tests/watch.test.ts` 7 项：今日待办按业务日、最近活动优先、命令时间与幂等、冲突/过期、台账重放与并发、倒计时设定/取消/延长与换活动、课程按课表时区、含计时与课程的满载回复小于 4000 字节）、类型检查、格式检查；Android `compileDebugJavaWithJavac` 与 JVM 单测；快应用 `npm run build` 成功。
 - 未验证：真实表上渲染与触控、Gadgetbridge 定向广播到 WatchBridge、手机到中心的 `/watch` 实际交换、离线排队重发、Android 打包与签名。按交付规则，界面审核前不构建发布；中心须先升级。
 
 ## 分阶段与验收

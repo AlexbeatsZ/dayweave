@@ -1,22 +1,35 @@
 {
   "package": "org.dayweave.mobile",
   "name": "Dayweave",
-  "versionName": "0.1.0",
-  "versionCode": 1,
+  "versionName": "0.2.0",
+  "versionCode": 2,
   "minPlatformVersion": 1200,
   "icon": "/common/logo.png",
   "deviceTypeList": ["watch"],
   "features": [
-    { "name": "system.router" },
-    { "name": "system.interconnect" },
-    { "name": "system.vibrator" }
+    {
+      "name": "system.router"
+    },
+    {
+      "name": "system.interconnect"
+    },
+    {
+      "name": "system.vibrator"
+    }
   ],
-  "config": { "logLevel": "log", "designWidth": 466 },
+  "config": {
+    "logLevel": "log",
+    "designWidth": 466
+  },
   "router": {
-    "entry": "pages/timer",
+    "entry": "pages/main",
     "pages": {
-      "pages/timer": { "component": "timer" },
-      "pages/tasks": { "component": "tasks" }
+      "pages/main": {
+        "component": "main"
+      },
+      "pages/tasks": {
+        "component": "tasks"
+      }
     }
   }
 }

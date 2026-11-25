@@ -1,13 +1,15 @@
-// Xiaomi Watch S4 quick app protocol: a compact view of the current timer and today's tasks,
-// and the few commands the watch may send. The hub (/watch) and the phone's offline snapshot
+// Xiaomi Watch S4 quick app protocol: a compact view of today's tasks, the current timer and the
+// next classes, and the few commands the watch may send. The hub (/watch) and the phone's offline snapshot
 // share this module so the watch never re-implements business rules. See docs/design/watch.md.
 import { z } from 'zod';
 import { selectTasks, taskCompleted, toggleTask, type AppState } from '../model.js';
-import { businessDateKey } from '../timezone.js';
+import { calendarOccurrences } from '../event-domain.js';
+import { businessDateKey, zonedDate } from '../timezone.js';
 import {
   activeActivity,
   duration,
   finishTimer,
+  nextActivity,
   startTimer,
   toggleTimer,
 } from '../timelog/domain.js';
@@ -19,6 +21,9 @@ export const WATCH_MESSAGE_LIMIT = 4000;
 export const WATCH_COMMAND_MAX_AGE = 7 * 86400000;
 const TASK_LIMIT = 12;
 const ACTIVITY_LIMIT = 6;
+const CLASS_LIMIT = 4;
+const CLASS_HORIZON = 7 * 86400000;
+const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日'];
 
 const id = z.string().min(1).max(100);
 const at = z.number().int().nonnegative();
@@ -35,6 +40,25 @@ export const watchRequestSchema = z.discriminatedUnion('op', [
   ...(['timer.pause', 'timer.resume', 'timer.stop'] as const).map((op) =>
     z.object({ v: z.literal(1), id, op: z.literal(op), timerId: id, at }),
   ),
+  // Sets a countdown of `minutes` from now on the running timer; null turns it back into count-up.
+  z.object({
+    v: z.literal(1),
+    id,
+    op: z.literal('timer.countdown'),
+    timerId: id,
+    minutes: z.number().int().min(1).max(180).nullable(),
+    at,
+  }),
+  z.object({
+    v: z.literal(1),
+    id,
+    op: z.literal('timer.extend'),
+    timerId: id,
+    minutes: z.number().int().min(1).max(60),
+    at,
+  }),
+  // Saves the current timer as a record and continues with another activity.
+  z.object({ v: z.literal(1), id, op: z.literal('timer.next'), timerId: id, activityId: id, at }),
   z.object({
     v: z.literal(1),
     id,
@@ -63,6 +87,8 @@ export type WatchView = {
   tasks: { id: string; t: string; u: string }[];
   acts: { id: string; n: string; c: string }[];
   presets: number[];
+  /** Courses in progress or upcoming within a week; `d`/`hm` are formatted in the schedule zone. */
+  classes: { n: string; l: string; c: string; s: number; e: number; d: string; hm: string }[];
 };
 export type WatchReply =
   | ({ v: 1; re: string; ok: true; stale: boolean } & WatchView)
@@ -111,7 +137,33 @@ export function watchView(state: AppState, now: number): WatchView {
       .map((task) => ({ id: task.id, t: task.title.slice(0, 40), u: task.updatedAt })),
     acts: order.map((row) => ({ id: row!.id, n: row!.name.slice(0, 12), c: row!.color })),
     presets: timelog.settings.timerPresets ?? [],
+    classes: watchClasses(state, now),
   };
+}
+
+function watchClasses(state: AppState, now: number): WatchView['classes'] {
+  const zone = state.schedule.timeZone;
+  const today = zonedDate(now, zone).toPlainDate();
+  const hm = (at: number) => zonedDate(at, zone).toPlainTime().toString({ smallestUnit: 'minute' });
+  return calendarOccurrences(
+    state.calendarEvents.filter((row) => row.type === 'course'),
+    now,
+    now + CLASS_HORIZON,
+  )
+    .slice(0, CLASS_LIMIT)
+    .map((row) => {
+      const date = zonedDate(row.start, zone).toPlainDate();
+      const days = date.since(today).days;
+      return {
+        n: row.name.slice(0, 20),
+        l: (row.location ?? '').slice(0, 20),
+        c: row.color,
+        s: row.start,
+        e: row.end,
+        d: days === 0 ? '今天' : days === 1 ? '明天' : `周${WEEKDAYS[date.dayOfWeek - 1]}`,
+        hm: `${hm(row.start)}–${hm(row.end)}`,
+      };
+    });
 }
 
 /** Time of a watch command: its own clock, never in the hub's future, never older than a week. */
@@ -150,9 +202,27 @@ export function applyWatchCommand(state: AppState, command: WatchCommand, now: n
   }
   if (!timelog.timer || timelog.timer.id !== command.timerId)
     throw new WatchError('conflict', '计时已在其他设备变化');
-  const running = timelog.timer.runningSince !== null;
+  const timer = timelog.timer;
+  const running = timer.runningSince !== null;
   if ((command.op === 'timer.pause' && !running) || (command.op === 'timer.resume' && running))
     return state;
+  if (running && timer.plannedEndAt != null && timer.plannedEndAt <= time)
+    throw new WatchError('conflict', '倒计时已结束');
+  if (command.op === 'timer.countdown') {
+    if (command.minutes !== null && !running) throw new WatchError('conflict', '请先继续计时');
+    const plannedEndAt = command.minutes === null ? null : time + command.minutes * 60000;
+    return { ...state, timelog: { ...timelog, timer: { ...timer, plannedEndAt } } };
+  }
+  if (command.op === 'timer.extend') {
+    if (timer.plannedEndAt == null) throw new WatchError('conflict', '正计时不能延长');
+    const plannedEndAt = timer.plannedEndAt + command.minutes * 60000;
+    return { ...state, timelog: { ...timelog, timer: { ...timer, plannedEndAt } } };
+  }
+  if (command.op === 'timer.next')
+    return {
+      ...state,
+      timelog: domain(() => nextActivity(timelog, command.activityId, time)),
+    };
   return {
     ...state,
     timelog: domain(() =>

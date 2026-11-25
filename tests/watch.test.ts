@@ -8,6 +8,7 @@ import { StateService } from '../electron/state-service';
 import { FileStore } from '../electron/storage';
 import { WatchHub } from '../electron/watch';
 import { newTask, taskCompleted } from '../src/model';
+import { newEvent } from '../src/event-domain';
 import {
   applyWatchCommand,
   watchView,
@@ -151,11 +152,65 @@ test('hub ledger answers a replayed command without applying it twice', async ()
     assert.equal(!invalid.ok && invalid.err, 'invalid');
   }));
 
+test('countdown can be set, cleared, extended and handed to the next activity', () => {
+  let state = applyWatchCommand(seeded(), start(NOON - 60000), NOON);
+  const id = state.timelog.timer!.id;
+  const command = (op: string, extra: object, at = NOON) =>
+    ({ v: 1, id: `${op}-${at}`, op, timerId: id, at, ...extra }) as never;
+  state = applyWatchCommand(state, command('timer.countdown', { minutes: 25 }), NOON);
+  assert.equal(state.timelog.timer!.plannedEndAt, NOON + 25 * 60000);
+  state = applyWatchCommand(state, command('timer.extend', { minutes: 5 }), NOON);
+  assert.equal(watchView(state, NOON).timer!.endAt, NOON + 30 * 60000);
+  state = applyWatchCommand(state, command('timer.countdown', { minutes: null }), NOON);
+  assert.equal(state.timelog.timer!.plannedEndAt, null);
+  assert.throws(() => applyWatchCommand(state, command('timer.extend', { minutes: 5 }), NOON));
+  state = applyWatchCommand(
+    state,
+    command('timer.next', { activityId: 'reading' }, NOON + 1000),
+    NOON + 1000,
+  );
+  assert.equal(state.timelog.records.at(-1)!.id, id);
+  assert.equal(state.timelog.timer!.activityId, 'reading');
+  assert.equal(state.timelog.timer!.startedAt, NOON + 1000);
+});
+
+test('classes show the current and next courses in the schedule time zone', () => {
+  const state = seeded();
+  const course = (title: string, date: string, from: string, to: string) =>
+    ({
+      ...newEvent({ title, date, periods: [[from, to]] }),
+      type: 'course',
+      location: 'H3109',
+    }) as never;
+  state.calendarEvents = [
+    course('物理化学', '2026-11-25', '09:55', '11:35'),
+    course('有机化学', '2026-11-25', '13:30', '15:10'),
+    course('英语', '2026-11-26', '08:00', '09:40'),
+    course('早课', '2026-11-25', '08:00', '09:40'),
+  ];
+  const classes = watchView(state, NOON).classes;
+  assert.deepEqual(
+    classes.map((row) => `${row.d} ${row.hm} ${row.n}`),
+    ['今天 09:55–11:35 物理化学', '今天 13:30–15:10 有机化学', '明天 08:00–09:40 英语'],
+  );
+  assert.ok(classes[0].s <= NOON && classes[0].e > NOON);
+});
+
 test('a full watch reply stays under the S4 message limit', () => {
   const state = seeded();
   state.tasks = Array.from({ length: 40 }, (_, i) =>
     newTask(`${'很长的待办标题'.repeat(10)}${i}`, { dates: { '2026-11-25': null } }),
   );
+  state.calendarEvents = Array.from({ length: 10 }, (_, i) => ({
+    ...newEvent({
+      title: '很长的课程名称'.repeat(5),
+      date: '2026-11-26',
+      periods: [[`0${i}:00`, `0${i}:50`]],
+    }),
+    type: 'course' as const,
+    location: '很长的上课地点'.repeat(5),
+  }));
+  state.timelog = applyWatchCommand(state, start(NOON), NOON).timelog;
   const reply = JSON.stringify({
     v: 1,
     re: 'c-1',
