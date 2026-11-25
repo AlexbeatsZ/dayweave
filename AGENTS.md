@@ -6,7 +6,7 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Current State
 
-- 2026-11-25：用户确认两个独立日历无需避开重叠，参考订阅改为完整46段/天×43天；Server0.2.15发布/部署进行中，沿用已有三方订阅URL和密钥。客户端版本保持0.5.18，不需要重建客户端即可更新中心输出。
+- 2026-11-25：用户确认两个独立日历无需避开重叠，参考订阅改为完整46段/天×43天；Server0.2.15已发布并部署ROG原中心，两个公网入口均HTTP200/1978段，每日完整46段（比原源补回201段）；实际日程订阅167条原文不变，原身份/6配对密钥/API令牌及订阅设置保留。沿用已有Google/Microsoft/Apple订阅URL，等待各平台正常刷新，不宣称三方已拉取新版本。客户端版本保持0.5.18，不需要重建客户端即可更新中心输出。
 
 - 2026-11-24 0.5.18/code41、Server0.2.14已原位部署Mac/OMEN/ROG桌面与原中心/Redmi K70（原签名与首次安装时间保留），平板连接超时。feed.content=events/reference/combined，参考表完整保留，可与真实安排重叠（2026-11-25起），参考VALARM=0、实际30/15分钟。已在原中心新建study-rest-reference独立订阅，原default保持events；两条原公网gateway均200/1769参考片段，Mac/OMEN同步connected/0冲突、旧vibe目标已删除。Google账号端未配置，不宣称及时通知或暂停取消。
 
