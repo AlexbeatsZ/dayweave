@@ -111,6 +111,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Active Work
 
+- 2026-11-25 小米手表 S4 快应用：用户已审核通过上下三页界面(今日待办、正/倒计时、课程，`.local/preview/watch/sheet.png`)。源码在分支 `feat/watch-s4`，从线上 `codex/capture-privacy-30s`(0.5.18/Server 0.2.15)切出，只搬了手表相关提交，不含仍待审核的倒计时提醒。旧分支 `feat/watch-bridge` 基于 behavior-rule-goals，已被替代。部署顺序：先升 ROG 中心(新增 `/watch`)，再在 OMEN 用原签名构建 APK 装 K70，最后经 Gadgetbridge 2026.11.18 把 `watch/vela` rpk 装到 S4；K70 被其他对话占用时等待。改 `/watch`、WatchBridge 或手表端之前先读 `docs/design/watch.md`。
+
 - 桌面输入状态源码与中心脚本见 docs/design/automatic-records.md 和 scripts/goals/。升级中心后再部署桌面以保留新增字段；业务目标更新、Telegram 证据接入和实体设备验收按部署记录核对。
 
 - 2026-11-16 待办日视图日程卡片错位已有源码修复与隔离预览 `.local/preview/task-alignment/after-1764.png`。手机卡片的左右零边距覆盖桌面居中，修正桌面 margin-inline 后四种桌面宽度的对齐与原导航/页面回归通过。截图中左侧导航消失在当前源码与本机安装包页面资源中尚未复现，实际实例原因待确认。等待 UI 审核后的构建/发布授权。
@@ -141,6 +143,7 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 - Automatic records: `npm run build:collector` before desktop packaging (Rust toolchain required); `cargo test --manifest-path native/collector/Cargo.toml --locked --workspace`; `npm run test:e2e -- tests/e2e/usage.spec.ts tests/e2e/usage-settings.spec.ts`. Automated capture tests use isolated profiles. Browser build only views historical usage; internal import adapters remain for migration/tests, not native capture/sync.
 
 - npm ci; npm test; npm run build; npm run test:e2e; npm run test:api.
+- 手表快应用:`cd watch/vela && npm ci && npm run build`(项目本地 aiot-toolkit)，产物 `watch/vela/dist/org.dayweave.mobile.debug.<版本>.rpk`，经 Gadgetbridge 安装到 S4；协议测试 `npx tsx --test tests/watch.test.ts`。
 - npm run dist:win; npm run dist:android; npm run dist:mac (macOS). Packaging does not authorize installation/publication.
 - Fudan changes: npm run test:e2e -- tests/e2e/fudan-refresh.spec.ts; npm run build; node scripts/smoke-fudan.mjs; Android testDebugUnitTest.
 - Tests use DAYWEAVE_DATA_DIR under a dedicated temporary directory. Never use a live profile.
@@ -162,6 +165,7 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 - Android release signing material exists only on OMEN `.local/android-signing` (certificate SHA-256 35faf8f3…). `npm run dist:android` on a machine without it silently generates a new key; build APKs on OMEN and compare `apksigner verify --print-certs` with the previous release before installing.
 - A tray-only desktop instance has no window, so Restart Manager shutdown returns 351. Remote upgrades end the process after confirming sync is idle/offline, back up data/sync/api JSON, install silently, then start `--tray` through a one-shot Interactive scheduled task so it runs in Session1. Windows PowerShell 5 `ConvertFrom-Json` on the multi-MB sync.json takes minutes; read it with Node.
 
+- 2026-11-25 起本机用 mise 的 zulu-21 一个 JDK 即可同时编译 Gradle 脚本和 javac(`JAVA_HOME=~/.local/share/mise/installs/java/zulu-21 ./gradlew :app:compileDebugJavaWithJavac :app:testDebugUnitTest --offline`，在 `android/` 下)；Studio JBR(Java 25)仍报 major version 69。
 - Android Gradle 8.14 on this Mac: javac needs JDK 21+ (Homebrew 17 fails with `invalid source release: 21`), but Groovy build scripts cannot compile on the Studio JBR (Java 25, `Unsupported class file major version 69`). After any build.gradle change, compile scripts once with `JAVA_HOME=/opt/homebrew/opt/openjdk@17 ./gradlew help --offline`, stop the daemon, then run `JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" ./gradlew testDebugUnitTest --offline` from `android/`. Do not install or switch the global JDK.
 - `tests/fixtures/platform-contract.json` is read by both `tests/platform-contract.test.ts` and Android `PlatformContractTest`: sync addresses, the usage envelope AAD, widget course expansion and school-browser URLs/errors. Change both implementations together and regenerate the fixture only for an intentional protocol change.
 
@@ -204,6 +208,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 - docs/design/server.md and server/README.md: independent Node server, profile/lifecycle/capture policy, local administration and offline migration/update.
 
 - docs/design/settings.md: settings categories, draft ownership, shared modal/style boundaries and prioritized reuse/decoupling review.
+
+- docs/design/watch.md: 小米手表 S4 快应用：Gadgetbridge interconnect 通道、Android WatchBridge、中心 /watch 加密交换与命令台账、消息协议、上下三页界面、第 0 步实测与验收状态。
 
 - docs/design/automatic-records.md: native collectors, AW/Work Review adapters, aligned timeline, separate SQLite ownership, usage sync, privacy and acceptance limits.
 

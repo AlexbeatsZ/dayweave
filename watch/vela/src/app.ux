@@ -1,0 +1,9 @@
+<script>
+import { channel } from './common/channel.js'
+
+export default {
+  onDestroy() {
+    channel.close()
+  }
+}
+</script>

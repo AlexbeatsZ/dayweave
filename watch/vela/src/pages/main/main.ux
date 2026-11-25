@@ -1,0 +1,506 @@
+<template>
+  <div class="page">
+    <swiper class="pages" vertical="true" loop="false" indicator="true" index="{{page}}" onchange="turn">
+      <!-- 1. Today's tasks: at most four fit; the full list opens on its own scrolling page. -->
+      <div class="screen">
+        <text class="title">今日待办</text>
+        <text class="sub">{{tasks.length ? tasks.length + ' 项未完成' : '今天没有待办'}}</text>
+        <div class="tasks">
+          <div for="{{shownTasks}}" class="task {{pending === $item.id ? 'task-confirm' : ''}}" onclick="tapTask($item)">
+            <div class="check"></div>
+            <text class="name">{{pending === $item.id ? '再点一次完成' : $item.t}}</text>
+          </div>
+        </div>
+        <input if="{{tasks.length > shownTasks.length}}" class="link" type="button" value="全部 {{tasks.length}} 项" onclick="openTasks" />
+      </div>
+
+      <!-- 2. Timer: count-up or countdown, both from the same Dayweave timer. -->
+      <div class="screen">
+        <div class="ring" style="border-color: {{ring}};"></div>
+        <div if="{{choosing}}" class="center">
+          <text class="hint top">{{choosing === 'next' ? '换成哪个活动' : '选择活动'}}</text>
+          <div class="grid">
+            <input for="{{acts}}" class="chip" style="background-color: {{$item.c}};" type="button" value="{{$item.n}}" onclick="chooseActivity($item.id)" />
+          </div>
+          <input class="link" type="button" value="取消" onclick="cancelChoice" />
+        </div>
+        <div elif="{{picking}}" class="center">
+          <text class="hint">倒计时分钟</text>
+          <picker class="wheel" type="text" range="{{minuteRange}}" selected="{{pickIndex}}" onchange="pickMinutes"></picker>
+          <input class="btn btn-go" type="button" value="确定" onclick="confirmMinutes" />
+        </div>
+        <div elif="{{timer}}" class="center">
+          <text class="act" style="color: {{timer.color}};">{{timer.act}}</text>
+          <text class="time">{{display}}</text>
+          <text class="hint">{{hint}}</text>
+          <div class="row">
+            <input class="btn" type="button" value="{{timer.runningSince === null ? '继续' : '暂停'}}" onclick="toggle" />
+            <input class="btn btn-stop" type="button" value="{{confirmStop ? '确认' : '结束'}}" onclick="stop" />
+          </div>
+          <div class="row small">
+            <input if="{{timer.endAt}}" class="pill" type="button" value="+5′" onclick="extend" />
+            <input if="{{timer.endAt}}" class="pill" type="button" value="正计时" onclick="countUp" />
+            <input if="{{!timer.endAt && timer.runningSince !== null}}" class="pill" type="button" value="倒计时" onclick="setCountdown" />
+            <input class="pill" type="button" value="换活动" onclick="chooseNext" />
+          </div>
+        </div>
+        <div else class="center">
+          <div class="modes">
+            <input class="mode {{countdown ? '' : 'mode-on'}}" type="button" value="正计时" onclick="useCountUp" />
+            <input class="mode {{countdown ? 'mode-on' : ''}}" type="button" value="倒计时" onclick="useCountdown" />
+          </div>
+          <div if="{{countdown}}" class="row small">
+            <input for="{{presets}}" class="preset {{countdown === $item ? 'preset-on' : ''}}" type="button" value="{{$item}}′" onclick="pickPreset($item)" />
+            <input class="preset {{customMinutes ? 'preset-on' : ''}}" type="button" value="{{customMinutes ? countdown + '′' : '自定'}}" onclick="openPicker('start')" />
+          </div>
+          <div class="grid">
+            <input for="{{acts}}" class="chip" style="background-color: {{$item.c}};" type="button" value="{{$item.n}}" onclick="start($item.id)" />
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Classes: the one in progress and the next ones from the Dayweave schedule. -->
+      <div class="screen">
+        <text class="title">课程</text>
+        <div if="{{current}}" class="card" style="border-color: {{current.c}};">
+          <text class="label">正在上课 · 还剩 {{currentLeft}}</text>
+          <text class="course">{{current.n}}</text>
+          <text class="place">{{current.hm}} · {{current.l}}</text>
+        </div>
+        <div if="{{next}}" class="card" style="border-color: {{next.c}};">
+          <text class="label">下一节 · {{nextIn}}</text>
+          <text class="course">{{next.n}}</text>
+          <text class="place">{{next.d}} {{next.hm}} · {{next.l}}</text>
+        </div>
+        <text if="{{later}}" class="sub">之后：{{later.d}} {{later.hm}} {{later.n}}</text>
+        <text if="{{!current && !next}}" class="sub">一周内没有课</text>
+      </div>
+    </swiper>
+    <text if="{{status}}" class="status">{{status}}</text>
+  </div>
+</template>
+
+<script>
+import router from '@system.router'
+import vibrator from '@system.vibrator'
+import { channel, clock } from '../../common/channel.js'
+
+const MINUTES = []
+for (let m = 1; m <= 180; m++) MINUTES.push(m + ' 分钟')
+
+function span(ms) {
+  const minutes = Math.max(0, Math.round(ms / 60000))
+  if (minutes < 60) return minutes + ' 分钟'
+  const h = Math.floor(minutes / 60)
+  return h + ' 小时' + (minutes % 60 ? ' ' + (minutes % 60) + ' 分' : '')
+}
+
+export default {
+  private: {
+    page: 0,
+    status: '连接手机…',
+    tasks: [],
+    shownTasks: [],
+    pending: '',
+    timer: null,
+    acts: [],
+    presets: [],
+    countdown: 0,
+    customMinutes: false,
+    choosing: '',
+    picking: '',
+    minuteRange: MINUTES,
+    pickIndex: 24,
+    confirmStop: false,
+    display: '00:00',
+    hint: '',
+    ring: '#2c2c2e',
+    classes: [],
+    current: null,
+    next: null,
+    later: null,
+    currentLeft: '',
+    nextIn: ''
+  },
+  onInit() {
+    channel.onView((view) => this.apply(view))
+  },
+  onShow() {
+    this.refresh()
+    this.tick = setInterval(() => this.render(), 1000)
+  },
+  onHide() {
+    clearInterval(this.tick)
+  },
+  turn(event) {
+    this.page = event.index
+    this.pending = ''
+    this.confirmStop = false
+  },
+  refresh() {
+    channel.request('view').then((reply) => this.settle(reply))
+  },
+  settle(reply) {
+    if (reply.ok) {
+      this.status = reply.stale ? '离线数据' : ''
+      return
+    }
+    this.status = reply.msg || '操作失败'
+    // Another device changed the timer or task: show what is true now.
+    if (reply.err === 'conflict' || reply.err === 'not_found') this.refresh()
+  },
+  apply(view) {
+    this.tasks = view.tasks || []
+    this.shownTasks = this.tasks.slice(0, 4)
+    this.pending = ''
+    this.timer = view.timer
+    this.acts = view.acts || []
+    this.presets = (view.presets || []).slice(0, 3)
+    this.classes = view.classes || []
+    this.confirmStop = false
+    this.render()
+  },
+  render() {
+    const now = channel.now()
+    const live = this.classes.filter((row) => row.e > now)
+    this.current = live.length && live[0].s <= now ? live[0] : null
+    const upcoming = live.filter((row) => row.s > now)
+    this.next = upcoming[0] || null
+    this.later = upcoming[1] || null
+    if (this.current) this.currentLeft = span(this.current.e - now)
+    if (this.next) this.nextIn = '还有 ' + span(this.next.s - now)
+    const t = this.timer
+    if (!t) {
+      this.ring = '#2c2c2e'
+      return
+    }
+    const elapsed = t.spansMs + (t.runningSince === null ? 0 : now - t.runningSince)
+    const counting = t.endAt && t.runningSince !== null
+    this.display = clock(counting ? t.endAt - now : elapsed)
+    this.hint = t.runningSince === null ? '已暂停' : counting ? '倒计时剩余' : '正计时'
+    this.ring = t.runningSince === null ? '#8e8e93' : t.color
+  },
+  tapTask(task) {
+    if (this.pending !== task.id) {
+      this.pending = task.id
+      return
+    }
+    this.status = '完成中…'
+    channel.request('task.complete', { taskId: task.id, expectedUpdatedAt: task.u }).then((reply) => {
+      if (reply.ok) vibrator.vibrate({ mode: 'short' })
+      else this.pending = ''
+      this.settle(reply)
+    })
+  },
+  openTasks() {
+    router.push({ uri: 'pages/tasks' })
+  },
+  useCountUp() {
+    this.countdown = 0
+    this.customMinutes = false
+  },
+  useCountdown() {
+    if (!this.countdown) this.countdown = this.presets[0] || 25
+  },
+  pickPreset(minutes) {
+    this.countdown = minutes
+    this.customMinutes = false
+  },
+  openPicker(purpose) {
+    this.pickIndex = Math.max(0, (this.countdown || 25) - 1)
+    this.picking = purpose
+  },
+  pickMinutes(event) {
+    this.pickIndex = event.newSelected
+  },
+  confirmMinutes() {
+    const minutes = this.pickIndex + 1
+    const purpose = this.picking
+    this.picking = ''
+    if (purpose === 'start') {
+      this.countdown = minutes
+      this.customMinutes = true
+      return
+    }
+    this.send('timer.countdown', { timerId: this.timer.id, minutes: minutes })
+  },
+  start(activityId) {
+    const fields = { activityId: activityId }
+    if (this.countdown) fields.countdownMin = this.countdown
+    this.status = '开始中…'
+    this.send('timer.start', fields, 'short').then(() => {
+      this.countdown = 0
+      this.customMinutes = false
+    })
+  },
+  toggle() {
+    const op = this.timer.runningSince === null ? 'timer.resume' : 'timer.pause'
+    this.send(op, { timerId: this.timer.id })
+  },
+  stop() {
+    if (!this.confirmStop) {
+      this.confirmStop = true
+      return
+    }
+    this.send('timer.stop', { timerId: this.timer.id }, 'long')
+  },
+  extend() {
+    this.send('timer.extend', { timerId: this.timer.id, minutes: 5 })
+  },
+  countUp() {
+    this.send('timer.countdown', { timerId: this.timer.id, minutes: null })
+  },
+  setCountdown() {
+    this.openPicker('running')
+  },
+  chooseNext() {
+    this.choosing = 'next'
+  },
+  cancelChoice() {
+    this.choosing = ''
+  },
+  chooseActivity(activityId) {
+    this.choosing = ''
+    this.send('timer.next', { timerId: this.timer.id, activityId: activityId }, 'short')
+  },
+  send(op, fields, buzz) {
+    return channel.request(op, fields).then((reply) => {
+      if (reply.ok && buzz) vibrator.vibrate({ mode: buzz })
+      this.settle(reply)
+      return reply
+    })
+  }
+}
+</script>
+
+<style>
+/* 466x466 round screen: content stays inside the inscribed square, about 330px wide. */
+.page {
+  width: 466px;
+  height: 466px;
+  background-color: #000000;
+}
+.pages {
+  width: 466px;
+  height: 466px;
+  indicator-color: #3a3a3c;
+  indicator-selected-color: #ffffff;
+  indicator-size: 10px;
+  indicator-right: 18px;
+}
+.screen {
+  width: 466px;
+  height: 466px;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+.title {
+  font-size: 32px;
+  font-weight: bold;
+  color: #ffffff;
+}
+.sub {
+  margin-top: 6px;
+  font-size: 20px;
+  color: #8e8e93;
+  text-align: center;
+  width: 330px;
+}
+.tasks {
+  margin-top: 12px;
+  width: 360px;
+  flex-direction: column;
+}
+.task {
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 8px;
+  padding: 14px 20px;
+  border-radius: 26px;
+  background-color: #1c1c1e;
+}
+.task-confirm {
+  background-color: #1f3b2c;
+}
+.check {
+  width: 24px;
+  height: 24px;
+  margin-right: 14px;
+  border-radius: 12px;
+  border-width: 3px;
+  border-color: #30d158;
+}
+.name {
+  flex: 1;
+  font-size: 22px;
+  color: #ffffff;
+  lines: 1;
+  text-overflow: ellipsis;
+}
+.ring {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  width: 450px;
+  height: 450px;
+  border-radius: 225px;
+  border-width: 6px;
+}
+.center {
+  width: 340px;
+  flex-direction: column;
+  align-items: center;
+}
+.act {
+  font-size: 30px;
+  font-weight: bold;
+}
+.time {
+  margin-top: 2px;
+  font-size: 88px;
+  font-weight: bold;
+  color: #ffffff;
+}
+.hint {
+  font-size: 22px;
+  color: #8e8e93;
+}
+.top {
+  margin-bottom: 10px;
+}
+.row {
+  margin-top: 14px;
+  flex-direction: row;
+  justify-content: center;
+}
+.small {
+  margin-top: 10px;
+}
+.btn {
+  width: 140px;
+  height: 64px;
+  margin: 0 8px;
+  border-radius: 32px;
+  background-color: #2c2c2e;
+  font-size: 26px;
+  color: #ffffff;
+}
+.btn-stop {
+  background-color: #ff453a;
+}
+.btn-go {
+  margin-top: 10px;
+  background-color: #30d158;
+  color: #000000;
+}
+.pill {
+  height: 44px;
+  padding: 0 16px;
+  margin: 0 5px;
+  border-radius: 22px;
+  background-color: #1c1c1e;
+  font-size: 20px;
+  color: #ffffff;
+}
+.modes {
+  flex-direction: row;
+  padding: 4px;
+  border-radius: 26px;
+  background-color: #1c1c1e;
+}
+.mode {
+  width: 130px;
+  height: 44px;
+  border-radius: 22px;
+  background-color: #1c1c1e;
+  font-size: 22px;
+  color: #8e8e93;
+}
+.mode-on {
+  background-color: #ffffff;
+  color: #000000;
+}
+.grid {
+  margin-top: 12px;
+  width: 340px;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.chip {
+  width: 100px;
+  height: 56px;
+  margin: 5px;
+  border-radius: 28px;
+  font-size: 22px;
+  color: #ffffff;
+}
+.preset {
+  width: 70px;
+  height: 44px;
+  margin: 0 4px;
+  border-radius: 22px;
+  background-color: #2c2c2e;
+  font-size: 20px;
+  color: #ffffff;
+}
+.preset-on {
+  background-color: #ffffff;
+  color: #000000;
+}
+.wheel {
+  margin-top: 6px;
+  width: 260px;
+  height: 168px;
+  font-size: 26px;
+  color: #8e8e93;
+  selected-color: #ffffff;
+  selected-font-size: 36px;
+}
+.link {
+  margin-top: 10px;
+  width: 170px;
+  height: 44px;
+  border-radius: 22px;
+  background-color: #1c1c1e;
+  font-size: 20px;
+  color: #8e8e93;
+}
+.card {
+  margin-top: 10px;
+  width: 340px;
+  padding: 12px 18px;
+  flex-direction: column;
+  border-radius: 26px;
+  border-left-width: 8px;
+  background-color: #1c1c1e;
+}
+.label {
+  font-size: 20px;
+  color: #8e8e93;
+}
+.course {
+  margin-top: 2px;
+  font-size: 26px;
+  font-weight: bold;
+  color: #ffffff;
+  lines: 1;
+  text-overflow: ellipsis;
+}
+.place {
+  margin-top: 2px;
+  font-size: 20px;
+  color: #c7c7cc;
+  lines: 1;
+  text-overflow: ellipsis;
+}
+.status {
+  position: absolute;
+  bottom: 36px;
+  width: 466px;
+  text-align: center;
+  font-size: 20px;
+  color: #ff9f0a;
+}
+</style>

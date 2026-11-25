@@ -310,6 +310,7 @@ public class DayweaveFilesPlugin extends Plugin {
             writeAtomic(primary.getBaseFile(), bytes);
             UsagePrivacy.changed(getContext(), call.getString("content"));
             if (Boolean.TRUE.equals(call.getBoolean("widget", true))) refreshWidget(call.getString("content"));
+            WatchBridge.saveSnapshot(getContext(), call.getString("watch"));
             call.resolve();
         } catch (Exception error) {
             call.reject("Unable to save data", error);

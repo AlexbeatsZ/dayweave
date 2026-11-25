@@ -9,7 +9,12 @@ export interface NativeFiles {
   read(options: { name: string }): Promise<{ content: string | null }>;
   write(options: { name: string; content: string }): Promise<void>;
   /** Saves data.json, keeping the previous primary as data.backup.json on the device side. */
-  saveState(options: { content: string; widget: boolean }): Promise<void>;
+  saveState(options: {
+    content: string;
+    widget: boolean;
+    /** Compact watch view saved for WatchBridge's offline replies. */
+    watch?: string;
+  }): Promise<void>;
   pickBackup(): Promise<{ content: string | null }>;
   importFudan(): Promise<{ content: string | null }>;
   refreshFudan(options: { semesterId: string }): Promise<{ content: string }>;

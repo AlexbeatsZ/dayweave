@@ -53,6 +53,10 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths"></meta-data>
         </provider>
+        <!-- Gadgetbridge relays the watch quick app; it targets this package by appId (docs/design/watch.md). -->
+        <receiver android:name=".WatchBridge" android:exported="true">
+            <intent-filter><action android:name="nodomain.freeyourgadget.gadgetbridge.WATCH_APP_MESSAGE_RECEIVED" /></intent-filter>
+        </receiver>
         <receiver android:name=".CourseWidgetProvider" android:label="@string/widget_wide_label" android:exported="true" android:process=":widgetProvider">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/><action android:name="miui.appwidget.action.APPWIDGET_UPDATE"/><action android:name="android.intent.action.BOOT_COMPLETED"/><action android:name="android.intent.action.TIME_SET"/><action android:name="android.intent.action.TIMEZONE_CHANGED"/><action android:name="android.intent.action.MY_PACKAGE_REPLACED"/></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/course_widget_info"/>

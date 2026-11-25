@@ -1,0 +1,17 @@
+{
+  "name": "dayweave-watch",
+  "version": "0.1.0",
+  "description": "Dayweave Xiaomi Watch S4 quick app",
+  "engines": {
+    "node": ">=8.10"
+  },
+  "scripts": {
+    "build": "aiot build",
+    "release": "aiot release"
+  },
+  "devDependencies": {
+    "@aiot-toolkit/jsc": "^1.0.3",
+    "aiot-toolkit": "^2.0.5"
+  },
+  "private": true
+}

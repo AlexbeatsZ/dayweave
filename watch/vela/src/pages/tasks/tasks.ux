@@ -1,0 +1,102 @@
+<template>
+  <list class="page">
+    <list-item type="head" class="head">
+      <text class="title">今日待办</text>
+      <text class="sub">{{status || (tasks.length ? tasks.length + ' 项未完成' : '今天没有待办')}}</text>
+    </list-item>
+    <list-item type="task" class="task {{pending === $item.id ? 'task-confirm' : ''}}" for="{{tasks}}" onclick="tap($item)">
+      <div class="check"></div>
+      <text class="name">{{pending === $item.id ? '再点一次完成' : $item.t}}</text>
+    </list-item>
+    <list-item type="foot" class="foot"><text class="sub">右滑返回</text></list-item>
+  </list>
+</template>
+
+<script>
+import vibrator from '@system.vibrator'
+import { channel } from '../../common/channel.js'
+
+export default {
+  private: { tasks: [], pending: '', status: '读取中…' },
+  onInit() {
+    channel.onView((view) => {
+      this.tasks = view.tasks || []
+      this.pending = ''
+    })
+  },
+  onShow() {
+    channel.request('view').then((reply) => this.settle(reply))
+  },
+  settle(reply) {
+    this.status = reply.ok ? (reply.stale ? '离线数据' : '') : reply.msg || '操作失败'
+  },
+  tap(task) {
+    if (this.pending !== task.id) {
+      this.pending = task.id
+      return
+    }
+    this.status = '完成中…'
+    channel.request('task.complete', { taskId: task.id, expectedUpdatedAt: task.u }).then((reply) => {
+      if (reply.ok) vibrator.vibrate({ mode: 'short' })
+      else this.pending = ''
+      this.settle(reply)
+    })
+  }
+}
+</script>
+
+<style>
+.page {
+  width: 466px;
+  height: 466px;
+  flex-direction: column;
+  background-color: #000000;
+}
+.head {
+  flex-direction: column;
+  align-items: center;
+  padding: 64px 80px 16px 80px;
+}
+.title {
+  font-size: 32px;
+  font-weight: bold;
+  color: #ffffff;
+}
+.sub {
+  margin-top: 6px;
+  font-size: 20px;
+  color: #8e8e93;
+  text-align: center;
+}
+.task {
+  flex-direction: row;
+  align-items: center;
+  margin: 0 48px 10px 48px;
+  padding: 18px 22px;
+  border-radius: 28px;
+  background-color: #1c1c1e;
+}
+.task-confirm {
+  background-color: #1f3b2c;
+}
+.check {
+  width: 26px;
+  height: 26px;
+  margin-right: 16px;
+  border-radius: 13px;
+  border-width: 3px;
+  border-color: #30d158;
+}
+.name {
+  flex: 1;
+  font-size: 24px;
+  color: #ffffff;
+  lines: 2;
+  text-overflow: ellipsis;
+}
+.foot {
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 0 120px 0;
+}
+</style>

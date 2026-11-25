@@ -5,6 +5,7 @@ import { SyncClient, syncHttpError } from './sync/client';
 import { SyncScheduler } from './sync/scheduler';
 import { store } from './store';
 import { invitationText, pendingPairingKey } from './sync/invitation';
+import { watchView } from './watch/protocol';
 let syncClient: SyncClient | undefined;
 let appActive = true;
 const syncScheduler = new SyncScheduler(async () => {
@@ -39,7 +40,12 @@ export async function initializeMobile() {
     write: (name, content) => files.write({ name, content }),
     replace: async (content, state) => {
       const inputs = JSON.stringify([state.schedule, state.calendarEvents]);
-      await files.saveState({ content, widget: inputs !== widgetInputs });
+      await files.saveState({
+        content,
+        widget: inputs !== widgetInputs,
+        // Offline answer for the watch quick app when the hub is unreachable (docs/design/watch.md).
+        watch: JSON.stringify(watchView(state, Date.now())),
+      });
       widgetInputs = inputs;
     },
   });

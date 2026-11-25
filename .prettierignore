@@ -12,3 +12,6 @@ android/.gradle/
 android/**/build/
 android/app/src/main/assets/
 android/capacitor-cordova-android-plugins/
+watch/vela/node_modules/
+watch/vela/build/
+watch/vela/dist/
