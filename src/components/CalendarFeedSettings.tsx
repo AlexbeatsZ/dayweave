@@ -147,7 +147,7 @@ function FeedRow({
           }
         >
           <option value="events">实际日程</option>
-          <option value="reference">学习休息参考（只补空白）</option>
+          <option value="reference">学习休息参考（完整时段）</option>
           <option value="combined">实际日程与参考背景</option>
         </select>
       </label>

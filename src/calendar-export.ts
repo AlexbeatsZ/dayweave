@@ -71,13 +71,13 @@ export function exportEventCalendar(
     calendar.addSubcomponent(component);
   }
   if (feed.content === 'reference' || feed.content === 'combined') {
-    for (const block of referenceBlocks(events, referenceStart)) {
+    for (const block of referenceBlocks(referenceStart)) {
       const component = new ICAL.Component('vevent');
       component.updatePropertyWithValue('uid', `${block.id}@dayweave`);
       component.updatePropertyWithValue('summary', block.title);
       component.updatePropertyWithValue(
         'description',
-        '固定UTC+8参考轴，只补安排空白；按当前状态调整，不要求全天学习。',
+        '固定UTC+8完整参考轴，可与实际日程重叠；按当前状态调整，不要求全天学习。',
       );
       component.updatePropertyWithValue(
         'dtstart',
@@ -86,7 +86,7 @@ export function exportEventCalendar(
       component.updatePropertyWithValue('dtend', ICAL.Time.fromJSDate(new Date(block.end), true));
       component.updatePropertyWithValue(
         'dtstamp',
-        ICAL.Time.fromJSDate(new Date('2026-11-24T00:00:00Z'), true),
+        ICAL.Time.fromJSDate(new Date('2026-11-25T00:00:00Z'), true),
       );
       component.updatePropertyWithValue('transp', 'TRANSPARENT');
       component.updatePropertyWithValue('x-dayweave-reference', block.kind);

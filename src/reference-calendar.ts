@@ -1,7 +1,4 @@
-import type { CalendarEvent } from './event-model.js';
-import { eventBounds } from './event-domain.js';
 import { dayStart, shiftDay, zoneDateKey } from './timezone.js';
-import { subtract } from './timelog/script-util.js';
 
 /** Fixed UTC+8 reference axis, matching CodingWindowGuard schedule.json. */
 export const referenceSlots = [
@@ -291,30 +288,25 @@ export type ReferenceBlock = {
   kind: 'study' | 'break';
 };
 
-/** Derived only: actual arrangements always win, and reference fragments can be any length. */
+/** Complete fixed reference axis; independent calendars may overlap actual arrangements. */
 export function referenceBlocks(
-  events: CalendarEvent[],
   first = zoneDateKey(Date.now(), referenceZone),
   days = 43,
 ): ReferenceBlock[] {
-  const busy = events.filter((event) => !event.deletedAt).map(eventBounds);
   const result: ReferenceBlock[] = [];
   for (let offset = 0; offset < days; offset++) {
     const date = shiftDay(first, offset),
       midnight = dayStart(date, referenceZone);
-    const daily = busy.filter((span) => span.start < midnight + 86400000 && span.end > midnight);
     for (const slot of referenceSlots) {
-      for (const piece of subtract(
-        { start: midnight + slot.start * 60000, end: midnight + slot.end * 60000 },
-        daily,
-      )) {
-        result.push({
-          ...piece,
-          id: `reference-${date}-${slot.start}-${piece.start}-${piece.end}`,
-          title: `参考 · ${slot.kind === 'study' ? '学习' : slot.label}`,
-          kind: slot.kind,
-        });
-      }
+      const start = midnight + slot.start * 60000,
+        end = midnight + slot.end * 60000;
+      result.push({
+        start,
+        end,
+        id: `reference-${date}-${slot.start}-${start}-${end}`,
+        title: `参考 · ${slot.kind === 'study' ? '学习' : slot.label}`,
+        kind: slot.kind,
+      });
     }
   }
   return result;
