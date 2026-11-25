@@ -109,7 +109,7 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 - 2026-11-22 Mac 采集自 11/21 17:09（UTC+8）装上 0.5.16 起停在 `permission` 状态，原因是 ad-hoc 签名使每次升级后辅助功能授权失效。`package-macos.mjs` 已改用本机固定证书签名并在打包后校验（见 platforms.md）。同日已用 v0.5.16 源码加新签名脚本重新打包，并原位安装 Mac（托盘运行，已连接，0 冲突）。等待用户在「辅助功能」删除旧 Dayweave 条目后重新添加并授权，之后确认 `collector/status.json` 为 recording，再删除 /tmp/.agents/dayweave-upgrade-0.5.16-signed/Dayweave-old.app。下一次升级后核对授权是否保持。
 
-- 2026-11-21 小米手表 S4 快应用只有设计稿 `docs/design/watch.md`，还没写代码。下一步是第 0 步通道验证：用 S4-Vela-Probe 测手机→手表回包、前台再次投递和单条消息上限，并在个人 Gadgetbridge 分支改为按包名定向广播。修改中心 `/watch`、WatchBridge 或手表端之前先读该文档。
+- 2026-11-25 小米手表 S4 快应用：设计稿 `docs/design/watch.md`，Dayweave 侧还没写代码。第 0 步已实测：快应用开着时 Gadgetbridge 的回包送不到；上行单条 4 KB 可达，8 KB 不行。Gadgetbridge 修复(前台直发+定向广播)已提交到 `feat/xiaomi-voice-inject` e975dc29ae，用户要求先不部署；装机后用 S4-Vela-Probe 1.1.0 重测回包与下行大小，通过后再做第 1 步。修改中心 `/watch`、WatchBridge 或手表端之前先读该文档。
 
 - 2026-11-21 倒计时提醒已完成源码和交互预览（`.local/preview/countdown-reminder/android-45-min.png`）。桌面托盘与 Android 系统闹钟共用原计时截止。Android 倒计时页提供单机通知和精确闹钟授权入口。等待用户审核后打包与推送，并在 Mac、Windows 和 Redmi K70 上检查真实系统通知和后台交付。
 

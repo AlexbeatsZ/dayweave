@@ -1,6 +1,6 @@
 # 小米手表 S4 快应用（设计稿，未实现）
 
-状态：2026-11-21 设计。没有源码、构建或实机验收；第 0 步通道验证未做。
+状态：2026-11-21 设计。Dayweave 侧没有源码或构建。第 0 步通道验证进行中：问题已实测，Gadgetbridge 修复已提交但未装机（结果见「第 0 步结果」）。
 
 ## 目标与范围
 
@@ -48,7 +48,7 @@ S4 快应用 ⇄ Gadgetbridge ⇄ Dayweave Android WatchBridge ⇄ ROG 中心 /w
 ### Gadgetbridge 改动（个人分支）
 
 - 收到手表消息时，若已安装与 `appId` 同名的包，则 `setPackage(appId)` 定向发送；否则保持原来的隐式广播。这样 Dayweave 用清单静态接收器就能收到（Android 8+ 静态接收器收不到隐式广播），其他应用也看不到 Dayweave 的消息。
-- 若第 0 步发现快应用已在前台时 `LAUNCH` 不会再触发子命令 6，就要在会话仍打开时直接发子命令 8，不再走启动流程。
+- 快应用已在前台时 `LAUNCH` 不会再触发子命令 6（第 0 步实测），所以快应用最近 30 秒内发过子命令 6 或 9 时直接发 8+7，不再拉起。Gadgetbridge `feat/xiaomi-voice-inject` 提交 e975dc29ae 已实现，与定向广播一并提交。
 
 ### Dayweave Android：WatchBridge
 
@@ -105,6 +105,16 @@ S4 快应用 ⇄ Gadgetbridge ⇄ Dayweave Android WatchBridge ⇄ ROG 中心 /w
 ```
 
 失败时 `ok:false`，`err` 取 `offline`、`conflict`、`invalid`、`not_found` 之一，`msg` 为可直接显示的中文短句。
+
+## 第 0 步结果
+
+2026-11-22（K70 手机时间）在 Gadgetbridge 2026.11.16/code272 和探针 `com.meta.s4probe` 1.1.0 上实测。探针首页为「通道测试」，手机端由 `S4-Vela-Probe/tools/channel_responder.py` 读取 Gadgetbridge 日志，再经 Intent API 应答。
+
+- 手表→手机：快应用前台时每次请求都送到 Gadgetbridge。单条 1 KB、2 KB、4 KB（4126 字节）可达，8 KB 和 16 KB 没有到达。协议单条消息应控制在 4 KB 以内，待办等列表要分页。
+- 应答延迟：Mac 收到请求后约 0.1 秒交给 Gadgetbridge（经无线 adb；实际 WatchBridge 在手机本地，会更快）。
+- 快应用未打开时手机主动发送：Gadgetbridge 拉起应用，约 1.6 秒后手表回报打开，消息随即发出。
+- 快应用前台时手机回包：Gadgetbridge 每次重新发拉起命令，手表不再回报打开，10 次回包全部超时，直到下次打开应用才一并送达（手表显示为「意外消息」）。这就是上面的 Gadgetbridge 修复要解决的问题。
+- 未完成：装入修复后的 Gadgetbridge 重跑「回包 ×10」「回包大小」；手机→手表单条上限和往返延迟尚未测得。用户要求修复先不部署。
 
 ## 分阶段与验收
 
