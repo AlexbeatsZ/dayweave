@@ -6,6 +6,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Current State
 
+- 2026-11-26 Server 0.2.16 / Android 0.5.19：新增小米手表快应用通道(`/watch`、WatchBridge、`watch/vela`)。ROG 原中心经认证停机、`stage-update` 离线备份后切换，原 DayweaveHub 任务重启；任务 1313、记录 1789、6 配对、0 冲突与 hubId 不变，恢复副本在 ROG `%LOCALAPPDATA%/Temp/.agents/dayweave-watch-0216/recovery`。K70 原签名覆盖安装，首次安装时间保留。Mac 用已配对身份实测 `/watch` 视图 200/75 ms；K70 模拟 GB 转发的查看请求经中心应答。桌面 Mac/OMEN/ROG 桌面保持 0.5.18(无桌面改动)。
+
 - 2026-11-25：用户确认两个独立日历无需避开重叠，参考订阅改为完整46段/天×43天；Server0.2.15已发布并部署ROG原中心，两个公网入口均HTTP200/1978段，每日完整46段（比原源补回201段）；实际日程订阅167条原文不变，原身份/6配对密钥/API令牌及订阅设置保留。沿用已有Google/Microsoft/Apple订阅URL，等待各平台正常刷新，不宣称三方已拉取新版本。客户端版本保持0.5.18，不需要重建客户端即可更新中心输出。
 
 - 2026-11-24 0.5.18/code41、Server0.2.14已原位部署Mac/OMEN/ROG桌面与原中心/Redmi K70（原签名与首次安装时间保留），平板连接超时。feed.content=events/reference/combined，参考表完整保留，可与真实安排重叠（2026-11-25起），参考VALARM=0、实际30/15分钟。已在原中心新建study-rest-reference独立订阅，原default保持events；两条原公网gateway均200/1769参考片段，Mac/OMEN同步connected/0冲突、旧vibe目标已删除。Google账号端未配置，不宣称及时通知或暂停取消。
@@ -111,7 +113,7 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Active Work
 
-- 2026-11-25 小米手表 S4 快应用：用户已审核通过上下三页界面(今日待办、正/倒计时、课程，`.local/preview/watch/sheet.png`)。源码在分支 `feat/watch-s4`，从线上 `codex/capture-privacy-30s`(0.5.18/Server 0.2.15)切出，只搬了手表相关提交，不含仍待审核的倒计时提醒。旧分支 `feat/watch-bridge` 基于 behavior-rule-goals，已被替代。部署顺序：先升 ROG 中心(新增 `/watch`)，再在 OMEN 用原签名构建 APK 装 K70，最后经 Gadgetbridge 2026.11.18 把 `watch/vela` rpk 装到 S4；K70 被其他对话占用时等待。改 `/watch`、WatchBridge 或手表端之前先读 `docs/design/watch.md`。
+- 2026-11-26 小米手表 S4 快应用已部署(源码分支 `feat/watch-s4`，基于线上 0.5.18，不含待审的倒计时提醒)：ROG 原中心 Server 0.2.16、K70 客户端 0.5.19/code42(OMEN 原签名)、Gadgetbridge 2026.11.18 均已安装，Release v0.5.19(APK+rpk)与 server-v0.2.16 已发布。剩余：手表应用 rpk 已推到 K70 的 GB 目录 `/sdcard/Android/data/nodomain.freeyourgadget.gadgetbridge/files/org.dayweave.mobile.debug.0.2.0.rpk`，因手机锁屏未点「安装」；装好后再做真表交互、上下翻页/旋钮/滚轮、离线排队验收(用户暂时不能测试)。桌面仍为 0.5.18，平板未升级。改 `/watch`、WatchBridge 或手表端之前先读 `docs/design/watch.md`。
 
 - 桌面输入状态源码与中心脚本见 docs/design/automatic-records.md 和 scripts/goals/。升级中心后再部署桌面以保留新增字段；业务目标更新、Telegram 证据接入和实体设备验收按部署记录核对。
 
