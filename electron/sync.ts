@@ -15,6 +15,7 @@ import { generateRepeatedTasks } from '../src/task-repeat.js';
 import { dateSchema, stateSchema } from '../src/model.js';
 import type { Peer, SyncBridge, SyncRequest, SyncStatus } from '../src/sync/types.js';
 import type { StateService } from './state-service.js';
+import { WatchHub } from './watch.js';
 import type { UsageReplica, UsageExchange } from '../src/usage/sync.js';
 import { CalendarFeed } from './calendar-feed.js';
 import { preserveOnce, readOptional, writeAtomic } from './files.js';
@@ -53,6 +54,7 @@ export function lanAddresses(port: number) {
 
 export class DesktopSync implements SyncBridge {
   usage?: UsageReplica;
+  readonly watch: WatchHub;
   refreshUsage?: () => Promise<void>;
   readonly client: SyncClient;
   private server?: Server;
@@ -78,6 +80,7 @@ export class DesktopSync implements SyncBridge {
       os.hostname(),
     );
     this.scheduler = new SyncScheduler(() => this.client.now());
+    this.watch = new WatchHub(service, directory);
   }
   private get activeHub() {
     const c = this.client.config;
@@ -238,7 +241,7 @@ export class DesktopSync implements SyncBridge {
       }
       if (
         request.method !== 'POST' ||
-        !['/pair', '/sync', '/usage'].includes(request.url ?? '') ||
+        !['/pair', '/sync', '/usage', '/watch'].includes(request.url ?? '') ||
         request.headers.origin
       ) {
         response.writeHead(403).end();
@@ -282,6 +285,18 @@ export class DesktopSync implements SyncBridge {
             } else {
               const peer = hub.clients[envelope.clientId];
               if (!peer) throw new Error('设备未配对');
+              if (route === '/watch') {
+                // Watch commands carry their own ids and the hub keeps a ledger, so they don't share
+                // the business sync sequence the phone's WebView reserves in blocks.
+                const value = await openEnvelope<unknown>(envelope, peer.key, route);
+                failureStatus = 500;
+                const reply = await this.watch.exchange(envelope.clientId, value);
+                result = await seal(reply, peer.key, route + ':reply', envelope.clientId);
+                response
+                  .writeHead(200, { 'Content-Type': 'application/json' })
+                  .end(JSON.stringify(result));
+                return;
+              }
               if (route === '/usage') {
                 if (!this.usage) throw new Error('自动记录存储尚未就绪');
                 const request = await openEnvelope<UsageExchange>(envelope, peer.key, route);

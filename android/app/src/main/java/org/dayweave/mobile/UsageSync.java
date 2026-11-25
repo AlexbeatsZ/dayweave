@@ -26,17 +26,19 @@ final class UsageSync {
         cipher.updateAAD(aad.getBytes(StandardCharsets.UTF_8));
         return cipher.doFinal(input);
     }
-    static JSONObject seal(JSONObject value,String key,String id) throws Exception {
+    static JSONObject seal(JSONObject value,String key,String id) throws Exception {return seal(value,key,id,"/usage");}
+    static JSONObject seal(JSONObject value,String key,String id,String path) throws Exception {
         byte[] iv=new byte[12];new SecureRandom().nextBytes(iv);
-        byte[] data=crypt(Cipher.ENCRYPT_MODE,Base64.decode(key,FLAGS),iv,value.toString().getBytes(StandardCharsets.UTF_8),aad("/usage",id));
+        byte[] data=crypt(Cipher.ENCRYPT_MODE,Base64.decode(key,FLAGS),iv,value.toString().getBytes(StandardCharsets.UTF_8),aad(path,id));
         return new JSONObject().put("clientId",id).put("iv",Base64.encodeToString(iv,FLAGS)).put("data",Base64.encodeToString(data,FLAGS));
     }
-    static JSONObject open(JSONObject value,String key,String id) throws Exception {
-        if(!id.equals(value.getString("clientId")))throw new IllegalArgumentException("自动记录回执身份不符");
-        byte[] plain=crypt(Cipher.DECRYPT_MODE,Base64.decode(key,FLAGS),Base64.decode(value.getString("iv"),FLAGS),Base64.decode(value.getString("data"),FLAGS),aad("/usage:reply",id));
+    static JSONObject open(JSONObject value,String key,String id) throws Exception {return open(value,key,id,"/usage");}
+    static JSONObject open(JSONObject value,String key,String id,String path) throws Exception {
+        if(!id.equals(value.getString("clientId")))throw new IllegalArgumentException("中心回执身份不符");
+        byte[] plain=crypt(Cipher.DECRYPT_MODE,Base64.decode(key,FLAGS),Base64.decode(value.getString("iv"),FLAGS),Base64.decode(value.getString("data"),FLAGS),aad(path+":reply",id));
         return new JSONObject(new String(plain,StandardCharsets.UTF_8));
     }
-    private static java.util.List<String> endpoints(JSONObject config) throws Exception {
+    static java.util.List<String> endpoints(JSONObject config) throws Exception {
         java.util.List<String> configured=null;
         if(config.has("endpoints")) {
             configured=new java.util.ArrayList<>();

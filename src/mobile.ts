@@ -6,6 +6,7 @@ import { SyncScheduler } from './sync/scheduler';
 import { store } from './store';
 import { invitationText, pendingPairingKey } from './sync/invitation';
 import { countdownCompleted, countdownReminder } from './timelog/countdown-reminder';
+import { watchView } from './watch/protocol';
 let syncClient: SyncClient | undefined;
 let appActive = true;
 const syncScheduler = new SyncScheduler(async () => {
@@ -55,6 +56,8 @@ export async function initializeMobile() {
         widget: inputs !== widgetInputs,
         reminder: nextReminder,
         completed: countdownCompleted(reminder, state.timelog) ? reminder : null,
+        // Offline answer for the watch quick app when the hub is unreachable (docs/design/watch.md).
+        watch: JSON.stringify(watchView(state, Date.now())),
       });
       widgetInputs = inputs;
       reminder = nextReminder;

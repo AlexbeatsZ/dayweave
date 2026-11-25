@@ -1,6 +1,6 @@
 # 小米手表 S4 快应用（设计稿，未实现）
 
-状态：2026-11-21 设计。Dayweave 侧没有源码或构建。第 0 步通道验证进行中：问题已实测，Gadgetbridge 修复已提交但未装机（结果见「第 0 步结果」）。
+状态：2026-11-25 第 1 步源码在分支 `feat/watch-bridge`，待界面审核，未构建发布、未装机。第 0 步：问题已实测，Gadgetbridge 修复已合入主线 2026.11.18/code273，等 K70 空闲时安装复测（见「第 0 步结果」）。
 
 ## 目标与范围
 
@@ -33,15 +33,16 @@ S4 快应用 ⇄ Gadgetbridge ⇄ Dayweave Android WatchBridge ⇄ ROG 中心 /w
 
 - 放在本仓库 `watch/vela/`，aiot-toolkit 作为该目录的本地 devDependency，构建产物不入库。
 - 包名 `org.dayweave.mobile`，与手机端一致。Gadgetbridge 路径不校验包名，但这符合官方 interconnect「快应用包名 = 手机端包名」的约定，也让 Gadgetbridge 能按包名定向投递。
-- 打开时发 `view` 请求，之后只在用户操作后或回到前台时再请求，不轮询。显示时长用本机时钟根据 `runningSince` 和 `spansMs` 算出，每秒刷新，不依赖手机推送。
+- 打开或回到页面时发 `view` 请求，之后只在用户操作后再请求，不轮询。显示时长根据 `runningSince` 和 `spansMs` 每秒算出，不依赖手机推送。每次成功回复带中心时间 `at`，手表记下与本机时钟的差值，显示和命令的 `at` 都按中心时间，避免手表时钟偏差（`common/channel.js`）。
+- 超时（8 秒）的命令用同一 `id` 重发一次，由中心台账去重；`view` 不重发。
 - 手机主动推送会强制拉起快应用，所以不推送。倒计时到点由手机现有的 `CountdownReminder` 系统通知提醒，Gadgetbridge 照常转发到手表（需实机确认 Dayweave 未在通知黑名单）。
 
 页面（圆屏，主要点击区域不小于 44 px 等效尺寸，文字避开边缘弧形区域）：
 
-1. 计时（首页）：活动名与颜色、大字已计时长或倒计时剩余、暂停/继续、结束。无计时时显示最近用过的 6 个活动和 `timerPresets` 倒计时按钮，点一下开始。
-2. 待办：今日待办列表，点按后二次确认完成。
-3. 记录：今日各活动时长和最近几条记录。
-4. 补记：滚轮选活动与时长（第 2 步）。
+1. 计时（首页，`pages/timer`）：外圈为活动颜色（暂停时灰色），活动名、大字已计时长或倒计时剩余、暂停/继续、结束（再点一次确认）。无计时时显示最近用过的 6 个活动（每行 3 个）和前 4 个 `timerPresets`，先选倒计时分钟（可不选）再点活动开始。
+2. 待办（`pages/tasks`）：今日未完成待办，点一次变绿提示「再点一次完成」，再点完成并振动。
+
+预览在 `.local/preview/watch/`（`render.mjs` 用 HTML 按同样样式模拟 466×466 圆屏，`sheet.png` 为总览），不是表上真实渲染。3. 记录：今日各活动时长和最近几条记录。4. 补记：滚轮选活动与时长（第 2 步）。
 
 手表上没有可靠的文字输入，新建待办先用手机上配置的常用短语；语音输入留给后续，见「以后」。
 
@@ -52,9 +53,9 @@ S4 快应用 ⇄ Gadgetbridge ⇄ Dayweave Android WatchBridge ⇄ ROG 中心 /w
 
 ### Dayweave Android：WatchBridge
 
-- 静态 `BroadcastReceiver` 只接受 `appId == org.dayweave.mobile` 的消息，`goAsync()` 后交给单线程执行器，保存 `device` 作为回复目标。
-- 读请求：先问中心 `/watch`；超时（建议 3 秒）或不可达时用本地快照应答，并标注 `stale` 与生成时间。
-- 写请求：带上手表生成的 `commandId` 和操作时刻 `at`，先写入私有 `watch-outbox.json`，再尝试发给中心；失败时用 WorkManager 在有网络时重发。因为操作都以时间戳表达，晚一些送达也不改变结果；冲突由中心按现有规则返回 409。
+- `WatchBridge.java`：清单静态 `BroadcastReceiver` 只接受 `appId == org.dayweave.mobile`、负载不超过 4000 字符的消息，`goAsync()` 后交给单线程执行器，保存 `device` 作为回复目标。任何应用都能显式发广播给它，所以它只做协议内的有限操作，所有写入仍经中心领域校验。
+- 读请求：先问中心 `/watch`（连接 2.5 秒、读取 4 秒，留在广播时限内）；不可达时用本地快照应答，并标注 `stale: true`。没有快照时回 `offline`。
+- 写请求：先写入私有 `watch-outbox.json`（最多 64 条），再发给中心；中心有任何回复（接受或拒绝）就出队。中心不可达时回 `err: offline`、`msg: 已保存，联网后同步`，并用 WorkManager 在有网络时按顺序重发。命令时间来自手表，晚送达不改变开始/结束时刻；冲突由中心返回。
 - 本地快照：由 TS 的同一个 `watchView(state, now)` 生成，随 `saveState` 一起传给原生代码写入 `watch-view.json`，和课程组件快照一样，刷新失败不影响保存。不在 Java 中重写今日待办、重复和时区逻辑。
 - 回复通过 Gadgetbridge Intent API 发出，单条回复控制在第 0 步测得的上限内，超出时分页。
 - 地址、`clientId` 和密钥复用 `SyncEndpoint` 与 `UsageSync` 读取的同一份配对配置，不新增令牌或公网路由。
@@ -62,13 +63,14 @@ S4 快应用 ⇄ Gadgetbridge ⇄ Dayweave Android WatchBridge ⇄ ROG 中心 /w
 ### 中心：`/watch` 加密交换
 
 - 在 `electron/sync.ts` 的同一 HTTP 入口加 `/watch` 路由，信封格式、AAD 和密钥与 `/usage` 相同（`dayweave:1:/watch:<clientId>`）。
-- 写操作映射到 `handleApi` 现有路由，例如 `POST /timelog/timer/start`、`/pause`、`/resume`、`/stop`、`POST /tasks/{id}/complete`，共用 StateService 写队列、occupancy 保护、`timerId` 与 `expectedUpdatedAt` 前置条件。不在 `/watch` 里另写业务逻辑。
-- 防重放：`/watch` 不占用 WebView 业务同步的 `seq`（两者会争用同一序号）。中心按客户端保存最近 512 个 `commandId` 及其结果；同一 `commandId` 重放直接返回原结果，`at` 早于 7 天的命令拒绝。
+- 实现：`src/watch/protocol.ts`（请求 schema、`watchView`、`applyWatchCommand`）和 `electron/watch.ts`（`WatchHub`）。命令直接调用 UI 与 REST 共用的领域函数 `startTimer`、`toggleTimer`、`finishTimer`、`toggleTask`，经 `StateService.mutate` 写入，所以 occupancy 等提交校验一致。没有走 `handleApi`，因为它的暂停/结束只用服务器当前时间，排队命令需要用手表记录的时间。
+- 时间：命令时间取 `min(at, 中心当前时间)`，早于 7 天拒绝（`invalid`）。计时 id 不符、已有计时、领域校验失败都回 `conflict`；暂停已暂停、继续正在计时、完成已完成的待办都按成功处理。待办的 `updatedAt` 与手表看到的不同回 `conflict`，手表随后刷新。
+- 防重放：`/watch` 不占用 WebView 业务同步的 `seq`（两者会争用同一序号）。中心按客户端在 profile 的 `watch.json` 保存最近 512 个命令 id 及结果，同一 id 重放：成功则返回当前视图，失败返回原错误。`WatchHub` 内部串行，原命令与其重放同时到达也只执行一次。
 - 读操作返回 `watchView(state, now)`，"今天"按 Dayweave 日程时区计算，不使用手表或 Gadgetbridge 的时区覆盖。
 - 写到中心后，Mac 托盘约 2 秒内可见；手机 WebView 下次打开时经业务同步获得。
 - 新字段只存在于中心私有状态（命令台账），不进入同步文档，不需要提升同步协议版本，也不需要检查 `isDocumentKey`。
 
-## 消息协议 v1（草案）
+## 消息协议 v1
 
 所有消息为 UTF-8 JSON，键名尽量短。手表 → 手机：
 
@@ -115,6 +117,12 @@ S4 快应用 ⇄ Gadgetbridge ⇄ Dayweave Android WatchBridge ⇄ ROG 中心 /w
 - 快应用未打开时手机主动发送：Gadgetbridge 拉起应用，约 1.6 秒后手表回报打开，消息随即发出。
 - 快应用前台时手机回包：Gadgetbridge 每次重新发拉起命令，手表不再回报打开，10 次回包全部超时，直到下次打开应用才一并送达（手表显示为「意外消息」）。这就是上面的 Gadgetbridge 修复要解决的问题。
 - 未完成：装入修复后的 Gadgetbridge 重跑「回包 ×10」「回包大小」；手机→手表单条上限和往返延迟尚未测得。用户要求修复先不部署。
+
+## 第 1 步实现状态（2026-11-25）
+
+- 分支 `feat/watch-bridge`：中心 `/watch`、共享协议、Android WatchBridge 与快照、手表快应用 `watch/vela`（`org.dayweave.mobile` 0.1.0）。
+- 已验证：Node 246 项（含 `tests/watch.test.ts` 5 项：今日待办按业务日、最近活动优先、命令时间与幂等、冲突/过期、台账重放与并发、40 条长待办回复小于 4000 字节）、类型检查、格式检查；Android `compileDebugJavaWithJavac` 与 JVM 单测；快应用 `npm run build` 成功。
+- 未验证：真实表上渲染与触控、Gadgetbridge 定向广播到 WatchBridge、手机到中心的 `/watch` 实际交换、离线排队重发、Android 打包与签名。按交付规则，界面审核前不构建发布；中心须先升级。
 
 ## 分阶段与验收
 

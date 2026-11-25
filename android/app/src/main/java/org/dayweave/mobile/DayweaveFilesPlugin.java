@@ -387,6 +387,7 @@ public class DayweaveFilesPlugin extends Plugin {
                 refreshCountdown(call, false);
             }
             if (Boolean.TRUE.equals(call.getBoolean("widget", true))) refreshWidget(call.getString("content"));
+            WatchBridge.saveSnapshot(getContext(), call.getString("watch"));
             call.resolve();
         } catch (Exception error) {
             call.reject("Unable to save data", error);

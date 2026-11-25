@@ -55,6 +55,10 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths"></meta-data>
         </provider>
+        <!-- Gadgetbridge relays the watch quick app; it targets this package by appId (docs/design/watch.md). -->
+        <receiver android:name=".WatchBridge" android:exported="true">
+            <intent-filter><action android:name="nodomain.freeyourgadget.gadgetbridge.WATCH_APP_MESSAGE_RECEIVED" /></intent-filter>
+        </receiver>
         <receiver android:name=".CountdownReminder" android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />

@@ -15,6 +15,8 @@ export interface NativeFiles {
     widget: boolean;
     reminder: CountdownReminder | null;
     completed: CountdownReminder | null;
+    /** Compact watch view saved for WatchBridge's offline replies. */
+    watch?: string;
   }): Promise<void>;
   restoreCountdownReminder(options: { reminder: CountdownReminder | null }): Promise<void>;
   countdownPermission(options?: {
