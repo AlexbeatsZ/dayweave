@@ -40,7 +40,7 @@ AI Decision 0.1.51 从 API 获取电脑和手机观察，保留原设备/平台�
 | 电脑、手机自动记录                                  | 服务端已有 UsageStore/DesktopUsage、加密 /usage 同步和 /usage/status 管理健康查询，桌面经 usage:* IPC 查询、配置、导入和读取应用目录 | 本机 REST/CLI 缺少对应业务查询和管理入口；AI Decision 仍通过 SQLite 只读适配查询 usage.db              |
 | 目标脚本库与试运行                                  | 中心已执行 QuickJS 脚本，目标 REST 可引用已存在的 scriptId 并读取结果，完整 JSON 导入导出可携带脚本库                                | 专用脚本库管理和试运行 REST/CLI 尚未覆盖界面动作                                                       |
 | 日程、课程、RRULE、ICS 订阅                         | /events、/schedule、/recurrences；ICS 订阅为 PATCH /settings 的 calendarFeeds                                                        | 无                                                                                                     |
-| 设备同步                                            | 本机 REST 已有 status/invite/hub/now 和设备 revoke，配对等另有加密协议；桌面 IPC 还支持 discover/pair/disconnect/setEndpoint | 本机 REST/CLI 尚未覆盖全部设备管理动作（冲突处理已取消，中心优先）                                     |
+| 设备同步                                            | 本机 REST 已有 status/invite/hub/now 和设备 revoke，配对等另有加密协议；桌面 IPC 还支持 discover/pair/disconnect/setEndpoint         | 本机 REST/CLI 尚未覆盖全部设备管理动作（冲突处理已取消，中心优先）                                     |
 | 服务器运维                                          | 已有认证 /server/status、/usage/status、/server/shutdown 和 Server admin CLI                                                         | 这些服务器扩展端点及设备 revoke 尚未完整进入运行服务共用的 OpenAPI                                     |
 
 ### 当前 AI Decision 的调用依赖
