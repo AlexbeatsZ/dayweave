@@ -6,7 +6,7 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Current State
 
-- 2026-11-26 分支 `fix/sync-hub-wins`(源码，未构建)：同步冲突一律保留中心版本，删除冲突列表/设置区块/`/sync/resolve`(OpenAPI 2.8.0)；坏 incoming 日志保存为 `sync.incoming-failed.json` 后丢弃不再卡死；后台轮询失败退避；中心邀请 Tailscale 优先。小米平板 6 Pro 已升 0.5.19 并以 Tailscale→Sakura HTTPS 顺序配对到原中心，首次业务同步待解锁打开应用。详见 docs/design/sync.md 顶部与当月日志。
+- 2026-11-26 客户端 0.5.20/code43、Server 0.2.17、OpenAPI 2.8.0(分支 `fix/sync-hub-wins`，0e78429，Release v0.5.20 与 server-v0.2.17)：同步冲突一律保留中心版本，删除冲突列表/设置区块/`/sync/resolve`；坏 incoming 日志另存 `sync.incoming-failed.json` 后丢弃不再卡死；后台轮询失败退避；邀请 Tailscale 优先。已部署 ROG 原中心(admin stop→stage-update→原 DayweaveHub，任务 1317/记录 1816/7 配对/hubId 不变，恢复副本 ROG Temp/.agents/dayweave-0217/recovery)、Mac(/Applications，固定证书)、OMEN(备份 Temp/.agents/dayweave-0520/profile-backup，Session1 托盘)、ROG 桌面(保持关闭)、K70 与小米平板 6 Pro(原签名，首次安装时间保留)。Mac/OMEN/平板经 Tailscale 同步到同一修订，平板任务/记录数与中心一致。全部设备入口顺序：Tailscale、Sakura HTTPS。详见 docs/design/sync.md 顶部。
 
 - 2026-11-26 Server 0.2.16 / Android 0.5.19：新增小米手表快应用通道(`/watch`、WatchBridge、`watch/vela`)。ROG 原中心经认证停机、`stage-update` 离线备份后切换，原 DayweaveHub 任务重启；任务 1313、记录 1789、6 配对、0 冲突与 hubId 不变，恢复副本在 ROG `%LOCALAPPDATA%/Temp/.agents/dayweave-watch-0216/recovery`。K70 原签名覆盖安装，首次安装时间保留。Mac 用已配对身份实测 `/watch` 视图 200/75 ms；K70 模拟 GB 转发的查看请求经中心应答。桌面 Mac/OMEN/ROG 桌面保持 0.5.18(无桌面改动)。
 
@@ -115,7 +115,7 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Active Work
 
-- 2026-11-26 `fix/sync-hub-wins` 待用户授权构建 0.5.20/Server 0.2.17 并部署 ROG 中心、Mac/OMEN/ROG 桌面、K70、平板(Android 须在 OMEN 用原签名构建)。平板已配对但尚未完成首次同步：解锁打开 Dayweave 后核对设置里“已同步”与任务数。ROG 局域网 192.168.31.32:49732 不通(未改防火墙)，各端以 Tailscale 为首选。
+- ROG 局域网 192.168.31.32:49732 从 Mac/平板均超时(未改防火墙)，各端以 Tailscale 为首选。K70 0.5.20 已安装，最近一次业务同步早于本次中心切换，待手机正常打开应用后自然同步。
 
 - 2026-11-26 小米手表 S4 快应用已部署(源码分支 `feat/watch-s4`，基于线上 0.5.18，不含待审的倒计时提醒)：ROG 原中心 Server 0.2.16、K70 客户端 0.5.19/code42(OMEN 原签名)、Gadgetbridge 2026.11.18 均已安装，Release v0.5.19(APK+rpk)与 server-v0.2.16 已发布。剩余：手表应用 rpk 已推到 K70 的 GB 目录 `/sdcard/Android/data/nodomain.freeyourgadget.gadgetbridge/files/org.dayweave.mobile.debug.0.2.0.rpk`，因手机锁屏未点「安装」；装好后再做真表交互、上下翻页/旋钮/滚轮、离线排队验收(用户暂时不能测试)。桌面仍为 0.5.18，平板未升级。改 `/watch`、WatchBridge 或手表端之前先读 `docs/design/watch.md`。
 
