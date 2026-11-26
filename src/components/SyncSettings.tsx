@@ -97,7 +97,6 @@ export function SyncSettings() {
                       offline: status.pendingChanges
                         ? '离线 · 本地已保存，待上传'
                         : '离线 · 下次打开或联网后重试',
-                      conflict: '存在冲突 · 请处理保留的候选',
                       'local-error': '本地尚未保存 · 暂停上传',
                     }[status.delivery]
                   }
@@ -295,34 +294,6 @@ export function SyncSettings() {
               <Unlink size={15} />
               {status.mode === 'hub' ? '关闭同步中心' : '断开同步（保留本机数据）'}
             </button>
-          )}
-          {!!status?.conflicts.length && (
-            <div className="sync-conflicts">
-              <h4>需要处理 {status.conflicts.length} 项冲突</h4>
-              <p>同一内容在离线期间分别修改，当前保留中心版本。你的修改也已保存在这里。</p>
-              {status.conflicts.map((conflict, index) => (
-                <div key={index}>
-                  <strong>
-                    {conflict.key} · {conflict.field}
-                  </strong>
-                  <pre>{JSON.stringify(conflict.local, null, 2)}</pre>
-                  <button
-                    className="button"
-                    disabled={busy}
-                    onClick={() => void run(() => bridge.resolve(index, true))}
-                  >
-                    应用这份修改
-                  </button>
-                  <button
-                    className="button"
-                    disabled={busy}
-                    onClick={() => void run(() => bridge.resolve(index, false))}
-                  >
-                    保留中心版本
-                  </button>
-                </div>
-              ))}
-            </div>
           )}
           {(error || status?.error) && (
             <p role="alert" className="error">

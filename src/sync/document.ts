@@ -5,14 +5,6 @@ import { newTimeOverlaps, timeOccupancy } from '../timelog/occupancy.js';
 
 export type Entity = Record<string, unknown>;
 export type SyncDocument = Record<string, Entity>;
-export type SyncConflict = {
-  key: string;
-  field: string;
-  local: unknown;
-  remote: unknown;
-  reason: string;
-  localPresent?: boolean;
-};
 const equal = (a: unknown, b: unknown) => stable(a) === stable(b);
 export function stable(value: unknown): string {
   if (value === undefined) return 'undefined';
@@ -234,9 +226,12 @@ export function fromDocument(doc: SyncDocument, local: AppState): AppState {
   if (next.timelog.timer) next.timer = null;
   return stateSchema.parse(next);
 }
+/**
+ * Three-way merge on the hub. Where both sides changed the same thing, the hub's version wins:
+ * offline edits are short-lived and the user always kept the center copy, so no conflict journal.
+ */
 export function mergeDocuments(base: SyncDocument, local: SyncDocument, remote: SyncDocument) {
-  const doc = structuredClone(remote),
-    conflicts: SyncConflict[] = [];
+  const doc = structuredClone(remote);
   for (const key of new Set([...Object.keys(base), ...Object.keys(local)])) {
     const before = base[key],
       after = local[key],
@@ -252,16 +247,8 @@ export function mergeDocuments(base: SyncDocument, local: SyncDocument, remote: 
       else doc[key] = structuredClone(after);
       continue;
     }
-    if (after === undefined || current === undefined) {
-      conflicts.push({
-        key,
-        field: '*',
-        local: after ?? null,
-        remote: current ?? null,
-        reason: '对象已在另一设备修改或删除',
-      });
-      continue;
-    }
+    // Deleted on one side and edited on the other: keep the hub's state.
+    if (after === undefined || current === undefined) continue;
     const result = { ...current };
     for (const field of new Set([...Object.keys(before ?? {}), ...Object.keys(after)])) {
       if (['__proto__', 'constructor', 'prototype'].includes(field))
@@ -289,30 +276,22 @@ export function mergeDocuments(base: SyncDocument, local: SyncDocument, remote: 
           continue;
         }
       }
+      // A field changed on both sides keeps the hub's value.
       if (equal(r, b)) {
         if (a === undefined) delete result[field];
         else result[field] = structuredClone(a);
-      } else
-        conflicts.push({
-          key,
-          field,
-          local: a ?? null,
-          localPresent: Object.hasOwn(after, field),
-          remote: r ?? null,
-          reason: '同一字段在离线期间分别修改',
-        });
+      }
     }
     doc[key] = result;
   }
-  return { doc, conflicts };
+  return doc;
 }
 
-/** Preserve the hub's accepted history and put colliding edits in the existing conflict journal. */
+/** Records that would collide with the hub's accepted history are restored to the hub's version. */
 export function reconcileTimeOverlaps(
   merged: SyncDocument,
   authoritative: AppState,
   local: AppState,
-  conflicts: SyncConflict[],
 ): AppState {
   const candidate = fromDocument(merged, local);
   const before = timeOccupancy(authoritative.timelog);
@@ -326,16 +305,9 @@ export function reconcileTimeOverlaps(
   // Restoring a prior interval may expose another collision with a remaining edit.
   // Each pass restores an additional ID to its authoritative occupancy.
   while (rejected.size) {
-    for (const [id, error] of rejected) {
+    for (const id of rejected.keys()) {
       const key = entityKey('records', id);
       const existing = baseline[key];
-      conflicts.push({
-        key,
-        field: '*',
-        local: doc[key],
-        remote: existing ?? null,
-        reason: error.message,
-      });
       if (existing) {
         doc[key] = existing;
         const activity = entityKey('activities', existing.activityId as string);
@@ -351,37 +323,21 @@ export function reconcileTimeOverlaps(
 }
 
 // Keep edits made while the HTTP request was in flight; send them on the next exchange.
+// An edit to something the hub deleted meanwhile, or a deletion of something the hub changed,
+// yields to the hub.
 export function overlayNewEdits(
   sent: SyncDocument,
   current: SyncDocument,
   received: SyncDocument,
-  conflicts: SyncConflict[] = [],
 ): SyncDocument {
   const result = structuredClone(received);
   for (const key of new Set([...Object.keys(sent), ...Object.keys(current)])) {
     if (equal(sent[key], current[key])) continue;
     if (!current[key]) {
-      if (received[key] && !equal(sent[key], received[key]))
-        conflicts.push({
-          key,
-          field: '*',
-          local: null,
-          remote: received[key],
-          reason: '同步期间删除的对象已在另一设备修改',
-        });
-      else delete result[key];
+      if (!received[key] || equal(sent[key], received[key])) delete result[key];
       continue;
     }
-    if (sent[key] && !result[key]) {
-      conflicts.push({
-        key,
-        field: '*',
-        local: structuredClone(current[key]),
-        remote: null,
-        reason: '同步期间对象已在另一设备删除',
-      });
-      continue;
-    }
+    if (sent[key] && !result[key]) continue;
     if (!sent[key]) {
       result[key] = structuredClone(current[key]);
       continue;
@@ -413,35 +369,4 @@ export function migrateLegacyDocument(doc: SyncDocument): SyncDocument {
   // fromDocument runs the common state migration, including all linked records/timers.
   const legacy = { ...emptyState(), version: 1 } as unknown as AppState;
   return toDocument(fromDocument(doc, legacy));
-}
-
-export function migrateLegacyConflicts(
-  old: SyncDocument,
-  conflicts: SyncConflict[],
-): SyncConflict[] {
-  const migrated = migrateLegacyDocument(old);
-  if (stable(migrated) === stable(old)) return conflicts;
-  const previousTasks = Object.entries(old).filter(([key]) => key.startsWith('tasks/'));
-  const nextTasks = Object.entries(migrated).filter(([key]) => key.startsWith('tasks/'));
-  const identities = new Map(previousTasks.map(([key], index) => [key, nextTasks[index]?.[0]]));
-  return conflicts.map((conflict) => {
-    const key = identities.get(conflict.key);
-    if (!key) return conflict;
-    if (conflict.field === '*' && conflict.local === null) return { ...conflict, key };
-    const candidate = structuredClone(old);
-    candidate[conflict.key] =
-      conflict.field === '*'
-        ? (structuredClone(conflict.local) as Entity)
-        : { ...candidate[conflict.key], [conflict.field]: conflict.local };
-    if (conflict.localPresent === false && conflict.field !== '*')
-      delete candidate[conflict.key][conflict.field];
-    return {
-      ...conflict,
-      key,
-      field: '*',
-      local: migrateLegacyDocument(candidate)[key],
-      remote: migrated[key],
-      reason: `${conflict.reason}（旧任务模型候选已迁移）`,
-    };
-  });
 }

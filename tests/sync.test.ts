@@ -104,7 +104,7 @@ test('open records round-trip without ticks; closed timing wins over stale pause
   const stale = structuredClone(a);
   stale.timelog = toggleTimer(stale.timelog, Date.now() - 5000);
   stale.timelog.timer!.note = '手机补充';
-  const merged = fromDocument(mergeDocuments(base, toDocument(stale), toDocument(stopped)).doc, a);
+  const merged = fromDocument(mergeDocuments(base, toDocument(stale), toDocument(stopped)), a);
   assert.equal(merged.timelog.timer, null);
   assert.equal(merged.timelog.records[0].id, id);
   assert.equal(merged.timelog.records[0].note, '手机补充');
@@ -117,14 +117,12 @@ test('offline task fields merge independently and task conflicts accept the late
   b.tasks[0].title = '电脑标题';
   c.tasks[0].notes = '手机备注';
   let merged = mergeDocuments(toDocument(a), toDocument(b), toDocument(c));
-  assert.equal(merged.conflicts.length, 0);
-  const state = fromDocument(merged.doc, a);
+  const state = fromDocument(merged, a);
   assert.equal(state.tasks[0].title, '电脑标题');
   assert.equal(state.tasks[0].notes, '手机备注');
   c.tasks[0].title = '平板标题';
   merged = mergeDocuments(toDocument(a), toDocument(b), toDocument(c));
-  assert.equal(merged.conflicts.length, 0);
-  assert.equal(fromDocument(merged.doc, a).tasks[0].title, '电脑标题');
+  assert.equal(fromDocument(merged, a).tasks[0].title, '电脑标题');
 });
 test('simultaneous offline starts preserve both timer IDs and old schemas still load', () => {
   const a = stateWithActivities(),
@@ -132,7 +130,7 @@ test('simultaneous offline starts preserve both timer IDs and old schemas still 
     c = structuredClone(a);
   b.timelog = startTimer(b.timelog, 'study', '电脑', Date.now() - 3000);
   c.timelog = startTimer(c.timelog, 'work', '手机', Date.now() - 2000);
-  const merged = fromDocument(mergeDocuments(toDocument(a), toDocument(b), toDocument(c)).doc, a);
+  const merged = fromDocument(mergeDocuments(toDocument(a), toDocument(b), toDocument(c)), a);
   assert.equal(
     new Set([merged.timelog.timer!.id, ...merged.timelog.conflictedTimers!.map((t) => t.id)]).size,
     2,
@@ -142,7 +140,7 @@ test('simultaneous offline starts preserve both timer IDs and old schemas still 
     stable(toDocument(merged)),
   );
 });
-test('in-flight edits survive, remote deletion is retained with a recoverable candidate', () => {
+test('in-flight edits survive, while a deletion on the hub wins', () => {
   const a = emptyState();
   a.tasks = [newTask('原始')];
   const sent = toDocument(a);
@@ -153,12 +151,7 @@ test('in-flight edits survive, remote deletion is retained with a recoverable ca
   assert.equal(merged.tasks[0].notes, '请求期间修改');
   assert.equal(merged.tasks[0].title, '中心标题');
   delete remote['tasks/' + a.tasks[0].id];
-  const conflicts: ReturnType<typeof mergeDocuments>['conflicts'] = [];
-  assert.equal(
-    fromDocument(overlayNewEdits(sent, toDocument(a), remote, conflicts), a).tasks.length,
-    0,
-  );
-  assert.equal(conflicts.length, 1);
+  assert.equal(fromDocument(overlayNewEdits(sent, toDocument(a), remote), a).tasks.length, 0);
 });
 test('authenticated encryption rejects tampering and response reflection; only private endpoints', async () => {
   const key = randomKey(),
@@ -269,8 +262,8 @@ test('real encrypted hub with two clients: pairing, offline merge, cross-device 
     await b.client.now();
     const timerId = a.get().timelog.timer!.id;
     assert.equal(b.get().timelog.timer!.id, timerId);
-    // Simulate an old/offline client. Its colliding record stays available in the
-    // conflict journal, while its independent task still reaches the hub.
+    // Simulate an old/offline client. Its colliding record yields to the hub's history,
+    // while its independent task still reaches the hub.
     const offline = {
       id: 'offline-overlap',
       activityId: 'study',
@@ -286,23 +279,11 @@ test('real encrypted hub with two clients: pairing, offline merge, cross-device 
     await b.client.now();
     assert.equal(b.client.connected, true, b.client.error);
     assert.equal(b.get().timelog.records.length, 0);
-    const collision = b.client.config.conflicts.findIndex(
-      (item) => item.key === 'records/offline-overlap',
-    );
-    assert.ok(collision >= 0);
-    assert.match(b.client.config.conflicts[collision].reason, /TIME_OVERLAP/);
-    assert.equal(
-      (b.client.config.conflicts[collision].local as { note: string }).note,
-      offline.note,
-    );
     assert.ok(
       (await service.snapshot()).state.tasks.some((task) => task.title === '离线补录之外的任务'),
     );
     await b.client.now();
-    assert.equal(
-      b.client.config.conflicts.filter((item) => item.key === 'records/offline-overlap').length,
-      1,
-    );
+    assert.ok(!(await service.snapshot()).state.timelog.records.some((r) => r.id === offline.id));
     b.get().timelog = finishTimer(b.get().timelog, Date.now() - 1000);
     b.loseReply();
     await b.client.now();

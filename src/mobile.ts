@@ -14,7 +14,8 @@ const syncScheduler = new SyncScheduler(async () => {
     lastUsageSync = now;
     void nativeUsageSync().catch(() => {});
   }
-  await syncClient?.now();
+  const status = await syncClient?.now();
+  return !status?.error;
 });
 let lastUsageSync = 0;
 let usageSyncRunning: Promise<void> | undefined;
@@ -144,7 +145,6 @@ export async function initializeMobile() {
         await client.setEndpoint(endpoint);
         return client.now();
       },
-      resolve: (index, keepLocal) => client.resolve(index, keepLocal),
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -158,13 +158,11 @@ export async function initializeMobile() {
         name: '此设备',
         connected: false,
         error: message,
-        conflicts: [],
       }),
       discover: unavailable,
       pair: unavailable,
       now: unavailable,
       disconnect: unavailable,
-      resolve: unavailable,
     };
   }
   await NativeApp.addListener('appStateChange', ({ isActive }) => {

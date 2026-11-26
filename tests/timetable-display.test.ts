@@ -114,8 +114,7 @@ test('day-display defaults migrate old backups, fixed choices preserve courses, 
   assert.deepEqual(courseOccurrences(local.schedule), before);
   assert.equal(applyDelta(base, diffState(base, local)).schedule.displayDays, 5);
   const merged = mergeDocuments(toDocument(base), toDocument(local), toDocument(remote));
-  assert.equal(merged.conflicts.length, 0);
-  const restored = fromDocument(merged.doc, emptyState());
+  const restored = fromDocument(merged, emptyState());
   assert.equal(restored.schedule.displayDays, 5);
   assert.deepEqual(restored.schedule.holidays, ['2026-10-01']);
   assert.deepEqual(restored.schedule.courses, base.schedule.courses);

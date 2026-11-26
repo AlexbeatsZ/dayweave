@@ -102,8 +102,7 @@ test('estimated and actual minutes merge as independent task fields and explicit
   const remote = structuredClone(base);
   remote.tasks[0].actualMinutes = 32.5;
   const merged = mergeDocuments(toDocument(base), toDocument(local), toDocument(remote));
-  assert.equal(merged.conflicts.length, 0);
-  const saved = fromDocument(merged.doc, emptyState());
+  const saved = fromDocument(merged, emptyState());
   assert.equal(saved.tasks[0].estimatedMinutes, 45);
   assert.equal(saved.tasks[0].actualMinutes, 32.5);
   const cleared = structuredClone(saved);

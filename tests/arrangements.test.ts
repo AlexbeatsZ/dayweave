@@ -279,14 +279,14 @@ test('native Event entities survive persistence, delta, backup merge and offline
   b.calendarEvents[0].location = '会议室';
   a.calendarEvents[0].updatedAt = new Date(Date.parse(event.updatedAt) + 1000).toISOString();
   const merged = mergeDocuments(toDocument(base), toDocument(a), toDocument(b));
-  const result = fromDocument(merged.doc, base);
+  const result = fromDocument(merged, base);
   assert.equal(result.calendarEvents[0].title, '新标题');
   assert.equal(result.calendarEvents[0].location, '会议室');
   assert.equal(applyDelta(b, diffState(base, a)).calendarEvents[0].location, '会议室');
   assert.equal(mergeImport(base, a).calendarEvents[0].title, '新标题');
   const deleted = deleteEvent(base, event.id);
   const tombstone = fromDocument(
-    mergeDocuments(toDocument(base), toDocument(a), toDocument(deleted)).doc,
+    mergeDocuments(toDocument(base), toDocument(a), toDocument(deleted)),
     base,
   );
   assert.ok(tombstone.calendarEvents[0].deletedAt);

@@ -99,8 +99,7 @@ test('plan sections round-trip through sync documents and field deltas', () => {
   const group = newPlanGroup('2026-11-03', { title: '睡前' });
   const local = stateSchema.parse({ ...base, planGroups: [group] });
   const merged = mergeDocuments(toDocument(base), toDocument(local), toDocument(base));
-  assert.deepEqual(merged.conflicts, []);
-  assert.deepEqual(fromDocument(merged.doc, base).planGroups, [group]);
+  assert.deepEqual(fromDocument(merged, base).planGroups, [group]);
   const renamed = { ...local, planGroups: [{ ...group, title: '洗漱前' }] };
   assert.equal(applyDelta(local, diffState(local, renamed)).planGroups[0].title, '洗漱前');
 });

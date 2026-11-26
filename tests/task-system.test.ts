@@ -67,7 +67,7 @@ const withTask = (task = baseTask()): AppState => ({
   tasks: [task],
 });
 const merge = (base: AppState, incoming: AppState, hub: AppState) =>
-  fromDocument(mergeDocuments(toDocument(base), toDocument(incoming), toDocument(hub)).doc, hub);
+  fromDocument(mergeDocuments(toDocument(base), toDocument(incoming), toDocument(hub)), hub);
 
 test('finite dates expire without changing data; infinity and inbox have distinct membership', () => {
   const state = withTask();
@@ -750,10 +750,7 @@ test('the first v1 file and sync baseline survive migration with pairing, sequen
     assert.equal(client.config.key, config.key);
     assert.equal(client.config.hubId, config.hubId);
     assert.equal(preserved, JSON.stringify(config));
-    assert.equal(client.config.conflicts.length, 1);
-    assert.equal(client.config.conflicts[0].field, '*');
-    assert.equal((client.config.conflicts[0].local as { title: string }).title, '保留候选');
-    assert.equal(client.config.conflicts[0].key, 'tasks/' + state.tasks[0].id);
+    assert.equal('conflicts' in client.config, false);
     assert.ok(client.config.base?.['tasks/' + state.tasks[0].id]);
   } finally {
     await rm(directory, { recursive: true, force: true });

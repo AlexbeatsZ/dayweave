@@ -25,7 +25,6 @@ test('sync settings edits ordered address lines without disconnecting or droppin
             error,
             delivery,
             pendingChanges: true,
-            conflicts: [],
           }),
           setEndpoint: async (address: string) => {
             endpoint = address;

@@ -223,7 +223,7 @@ test(
           true,
         );
         assert.equal(status.sync.hubId, 'original-hub');
-        assert.deepEqual(status.sync.conflicts, [conflict]);
+        assert.equal('conflicts' in status.sync, false);
         assert.equal(status.recovered, true);
         assert.equal(status.usage.localCapture, false);
         assert.equal(status.usage.settings.enabled, true);
@@ -315,7 +315,7 @@ test(
         assert.equal(restarted.records, 1);
         assert.equal(restarted.sync.hubId, 'original-hub');
         assert.equal(running.info.token, token);
-        assert.deepEqual(restarted.sync.conflicts, [conflict]);
+        assert.equal('conflicts' in restarted.sync, false);
         assert.equal(
           (await readJson(path.join(profile, 'sync.json'))).hub.clients[b.client.config.deviceId]
             .key,

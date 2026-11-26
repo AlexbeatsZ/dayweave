@@ -40,7 +40,7 @@ test('public transport requires HTTPS, preserves route prefixes, and rejects uns
     assert.throws(() => syncEndpoint(value));
 });
 
-test('journal replays after process death without losing local edits or conflict candidates', async () => {
+test('journal replays after process death without losing local edits', async () => {
   const sent = emptyState();
   sent.tasks.push(newTask('Sent task'));
   const received = structuredClone(sent);
@@ -57,7 +57,6 @@ test('journal replays after process death without losing local edits or conflict
     endpoint: 'https://sync.example.com/dayweave',
     hubId: 'hub',
     key: randomKey(),
-    conflicts: [],
     base: toDocument(emptyState()),
     incoming: {
       sent: toDocument(sent),
@@ -67,15 +66,6 @@ test('journal replays after process death without losing local edits or conflict
         revision: 'hub:2',
         state: received,
         base: toDocument(received),
-        conflicts: [
-          {
-            key: 'tasks/' + sent.tasks[0].id,
-            field: 'title',
-            local: 'Sent task',
-            remote: 'Hub choice',
-            reason: 'conflict',
-          },
-        ],
       },
     },
   };
@@ -112,10 +102,9 @@ test('journal replays after process death without losing local edits or conflict
   await restarted.now();
   assert.equal(state.tasks[0].title, 'Hub choice');
   assert.ok(state.tasks.some((task) => task.id === later.id));
-  assert.equal(restarted.config.conflicts.length, 1);
   assert.equal(restarted.config.incoming, undefined);
   assert.equal(restarted.config.endpoint, config.endpoint);
-  assert.equal((await restarted.readStatus()).delivery, 'conflict');
+  assert.equal((await restarted.readStatus()).delivery, 'offline');
   const oldIdentity = restarted.config.deviceId;
   const oldKey = restarted.config.key;
   const oldBase = restarted.config.base;
@@ -137,7 +126,6 @@ test('idle polls leave the configuration untouched and sequences stay ahead afte
     endpoint: 'https://sync.example.com/dayweave',
     hubId: 'hub',
     key,
-    conflicts: [],
     revision: 'hub:1',
     lastSync: Date.now(),
   } satisfies SyncConfig);
@@ -179,4 +167,86 @@ test('idle polls leave the configuration untouched and sequences stay ahead afte
   assert.equal(restarted.connected, true, restarted.error);
   assert.ok(sent.at(-1)! > Math.max(...sent.slice(0, -1)));
   assert.ok((JSON.parse(raw) as SyncConfig).seq >= sent.at(-1)!);
+});
+
+test('an unusable journal is preserved and dropped instead of blocking every later exchange', async () => {
+  const state = emptyState();
+  state.tasks.push(newTask('Local edit'));
+  const key = randomKey();
+  const broken = {
+    version: 1,
+    arrangementsVersion: 1,
+    deviceId: 'device',
+    name: 'Test',
+    enabled: true,
+    seq: 3,
+    endpoint: 'https://sync.example.com/dayweave',
+    hubId: 'hub',
+    key,
+    base: toDocument(emptyState()),
+    // Left by an older release: reply from another hub, plus a retired conflict list.
+    conflicts: [{ key: 'tasks/x', field: '*', local: null, remote: null, reason: 'old' }],
+    incoming: {
+      sent: toDocument(state),
+      reply: { seq: 3, hubId: 'other-hub', revision: 'hub:9', state, base: toDocument(state) },
+    },
+  };
+  let disk = JSON.stringify(broken);
+  const preserved = new Map<string, string>();
+  let posts = 0;
+  const client = new SyncClient(
+    {
+      read: async () => disk,
+      write: async (text) => {
+        disk = text;
+      },
+      preserve: async (text, name) => {
+        preserved.set(name!, text);
+      },
+    },
+    {
+      snapshot: async () => ({ state: structuredClone(state) }),
+      mutate: async () => {},
+    },
+    async (_endpoint, path, body) => {
+      posts++;
+      const request = await openEnvelope<SyncRequest>(body, key, path);
+      assert.ok(request.state, 'local edits are uploaded against the unchanged base');
+      return seal(
+        { protocol: 3, seq: request.seq, hubId: 'hub', revision: 'hub:10' },
+        key,
+        path + ':reply',
+        'device',
+      );
+    },
+    'Test',
+  );
+  await client.load();
+  assert.equal('conflicts' in client.config, false);
+  const status = await client.now();
+  assert.equal(status.error, '');
+  assert.equal(posts, 1);
+  assert.equal(JSON.parse(disk).incoming, undefined);
+  assert.ok(preserved.get('sync.incoming-failed.json')?.includes('other-hub'));
+});
+
+test('several endpoints report each failure so the first route is diagnosable', async () => {
+  const client = new SyncClient(
+    { read: async () => null, write: async () => {} },
+    { snapshot: async () => ({ state: emptyState() }), mutate: async () => {} },
+    async (endpoint) => {
+      throw new Error(endpoint.includes('100.') ? 'timeout' : '同步中心返回 401');
+    },
+    'Test',
+  );
+  await client.load();
+  await assert.rejects(
+    client.request(
+      '/sync',
+      async () => ({ clientId: 'd', iv: '', data: '' }),
+      async (x) => x,
+      ['http://100.106.169.46:49732', 'https://sync.example.com/dayweave'],
+    ),
+    /100\.106\.169\.46:49732：timeout；sync\.example\.com：同步中心返回 401/,
+  );
 });

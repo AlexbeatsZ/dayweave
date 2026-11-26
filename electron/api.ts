@@ -242,13 +242,6 @@ export async function startApi(
             .parse(await body(request));
           return send(await sync!.setEndpoint(input.endpoint), await service.snapshot());
         }
-        if (route === '/sync/resolve' && method === 'POST') {
-          const input = z
-            .object({ index: z.number().int().nonnegative(), keepLocal: z.boolean() })
-            .strict()
-            .parse(await body(request));
-          return send(await sync!.resolve(input.index, input.keepLocal), await service.snapshot());
-        }
         if (route === '/sync/ensure-tasks' && method === 'POST' && sync!.ensureTasks) {
           const input = z
             .object({ through: dateSchema })

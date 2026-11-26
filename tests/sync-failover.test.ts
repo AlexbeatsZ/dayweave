@@ -29,7 +29,6 @@ async function fixture(post: SyncClient['post']) {
     key: randomKey(),
     seq: 0,
     base: toDocument(emptyState()),
-    conflicts: [],
   };
   let disk = JSON.stringify(config);
   let failSave = false;

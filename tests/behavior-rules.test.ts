@@ -122,9 +122,8 @@ test('counts from different days merge independently and sync', () => {
     timelog: countBehavior(base.timelog, rule.id, next, 'action', dayRange(next).start),
   };
   const merged = mergeDocuments(toDocument(base), toDocument(yesterday), toDocument(today));
-  assert.deepEqual(merged.conflicts, []);
-  assert.ok(Object.keys(merged.doc).every(isDocumentKey));
-  const synced = fromDocument(merged.doc, today);
+  assert.ok(Object.keys(merged).every(isDocumentKey));
+  const synced = fromDocument(merged, today);
   assert.equal(behaviorReview(synced.timelog, rule.id, date)?.executed, 0);
   assert.equal(behaviorReview(synced.timelog, rule.id, next)?.executed, 1);
   const more = {
@@ -132,9 +131,8 @@ test('counts from different days merge independently and sync', () => {
     timelog: countBehavior(today.timelog, rule.id, next, 'trigger', dayRange(next).start + 1),
   };
   const delta = applyDelta(synced, diffState(today, more));
-  const syncMore = mergeDocuments(toDocument(today), toDocument(more), merged.doc);
-  assert.deepEqual(syncMore.conflicts, []);
-  for (const state of [delta, fromDocument(syncMore.doc, synced)]) {
+  const syncMore = mergeDocuments(toDocument(today), toDocument(more), merged);
+  for (const state of [delta, fromDocument(syncMore, synced)]) {
     const review = behaviorReview(state.timelog, rule.id, next);
     assert.deepEqual([review?.triggered, review?.executed], [2, 1]);
     assert.equal(behaviorReview(state.timelog, rule.id, date)?.triggered, 1);

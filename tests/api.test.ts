@@ -168,11 +168,11 @@ test('headless usage API uses native storage and keeps deleted activities unavai
       '/server/shutdown',
       '/sync/peers/{id}',
       '/sync/pair',
-      '/sync/resolve',
       '/timelog/scripts/test',
       '/timelog/goals/{id}/count',
     ])
       assert.ok(spec.paths[route]);
+    assert.equal(spec.paths['/sync/resolve'], undefined);
   } finally {
     await runtime.close();
     await rm(directory, { recursive: true, force: true });

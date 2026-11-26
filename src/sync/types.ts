@@ -1,5 +1,5 @@
 import type { AppState } from '../model.js';
-import type { SyncConflict, SyncDocument } from './document.js';
+import type { SyncDocument } from './document.js';
 import type { State as TimeState } from '../timelog/domain.js';
 
 export type Peer = { name: string; endpoint: string; hubId: string };
@@ -19,7 +19,6 @@ export type SyncConfig = {
   goalSegmentBaseline?: true;
   lastSync?: number;
   incoming?: { sent: SyncDocument; reply: SyncReply };
-  conflicts: SyncConflict[];
   hub?: {
     port: number;
     clients: Record<string, { name: string; key: string; seq: number }>;
@@ -27,8 +26,7 @@ export type SyncConfig = {
   };
 };
 export type SyncStatus = {
-  delivery?:
-    'off' | 'saved' | 'pending' | 'syncing' | 'synced' | 'offline' | 'conflict' | 'local-error';
+  delivery?: 'off' | 'saved' | 'pending' | 'syncing' | 'synced' | 'offline' | 'local-error';
   pendingChanges?: boolean;
   mode: 'off' | 'hub' | 'client';
   name: string;
@@ -41,7 +39,6 @@ export type SyncStatus = {
   lastSync?: number;
   error: string;
   peers?: { id: string; name: string }[];
-  conflicts: SyncConflict[];
 };
 export type SyncRequest = {
   protocol?: 3;
@@ -60,7 +57,6 @@ export type SyncReply = {
   revision: string;
   state?: AppState;
   base?: SyncDocument;
-  conflicts?: SyncConflict[];
 };
 export interface SyncStorage {
   read(): Promise<string | null>;
@@ -83,5 +79,4 @@ export type SyncBridge = {
   enableHub?(): Promise<SyncStatus>;
   invite?(): Promise<string>;
   revoke?(id: string): Promise<SyncStatus>;
-  resolve(index: number, keepLocal: boolean): Promise<SyncStatus>;
 };

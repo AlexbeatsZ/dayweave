@@ -107,8 +107,7 @@ test('course-period deltas and sync preserve unrelated edits and retain independ
   assert.equal(applied.tasks[0].notes, '另一设备上的备注');
   remote.schedule.holidays = ['2026-10-01'];
   const merged = mergeDocuments(toDocument(base), toDocument(local), toDocument(remote));
-  assert.equal(merged.conflicts.length, 0);
-  const restored = fromDocument(merged.doc, emptyState());
+  const restored = fromDocument(merged, emptyState());
   assert.deepEqual(restored.schedule.periods, customPeriods);
   assert.deepEqual(restored.schedule.holidays, ['2026-10-01']);
   assert.equal(restored.tasks[0].notes, '另一设备上的备注');

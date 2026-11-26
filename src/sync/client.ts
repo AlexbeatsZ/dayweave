@@ -7,7 +7,6 @@ import {
   stable,
   toDocument,
   migrateLegacyDocument,
-  migrateLegacyConflicts,
 } from './document.js';
 import { invitationText } from './invitation.js';
 import type { SyncConfig, SyncReply, SyncState, SyncStatus, SyncStorage } from './types.js';
@@ -45,10 +44,12 @@ export class SyncClient {
       if (
         value.version !== 1 ||
         typeof value.deviceId !== 'string' ||
-        !Number.isSafeInteger(value.seq) ||
-        !Array.isArray(value.conflicts)
+        !Number.isSafeInteger(value.seq)
       )
         throw new Error('同步配置无法读取，请保留 sync.json 后恢复配对。');
+      // Conflict candidates were dropped: the hub's version now always wins.
+      delete (value as { conflicts?: unknown }).conflicts;
+      delete (value.incoming?.reply as { conflicts?: unknown } | undefined)?.conflicts;
       if (value.endpoints || value.endpoint) {
         value.endpoints = syncEndpoints(value.endpoints ?? [value.endpoint!]);
         value.endpoint = value.endpoints[0];
@@ -58,7 +59,6 @@ export class SyncClient {
           migrated = migrateLegacyDocument(old);
         if (stable(old) !== stable(migrated)) {
           await this.storage.preserve?.(raw);
-          value.conflicts = migrateLegacyConflicts(old, value.conflicts);
           value.base = migrated;
         }
       }
@@ -66,13 +66,8 @@ export class SyncClient {
         await this.storage.preserve?.(raw);
         value.incoming!.sent = migrateLegacyDocument(value.incoming!.sent);
         value.incoming!.reply.state = stateSchema.parse(value.incoming!.reply.state);
-        if (value.incoming!.reply.base) {
-          value.incoming!.reply.conflicts = migrateLegacyConflicts(
-            value.incoming!.reply.base,
-            value.incoming!.reply.conflicts ?? [],
-          );
+        if (value.incoming!.reply.base)
           value.incoming!.reply.base = migrateLegacyDocument(value.incoming!.reply.base);
-        }
       }
       this.config = value;
       this.sequence = value.seq;
@@ -84,7 +79,6 @@ export class SyncClient {
         name: this.defaultName,
         enabled: false,
         seq: 0,
-        conflicts: [],
       };
       await this.save();
     }
@@ -125,7 +119,6 @@ export class SyncClient {
       connected: this.connected,
       lastSync: this.lastSync,
       error: this.error,
-      conflicts: this.config?.conflicts ?? [],
     };
   }
   async readStatus(): Promise<SyncStatus> {
@@ -141,15 +134,13 @@ export class SyncClient {
       return {
         ...status,
         pendingChanges,
-        delivery: status.conflicts.length
-          ? 'conflict'
-          : this.inFlight
-            ? 'syncing'
-            : !status.connected
-              ? 'offline'
-              : pendingChanges
-                ? 'pending'
-                : 'synced',
+        delivery: this.inFlight
+          ? 'syncing'
+          : !status.connected
+            ? 'offline'
+            : pendingChanges
+              ? 'pending'
+              : 'synced',
       };
     } catch (error) {
       return {
@@ -167,37 +158,52 @@ export class SyncClient {
     if (!reply.state || !reply.base || reply.hubId !== config.hubId)
       throw new Error('同步恢复日志无效');
     await this.save();
-    const conflicts = structuredClone(config.conflicts);
     const authoritative = stateSchema.parse(reply.state);
     const received = toDocument(authoritative);
     await this.state.mutate(
       (current) =>
         reconcileTimeOverlaps(
-          overlayNewEdits(sent, toDocument(current), received, conflicts),
+          overlayNewEdits(sent, toDocument(current), received),
           authoritative,
           current,
-          conflicts,
         ),
       authoritative.timelog,
     );
-    for (const conflict of reply.conflicts ?? [])
-      if (!conflicts.some((item) => stable(item) === stable(conflict))) conflicts.push(conflict);
     const previous = {
       base: config.base,
       revision: config.revision,
-      conflicts: config.conflicts,
       goalSegmentBaseline: config.goalSegmentBaseline,
     };
     config.base = reply.base;
     config.revision = reply.revision;
     config.goalSegmentBaseline = true;
-    config.conflicts = conflicts;
     config.incoming = undefined;
     try {
       await this.save();
     } catch (error) {
       Object.assign(config, previous, { incoming });
       throw error;
+    }
+  }
+  /**
+   * A journal left by an interrupted exchange is replayed first. If it cannot be applied it must
+   * not stop every later exchange: the hub already holds what was sent, so dropping the journal is
+   * the same as a lost receipt, which the next exchange repairs from the unchanged base.
+   */
+  private async replayIncoming() {
+    try {
+      await this.applyIncoming();
+    } catch (error) {
+      const incoming = this.config.incoming;
+      if (!incoming) throw error;
+      await this.storage.preserve?.(JSON.stringify(this.config), 'sync.incoming-failed.json');
+      this.config.incoming = undefined;
+      try {
+        await this.save();
+      } catch (saveError) {
+        this.config.incoming = incoming;
+        throw saveError;
+      }
     }
   }
   pair(invitation: string, endpoint?: string) {
@@ -266,6 +272,7 @@ export class SyncClient {
     readReply: (response: Envelope) => Promise<T>,
     endpoints = this.config.endpoints ?? (this.config.endpoint ? [this.config.endpoint] : []),
   ): Promise<T> {
+    const failures: string[] = [];
     let lastError: unknown;
     for (const endpoint of endpoints) {
       const body = await createBody();
@@ -275,8 +282,13 @@ export class SyncClient {
         return reply;
       } catch (error) {
         lastError = error;
+        failures.push(
+          `${new URL(endpoint).host}：${error instanceof Error ? error.message : error}`,
+        );
       }
     }
+    // With several entries, name each one; only the last failure hides why the first one failed.
+    if (failures.length > 1) throw new Error(failures.join('；'));
     throw lastError ?? new Error('未填写同步中心地址');
   }
   private exchange() {
@@ -284,7 +296,7 @@ export class SyncClient {
       const c = this.config;
       if (!c.enabled || c.hub || !c.endpoint || !c.key) return this.status();
       try {
-        await this.applyIncoming();
+        await this.replayIncoming();
         const snapshot = (await this.state.snapshot()).state;
         const sent = toDocument(snapshot);
         const dirty = !c.base || stable(sent) !== stable(c.base);
@@ -375,27 +387,6 @@ export class SyncClient {
       this.connected = false;
       this.activeEndpoint = undefined;
       this.error = '';
-      return this.status();
-    });
-  }
-  resolve(index: number, keepLocal: boolean) {
-    return this.exclusive(async () => {
-      const conflict = this.config.conflicts[index];
-      if (!conflict) throw new Error('冲突已处理');
-      if (keepLocal)
-        await this.state.mutate((state) => {
-          const doc = toDocument(state);
-          if (conflict.field === '*') {
-            if (conflict.local === null) delete doc[conflict.key];
-            else doc[conflict.key] = conflict.local as (typeof doc)[string];
-          } else if (doc[conflict.key]) {
-            if (conflict.localPresent === false) delete doc[conflict.key][conflict.field];
-            else doc[conflict.key][conflict.field] = conflict.local;
-          }
-          return fromDocument(doc, state);
-        });
-      this.config.conflicts.splice(index, 1);
-      await this.save();
       return this.status();
     });
   }

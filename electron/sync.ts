@@ -41,6 +41,14 @@ export function syncFiles(directory: string) {
     write: (content: string) => writeAtomic(file, content),
   };
 }
+const isTailnet = (address: string) => {
+  const [a, b] = address.split('.').map(Number);
+  return a === 100 && b >= 64 && b <= 127;
+};
+/**
+ * Addresses offered in invitations, in the order clients try them. Tailscale comes first: it
+ * reaches the hub from any network, while the hub's LAN port may be firewalled or off-site.
+ */
 export function lanAddresses(port: number) {
   const addresses: { address: string; score: number }[] = [];
   for (const [name, list] of Object.entries(os.networkInterfaces()))
@@ -49,13 +57,13 @@ export function lanAddresses(port: number) {
         try {
           addresses.push({
             address: localEndpoint(`http://${entry.address}:${port}`),
-            score: /wlan|wi-?fi|wireless|^en0$/i.test(name)
+            score: isTailnet(entry.address)
               ? 0
-              : entry.address.startsWith('100.')
-                ? 20
+              : /wlan|wi-?fi|wireless|^en0$/i.test(name)
+                ? 10
                 : entry.address.startsWith('169.254.')
                   ? 30
-                  : 10,
+                  : 20,
           });
         } catch {
           /* Public interfaces are not advertised. */
@@ -91,7 +99,7 @@ export class DesktopSync implements SyncBridge {
       fetchEnvelope,
       os.hostname(),
     );
-    this.scheduler = new SyncScheduler(() => this.client.now());
+    this.scheduler = new SyncScheduler(async () => !(await this.client.now()).error);
     this.watch = new WatchHub(service, directory);
   }
   private get activeHub() {
@@ -200,10 +208,6 @@ export class DesktopSync implements SyncBridge {
   async setEndpoint(endpoint: string) {
     await this.client.setEndpoint(endpoint);
     return this.now();
-  }
-  async resolve(index: number, keepLocal: boolean) {
-    await this.client.resolve(index, keepLocal);
-    return this.status();
   }
   async disconnect() {
     await this.stopServer();
@@ -335,7 +339,6 @@ export class DesktopSync implements SyncBridge {
               // Writes persist the sequence before merging, so a replayed state is rejected.
               if (value.state) await this.client.save();
               else this.deferSave();
-              let conflicts: ReturnType<typeof mergeDocuments>['conflicts'] = [];
               const snapshot = value.state
                 ? await this.service.mutate((current) => {
                     const incoming = toDocument(stateSchema.parse(value.state));
@@ -352,10 +355,12 @@ export class DesktopSync implements SyncBridge {
                         delete incoming[key];
                       }
                     }
-                    const merged = mergeDocuments(base, incoming, remote);
-                    conflicts = merged.conflicts;
                     return generateRepeatedTasks(
-                      reconcileTimeOverlaps(merged.doc, current, current, conflicts),
+                      reconcileTimeOverlaps(
+                        mergeDocuments(base, incoming, remote),
+                        current,
+                        current,
+                      ),
                       value.through,
                     );
                   })
@@ -372,9 +377,7 @@ export class DesktopSync implements SyncBridge {
                   seq: value.seq,
                   hubId: c.deviceId,
                   revision: snapshot.revision,
-                  ...(changed
-                    ? { state: replyState, base: toDocument(replyState), conflicts }
-                    : {}),
+                  ...(changed ? { state: replyState, base: toDocument(replyState) } : {}),
                 },
                 peer.key,
                 route + ':reply',
@@ -408,7 +411,8 @@ export class DesktopSync implements SyncBridge {
     this.server = server;
     c.hub!.port = (server.address() as { port: number }).port;
     if (this.discovery) {
-      const address = lanAddresses(c.hub!.port)[0];
+      // mDNS is only meaningful on the physical LAN, never on the Tailscale interface.
+      const address = lanAddresses(c.hub!.port).find((item) => !isTailnet(new URL(item).hostname));
       const iface = address ? new URL(address).hostname : undefined;
       this.publisher = new Bonjour(
         iface

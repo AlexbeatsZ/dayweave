@@ -278,7 +278,6 @@ else {
       'enableHub',
       'invite',
       'revoke',
-      'resolve',
     ] as const) {
       ipcMain.handle(`sync:${method}`, (event, ...args) => {
         trusted(event);

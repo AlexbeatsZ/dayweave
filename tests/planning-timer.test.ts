@@ -107,7 +107,7 @@ test('countdown and custom presets survive sync while unrelated timezone edits m
   a.timelog.settings = { ...a.timelog.settings, timerPresets: [5, 25, 45], updatedAt: start };
   b.settings.timeZone = '-04:00';
   const restored = fromDocument(
-    mergeDocuments(toDocument(base), toDocument(a), toDocument(b)).doc,
+    mergeDocuments(toDocument(base), toDocument(a), toDocument(b)),
     base,
   );
   assert.equal(restored.timelog.timer!.plannedEndAt, start + 300000);
@@ -365,8 +365,7 @@ test('task and activity tag colors remain independent and merge across devices w
   desktop.tagColors.records = { 重要: '#cc8844' };
   desktop.timelog.activities[0].color = '#557799';
   const merged = mergeDocuments(toDocument(base), toDocument(phone), toDocument(desktop));
-  assert.equal(merged.conflicts.length, 0);
-  const restored = fromDocument(merged.doc, stateWithActivities());
+  const restored = fromDocument(merged, stateWithActivities());
   assert.deepEqual(restored.tagColors, {
     tasks: { 重要: '#4488cc' },
     records: { 重要: '#cc8844' },

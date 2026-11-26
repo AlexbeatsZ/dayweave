@@ -153,7 +153,7 @@ export const openapi = {
   openapi: '3.0.3',
   info: {
     title: 'Dayweave AI API',
-    version: '2.7.0',
+    version: '2.8.0',
     description:
       '时织 Windows/macOS 本机接口。应用运行时可用；实际地址与令牌见设置或用户数据目录 api.json。默认不对局域网开放。所有写入先持久化再通知界面；DELETE 任务为软删除。',
   },
@@ -195,12 +195,6 @@ export const openapi = {
     '/sync/disconnect': { post: operation('通过原流程断开同步') },
     '/sync/endpoint': {
       patch: operation('设置中心入口', z.object({ endpoint: z.string().min(1) }).strict()),
-    },
-    '/sync/resolve': {
-      post: operation(
-        '解决一个同步冲突',
-        z.object({ index: z.number().int().nonnegative(), keepLocal: z.boolean() }).strict(),
-      ),
     },
     '/sync/ensure-tasks': {
       post: operation('请求中心扩展重复实例', z.object({ through: z.string().date() }).strict()),

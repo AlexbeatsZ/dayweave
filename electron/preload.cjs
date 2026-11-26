@@ -24,7 +24,6 @@ contextBridge.exposeInMainWorld('clearlist', {
       'enableHub',
       'invite',
       'revoke',
-      'resolve',
     ].map((method) => [method, (...args) => ipcRenderer.invoke(`sync:${method}`, ...args)]),
   ),
   pickText: () => ipcRenderer.invoke('text:pick'),

@@ -6,6 +6,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Current State
 
+- 2026-11-26 分支 `fix/sync-hub-wins`(源码，未构建)：同步冲突一律保留中心版本，删除冲突列表/设置区块/`/sync/resolve`(OpenAPI 2.8.0)；坏 incoming 日志保存为 `sync.incoming-failed.json` 后丢弃不再卡死；后台轮询失败退避；中心邀请 Tailscale 优先。小米平板 6 Pro 已升 0.5.19 并以 Tailscale→Sakura HTTPS 顺序配对到原中心，首次业务同步待解锁打开应用。详见 docs/design/sync.md 顶部与当月日志。
+
 - 2026-11-26 Server 0.2.16 / Android 0.5.19：新增小米手表快应用通道(`/watch`、WatchBridge、`watch/vela`)。ROG 原中心经认证停机、`stage-update` 离线备份后切换，原 DayweaveHub 任务重启；任务 1313、记录 1789、6 配对、0 冲突与 hubId 不变，恢复副本在 ROG `%LOCALAPPDATA%/Temp/.agents/dayweave-watch-0216/recovery`。K70 原签名覆盖安装，首次安装时间保留。Mac 用已配对身份实测 `/watch` 视图 200/75 ms；K70 模拟 GB 转发的查看请求经中心应答。桌面 Mac/OMEN/ROG 桌面保持 0.5.18(无桌面改动)。
 
 - 2026-11-25：用户确认两个独立日历无需避开重叠，参考订阅改为完整46段/天×43天；Server0.2.15已发布并部署ROG原中心，两个公网入口均HTTP200/1978段，每日完整46段（比原源补回201段）；实际日程订阅167条原文不变，原身份/6配对密钥/API令牌及订阅设置保留。沿用已有Google/Microsoft/Apple订阅URL，等待各平台正常刷新，不宣称三方已拉取新版本。客户端版本保持0.5.18，不需要重建客户端即可更新中心输出。
@@ -113,6 +115,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Active Work
 
+- 2026-11-26 `fix/sync-hub-wins` 待用户授权构建 0.5.20/Server 0.2.17 并部署 ROG 中心、Mac/OMEN/ROG 桌面、K70、平板(Android 须在 OMEN 用原签名构建)。平板已配对但尚未完成首次同步：解锁打开 Dayweave 后核对设置里“已同步”与任务数。ROG 局域网 192.168.31.32:49732 不通(未改防火墙)，各端以 Tailscale 为首选。
+
 - 2026-11-26 小米手表 S4 快应用已部署(源码分支 `feat/watch-s4`，基于线上 0.5.18，不含待审的倒计时提醒)：ROG 原中心 Server 0.2.16、K70 客户端 0.5.19/code42(OMEN 原签名)、Gadgetbridge 2026.11.18 均已安装，Release v0.5.19(APK+rpk)与 server-v0.2.16 已发布。剩余：手表应用 rpk 已推到 K70 的 GB 目录 `/sdcard/Android/data/nodomain.freeyourgadget.gadgetbridge/files/org.dayweave.mobile.debug.0.2.0.rpk`，因手机锁屏未点「安装」；装好后再做真表交互、上下翻页/旋钮/滚轮、离线排队验收(用户暂时不能测试)。桌面仍为 0.5.18，平板未升级。改 `/watch`、WatchBridge 或手表端之前先读 `docs/design/watch.md`。
 
 - 桌面输入状态源码与中心脚本见 docs/design/automatic-records.md 和 scripts/goals/。升级中心后再部署桌面以保留新增字段；业务目标更新、Telegram 证据接入和实体设备验收按部署记录核对。
@@ -161,6 +165,9 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 - Delete dead navigation/CSS/functions in the touched area; keep ownership and necessary design decisions in docs/design/architecture.md. Verify through real user flows, especially scroll dates/points and native back, rather than tests mirroring implementation details.
 
 # Durable Lessons
+
+- 同步客户端每轮开头先重放 incoming 日志：重放失败绝不能中止整轮，否则一份坏日志让设备永久停同步(Shale 平板 2026-11-25 同型事故)。保存后丢弃即等同回执丢失，由未变 base 三方合并恢复。
+- 平板/手机锁屏时无法点“配对”：可用该设备 sync.json 里的 deviceId 在 Mac 上执行同一 `SyncClient.pair` 握手，再以 root 原子写回应用私有 sync.json(停应用、保留属主/600/restorecon)。邀请 5 分钟过期，密钥文件用完即删。
 
 - Windows Hyper-V可能将49731包含在动态TCP排除范围，桌面API遇EACCES应申请可用端口并刷新api.json，不修改系统网络；正式server strictPort仍固定端口。OMEN在2026-11-24真实出现49705–49804预留，旧API文件pid因此长期残留。
 

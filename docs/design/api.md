@@ -8,7 +8,7 @@ OpenAPI 2.6.0 在 /usage/query 的响应声明可选 inputState（active/idle/un
 
 Server 0.2.9、OpenAPI 2.4.0 增加 `/usage/query` POST、`/usage/status` GET、`/usage/settings` GET/PATCH、`/usage/applications` GET、`/usage/import` POST 与 `/usage/sync` POST。桌面和独立服务器通过原 Runtime 注入同一 DesktopUsage，继续由原 UsageStore 持有 SQLite。健康接口以 `capabilities.usageApi` 标明可用性。通用 api.mjs 支持这些端点。
 
-新增同步入口覆盖 discover、pair、disconnect、setEndpoint、resolve、ensureTasks，分别为 GET /sync/discover、POST /sync/pair、POST /sync/disconnect、PATCH /sync/endpoint、POST /sync/resolve、POST /sync/ensure-tasks，原 SyncBridge 执行配对、身份、配置和冲突持久化。OpenAPI 2.5.0 移除日历账号与外部日历导入接口；ICS 订阅通过 PATCH /settings 的 calendarFeeds 管理。
+新增同步入口覆盖 discover、pair、disconnect、setEndpoint、ensureTasks，分别为 GET /sync/discover、POST /sync/pair、POST /sync/disconnect、PATCH /sync/endpoint、POST /sync/ensure-tasks，原 SyncBridge 执行配对、身份和配置持久化。OpenAPI 2.8.0 删除 POST /sync/resolve：同步冲突一律保留中心版本，不再有冲突候选。OpenAPI 2.5.0 移除日历账号与外部日历导入接口；ICS 订阅通过 PATCH /settings 的 calendarFeeds 管理。
 
 行为规则 POST /timelog/goals/{id}/count?date=YYYY-MM-DD 传 counter=trigger/action、step=1/-1、expectedUpdatedAt（初始 null），复用原 countBehavior 和当前业务日规则。状态从目标 GET 的 review 读取，过期计数返回 409。复用客户端计数和撤销语义，整包导入仍保留已存在回顾。
 
@@ -40,7 +40,7 @@ AI Decision 0.1.51 从 API 获取电脑和手机观察，保留原设备/平台�
 | 电脑、手机自动记录                                  | 服务端已有 UsageStore/DesktopUsage、加密 /usage 同步和 /usage/status 管理健康查询，桌面经 usage:* IPC 查询、配置、导入和读取应用目录 | 本机 REST/CLI 缺少对应业务查询和管理入口；AI Decision 仍通过 SQLite 只读适配查询 usage.db              |
 | 目标脚本库与试运行                                  | 中心已执行 QuickJS 脚本，目标 REST 可引用已存在的 scriptId 并读取结果，完整 JSON 导入导出可携带脚本库                                | 专用脚本库管理和试运行 REST/CLI 尚未覆盖界面动作                                                       |
 | 日程、课程、RRULE、ICS 订阅                         | /events、/schedule、/recurrences；ICS 订阅为 PATCH /settings 的 calendarFeeds                                                        | 无                                                                                                     |
-| 设备同步与冲突处理                                  | 本机 REST 已有 status/invite/hub/now 和设备 revoke，配对等另有加密协议；桌面 IPC 还支持 discover/pair/disconnect/setEndpoint/resolve | 本机 REST/CLI 尚未覆盖全部设备管理和冲突处理动作                                                       |
+| 设备同步                                            | 本机 REST 已有 status/invite/hub/now 和设备 revoke，配对等另有加密协议；桌面 IPC 还支持 discover/pair/disconnect/setEndpoint | 本机 REST/CLI 尚未覆盖全部设备管理动作（冲突处理已取消，中心优先）                                     |
 | 服务器运维                                          | 已有认证 /server/status、/usage/status、/server/shutdown 和 Server admin CLI                                                         | 这些服务器扩展端点及设备 revoke 尚未完整进入运行服务共用的 OpenAPI                                     |
 
 ### 当前 AI Decision 的调用依赖
