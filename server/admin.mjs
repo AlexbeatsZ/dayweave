@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { checkNode, loadConfig } from './config.mjs';
+import { BackupRepository, lifecyclePolicy, pruneUpgrades, verifyUpgrade } from './runtime.mjs';
 
 try {
   checkNode();
@@ -10,6 +11,35 @@ try {
       'Usage: node admin.mjs --config <server.json> status|usage|invite|sync|revoke <id>|stop',
     );
   const config = await loadConfig(args[1]);
+  const command = args[2] ?? 'status';
+  const policy = lifecyclePolicy(config.lifecycle);
+  const backupDirectory = config.lifecycle.backup?.directory ?? config.profile + '-backups';
+  const repository = new BackupRepository(backupDirectory, policy.backup);
+  if (command === 'restore' || command === 'backup-list' || command === 'upgrade-prune') {
+    let result;
+    if (command === 'restore') {
+      if (args.length !== 6 || args[4] !== '--destination')
+        throw new Error('restore ID --destination NEW_DIRECTORY');
+      result = await repository.restore(args[3], path.resolve(args[5]));
+    } else if (command === 'backup-list') {
+      if (args.length !== 3) throw new Error('Unexpected arguments');
+      result = (await repository.snapshots()).map(({ id, createdAt, pinned }) => ({
+        id,
+        createdAt,
+        pinned,
+      }));
+    } else {
+      if (args.length > 4 || (args[3] && args[3] !== '--apply'))
+        throw new Error('Unexpected arguments');
+      result = await pruneUpgrades(
+        policy.backup.upgrade.directory ?? config.profile + '-upgrades',
+        policy.backup.upgrade,
+        { dryRun: args[3] !== '--apply' },
+      );
+    }
+    console.log(JSON.stringify(result, null, 2));
+    process.exit(0);
+  }
   const credentials = JSON.parse(await readFile(path.join(config.profile, 'api.json'), 'utf8'));
   const base = new URL(credentials.url);
   if (
@@ -22,12 +52,13 @@ try {
     base.password
   )
     throw new Error('Refusing a non-loopback API credential URL');
-  const request = async (method, route) => {
+  const request = async (method, route, body) => {
     const response = await fetch(base.href + route, {
       method,
-      headers: { Authorization: `Bearer ${credentials.token}` },
+      headers: { Authorization: `Bearer ${credentials.token}`, 'Content-Type': 'application/json' },
+      ...(body ? { body: JSON.stringify(body) } : {}),
       redirect: 'error',
-      signal: AbortSignal.timeout(45000),
+      signal: AbortSignal.timeout(3600000),
     });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error?.message ?? `HTTP ${response.status}`);
@@ -38,15 +69,29 @@ try {
     throw new Error(
       'The profile is served by a desktop/headless client; server administration refused',
     );
-  const command = args[2] ?? 'status';
+  if (command === 'upgrade-verified') {
+    if (args.length !== 4) throw new Error('upgrade-verified DIRECTORY');
+    await request('GET', '/server/status');
+    console.log(JSON.stringify(await verifyUpgrade(path.resolve(args[3])), null, 2));
+    process.exit(0);
+  }
   const operations = {
     status: ['GET', '/server/status'],
     usage: ['GET', '/usage/status'],
     invite: ['POST', '/sync/invite'],
     sync: ['POST', '/sync/now'],
     stop: ['POST', '/server/shutdown'],
+    storage: ['GET', '/server/storage'],
   };
-  if (command === 'revoke') {
+  if (command === 'backup' || command === 'cleanup') {
+    if (args.length > 4 || (args[3] && args[3] !== '--apply'))
+      throw new Error('Unexpected arguments');
+    operations[command] = [
+      'POST',
+      '/server/storage',
+      { action: command, dryRun: args[3] !== '--apply' },
+    ];
+  } else if (command === 'revoke') {
     if (!/^[\w-]{1,100}$/.test(args[3] ?? '') || args.length !== 4)
       throw new Error('revoke requires one exact device ID');
     operations.revoke = ['DELETE', `/sync/peers/${encodeURIComponent(args[3])}`];

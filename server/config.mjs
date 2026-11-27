@@ -12,7 +12,17 @@ export function checkNode() {
 export async function loadConfig(file) {
   const location = path.resolve(file);
   const value = JSON.parse(await readFile(location, 'utf8'));
-  const allowed = ['profile', 'createProfile', 'apiPort', 'discovery', 'hub', 'initialHubPort'];
+  const allowed = [
+    'profile',
+    'createProfile',
+    'apiPort',
+    'discovery',
+    'hub',
+    'initialHubPort',
+    'backup',
+    'history',
+    'garbageCollection',
+  ];
   if (
     !value ||
     typeof value !== 'object' ||
@@ -29,6 +39,11 @@ export async function loadConfig(file) {
     discovery: value.discovery ?? false,
     hub: value.hub ?? 'preserve',
     initialHubPort: value.initialHubPort ?? 49732,
+    lifecycle: {
+      backup: value.backup,
+      history: value.history,
+      garbageCollection: value.garbageCollection,
+    },
   };
   for (const key of ['apiPort', 'initialHubPort'])
     if (!Number.isInteger(config[key]) || config[key] < 0 || config[key] > 65535)

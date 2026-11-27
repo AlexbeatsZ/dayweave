@@ -153,7 +153,7 @@ export const openapi = {
   openapi: '3.0.3',
   info: {
     title: 'Dayweave AI API',
-    version: '2.8.0',
+    version: '2.9.0',
     description:
       '时织 Windows/macOS 本机接口。应用运行时可用；实际地址与令牌见设置或用户数据目录 api.json。默认不对局域网开放。所有写入先持久化再通知界面；DELETE 任务为软删除。',
   },
@@ -200,6 +200,10 @@ export const openapi = {
       post: operation('请求中心扩展重复实例', z.object({ through: z.string().date() }).strict()),
     },
     '/server/status': { get: operation('读取无头服务器进程、profile、同步与采集状态') },
+    '/server/storage': {
+      get: operation('查询正式数据、同步历史、恢复备份、升级回滚和可回收空间'),
+      post: operation('执行恢复备份或清理，必须显式指定 action=backup|cleanup 和 dryRun 布尔值'),
+    },
     '/server/shutdown': { post: operation('停止无头服务器，响应发出后关闭原 Runtime') },
     '/sync/status': { get: operation('读取同步角色、连接和待处理状态') },
     '/sync/invite': { post: operation('创建同步配对邀请') },

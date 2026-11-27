@@ -241,3 +241,5 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 - docs/design/sync.md: ROG hub, discovery, encryption, conflict/sequence rules and mobile foreground boundary.
 - docs/design/https-gateway.md: fixed ROG HTTPS routes, shared Web ingress, service ownership and recovery.
 - docs/design/fudan-import.md: official login windows, minimal capture, pure conversion, preview and acceptance limits.
+
+- 服务器数据生命周期：`docs/design/server-data-lifecycle.md`；正式数据、历史、DR 与升级回滚独立，普通升级不复制数据。新服务器版本的部署结果以当月日志为准。

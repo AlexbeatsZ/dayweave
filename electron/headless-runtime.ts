@@ -8,8 +8,15 @@ import { DesktopSync } from './sync.js';
 import { UsageStore } from './usage-store.js';
 import { DesktopUsage } from './usage.js';
 import { startScriptJudge, type ScriptJudge } from './script-judge.js';
+import { ServerLifecycle } from './server-lifecycle.js';
 
 export { lockProfile };
+export {
+  BackupRepository,
+  lifecyclePolicy,
+  pruneUpgrades,
+  verifyUpgrade,
+} from '@alexbeatsz/file-sync-core';
 export function defaultProfile() {
   const root =
     process.platform === 'win32'
@@ -31,6 +38,7 @@ export type HeadlessOptions = {
   enableHub?: boolean;
   initialHubPort?: number;
   server?: { version: string; appVersion: string; sourceCommit: string };
+  lifecycle?: unknown;
   onShutdown?: (error?: unknown) => void;
 };
 type Part = 'state' | 'sync' | 'usage' | 'judge' | 'api';
@@ -45,6 +53,7 @@ export class Runtime {
   usage?: DesktopUsage;
   judge?: ScriptJudge;
   api?: Awaited<ReturnType<typeof startApi>>;
+  lifecycle?: ServerLifecycle;
   /** Failures by part, kept separately so one does not mask or stop another. */
   readonly errors: Partial<Record<Part, string>> = {};
   private closing = false;
@@ -128,6 +137,16 @@ export class Runtime {
         await run('judge', async () => {
           this.judge = startScriptJudge(this.service, sync, () => this.usage?.store);
         });
+      if (this.options.server && this.sync && this.usage && !this.lifecycle) {
+        this.lifecycle = new ServerLifecycle(
+          this.directory,
+          this.options.lifecycle,
+          this.service,
+          this.sync,
+          this.usage,
+        );
+        await this.lifecycle.start();
+      }
       await this.startApi(run);
       // The server begins background scans only once its API is accepting management requests.
       if (this.options.server) startedUsage?.startBackground();
@@ -153,6 +172,7 @@ export class Runtime {
               strictPort: true,
               management: {
                 usage,
+                lifecycle: this.lifecycle,
                 closing: () => this.closing,
                 shutdown: () => {
                   void this.close().then(
@@ -173,6 +193,7 @@ export class Runtime {
       // Do not release the profile if draining/closing fails: the caller exits nonzero,
       // and stale-lock recovery can then check that this process really ended.
       await this.api?.close();
+      await this.lifecycle?.close();
       await this.judge?.close();
       await this.sync?.close();
       await this.usage?.close();

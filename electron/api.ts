@@ -55,6 +55,10 @@ export type ApiOptions = {
   usage?: DesktopUsage;
   management?: {
     usage: DesktopUsage;
+    lifecycle?: {
+      status(): Promise<unknown>;
+      run(action: string, dryRun: boolean): Promise<unknown>;
+    };
     closing(): boolean;
     shutdown(): void;
   };
@@ -169,6 +173,20 @@ export async function startApi(
         },
       };
       if (options.management) {
+        if (route === '/server/storage' && options.management.lifecycle) {
+          if (method === 'GET')
+            return send(await options.management.lifecycle.run('status', true), snapshot);
+          if (method === 'POST') {
+            const input = z
+              .object({ action: z.enum(['backup', 'cleanup']), dryRun: z.boolean() })
+              .strict()
+              .parse(await body(request));
+            return send(
+              await options.management.lifecycle.run(input.action, input.dryRun),
+              snapshot,
+            );
+          }
+        }
         if (route === '/server/status' && method === 'GET')
           return send(
             {

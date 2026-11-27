@@ -150,3 +150,12 @@ node 'C:\staging\Dayweave-Server\stage-update.mjs' `
 仓库中 `npm run bundle:server` 只 bundle 服务端；Windows `npm run dist:server` 同时生成 `release/Dayweave-Server-0.2.8.zip`。包里只有运行文件、示例配置与许可，不含 Node 运行时、profile 或源码依赖目录。`npm run test:server` 在隔离临时 profile 中验证，包含约200MiB合成历史及跨导入周期采样，需先 bundle。
 
 独立 tag `server-v0.2.8`，Release 指定 `--latest=false`，使用 JSON 版本 2 与业务同步协议 3，日历账号入口配套客户端 0.5.11。服务端后续升级独立递增 server/package.json；纯服务器变更不重建 APK/EXE/DMG，领域结构变化则按兼容性要求同批升级客户端。历史生产接管证据见上；副本/生产性能、整机重启及资源收益按各自证据单独记录。
+
+
+## Storage lifecycle (Server 0.2.18)
+
+`node admin.mjs --config CONFIG storage` reports formal, history, recovery and upgrade bytes/health. `backup` and `cleanup` default to dry-run; append `--apply` to execute. `backup-list` lists snapshots; `restore ID --destination NEW_DIR` verifies and restores only to a new directory. HTTP: GET `/api/v1/server/storage`; POST same path with `{action:"backup"|"cleanup",dryRun:true|false}` behind existing loopback/auth guards. Existing API token, identity, paired keys and formal data are preserved.
+
+Top-level backup/history/garbageCollection use the common policy in docs/design/server-data-lifecycle.md. Dayweave has no revision manifest archive to GC. Recovery captures data/sync together in their original queues and usage.db via SQLite Online Backup API, including committed WAL, then verifies independent compressed objects. Never include the old backup repository inside a snapshot.
+
+`stage-update.mjs --package PACKAGE --current PROGRAM --config CONFIG` defaults to program/config-only recovery under `<profile>-upgrades/upgrade-*`. `--migration schema|format|full` explicitly enables stopped-profile data copying and excludes nested backups/cache/logs. Explicit `--recovery` remains an operator-selected manual location; use the default managed directory for automatic expiry. After startup, data and API checks run `admin.mjs --config CONFIG upgrade-verified DIRECTORY`; `upgrade-prune [--apply]` previews/applies 1 copy/7 days. Ordinary code rollback restores old program/config and keeps subsequent data writes.

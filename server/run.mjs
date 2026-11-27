@@ -20,6 +20,7 @@ try {
     discovery: config.discovery,
     enableHub: config.hub === 'enable',
     initialHubPort: config.initialHubPort,
+    lifecycle: config.lifecycle,
     server: {
       version: manifest.version,
       appVersion: manifest.appVersion,

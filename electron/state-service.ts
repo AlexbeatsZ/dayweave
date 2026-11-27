@@ -124,6 +124,15 @@ export class StateService {
     await this.queue;
     await this.storage.flush();
   }
+  /** Capture durable business state in the original write queue (no second state owner). */
+  withSnapshot<T>(read: (snapshot: StateSnapshot) => Promise<T>): Promise<T> {
+    const operation = this.queue.then(async () => {
+      await this.load();
+      return read(structuredClone(this.current!));
+    });
+    this.queue = operation.catch(() => {});
+    return operation;
+  }
   dispose() {
     this.disposed = true;
     clearTimeout(this.deadline);

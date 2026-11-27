@@ -610,7 +610,7 @@ test(
 );
 
 test(
-  'offline update backs up the complete stopped profile and prepares one current program without activation',
+  'ordinary update saves program/config only and prepares one current program without activation',
   { timeout: 15000 },
   async () => {
     await fixture(async (root, pkg) => {
@@ -655,7 +655,9 @@ test(
         recovery,
       ]);
       assert.equal(JSON.parse(result.stdout).activated, false);
-      assert.equal(await readFile(path.join(recovery, 'profile', 'sync.json'), 'utf8'), data);
+      assert.equal(await exists(path.join(recovery, 'profile')), false);
+      assert.equal((await readJson(path.join(recovery, 'upgrade.json'))).migration, 'code');
+      assert.equal((await readJson(path.join(recovery, 'server.json'))).profile, profile);
       assert.equal(await readFile(path.join(profile, 'sync.json'), 'utf8'), data);
       assert.equal(
         await readFile(path.join(recovery, 'program', 'old.txt'), 'utf8'),

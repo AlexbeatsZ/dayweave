@@ -1,4 +1,4 @@
-import { cp, mkdir, readFile, realpath, rename, stat } from 'node:fs/promises';
+import { cp, mkdir, readFile, realpath, rename, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { lockProfile } from './runtime.mjs';
 import { checkNode, loadConfig, requireExistingProfile } from './config.mjs';
@@ -7,8 +7,14 @@ import { checkNode, loadConfig, requireExistingProfile } from './config.mjs';
 try {
   checkNode();
   const args = process.argv.slice(2);
-  const take = (name) => {
+  const migrationAt = args.indexOf('--migration');
+  const migration = migrationAt < 0 ? 'code' : args[migrationAt + 1];
+  if (!['code', 'schema', 'format', 'full'].includes(migration))
+    throw new Error('Invalid migration kind');
+  if (migrationAt >= 0) args.splice(migrationAt, 2);
+  const take = (name, optional = false) => {
     const at = args.indexOf(name);
+    if (at < 0 && optional) return;
     if (at < 0 || !args[at + 1]) throw new Error(`Missing ${name}`);
     const value = path.resolve(args[at + 1]);
     args.splice(at, 2);
@@ -17,9 +23,16 @@ try {
   const source = take('--package');
   const current = take('--current');
   const configPath = take('--config');
-  const recovery = take('--recovery');
+  let recovery = take('--recovery', true);
   if (args.length) throw new Error('Unexpected update arguments');
   const config = await loadConfig(configPath);
+  if (!recovery) {
+    const directory = path.resolve(
+      config.lifecycle.backup?.upgrade?.directory ?? config.profile + '-upgrades',
+    );
+    await mkdir(directory, { recursive: true });
+    recovery = path.join(directory, `upgrade-${Date.now()}-${crypto.randomUUID()}`);
+  }
   if (config.createProfile) throw new Error('Offline migration requires createProfile=false');
   await requireExistingProfile(config);
   const manifest = JSON.parse(await readFile(path.join(source, 'package.json'), 'utf8'));
@@ -59,12 +72,28 @@ try {
   const unlock = await lockProfile(config.profile);
   try {
     await mkdir(recovery, { recursive: false });
-    await cp(config.profile, path.join(recovery, 'profile'), {
-      recursive: true,
-      errorOnExist: true,
-      force: false,
-      filter: (file) => path.basename(file) !== 'owner.lock',
-    });
+    await cp(configPath, path.join(recovery, 'server.json'), { errorOnExist: true, force: false });
+    if (migration !== 'code') {
+      // Only stopped-profile migrations copy data. Never copy a repository of backups into another backup.
+      const excluded = /^(owner\.lock|backups?|recovery-backups|upgrades|cache|logs?)$/i;
+      await cp(config.profile, path.join(recovery, 'profile'), {
+        recursive: true,
+        errorOnExist: true,
+        force: false,
+        filter: (file) => !excluded.test(path.basename(file)),
+      });
+    }
+    await writeFile(
+      path.join(recovery, 'upgrade.json'),
+      JSON.stringify({
+        format: 1,
+        createdAt: Date.now(),
+        migration,
+        version: manifest.version,
+        verifiedAt: null,
+      }),
+      { mode: 0o600 },
+    );
     const staged = current + '.stage-' + crypto.randomUUID();
     await cp(source, staged, { recursive: true, errorOnExist: true, force: false });
     let previous = false;

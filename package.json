@@ -126,6 +126,7 @@
     ]
   },
   "dependencies": {
+    "@alexbeatsz/file-sync-core": "https://github.com/AlexbeatsZ/file-sync-core/releases/download/v0.3.3/alexbeatsz-file-sync-core-0.3.3.tgz",
     "@jitl/quickjs-singlefile-mjs-release-sync": "0.32.0",
     "@js-temporal/polyfill": "^0.5.1",
     "bonjour-service": "^1.4.4",

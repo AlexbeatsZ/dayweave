@@ -34,7 +34,7 @@ runtime.close 幂等；API 先拒绝新管理请求并关闭listener、等待已
 
 新增管理端点继续放在已有 startApi 的 Host/Origin/Bearer保护之后。status只派生现有所有者的计数/健康，不保存管理状态。设备撤销复用 DesktopSync.revoke，不删除历史。邀请复用原有效期和单次密钥；只有显式 invite命令输出密钥。服务器status/usage/shutdown只在server模式安装。
 
-stage-update.mjs 不停止/启动进程或写计划任务：先验证路径隔离和包结构，获取原profile锁，复制完整已停止profile和WAL到显式恢复目录，复制候选到current的同级stage，rename旧程序到恢复目录再切换current。失败时尽量恢复旧程序；无任何业务profile覆盖。配置保持current外。脚本输出activated=false。任务/账户/防火墙/网关变动由部署方另行处理；完整步骤见 server/README.md。
+stage-update.mjs 不停止/启动进程或写计划任务：先验证路径隔离和包结构，获取原profile锁，普通更新只复制旧程序和配置；显式 schema/format/full 迁移才复制停止后的 profile（排除已有备份/缓存/日志）到恢复目录，复制候选到current的同级stage，rename旧程序到恢复目录再切换current。失败时尽量恢复旧程序；无任何业务profile覆盖。配置保持current外。脚本输出activated=false。任务/账户/防火墙/网关变动由部署方另行处理；完整步骤见 server/README.md。
 
 ## 验证边界
 
