@@ -152,3 +152,9 @@ S4 快应用 ⇄ Gadgetbridge ⇄ Dayweave Android WatchBridge ⇄ ROG 中心 /w
 - 语音新建待办：复用 Gadgetbridge 已打通的小爱音频通道（SPP Opus → PCM），本机离线识别后把文字交给 Dayweave。需要另行设计唤醒与意图识别，不在本稿范围。
 - S4 是否支持快应用卡片或表盘组件尚未查证。
 - 方案依赖 Gadgetbridge 连接手表，切回小米运动健康时不可用。
+
+## 手表图标（2026-11-26）
+
+用户反馈安装的Dayweave图标没有圆形边框。原`common/logo.png`只有透明底绿色图案，Vela应用列表不会替它补Android自适应图标的底板。`node scripts/make-watch-icon.mjs`复用`assets/icons/Shizhi_Windows.svg`的图案，渲染192×192白色圆板、浅色细边、四角透明，图案放在124×124安全区。脚本使用项目已有Playwright与已安装Chrome，不安装工具；只改变手表PNG，桌面/Android图标不变。图标源资源与预览已完成，RPK版本仍为0.2.0，等待按项目规则审阅界面后再提升版本、构建、发布和安装。
+
+同轮用户要求的每周非睡眠时段提醒由Gadgetbridge的S4设备设置「保持清醒」管理，退出Dayweave快应用不影响启用的监测。设计在Gadgetbridge仓库`docs/design/xiaomi-wake-guard.md`；本轮不新增Dayweave领域状态、中心接口或ICS订阅。
