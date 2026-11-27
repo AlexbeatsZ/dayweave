@@ -372,8 +372,7 @@ for (const width of [390, 1440]) {
       await expect(row).toHaveCount(1);
       await expect(row).toHaveAttribute('data-task-id', 'repeat-2');
       await expect(page.getByRole('tab', { name: /^总视图/ })).toHaveText('总视图1');
-      await page.getByLabel('任务排序').selectOption('date');
-      await expect(row).toHaveAttribute('data-task-id', 'repeat-2');
+      await expect(page.getByLabel('任务排序')).toHaveCount(0);
       await page.getByRole('tab', { name: /^日视图/ }).click();
       await page.getByLabel('待办日期', { exact: true }).fill(yesterday);
       await page.getByRole('button', { name: '编辑 昨天那次', exact: true }).click();

@@ -228,12 +228,6 @@ body {
   color: var(--muted);
   font-weight: 600;
 }
-:root .material-expressive .phone-section-heading select {
-  padding-inline: 12px;
-  border-radius: 999px;
-  background: var(--md-sys-color-surface-container);
-  font-size: 12px;
-}
 :root .material-expressive .phone-tasks .task-row {
   border: 0;
   border-radius: 16px;
@@ -864,11 +858,6 @@ body {
   :root .material-expressive .phone-section-heading .text-button {
     padding-inline: 6px;
     font-size: 12px;
-  }
-  :root .material-expressive .phone-section-heading select {
-    max-width: 92px;
-    padding-inline: 6px;
-    font-size: 11px;
   }
   :root .material-expressive .next-class {
     padding: 16px;

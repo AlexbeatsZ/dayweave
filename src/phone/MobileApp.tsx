@@ -70,7 +70,6 @@ export function MobileApp() {
   const [timePage, setTimePage] = useState<TimePage>('timeline');
   const clock = useClock();
   const [day, setDay] = useState(dateKey());
-  const [sort, setSort] = useState<'manual' | 'date' | 'difficulty'>('manual');
   const [drawer, setDrawer] = useState(false),
     [composer, setComposer] = useState(false),
     [settings, setSettings] = useState(false);
@@ -109,7 +108,7 @@ export function MobileApp() {
     data,
     view === 'timetable' ? 'today' : view,
     '',
-    sort,
+    'manual',
     ['today', 'timetable'].includes(view) ? day : today,
   );
   const tasks = view === 'all' ? taskOverview(selectedTasks, today, repeating) : selectedTasks;
@@ -150,7 +149,6 @@ export function MobileApp() {
         ),
       )
       .catch((error) => notice(String(error)));
-    setSort('manual');
   }
   const notice = (text: string) => setToast({ text });
   function navigate(next: View, panel?: TimePage) {
@@ -458,18 +456,6 @@ export function MobileApp() {
                   时段
                 </button>
               )}
-              <label>
-                <span className="visually-hidden">任务排序</span>
-                <select
-                  aria-label="任务排序"
-                  value={sort}
-                  onChange={(e) => setSort(e.target.value as typeof sort)}
-                >
-                  <option value="manual">手动排序</option>
-                  <option value="date">按日期</option>
-                  <option value="difficulty">按难度</option>
-                </select>
-              </label>
             </div>
             {tasks.length ? (
               sections.length ? (

@@ -26,6 +26,7 @@ test('Material surfaces, icons and task editing fit 360–1440px without loading
     });
     await expect(nav.locator('.material-symbol svg')).toHaveCount(4);
     await expect(nav.locator('[aria-current="page"]')).toHaveCount(1);
+    await expect(page.locator('.phone-section-heading select')).toHaveCount(0);
     const button = await page.getByRole('button', { name: '新建任务', exact: true }).boundingBox();
     expect(button!.height).toBeGreaterThanOrEqual(48);
     expect(button!.x + button!.width).toBeLessThanOrEqual(width);

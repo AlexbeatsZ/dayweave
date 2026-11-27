@@ -224,9 +224,6 @@
     margin-right: auto;
     font-size: 14px;
   }
-  .desktop-shell .phone-section-heading select {
-    font-size: 12px;
-  }
   .desktop-shell .phone-tasks .task-row {
     padding: 15px 12px;
     min-height: 76px;

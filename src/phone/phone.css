@@ -257,13 +257,6 @@
   font-weight: 500;
   color: var(--muted);
 }
-.phone-section-heading select {
-  border: 0;
-  background: transparent;
-  font-size: 11px;
-  min-height: 44px;
-  max-width: 110px;
-}
 .phone-tasks .task-row {
   padding: 15px 0 15px 8px;
   min-height: 74px;
