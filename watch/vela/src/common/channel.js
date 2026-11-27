@@ -2,6 +2,8 @@
 // Protocol v1: docs/design/watch.md. Replies carry the hub clock, so times shown here and sent
 // with commands follow the phone rather than this watch's own clock.
 const interconnect = require('@system.interconnect');
+const vibrator = require('@system.vibrator');
+import { createWakeGuard } from './wake-guard.js';
 
 const TIMEOUT = 8000;
 let conn = null;
@@ -9,6 +11,13 @@ let seq = 0;
 let offset = 0;
 const waiting = {};
 const listeners = [];
+const wakeGuard = createWakeGuard(
+  (options) => vibrator.vibrate(options),
+  (body) => open().send({ data: body }),
+  () => Date.now(),
+  (fn, delay) => setTimeout(fn, delay),
+  (timer) => clearTimeout(timer),
+);
 
 function open() {
   if (conn) return conn;
@@ -21,6 +30,7 @@ function open() {
     } catch (e) {
       return;
     }
+    if (wakeGuard.receive(reply)) return;
     if (!reply || !waiting[reply.re]) return;
     const w = waiting[reply.re];
     delete waiting[reply.re];
@@ -76,6 +86,7 @@ export const channel = {
     listeners.push(fn);
   },
   close() {
+    wakeGuard.close();
     for (const id in waiting) clearTimeout(waiting[id].timer);
     conn = null;
   },

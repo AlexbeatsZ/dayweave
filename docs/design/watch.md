@@ -158,3 +158,11 @@ S4 快应用 ⇄ Gadgetbridge ⇄ Dayweave Android WatchBridge ⇄ ROG 中心 /w
 用户反馈安装的Dayweave图标没有圆形边框。原`common/logo.png`只有透明底绿色图案，Vela应用列表不会替它补Android自适应图标的底板。`node scripts/make-watch-icon.mjs`复用`assets/icons/Shizhi_Windows.svg`的图案，渲染192×192白色圆板、浅色细边、四角透明，图案放在124×124安全区。脚本使用项目已有Playwright与已安装Chrome，不安装工具；只改变手表PNG，桌面/Android图标不变。用户于2026-11-26审阅圆形图标并授权部署。RPK升为0.2.1/code3，沿用原aiot debug证书；K70/GB安装后S4回报完成，刷新出13个快应用。包内图标与构建已核对，真表应用列表图标的目测验收仍待用户确认。
 
 同轮用户要求的每周非睡眠时段提醒由Gadgetbridge的S4设备设置「保持清醒」管理，退出Dayweave快应用不影响启用的监测。设计在Gadgetbridge仓库`docs/design/xiaomi-wake-guard.md`；本轮不新增Dayweave领域状态、中心接口或ICS订阅。
+
+## Gadgetbridge 保持清醒纯振动（2026-11-26）
+
+0.2.2/code4增加`common/wake-guard.js`控制消息，不改变页面、图标或业务状态。S4拒绝GB的System/59命令，改用快应用已有的`@system.vibrator`本地执行3次long（间隔1秒），需要短暂前台。GB仍拥有监测与周规则；中心、Android WatchBridge和领域API不改。
+
+控制命名空间`gadgetbridge.wake_guard.v1`在`channel.js`业务应答之前消费：`prepare(id)`仅回ready，3秒内匹配`vibrate(id)`才执行，每id至多一次；cancel/销毁清理后续timer。执行完回executed（只代表API调用）；GB在10秒内收到ready才直接提交、不把motor命令放进启动队列，取消/超时后拒绝迟到ready。无网络中心也可执行，不发送计时/待办写命令。手机版本需GB2026.11.22/code277。
+
+测试：`npx tsx --test tests/watch-wake-guard.test.ts tests/watch.test.ts`，覆盖未准备/过期/重复/cancel/销毁与原业务协议。2026-11-26 RPK已经原GB安装服务装S4并收到安装完成。

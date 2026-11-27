@@ -6,6 +6,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Current State
 
+- 2026-11-26 手表0.2.2/code4已装S4：新增GB保持清醒本机纯振动桥，复用原页面与圆形图标，3次long/去重/过期/取消；10项协议测试通过。须配合GB2026.11.22/code277，最终联调与发布待完成。桌面/手机Dayweave与中心未更新。
+
 - 2026-11-26 Material 3 Expressive 前端试验分支 `codex/material-3-expressive`（基于 0.5.20）：共享前端采用 Google HCT 语义色、本地 Roboto Flex/Material Symbols、M3 容器/导航/编辑面板、Expressive 弹簧与七形状加载组件。用户审阅后要求任务列表固定手动拖动排序，日期/难度排序选项和整个排序控件已删除。`npm run dev:web` + `npm run preview:material` 可重现隔离示例；16 张浅/深色桌面/手机预览位于 Mac `.local/preview/material-expressive/`。用户明确要求先预览再构建，当前仅源码/开发预览，未构建、发版或安装，线上版本不变。视觉依据和边界见 `docs/design/material-expressive.md`。
 
 - 2026-11-26 客户端 0.5.20/code43、Server 0.2.17、OpenAPI 2.8.0(分支 `fix/sync-hub-wins`，0e78429，Release v0.5.20 与 server-v0.2.17)：同步冲突一律保留中心版本，删除冲突列表/设置区块/`/sync/resolve`；坏 incoming 日志另存 `sync.incoming-failed.json` 后丢弃不再卡死；后台轮询失败退避；邀请 Tailscale 优先。已部署 ROG 原中心(admin stop→stage-update→原 DayweaveHub，任务 1317/记录 1816/7 配对/hubId 不变，恢复副本 ROG Temp/.agents/dayweave-0217/recovery)、Mac(/Applications，固定证书)、OMEN(备份 Temp/.agents/dayweave-0520/profile-backup，Session1 托盘)、ROG 桌面(保持关闭)、K70 与小米平板 6 Pro(原签名，首次安装时间保留)。Mac/OMEN/平板经 Tailscale 同步到同一修订，平板任务/记录数与中心一致。全部设备入口顺序：Tailscale、Sakura HTTPS。详见 docs/design/sync.md 顶部。

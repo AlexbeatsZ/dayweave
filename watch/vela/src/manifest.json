@@ -1,11 +1,13 @@
 {
   "package": "org.dayweave.mobile",
   "name": "Dayweave",
-  "versionName": "0.2.1",
-  "versionCode": 3,
+  "versionName": "0.2.2",
+  "versionCode": 4,
   "minPlatformVersion": 1200,
   "icon": "/common/logo.png",
-  "deviceTypeList": ["watch"],
+  "deviceTypeList": [
+    "watch"
+  ],
   "features": [
     {
       "name": "system.router"
