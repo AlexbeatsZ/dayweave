@@ -155,6 +155,6 @@ S4 快应用 ⇄ Gadgetbridge ⇄ Dayweave Android WatchBridge ⇄ ROG 中心 /w
 
 ## 手表图标（2026-11-26）
 
-用户反馈安装的Dayweave图标没有圆形边框。原`common/logo.png`只有透明底绿色图案，Vela应用列表不会替它补Android自适应图标的底板。`node scripts/make-watch-icon.mjs`复用`assets/icons/Shizhi_Windows.svg`的图案，渲染192×192白色圆板、浅色细边、四角透明，图案放在124×124安全区。脚本使用项目已有Playwright与已安装Chrome，不安装工具；只改变手表PNG，桌面/Android图标不变。图标源资源与预览已完成，RPK版本仍为0.2.0，等待按项目规则审阅界面后再提升版本、构建、发布和安装。
+用户反馈安装的Dayweave图标没有圆形边框。原`common/logo.png`只有透明底绿色图案，Vela应用列表不会替它补Android自适应图标的底板。`node scripts/make-watch-icon.mjs`复用`assets/icons/Shizhi_Windows.svg`的图案，渲染192×192白色圆板、浅色细边、四角透明，图案放在124×124安全区。脚本使用项目已有Playwright与已安装Chrome，不安装工具；只改变手表PNG，桌面/Android图标不变。用户于2026-11-26审阅圆形图标并授权部署。RPK升为0.2.1/code3，沿用原aiot debug证书；K70/GB安装后S4回报完成，刷新出13个快应用。包内图标与构建已核对，真表应用列表图标的目测验收仍待用户确认。
 
 同轮用户要求的每周非睡眠时段提醒由Gadgetbridge的S4设备设置「保持清醒」管理，退出Dayweave快应用不影响启用的监测。设计在Gadgetbridge仓库`docs/design/xiaomi-wake-guard.md`；本轮不新增Dayweave领域状态、中心接口或ICS订阅。

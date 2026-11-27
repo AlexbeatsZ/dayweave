@@ -117,7 +117,7 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Active Work
 
-- 2026-11-26 手表图标按用户反馈补白色圆板/浅色边缘/透明四角，沿用原绿色图案并缩入安全区；`node scripts/make-watch-icon.mjs`可复现。源资源与预览完成，尚未提升RPK版本、构建、发版或安装，等待界面审核。手动每周非睡眠时段提醒在Gadgetbridge S4「保持清醒」中实现，退出Dayweave不影响已启用监测；此处不新增中心/API状态。
+- 2026-11-26 用户已审阅手表圆形图标并授权部署；手表端0.2.1/code3构建成功，已通过K70/Gadgetbridge安装到S4，手表回报安装完成并刷新13个快应用列表。包内沿用绿色图案/白色圆板/浅色边缘/透明四角，图标目测仍待用户确认；`node scripts/make-watch-icon.mjs`可复现。防睡懒觉周规则归Gadgetbridge S4「保持清醒」，本轮不改Dayweave中心/API或桌面前端。
 
 - `codex/material-3-expressive` 等待用户审阅实际截图与开发预览；批准界面后才能构建。实际 Electron/Android 外壳、打包体积、实体设备与完整原生控件验收尚未执行，不以浏览器验证替代。API/OpenAPI/CLI 与共享领域未改变。
 
