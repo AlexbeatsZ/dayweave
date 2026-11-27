@@ -6,7 +6,7 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Current State
 
-- 2026-11-26 手表0.2.2/code4已装S4：新增GB保持清醒本机纯振动桥，复用原页面与圆形图标，3次long/去重/过期/取消；10项协议测试通过。须配合GB2026.11.22/code277，最终联调与发布待完成。桌面/手机Dayweave与中心未更新。
+- 2026-11-26 手表0.2.3/code5修复冷启动互联时序，正在安装S4：新增GB保持清醒本机纯振动桥，复用原页面与圆形图标，3次long/去重/过期/取消；11项协议测试通过。须配合GB2026.11.22/code277，最终联调与发布待完成。桌面/手机Dayweave与中心未更新。
 
 - 2026-11-26 Material 3 Expressive 前端试验分支 `codex/material-3-expressive`（基于 0.5.20）：共享前端采用 Google HCT 语义色、本地 Roboto Flex/Material Symbols、M3 容器/导航/编辑面板、Expressive 弹簧与七形状加载组件。用户审阅后要求任务列表固定手动拖动排序，日期/难度排序选项和整个排序控件已删除。`npm run dev:web` + `npm run preview:material` 可重现隔离示例；16 张浅/深色桌面/手机预览位于 Mac `.local/preview/material-expressive/`。用户明确要求先预览再构建，当前仅源码/开发预览，未构建、发版或安装，线上版本不变。视觉依据和边界见 `docs/design/material-expressive.md`。
 

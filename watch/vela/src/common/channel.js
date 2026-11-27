@@ -9,11 +9,13 @@ const TIMEOUT = 8000;
 let conn = null;
 let seq = 0;
 let offset = 0;
+let connected = false;
+const outbound = [];
 const waiting = {};
 const listeners = [];
 const wakeGuard = createWakeGuard(
   (options) => vibrator.vibrate(options),
-  (body) => open().send({ data: body }),
+  (body) => sendWhenConnected(() => ({ data: body })),
   () => Date.now(),
   (fn, delay) => setTimeout(fn, delay),
   (timer) => clearTimeout(timer),
@@ -22,6 +24,15 @@ const wakeGuard = createWakeGuard(
 function open() {
   if (conn) return conn;
   conn = interconnect.instance();
+  conn.onopen = () => {
+    connected = true;
+    const queued = outbound.splice(0);
+    queued.forEach((send) => send());
+  };
+  conn.onclose = () => {
+    connected = false;
+    conn = null;
+  };
   conn.onmessage = (message) => {
     const raw = message && message.data !== undefined ? message.data : message;
     let reply = null;
@@ -41,6 +52,16 @@ function open() {
   return conn;
 }
 
+function sendWhenConnected(options) {
+  const c = open();
+  const send = () => {
+    const value = options();
+    if (value) c.send(value);
+  };
+  if (connected) send();
+  else outbound.push(send);
+}
+
 function sendOnce(body) {
   return new Promise((resolve) => {
     const w = { resolve: resolve };
@@ -49,19 +70,22 @@ function sendOnce(body) {
       resolve({ ok: false, err: 'offline', msg: '手机没有回应' });
     }, TIMEOUT);
     waiting[body.id] = w;
-    open().send({
-      data: body,
-      fail: (data, code) => {
-        if (!waiting[body.id]) return;
-        delete waiting[body.id];
-        clearTimeout(w.timer);
-        resolve({
-          ok: false,
-          err: 'offline',
-          msg: code === 1006 ? '未连接 Gadgetbridge' : '发送失败 ' + code,
-        });
-      },
-    });
+    sendWhenConnected(
+      () =>
+        waiting[body.id] && {
+          data: body,
+          fail: (data, code) => {
+            if (!waiting[body.id]) return;
+            delete waiting[body.id];
+            clearTimeout(w.timer);
+            resolve({
+              ok: false,
+              err: 'offline',
+              msg: code === 1006 ? '未连接 Gadgetbridge' : '发送失败 ' + code,
+            });
+          },
+        },
+    );
   });
 }
 
@@ -87,6 +111,8 @@ export const channel = {
   },
   close() {
     wakeGuard.close();
+    outbound.splice(0);
+    connected = false;
     for (const id in waiting) clearTimeout(waiting[id].timer);
     conn = null;
   },

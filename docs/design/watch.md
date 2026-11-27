@@ -166,3 +166,5 @@ S4 快应用 ⇄ Gadgetbridge ⇄ Dayweave Android WatchBridge ⇄ ROG 中心 /w
 控制命名空间`gadgetbridge.wake_guard.v1`在`channel.js`业务应答之前消费：`prepare(id)`仅回ready，3秒内匹配`vibrate(id)`才执行，每id至多一次；cancel/销毁清理后续timer。执行完回executed（只代表API调用）；GB在10秒内收到ready才直接提交、不把motor命令放进启动队列，取消/超时后拒绝迟到ready。无网络中心也可执行，不发送计时/待办写命令。手机版本需GB2026.11.22/code277。
 
 测试：`npx tsx --test tests/watch-wake-guard.test.ts tests/watch.test.ts`，覆盖未准备/过期/重复/cancel/销毁与原业务协议。2026-11-26 RPK已经原GB安装服务装S4并收到安装完成。
+
+0.2.3/code5修正连接时序：所有channel发送等interconnect.onopen后执行（含早于CONNECTED到达的prepare所需ready），避免1006丢包。close清发送队列，已超时业务不迟发。新增实际channel编译执行回归；0.2.2首轮实机未收到ready，已撤为草稿。
