@@ -6,6 +6,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Current State
 
+- 2026-11-27 桌面 0.5.21 已发布并原位更新 Mac/OMEN/ROG，配套 Shale 0.1.106。浏览器网址开关开启时采集 Shale 前台网页的标题、网址和时长。Mac 安装后隔离 API 回读通过，保留采集设置和辅助功能权限，重新连接原中心。OMEN 原托盘恢复、UIA 专项通过，锁屏时暂停观察。ROG 桌面保持原关闭状态。详见 docs/log/2026-11.md。
+
 - 2026-11-26 客户端 0.5.20/code43、Server 0.2.17、OpenAPI 2.8.0(分支 `fix/sync-hub-wins`，0e78429，Release v0.5.20 与 server-v0.2.17)：同步冲突一律保留中心版本，删除冲突列表/设置区块/`/sync/resolve`；坏 incoming 日志另存 `sync.incoming-failed.json` 后丢弃不再卡死；后台轮询失败退避；邀请 Tailscale 优先。已部署 ROG 原中心(admin stop→stage-update→原 DayweaveHub，任务 1317/记录 1816/7 配对/hubId 不变，恢复副本 ROG Temp/.agents/dayweave-0217/recovery)、Mac(/Applications，固定证书)、OMEN(备份 Temp/.agents/dayweave-0520/profile-backup，Session1 托盘)、ROG 桌面(保持关闭)、K70 与小米平板 6 Pro(原签名，首次安装时间保留)。Mac/OMEN/平板经 Tailscale 同步到同一修订，平板任务/记录数与中心一致。全部设备入口顺序：Tailscale、Sakura HTTPS。详见 docs/design/sync.md 顶部。
 
 - 2026-11-26 Server 0.2.16 / Android 0.5.19：新增小米手表快应用通道(`/watch`、WatchBridge、`watch/vela`)。ROG 原中心经认证停机、`stage-update` 离线备份后切换，原 DayweaveHub 任务重启；任务 1313、记录 1789、6 配对、0 冲突与 hubId 不变，恢复副本在 ROG `%LOCALAPPDATA%/Temp/.agents/dayweave-watch-0216/recovery`。K70 原签名覆盖安装，首次安装时间保留。Mac 用已配对身份实测 `/watch` 视图 200/75 ms；K70 模拟 GB 转发的查看请求经中心应答。桌面 Mac/OMEN/ROG 桌面保持 0.5.18(无桌面改动)。
@@ -115,7 +117,7 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Active Work
 
-- Shale 内置网页采集位于 `codex/shale-page-capture`，基于已发布客户端 0.5.20 的同步修复分支。macOS 与 Windows 复用「浏览器网址」开关和原隐私链路，需要 Shale 0.1.106 桌面版。用户已授权构建、发布和原位更新现有桌面，实装回读待完成。
+- Shale 网页采集的 Windows 安装后未解锁桌面实测待补。OMEN 断开的 Session1 中，正式 Shale 包配合采集器 UIA 函数可读取标题与网址，移除标记后无页面；完整采集器联调按锁屏规则停止。
 
 - ROG 局域网 192.168.31.32:49732 从 Mac/平板均超时(未改防火墙)，各端以 Tailscale 为首选。K70 0.5.20 已安装，最近一次业务同步早于本次中心切换，待手机正常打开应用后自然同步。
 
