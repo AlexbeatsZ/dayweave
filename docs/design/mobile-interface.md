@@ -1,5 +1,7 @@
 # 手机界面与交互
 
+2026-11-26：`codex/material-3-expressive` 的颜色、形状、排版与动效以 [material-expressive.md](material-expressive.md) 为准；下述业务交互、统一状态和返回规则继续适用。该分支仍处于预览阶段，未构建或安装。
+
 ## 范围与视觉
 
 `src/phone/MobileApp.tsx` 是全部宽度共用的页面入口。视口宽度不超过 700 CSS px 时显示手机底栏与抽屉，更宽时显示 PC 常驻侧栏和宽内容区。两者共用页面状态、编辑草稿、数据模型、store、保存、同步和主题，缩放窗口跨断点不会重挂载应用或丢失当前子页、计时及草稿。

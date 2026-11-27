@@ -5,6 +5,7 @@ import './styles.css';
 import './dayweave.css';
 import './phone/phone.css';
 import './desktop.css';
+import './material/expressive.css';
 import { initializeTheme } from './theme';
 import { initializeMobile, startMobileSync } from './mobile';
 

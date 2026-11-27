@@ -157,7 +157,8 @@ async function withinViewport(page: Page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   const nav = (await mainNav(page).boundingBox())!,
     content = (await page.locator('.phone-content').boundingBox())!;
-  expect(nav.x).toBe(0);
+  expect(nav.x).toBeGreaterThanOrEqual(0);
+  expect(nav.x).toBeLessThanOrEqual(24);
   expect(nav.width).toBeGreaterThanOrEqual(190);
   expect(content.x).toBeGreaterThanOrEqual(nav.width - 1);
   expect(content.width).toBeGreaterThan(400);
@@ -174,7 +175,7 @@ test('permanent desktop navigation and shared pages fit widescreen, 16:10 and co
   await seed(page);
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
-  const screenshots = path.resolve('release/desktop-preview-0.4.0');
+  const screenshots = path.resolve('.local/preview/material-expressive/regression');
   await mkdir(screenshots, { recursive: true });
   for (const viewport of [
     { width: 1440, height: 900 },
@@ -380,7 +381,9 @@ test('tab transitions animate shared content and honor reduced motion', async ({
         .getAnimations()
         .map((animation) => animation.effect?.getTiming().duration);
     }, label);
-  expect(await animations('总视图')).toContain(180);
+  const durations = await animations('总视图');
+  expect(durations).toContain(420); // Expressive fast spatial, ζ=.6 / k=800.
+  expect(durations).toContain(149); // Fast effects, ζ=1 / k=3800; opacity never overshoots.
   await page.emulateMedia({ reducedMotion: 'reduce' });
   expect(await animations('待办箱')).toEqual([]);
   await expect(page.getByRole('tab', { name: /^待办箱/ })).toHaveAttribute('aria-selected', 'true');

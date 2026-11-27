@@ -20,6 +20,8 @@
     "node": ">=24"
   },
   "scripts": {
+    "theme:generate": "tsx scripts/generate-material-theme.ts && prettier --write src/material/tokens.css src/material/colors.ts",
+    "preview:material": "tsx scripts/preview-material.ts",
     "icons": "node scripts/make-icon.mjs",
     "build:collector": "node scripts/build-collector.mjs",
     "dev": "npm run build:electron && node scripts/dev.mjs",
@@ -138,6 +140,11 @@
     "@capacitor/app": "^8.1.2",
     "@capacitor/cli": "^8.5.3",
     "@capacitor/core": "^8.5.3",
+    "@fontsource-variable/roboto-flex": "5.3.0",
+    "@kyralabs/m3e-css": "1.8.0",
+    "@kyralabs/m3e-motion": "1.8.0",
+    "@kyralabs/m3e-react": "1.8.0",
+    "@material/material-color-utilities": "0.4.0",
     "@playwright/test": "^1.64.1",
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",

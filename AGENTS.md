@@ -6,6 +6,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Current State
 
+- 2026-11-26 Material 3 Expressive 前端试验分支 `codex/material-3-expressive`（基于 0.5.20）：共享前端采用 Google HCT 语义色、本地 Roboto Flex/Material Symbols、M3 容器/导航/编辑面板、Expressive 弹簧与七形状加载组件。`npm run dev:web` + `npm run preview:material` 可重现隔离示例；16 张浅/深色桌面/手机预览位于 Mac `.local/preview/material-expressive/`。用户明确要求先预览再构建，当前仅源码/开发预览，未构建、发版或安装，线上版本不变。视觉依据和边界见 `docs/design/material-expressive.md`。
+
 - 2026-11-26 客户端 0.5.20/code43、Server 0.2.17、OpenAPI 2.8.0(分支 `fix/sync-hub-wins`，0e78429，Release v0.5.20 与 server-v0.2.17)：同步冲突一律保留中心版本，删除冲突列表/设置区块/`/sync/resolve`；坏 incoming 日志另存 `sync.incoming-failed.json` 后丢弃不再卡死；后台轮询失败退避；邀请 Tailscale 优先。已部署 ROG 原中心(admin stop→stage-update→原 DayweaveHub，任务 1317/记录 1816/7 配对/hubId 不变，恢复副本 ROG Temp/.agents/dayweave-0217/recovery)、Mac(/Applications，固定证书)、OMEN(备份 Temp/.agents/dayweave-0520/profile-backup，Session1 托盘)、ROG 桌面(保持关闭)、K70 与小米平板 6 Pro(原签名，首次安装时间保留)。Mac/OMEN/平板经 Tailscale 同步到同一修订，平板任务/记录数与中心一致。全部设备入口顺序：Tailscale、Sakura HTTPS。详见 docs/design/sync.md 顶部。
 
 - 2026-11-26 Server 0.2.16 / Android 0.5.19：新增小米手表快应用通道(`/watch`、WatchBridge、`watch/vela`)。ROG 原中心经认证停机、`stage-update` 离线备份后切换，原 DayweaveHub 任务重启；任务 1313、记录 1789、6 配对、0 冲突与 hubId 不变，恢复副本在 ROG `%LOCALAPPDATA%/Temp/.agents/dayweave-watch-0216/recovery`。K70 原签名覆盖安装，首次安装时间保留。Mac 用已配对身份实测 `/watch` 视图 200/75 ms；K70 模拟 GB 转发的查看请求经中心应答。桌面 Mac/OMEN/ROG 桌面保持 0.5.18(无桌面改动)。
@@ -115,6 +117,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Active Work
 
+- `codex/material-3-expressive` 等待用户审阅实际截图与开发预览；批准界面后才能构建。实际 Electron/Android 外壳、打包体积、实体设备与完整原生控件验收尚未执行，不以浏览器验证替代。API/OpenAPI/CLI 与共享领域未改变。
+
 - ROG 局域网 192.168.31.32:49732 从 Mac/平板均超时(未改防火墙)，各端以 Tailscale 为首选。K70 0.5.20 已安装，最近一次业务同步早于本次中心切换，待手机正常打开应用后自然同步。
 
 - 2026-11-26 小米手表 S4 快应用已部署(源码分支 `feat/watch-s4`，基于线上 0.5.18，不含待审的倒计时提醒)：ROG 原中心 Server 0.2.16、K70 客户端 0.5.19/code42(OMEN 原签名)、Gadgetbridge 2026.11.18 均已安装，Release v0.5.19(APK+rpk)与 server-v0.2.16 已发布。剩余：手表应用 rpk 已推到 K70 的 GB 目录 `/sdcard/Android/data/nodomain.freeyourgadget.gadgetbridge/files/org.dayweave.mobile.debug.0.2.0.rpk`，因手机锁屏未点「安装」；装好后再做真表交互、上下翻页/旋钮/滚轮、离线排队验收(用户暂时不能测试)。桌面仍为 0.5.18，平板未升级。改 `/watch`、WatchBridge 或手表端之前先读 `docs/design/watch.md`。
@@ -205,6 +209,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 - For sideloaded builds, omit Xiaomi-market miuiWidget/miuiWidgetVersion markers: the standard Android picker then exposes both variants on the tested Pad 6 Pro. A successful requestPinAppWidget result does not prove Xiaomi showed a confirmation; keep manual picker instructions.
 
 # Docs Index
+
+- `docs/design/material-expressive.md` — Material 3 Expressive 前端分支：官方来源、语义 token、布局/动效、社区加载组件、隔离预览与交付门槛。
 
 - `docs/design/api.md` — 全功能无头接口要求、当前覆盖与缺口、AI Decision 依赖、REST 并发和任务计时关联。
 

@@ -1,18 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import {
-  CalendarDays,
-  ChartNoAxesCombined,
-  Check,
-  CircleCheck,
-  Clock3,
-  ListTodo,
-  Menu,
-  Pause,
-  Pencil,
-  Play,
-  Plus,
-  X,
-} from 'lucide-react';
+import { Check, CircleCheck, Clock3, Menu, Pause, Pencil, Play, Plus, X } from 'lucide-react';
 import {
   finiteTaskDates,
   repeatingTaskIds,
@@ -52,6 +39,8 @@ import { DateNavigator } from './DateNavigator';
 import { PhoneStatistics, type StatisticsPage } from './Statistics';
 import { PhoneSidebar, type RecordFilter } from './Sidebar';
 import { usePhone } from './usePhone';
+import { MaterialSymbol } from '../material/MaterialSymbol';
+import { LoadingIndicator } from '../material/LoadingIndicator';
 
 const titles: Record<string, string> = {
   today: '日视图',
@@ -339,7 +328,8 @@ export function MobileApp() {
   if (!snapshot.loaded)
     return (
       <main className="loading-screen">
-        <h1>时织</h1>
+        {!snapshot.error && <LoadingIndicator label="正在打开你的安排" />}
+        <h1>Dayweave</h1>
         <p>{snapshot.error || '正在打开你的安排…'}</p>
         {snapshot.error && <StorageRecovery loaded={false} />}
       </main>
@@ -370,7 +360,7 @@ export function MobileApp() {
 
   return (
     <div
-      className={`phone-shell app-shell ${phone ? 'mobile-shell' : 'desktop-shell'} ${timeView ? 'phone-time-view' : ''} ${dock ? 'has-timer-dock' : ''}`}
+      className={`phone-shell app-shell material-expressive ${phone ? 'mobile-shell' : 'desktop-shell'} ${timeView ? 'phone-time-view' : ''} ${dock ? 'has-timer-dock' : ''}`}
       data-layout={phone ? 'phone' : 'desktop'}
       data-section={
         taskView
@@ -624,45 +614,45 @@ export function MobileApp() {
       )}
       <div className="app-navigation">
         <nav className="phone-nav app-nav" aria-label={phone ? '手机底部导航' : '主导航'}>
-          <div className="app-brand" aria-label="时织 Dayweave">
+          <div className="app-brand" aria-label="Dayweave">
             <span className="app-brand-mark">
-              <ListTodo size={23} strokeWidth={1.8} />
+              <img src="./icon.svg" width="40" height="40" alt="" />
             </span>
             <div>
-              <strong>时织</strong>
-              <small>Dayweave</small>
+              <strong>Dayweave</strong>
+              <small>时织</small>
             </div>
           </div>
           {[
             {
               key: 'tasks',
               label: '待办',
-              icon: ListTodo,
+              icon: 'checklist' as const,
               active: taskView,
               action: () => navigate('today'),
             },
             {
               key: 'records',
               label: '记录',
-              icon: Clock3,
+              icon: 'schedule' as const,
               active: timeView,
               action: () => navigate('timelog', 'timeline'),
             },
             {
               key: 'courses',
               label: '安排',
-              icon: CalendarDays,
+              icon: 'calendar' as const,
               active: view === 'timetable',
               action: () => navigate('timetable'),
             },
             {
               key: 'statistics',
               label: '统计',
-              icon: ChartNoAxesCombined,
+              icon: 'chart' as const,
               active: view === 'stats',
               action: () => navigate('stats'),
             },
-          ].map(({ key, label, icon: Icon, active, action }) => (
+          ].map(({ key, label, icon, active, action }) => (
             <button
               key={key}
               className={active ? 'active' : ''}
@@ -671,7 +661,7 @@ export function MobileApp() {
               onClick={action}
             >
               <span>
-                <Icon size={22} strokeWidth={1.8} />
+                <MaterialSymbol name={icon} />
                 {key === 'records' && timer && <i className="running-dot" />}
               </span>
               <small>{label}</small>

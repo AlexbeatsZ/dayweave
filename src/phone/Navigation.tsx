@@ -1,6 +1,10 @@
 import { useLayoutEffect, useRef, type ReactNode, type RefObject } from 'react';
 import { Plus } from 'lucide-react';
+import { springToLinear } from '@kyralabs/m3e-motion';
 import './sort.css';
+
+const spatialSpring = springToLinear({ dampingRatio: 0.6, stiffness: 800 });
+const effectsSpring = springToLinear({ dampingRatio: 1, stiffness: 3800 });
 
 export type PhoneTab<T extends string = string> = { id: T; label: string; count?: number };
 
@@ -68,13 +72,17 @@ export function useTabTransition(
     const to = order.indexOf(value);
     const direction = from >= 0 && to >= 0 && to < from ? -1 : 1;
     const animation = element.animate(
-      [
-        { opacity: 0.65, transform: `translateX(${direction * 18}px)` },
-        { opacity: 1, transform: 'translateX(0)' },
-      ],
-      { duration: 180, easing: 'cubic-bezier(.2,.7,.2,1)' },
+      [{ transform: `translateX(${direction * 18}px)` }, { transform: 'translateX(0)' }],
+      { duration: spatialSpring.durationMillis, easing: spatialSpring.easing },
     );
-    return () => animation.cancel();
+    const fade = element.animate([{ opacity: 0.65 }, { opacity: 1 }], {
+      duration: effectsSpring.durationMillis,
+      easing: effectsSpring.easing,
+    });
+    return () => {
+      animation.cancel();
+      fade.cancel();
+    };
   }, [ref, value]);
 }
 
@@ -133,6 +141,7 @@ export function FloatingAdd({
   return (
     <button className="phone-fab" aria-label={label} disabled={disabled} onClick={onClick}>
       <Plus size={26} strokeWidth={1.8} />
+      <span className="fab-label">{label}</span>
     </button>
   );
 }
