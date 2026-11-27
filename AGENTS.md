@@ -115,6 +115,8 @@ Ship 时织 / Dayweave: unified Clearlist tasks, Open Timelog records/goals, tim
 
 # Active Work
 
+- Shale 内置网页采集位于 `codex/shale-page-capture`，基于已发布客户端 0.5.20 的同步修复分支。macOS 与 Windows 复用「浏览器网址」开关和原隐私链路，需要 Shale 0.1.106 桌面版。用户已授权构建、发布和原位更新现有桌面，实装回读待完成。
+
 - ROG 局域网 192.168.31.32:49732 从 Mac/平板均超时(未改防火墙)，各端以 Tailscale 为首选。K70 0.5.20 已安装，最近一次业务同步早于本次中心切换，待手机正常打开应用后自然同步。
 
 - 2026-11-26 小米手表 S4 快应用已部署(源码分支 `feat/watch-s4`，基于线上 0.5.18，不含待审的倒计时提醒)：ROG 原中心 Server 0.2.16、K70 客户端 0.5.19/code42(OMEN 原签名)、Gadgetbridge 2026.11.18 均已安装，Release v0.5.19(APK+rpk)与 server-v0.2.16 已发布。剩余：手表应用 rpk 已推到 K70 的 GB 目录 `/sdcard/Android/data/nodomain.freeyourgadget.gadgetbridge/files/org.dayweave.mobile.debug.0.2.0.rpk`，因手机锁屏未点「安装」；装好后再做真表交互、上下翻页/旋钮/滚轮、离线排队验收(用户暂时不能测试)。桌面仍为 0.5.18，平板未升级。改 `/watch`、WatchBridge 或手表端之前先读 `docs/design/watch.md`。

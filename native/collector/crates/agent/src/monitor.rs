@@ -92,6 +92,28 @@ pub struct ActiveWindow {
     pub is_minimized: bool,
 }
 
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+pub(crate) const SHALE_ACTIVE_WEBVIEWER_ID: &str = "shale-active-webviewer";
+
+#[cfg(any(target_os = "macos", target_os = "windows", test))]
+pub(crate) fn shale_page_url(value: &str) -> Option<String> {
+    let value = value.trim();
+    if !(value.starts_with("https://") || value.starts_with("http://"))
+        || value.chars().any(char::is_whitespace)
+    {
+        return None;
+    }
+    let parsed = reqwest::Url::parse(value).ok()?;
+    if !parsed.has_host() {
+        return None;
+    }
+    // Credentials in a URL never form part of a captured page.
+    if !parsed.username().is_empty() || parsed.password().is_some() {
+        return None;
+    }
+    Some(value.to_owned())
+}
+
 pub use work_review_core::categorize::{is_browser_app, is_system_process};
 
 /// 清理浏览器窗口标题中的内部页面信息。
@@ -1026,13 +1048,23 @@ fn get_active_window_with_options(include_browser_url: bool) -> Result<ActiveWin
         let is_minimized = IsIconic(hwnd) != 0;
 
         // 尝试获取浏览器 URL (Windows)，使用原始标题
-        let browser_url = if include_browser_url {
+        let is_shale = raw_app_name.eq_ignore_ascii_case("Shale.exe");
+        let shale_page = if include_browser_url && is_shale && !is_minimized {
+            std::panic::catch_unwind(|| get_shale_page_windows(hwnd as isize)).unwrap_or(None)
+        } else {
+            None
+        };
+        let browser_url = if include_browser_url && !is_shale {
             get_browser_url_windows(&raw_app_name, &window_title, hwnd as isize)
         } else {
             None
         };
 
         let window_title = clean_browser_window_title(&window_title, &app_name);
+        let (window_title, browser_url) = match shale_page {
+            Some((title, url)) if GetForegroundWindow() == hwnd => (title, Some(url)),
+            _ => (window_title, browser_url),
+        };
 
         let window_bounds = {
             let mut rect = RECT {
@@ -1115,6 +1147,86 @@ fn get_process_name_by_image(pid: u32) -> Option<String> {
             .map(|s| s.to_string())
             .filter(|s| !s.is_empty())
     })
+}
+
+#[cfg(target_os = "windows")]
+fn get_shale_page_windows(hwnd: isize) -> Option<(String, String)> {
+    use uiautomation::patterns::{UILegacyIAccessiblePattern, UIValuePattern};
+    use uiautomation::types::{ControlType, Handle, TreeScope, UIProperty};
+    use uiautomation::UIAutomation;
+
+    let automation = UIAutomation::new().ok()?;
+    let window = automation.element_from_handle(Handle::from(hwnd)).ok()?;
+    let document_condition = automation
+        .create_property_condition(
+            UIProperty::ControlType,
+            (ControlType::Document as i32).into(),
+            None,
+        )
+        .ok()?;
+    let host = window
+        .find_first(TreeScope::Descendants, &document_condition)
+        .ok()?;
+    let marker_id = automation
+        .create_property_condition(
+            UIProperty::AutomationId,
+            SHALE_ACTIVE_WEBVIEWER_ID.into(),
+            None,
+        )
+        .ok()?;
+    // The legacy accessibility provider may expose the label but omit the DOM ID.
+    let marker_name = automation
+        .create_property_condition(UIProperty::Name, "当前网页内容".into(), None)
+        .ok()?;
+    let marker_condition = automation
+        .create_or_condition(marker_id, marker_name)
+        .ok()?;
+    let walker = automation.get_raw_view_walker().ok()?;
+    let mut selected = None;
+    for marker in host
+        .find_all(TreeScope::Descendants, &marker_condition)
+        .ok()?
+    {
+        if marker.is_offscreen().ok()? {
+            continue;
+        }
+        let mut parent = marker.clone();
+        for _ in 0..24 {
+            let ancestor = walker.get_parent(&parent).ok()?;
+            if automation.compare_elements(&host, &ancestor).ok()? {
+                if selected.is_some() {
+                    return None;
+                }
+                selected = Some(marker.clone());
+                break;
+            }
+            // A page or iframe cannot nominate itself by copying Shale's marker.
+            if ancestor.get_control_type().ok()? == ControlType::Document {
+                break;
+            }
+            parent = ancestor;
+        }
+    }
+    let guest = selected?
+        .find_first(TreeScope::Descendants, &document_condition)
+        .ok()?;
+    if guest.is_offscreen().ok()? {
+        return None;
+    }
+    let url = guest
+        .get_pattern::<UIValuePattern>()
+        .and_then(|value| value.get_value())
+        .ok()
+        .and_then(|value| shale_page_url(&value))
+        .or_else(|| {
+            let value = guest
+                .get_pattern::<UILegacyIAccessiblePattern>()
+                .ok()?
+                .get_value()
+                .ok()?;
+            shale_page_url(&value)
+        })?;
+    Some((guest.get_name().unwrap_or_default(), url))
 }
 
 #[cfg(target_os = "windows")]
@@ -1396,6 +1508,23 @@ fn extract_url_from_title(window_title: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn shale_page_requires_a_committed_http_address_without_credentials() {
+        use super::shale_page_url;
+
+        let url = "https://example.test/guide?q=rust#examples";
+        assert_eq!(shale_page_url(url).as_deref(), Some(url));
+        for rejected in [
+            "https://example.test/draft with spaces",
+            "example.test/address",
+            "file:///private/note.md",
+            "about:blank",
+            "https://user:secret@example.test/",
+        ] {
+            assert_eq!(shale_page_url(rejected), None);
+        }
+    }
+
     #[cfg(target_os = "macos")]
     use super::{
         best_browser_url_candidate_from_output, browser_url_script_macos,
@@ -1881,7 +2010,7 @@ pub fn get_active_window_fast() -> Result<ActiveWindow> {
 
 #[cfg(target_os = "macos")]
 fn get_active_window_with_options(include_browser_url: bool) -> Result<ActiveWindow> {
-    let native = crate::macos_window::frontmost_window()?;
+    let native = crate::macos_window::frontmost_window(include_browser_url)?;
     let app_name = normalize_macos_frontmost_app_name(
         &native.app_name,
         &native.title,
@@ -1891,11 +2020,16 @@ fn get_active_window_with_options(include_browser_url: bool) -> Result<ActiveWin
     let window_bounds = native
         .bounds
         .or_else(|| find_frontmost_window_bounds(&native.app_name, &native.title));
-    let window_title = clean_browser_window_title(&native.title, &app_name);
-    let browser_url = if include_browser_url {
-        get_browser_url(&app_name, &native.title)
-    } else {
-        None
+    let (window_title, browser_url) = match native.shale_page {
+        Some((title, url)) => (title, Some(url)),
+        None => (
+            clean_browser_window_title(&native.title, &app_name),
+            if include_browser_url && native.bundle_identifier != "io.github.alexbeatsz.shale" {
+                get_browser_url(&app_name, &native.title)
+            } else {
+                None
+            },
+        ),
     };
     Ok(ActiveWindow {
         window_id: native.window_id,

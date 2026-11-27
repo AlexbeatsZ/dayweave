@@ -1,16 +1,24 @@
 //! Read the frontmost window directly; no System Events process or Apple Events.
-use crate::{error::AppError, error::Result, monitor::WindowBounds};
+use crate::{
+    error::AppError,
+    error::Result,
+    monitor::{shale_page_url, WindowBounds, SHALE_ACTIVE_WEBVIEWER_ID},
+};
 use cocoa::base::{id, nil};
 use core_foundation::{
-    base::{CFGetTypeID, CFHash, CFRelease, CFTypeRef, TCFType},
+    array::{CFArrayGetCount, CFArrayGetTypeID, CFArrayGetValueAtIndex, CFArrayRef},
+    base::{CFEqual, CFGetTypeID, CFHash, CFRelease, CFTypeRef, TCFType},
     string::{CFString, CFStringGetTypeID, CFStringRef},
+    url::{CFURLGetString, CFURLGetTypeID, CFURLRef},
 };
 use core_graphics::geometry::{CGPoint, CGSize};
 use objc::{class, msg_send, sel, sel_impl};
 use std::{
+    collections::VecDeque,
     ffi::{c_void, CStr},
     os::raw::c_char,
     sync::atomic::{AtomicI64, Ordering},
+    time::{Duration, Instant},
 };
 
 /// Start of the current run of failed window reads; 0 while reads succeed.
@@ -83,6 +91,7 @@ pub struct FrontmostWindow {
     pub app_path: String,
     pub title: String,
     pub bounds: Option<WindowBounds>,
+    pub shale_page: Option<(String, String)>,
 }
 
 unsafe fn window_bounds(window: CFTypeRef) -> Option<WindowBounds> {
@@ -143,23 +152,28 @@ unsafe fn attribute(element: CFTypeRef, name: &str) -> Result<Option<OwnedCF>> {
     }
 }
 
-pub fn frontmost_window() -> Result<FrontmostWindow> {
+unsafe fn frontmost_pid() -> Result<i32> {
+    // This sampler has no AppKit event loop. NSWorkspace can keep returning an old
+    // frontmost application, so obtain the current process directly on every sample.
+    let mut process = ProcessSerialNumber::default();
+    let mut pid = 0;
+    let error = GetFrontProcess(&mut process);
+    if error != 0 {
+        return Err(AppError::Unknown(format!(
+            "GetFrontProcess failed: {error}"
+        )));
+    }
+    let error = GetProcessPID(&process, &mut pid);
+    if error != 0 || pid <= 0 {
+        return Err(AppError::Unknown(format!("GetProcessPID failed: {error}")));
+    }
+    Ok(pid)
+}
+
+pub fn frontmost_window(include_browser_url: bool) -> Result<FrontmostWindow> {
     unsafe {
         let _pool = Pool(msg_send![class!(NSAutoreleasePool), new]);
-        // This sampler has no AppKit event loop. NSWorkspace can keep returning an old
-        // frontmost application, so obtain the current process directly on every sample.
-        let mut process = ProcessSerialNumber::default();
-        let mut pid = 0;
-        let error = GetFrontProcess(&mut process);
-        if error != 0 {
-            return Err(AppError::Unknown(format!(
-                "GetFrontProcess failed: {error}"
-            )));
-        }
-        let error = GetProcessPID(&process, &mut pid);
-        if error != 0 || pid <= 0 {
-            return Err(AppError::Unknown(format!("GetProcessPID failed: {error}")));
-        }
+        let pid = frontmost_pid()?;
         let app: id =
             msg_send![class!(NSRunningApplication), runningApplicationWithProcessIdentifier: pid];
         if app == nil {
@@ -181,6 +195,7 @@ pub fn frontmost_window() -> Result<FrontmostWindow> {
         AXUIElementSetMessagingTimeout(application.0, 0.8);
         // The application itself is known from the current process; a failed window read only loses
         // the title, so the activity is still recorded under the application name.
+        let mut shale_page = None;
         let window = (|| -> Result<(usize, String, Option<WindowBounds>)> {
             let Some(window) = attribute(application.0, "AXFocusedWindow")? else {
                 return Ok((pid as usize, String::new(), None));
@@ -192,6 +207,15 @@ pub fn frontmost_window() -> Result<FrontmostWindow> {
             let title = attribute(window.0, "AXTitle")?
                 .and_then(|value| cf_string(value.0))
                 .unwrap_or_default();
+            if include_browser_url && bundle_identifier == "io.github.alexbeatsz.shale" {
+                shale_page = read_shale_page(window.0).filter(|_| {
+                    frontmost_pid().ok() == Some(pid)
+                        && attribute(application.0, "AXFocusedWindow")
+                            .ok()
+                            .flatten()
+                            .is_some_and(|focused| CFEqual(window.0, focused.0) != 0)
+                });
+            }
             Ok((
                 CFHash(window.0) as usize ^ ((pid as usize) << 32),
                 title,
@@ -208,7 +232,97 @@ pub fn frontmost_window() -> Result<FrontmostWindow> {
             app_path,
             title,
             bounds,
+            shale_page,
         })
+    }
+}
+
+// Native AXWebArea exposes the committed URL as a CFURL. Search the Shale
+// renderer for its marker, then stop at the first document beneath that marker.
+unsafe fn read_shale_page(window: CFTypeRef) -> Option<(String, String)> {
+    let mut search = AxSearch {
+        remaining: 384,
+        deadline: Instant::now() + Duration::from_millis(500),
+    };
+    let host = search.find(window, "AXWebArea")?;
+    let marker = search.find(host.0, SHALE_ACTIVE_WEBVIEWER_ID)?;
+    let document = search.find(marker.0, "AXWebArea")?;
+    let url = attribute(document.0, "AXURL").ok()??;
+    let raw = if CFGetTypeID(url.0) == CFURLGetTypeID() {
+        cf_string(CFURLGetString(url.0 as CFURLRef) as CFTypeRef)?
+    } else {
+        cf_string(url.0)?
+    };
+    let title = attribute(document.0, "AXTitle")
+        .ok()
+        .flatten()
+        .and_then(|value| cf_string(value.0))
+        .unwrap_or_default();
+    Some((title, shale_page_url(&raw)?))
+}
+
+struct AxSearch {
+    remaining: usize,
+    deadline: Instant,
+}
+
+impl AxSearch {
+    unsafe fn find(&mut self, root: CFTypeRef, target: &str) -> Option<OwnedCF> {
+        use core_foundation::base::CFRetain;
+
+        let mut pending = VecDeque::from([OwnedCF(CFRetain(root))]);
+        while let Some(node) = pending.pop_front() {
+            if self.remaining == 0 || Instant::now() >= self.deadline {
+                return None;
+            }
+            self.remaining -= 1;
+            AXUIElementSetMessagingTimeout(node.0, 0.15);
+            // The starting node is intentional. A deeper WebArea is a document
+            // boundary and its contents never participate in marker selection.
+            if node.0 != root {
+                let Some(role) = attribute(node.0, "AXRole")
+                    .ok()
+                    .flatten()
+                    .and_then(|role| cf_string(role.0))
+                else {
+                    continue;
+                };
+                if role == "AXWebArea" {
+                    if target == "AXWebArea" {
+                        return Some(node);
+                    }
+                    continue;
+                }
+                if target == SHALE_ACTIVE_WEBVIEWER_ID
+                    && attribute(node.0, "AXDOMIdentifier")
+                        .ok()
+                        .flatten()
+                        .and_then(|value| cf_string(value.0))
+                        .as_deref()
+                        == Some(target)
+                {
+                    return Some(node);
+                }
+                if !matches!(role.as_str(), "AXGroup" | "AXScrollArea" | "AXSplitGroup") {
+                    continue;
+                }
+            }
+            let Some(children) = attribute(node.0, "AXChildren").ok().flatten() else {
+                continue;
+            };
+            if CFGetTypeID(children.0) != CFArrayGetTypeID() {
+                continue;
+            }
+            let array = children.0 as CFArrayRef;
+            let capacity = self.remaining.saturating_sub(pending.len());
+            for index in 0..CFArrayGetCount(array).min(capacity as isize) {
+                let child = CFArrayGetValueAtIndex(array, index);
+                if !child.is_null() && CFGetTypeID(child) == AXUIElementGetTypeID() {
+                    pending.push_back(OwnedCF(CFRetain(child)));
+                }
+            }
+        }
+        None
     }
 }
 
